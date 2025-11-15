@@ -74,11 +74,11 @@ VerifiMind employs a trinity of specialized AI agents for validation:
 
 ## 📚 Documentation
 
-- **[White Paper](docs/VerifiMind_White_Paper.md)** - Technical architecture and methodology
-- **[Architecture V2](ARCHITECTURE_V2.md)** - Detailed system design
-- **[True Vision](VERIFIMIND_TRUE_VISION.md)** - Project philosophy and evolution
-- **[Development Roadmap](DEVELOPMENT_ROADMAP_V2.md)** - Future plans and milestones
-- **[PEAS Integration Plan](PEAS_INTEGRATION_PLAN.md)** - Implementation guide
+- **[White Paper](docs/white_paper.md)** - Technical architecture and methodology
+- **[Architecture V2](docs/architecture.md)** - Detailed system design
+- **[True Vision](docs/vision.md)** - Project philosophy and evolution
+- **[Development Roadmap](docs/roadmap.md)** - Future plans and milestones
+- **[PEAS Integration Plan](docs/integration_plan.md)** - Implementation guide
 
 ---
 
