@@ -2,7 +2,7 @@
 
 **Genesis Prompt Ecosystem for Application Synthesis**
 
-[![Version](https://img.shields.io/badge/version-2.0.0--beta-blue.svg)](https://github.com/verifimind/verifimind)
+[![Version](https://img.shields.io/badge/version-2.0.0--beta-blue.svg)](https://github.com/creator35lwb-web/VerifiMind-PEAS)
 [![Python](https://img.shields.io/badge/python-3.11+-green.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.XXXXXXX-blue.svg)](https://doi.org/10.5281/zenodo.XXXXXXX)
@@ -20,8 +20,6 @@ Transform your vision into validated, ethical, secure applications through AI co
 ---
 
 ## 🎯 Key Innovations
-
-
 
 - **Validation-First Paradigm:** A fundamental shift from "code-first" to "validation-first" development, ensuring ideas are sound before implementation.
 
@@ -48,27 +46,11 @@ Not just code generation, but complete concept-to-app workflow:
 
 ## The RefleXion Trinity: A Multi-Agent System for Validation
 
-
-
 VerifiMind employs a trinity of specialized AI agents for validation:
-
-
-
-
 
 - **X (Architect):** Technical feasibility and architecture agent.
 - **Z (Guardian):** Ethics and compliance agent.
 - **CS (Concept Scrutinizer):** Security and assumption validation agent.
-
-
-
-
-
-
-
-
-
-
 
 ---
 
@@ -86,8 +68,8 @@ VerifiMind employs a trinity of specialized AI agents for validation:
 
 ```bash
 # Clone the repository
-git clone https://github.com/verifimind/verifimind.git
-cd verifimind
+git clone https://github.com/creator35lwb-web/VerifiMind-PEAS.git
+cd VerifiMind-PEAS
 
 # Install dependencies
 pip install -r requirements.txt
@@ -102,7 +84,7 @@ python demo_iterative_generation.py
 
 **Current Version:** 2.0.0-beta  
 **Status:** In Development  
-**Last Updated:** November 13, 2025
+**Last Updated:** November 15, 2025
 
 ### Completed
 - ✅ Concept Scrutinizer framework validated
