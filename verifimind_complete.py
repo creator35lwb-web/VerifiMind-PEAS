@@ -5,6 +5,7 @@ Full end-to-end orchestration: X, Z, CS agents → Iterative Generation → Prod
 
 import asyncio
 import sys
+import argparse
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Optional
@@ -12,6 +13,7 @@ from typing import Dict, Any, Optional
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
 
+from src.core.logging_config import setup_logging, get_logger
 from src.agents import (
     XIntelligentAgent,
     ZGuardianAgent,
@@ -24,6 +26,9 @@ from src.generation import (
     AppSpecification
 )
 from src.llm.llm_provider import LLMProviderFactory
+
+# Get logger for this module
+logger = get_logger(__name__)
 
 
 class VerifiMindComplete:
@@ -48,11 +53,15 @@ class VerifiMindComplete:
         api_key = self.config.get('openai_api_key') or self.config.get('anthropic_api_key')
         self.llm = LLMProviderFactory.create_provider(provider_type=provider_type, api_key=api_key)
 
+        logger.info(f"Initialized LLM provider: {provider_type}")
+
         # Initialize validation agents
         self.x_agent = XIntelligentAgent("x-1", self.llm, self.config)
         self.z_agent = ZGuardianAgent("z-1", self.llm, self.config)
         self.cs_agent = CSSecurityAgent("cs-1", self.llm, self.config)
         self.orchestrator = AgentOrchestrator(self.x_agent, self.z_agent, self.cs_agent)
+
+        logger.info("Initialized validation agents: X, Z, CS")
 
         # Initialize iterative generator
         self.generator = IterativeCodeGenerationEngine(
@@ -61,6 +70,8 @@ class VerifiMindComplete:
             max_iterations=self.config.get('max_iterations', 3),
             quality_threshold=self.config.get('quality_threshold', 85)
         )
+
+        logger.info(f"Initialized code generator - max_iterations: {self.config.get('max_iterations', 3)}, quality_threshold: {self.config.get('quality_threshold', 85)}")
 
     async def create_app_from_idea(
         self,
@@ -82,6 +93,8 @@ class VerifiMindComplete:
             (GeneratedApp, ImprovementHistory) - Final app and iteration history
         """
 
+        logger.info(f"Starting app generation from idea: {idea_description[:100]}...")
+
         print("\n" + "="*70)
         print("VerifiMind™ - Complete AI Application Generation")
         print("="*70)
@@ -91,6 +104,7 @@ class VerifiMindComplete:
         print("="*70)
         print("PHASE 1: CONCEPT VALIDATION (X, Z, CS Agents)")
         print("="*70 + "\n")
+        logger.info("Phase 1: Starting concept validation")
 
         concept = ConceptInput(
             id=f"concept-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}",
@@ -101,16 +115,19 @@ class VerifiMindComplete:
         )
 
         # Run all three agents in parallel
+        logger.info("Running X, Z, CS agents in parallel...")
         print("Running X, Z, CS agents in parallel...")
         agent_results = await self.orchestrator.run_full_analysis(concept)
 
         # Get conflict resolution decision
         decision = self.orchestrator.resolve_conflicts(agent_results)
+        logger.info(f"Conflict resolution decision: {decision['decision']}")
 
         self._print_agent_results(agent_results, decision)
 
         # Check if concept is approved
         if decision['decision'] == 'reject':
+            logger.warning(f"Concept rejected: {decision['reason']}")
             print(f"\n[X] CONCEPT REJECTED")
             print(f"Reason: {decision['reason']}")
             print(f"\nPlease revise your concept and try again.")
@@ -120,6 +137,7 @@ class VerifiMindComplete:
         print("\n" + "="*70)
         print("PHASE 2: BUILDING APPLICATION SPECIFICATION")
         print("="*70 + "\n")
+        logger.info("Phase 2: Building application specification")
 
         app_spec = await self._build_app_spec(
             idea_description=idea_description,
@@ -128,6 +146,7 @@ class VerifiMindComplete:
             agent_results=agent_results
         )
 
+        logger.info(f"App specification complete: {app_spec.app_name}")
         print(f"[OK] Application Specification Complete")
         print(f"   App Name: {app_spec.app_name}")
         print(f"   Category: {app_spec.category}")
@@ -141,6 +160,7 @@ class VerifiMindComplete:
         print("\n" + "="*70)
         print("PHASE 3: ITERATIVE CODE GENERATION")
         print("="*70 + "\n")
+        logger.info("Phase 3: Starting iterative code generation")
 
         generated_app, history = await self.generator.generate_with_iterations(
             spec=app_spec,
@@ -151,6 +171,7 @@ class VerifiMindComplete:
         print("\n" + "="*70)
         print("[OK] APPLICATION GENERATION COMPLETE!")
         print("="*70)
+        logger.info("Phase 4: Application generation complete")
 
         self._print_final_output(generated_app, history, app_spec.app_name, output_dir)
 
@@ -166,6 +187,7 @@ class VerifiMindComplete:
         """
         Builds complete AppSpecification from idea and agent results
         """
+        logger.debug("Building app specification from agent results")
 
         # Extract insights from agents
         x_result = agent_results.get('X')
@@ -177,10 +199,12 @@ class VerifiMindComplete:
             # Simple name generation from idea
             words = idea_description.split()[:3]
             app_name = ''.join(word.capitalize() for word in words if word.isalnum())
+            logger.debug(f"Auto-generated app name: {app_name}")
 
         # Auto-detect category if not provided
         if not category:
             category = self._detect_category(idea_description)
+            logger.debug(f"Auto-detected category: {category}")
 
         # Build specification
         spec = AppSpecification(
@@ -287,6 +311,7 @@ class VerifiMindComplete:
         try:
             return await self._generate_entities_with_llm(idea, category)
         except Exception as e:
+            logger.warning(f"LLM entity generation failed: {e}. Using template fallback.")
             print(f"[WARNING] LLM entity generation failed: {e}. Using template fallback.")
             # Fallback to basic user entity
             return [
@@ -304,6 +329,8 @@ class VerifiMindComplete:
     async def _generate_entities_with_llm(self, idea: str, category: str) -> list:
         """Uses LLM to generate entities from idea description"""
         from src.llm.llm_provider import LLMMessage
+
+        logger.debug(f"Generating database entities for category: {category}")
 
         prompt = f"""Based on this application idea, identify the main database entities needed:
 
@@ -357,6 +384,7 @@ Include user entity first, then application-specific entities."""
 
         import json
         entities = json.loads(content)
+        logger.info(f"Generated {len(entities)} database entities")
         print(f"[AI] Generated {len(entities)} entities from concept")
         return entities
 
@@ -384,8 +412,10 @@ Include user entity first, then application-specific entities."""
         try:
             domain_endpoints = await self._generate_domain_endpoints_with_llm(idea, category)
             endpoints.extend(domain_endpoints)
+            logger.info(f"Generated {len(domain_endpoints)} domain-specific API endpoints")
             print(f"[AI] Generated {len(domain_endpoints)} domain-specific API endpoints")
         except Exception as e:
+            logger.warning(f"Domain endpoint generation failed: {e}. Using base endpoints only.")
             print(f"[WARNING] Domain endpoint generation failed: {e}. Using base endpoints only.")
 
         return endpoints
@@ -393,6 +423,8 @@ Include user entity first, then application-specific entities."""
     async def _generate_domain_endpoints_with_llm(self, idea: str, category: str) -> list:
         """Uses LLM to generate domain-specific API endpoints"""
         from src.llm.llm_provider import LLMMessage
+
+        logger.debug(f"Generating API endpoints for category: {category}")
 
         prompt = f"""Based on this application idea, design the RESTful API endpoints needed:
 
@@ -456,8 +488,10 @@ Do NOT include auth endpoints (login/register). Focus on domain-specific resourc
         try:
             domain_pages = await self._generate_domain_pages_with_llm(idea, category)
             pages.extend(domain_pages)
+            logger.info(f"Generated {len(domain_pages)} domain-specific UI pages")
             print(f"[AI] Generated {len(domain_pages)} domain-specific UI pages")
         except Exception as e:
+            logger.warning(f"Domain page generation failed: {e}. Using base pages only.")
             print(f"[WARNING] Domain page generation failed: {e}. Using base pages only.")
 
         return pages
@@ -465,6 +499,8 @@ Do NOT include auth endpoints (login/register). Focus on domain-specific resourc
     async def _generate_domain_pages_with_llm(self, idea: str, category: str) -> list:
         """Uses LLM to generate domain-specific pages"""
         from src.llm.llm_provider import LLMMessage
+
+        logger.debug(f"Generating UI pages for category: {category}")
 
         prompt = f"""Based on this application idea, identify the main UI pages/views needed:
 
@@ -548,6 +584,7 @@ Do NOT include login, register, dashboard, or profile pages (already included)."
 
     def _print_agent_results(self, results: Dict, decision: Dict):
         """Print agent validation results"""
+        logger.debug("Printing agent validation results")
         print("\n[INFO] AGENT VALIDATION RESULTS:\n")
 
         for agent_type in ['X', 'Z', 'CS']:
@@ -574,6 +611,7 @@ Do NOT include login, register, dashboard, or profile pages (already included)."
 
     def _print_final_output(self, generated_app, history, app_name: str, output_dir: str):
         """Print final output information"""
+        logger.info(f"Application generated successfully: {app_name}")
         print(f"\n[SUCCESS] APPLICATION GENERATED SUCCESSFULLY!")
         print(f"\n[OUTPUT] Output Location:")
         print(f"   {output_dir}/{app_name}/")
@@ -599,40 +637,157 @@ Do NOT include login, register, dashboard, or profile pages (already included)."
         print(f"\n[READY] Your app is production-ready!")
 
 
+def parse_arguments():
+    """Parse command-line arguments"""
+    parser = argparse.ArgumentParser(
+        description='VerifiMind Complete System - Generate production-ready apps from ideas',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Examples:
+  python verifimind_complete.py --prompt-file ./prompts/my_app.txt
+  python verifimind_complete.py --prompt-file ./prompts/app.txt --output-dir ./generated_apps/my_app
+  python verifimind_complete.py --prompt-file ./prompts/app.txt --model claude-3-5-sonnet --verbose
+  python verifimind_complete.py --interactive
+        '''
+    )
+
+    parser.add_argument(
+        '--prompt-file',
+        type=str,
+        help='Path to the input prompt file containing the app idea'
+    )
+
+    parser.add_argument(
+        '--output-dir',
+        type=str,
+        default='./output',
+        help='Directory where generated code will be saved (default: ./output)'
+    )
+
+    parser.add_argument(
+        '--model',
+        type=str,
+        default='gpt-4',
+        help='Primary LLM model to use for generation (default: gpt-4)'
+    )
+
+    parser.add_argument(
+        '--max-iterations',
+        type=int,
+        default=3,
+        help='Maximum number of iterative improvements (default: 3)'
+    )
+
+    parser.add_argument(
+        '--quality-threshold',
+        type=int,
+        default=85,
+        help='Quality threshold score 0-100 (default: 85)'
+    )
+
+    parser.add_argument(
+        '--verbose', '-v',
+        action='store_true',
+        help='Enable verbose logging (DEBUG level)'
+    )
+
+    parser.add_argument(
+        '--interactive',
+        action='store_true',
+        help='Run in interactive mode (prompt for idea)'
+    )
+
+    parser.add_argument(
+        '--test',
+        action='store_true',
+        help='Run with test example (restaurant ordering system)'
+    )
+
+    return parser.parse_args()
+
+
 async def main():
     """Main entry point"""
     import os
     from dotenv import load_dotenv
 
+    # Parse command-line arguments
+    args = parse_arguments()
+
+    # Setup logging (DEBUG if verbose, otherwise INFO)
+    log_level = 'DEBUG' if args.verbose else 'INFO'
+    setup_logging(log_level=log_level)
+
+    logger.info("VerifiMind Complete System starting")
+
     # Load environment variables
     load_dotenv()
 
-    # Example usage
-    verifimind = VerifiMindComplete(config={
-        'max_iterations': 3,
-        'quality_threshold': 85,
-        'llm_provider': os.getenv('LLM_PROVIDER', 'openai'),
-        'openai_api_key': os.getenv('OPENAI_API_KEY'),
-        'anthropic_api_key': os.getenv('ANTHROPIC_API_KEY')
-    })
-
-    # Check for test mode
-    if len(sys.argv) > 1 and sys.argv[1] == '--test':
-        idea = "create a restaurant order numbering system. The orders is count by number and selected items by clients. Customization order given a list of selection add-on sub-items."
-        print(f"\n[TEST MODE] Using restaurant ordering system concept\n")
+    # Determine LLM provider from model name
+    if 'claude' in args.model.lower():
+        llm_provider = 'anthropic'
+        api_key_env = 'ANTHROPIC_API_KEY'
     else:
-        # Example idea
+        llm_provider = 'openai'
+        api_key_env = 'OPENAI_API_KEY'
+
+    # Create configuration
+    config = {
+        'max_iterations': args.max_iterations,
+        'quality_threshold': args.quality_threshold,
+        'llm_provider': os.getenv('LLM_PROVIDER', llm_provider),
+        'openai_api_key': os.getenv('OPENAI_API_KEY'),
+        'anthropic_api_key': os.getenv('ANTHROPIC_API_KEY'),
+        'model': args.model
+    }
+
+    # Verify API key is set
+    if not config.get('openai_api_key') and not config.get('anthropic_api_key'):
+        logger.error(f"{api_key_env} environment variable not set")
+        print(f"\n[ERROR] {api_key_env} environment variable is not set.")
+        print(f"Please set it in your .env file or environment.")
+        return
+
+    # Initialize VerifiMind system
+    verifimind = VerifiMindComplete(config=config)
+
+    # Determine app idea source
+    if args.test:
+        idea = "create a restaurant order numbering system. The orders is count by number and selected items by clients. Customization order given a list of selection add-on sub-items."
+        logger.info("Running in test mode with restaurant example")
+        print(f"\n[TEST MODE] Using restaurant ordering system concept\n")
+    elif args.prompt_file:
+        # Read idea from file
+        prompt_path = Path(args.prompt_file)
+        if not prompt_path.exists():
+            logger.error(f"Prompt file not found: {args.prompt_file}")
+            print(f"\n[ERROR] Prompt file not found: {args.prompt_file}")
+            return
+
+        idea = prompt_path.read_text(encoding='utf-8').strip()
+        logger.info(f"Read prompt from file: {args.prompt_file}")
+        print(f"\n[INFO] Using idea from: {args.prompt_file}\n")
+    elif args.interactive or not args.prompt_file:
+        # Interactive mode - prompt user
+        logger.info("Running in interactive mode")
         idea = input("\n[?] Describe your app idea: ").strip()
 
         if not idea:
             idea = "A fitness tracking app for runners to log workouts and track progress"
+            logger.info(f"Using default example: {idea}")
             print(f"Using example: {idea}")
+    else:
+        print("\n[ERROR] No idea provided. Use --prompt-file, --interactive, or --test")
+        return
 
     # Generate app
+    logger.info(f"Starting app generation - Output directory: {args.output_dir}")
     await verifimind.create_app_from_idea(
         idea_description=idea,
-        output_dir="output"
+        output_dir=args.output_dir
     )
+
+    logger.info("VerifiMind Complete System finished")
 
 
 if __name__ == "__main__":
