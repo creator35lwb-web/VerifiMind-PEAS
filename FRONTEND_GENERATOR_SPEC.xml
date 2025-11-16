@@ -1,0 +1,765 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<verifimind_frontend_generator version="1.0">
+
+  <metadata>
+    <title>VerifiMind Frontend Generator Specification</title>
+    <created>2025-10-08</created>
+    <author>VerifiMind Development Team</author>
+    <status>implemented</status>
+  </metadata>
+
+  <overview>
+    <purpose>
+      Generate complete React + Next.js + TypeScript frontend applications
+      with routing, state management, API integration, and authentication
+    </purpose>
+    <tech_stack>
+      <framework name="Next.js" version="14.0" />
+      <language name="TypeScript" version="5.2" />
+      <styling name="Tailwind CSS" version="3.3" />
+      <state_management name="Zustand" version="4.4" />
+      <http_client name="Axios" version="1.5" />
+      <forms name="React Hook Form" version="7.47" />
+      <validation name="Zod" version="3.22" />
+    </tech_stack>
+  </overview>
+
+  <architecture>
+    <description>
+      Next.js App Router architecture with server and client components,
+      following React best practices and accessibility standards
+    </description>
+
+    <directory_structure>
+      <root path="frontend/">
+        <config>
+          <file name="package.json" type="dependency_manifest" />
+          <file name="next.config.js" type="next_configuration" />
+          <file name="tsconfig.json" type="typescript_configuration" />
+          <file name="tailwind.config.js" type="styling_configuration" />
+          <file name=".env.local.example" type="environment_template" />
+        </config>
+
+        <source path="src/">
+          <directory name="app" purpose="pages_and_routing">
+            <file name="layout.tsx" type="root_layout" />
+            <file name="page.tsx" type="home_page" />
+            <file name="globals.css" type="global_styles" />
+
+            <subdirectory name="login">
+              <file name="page.tsx" type="authentication_page" />
+            </subdirectory>
+
+            <subdirectory name="register">
+              <file name="page.tsx" type="authentication_page" />
+            </subdirectory>
+
+            <subdirectory name="dashboard">
+              <file name="page.tsx" type="protected_page" requires_auth="true" />
+            </subdirectory>
+          </directory>
+
+          <directory name="components" purpose="reusable_ui_components">
+            <file name="Providers.tsx" type="context_wrapper" />
+            <file name="Navbar.tsx" type="navigation" />
+
+            <subdirectory name="ui">
+              <file name="Button.tsx" type="component" reusable="true" />
+              <file name="Input.tsx" type="component" reusable="true" />
+              <file name="Card.tsx" type="component" reusable="true" />
+              <file name="Spinner.tsx" type="component" reusable="true" />
+            </subdirectory>
+          </directory>
+
+          <directory name="hooks" purpose="custom_react_hooks">
+            <file name="useAuth.tsx" type="authentication_hook" />
+            <file name="useApi.ts" type="data_fetching_hook" />
+          </directory>
+
+          <directory name="lib" purpose="utilities_and_helpers">
+            <file name="api.ts" type="api_client" />
+            <file name="utils.ts" type="utility_functions" />
+          </directory>
+
+          <directory name="store" purpose="state_management">
+            <file name="index.ts" type="zustand_store" />
+          </directory>
+        </source>
+      </root>
+    </directory_structure>
+  </architecture>
+
+  <components>
+    <component name="FrontendGenerator" type="class">
+      <description>
+        Main orchestrator for frontend code generation
+      </description>
+
+      <methods>
+        <method name="generate" access="public" async="true">
+          <parameters>
+            <param name="ui_pages" type="List[Dict]" description="UI pages to generate" />
+            <param name="features" type="List[Dict]" description="App features" />
+            <param name="backend_code" type="Dict[str, str]" description="Generated backend code" />
+            <param name="template" type="Any" description="Selected app template" />
+          </parameters>
+          <returns type="Dict[str, str]" description="Mapping of file paths to code" />
+          <process>
+            <step order="1">Generate package.json with dependencies</step>
+            <step order="2">Generate Next.js and TypeScript configuration</step>
+            <step order="3">Generate root layout and home page</step>
+            <step order="4">Generate individual pages from ui_pages</step>
+            <step order="5">Generate reusable UI components</step>
+            <step order="6">Generate API integration layer</step>
+            <step order="7">Generate state management setup</step>
+            <step order="8">Generate authentication components</step>
+            <step order="9">Generate utility functions and hooks</step>
+            <step order="10">Generate global styles</step>
+          </process>
+        </method>
+
+        <method name="_generate_package_json" access="private">
+          <purpose>Create package.json with all required dependencies</purpose>
+          <dependencies>
+            <runtime>
+              <dep name="next" version="^14.0.0" />
+              <dep name="react" version="^18.2.0" />
+              <dep name="typescript" version="^5.2.0" />
+              <dep name="tailwindcss" version="^3.3.0" />
+              <dep name="zustand" version="^4.4.0" />
+              <dep name="axios" version="^1.5.0" />
+              <dep name="react-hook-form" version="^7.47.0" />
+              <dep name="zod" version="^3.22.0" />
+            </runtime>
+            <development>
+              <dep name="eslint" version="^8.0.0" />
+              <dep name="@tailwindcss/forms" version="^0.5.7" />
+            </development>
+          </dependencies>
+        </method>
+
+        <method name="_generate_page" access="private">
+          <purpose>Generate individual page component</purpose>
+          <features>
+            <feature>Client-side rendering with 'use client' directive</feature>
+            <feature>Authentication check and redirect</feature>
+            <feature>Loading states</feature>
+            <feature>Responsive layout</feature>
+            <feature>Component composition</feature>
+          </features>
+        </method>
+
+        <method name="_generate_api_layer" access="private">
+          <purpose>Create Axios-based API client with interceptors</purpose>
+          <features>
+            <feature>Base URL configuration</feature>
+            <feature>Automatic token injection</feature>
+            <feature>Error handling and auth redirect</feature>
+            <feature>Type-safe API methods</feature>
+          </features>
+        </method>
+      </methods>
+    </component>
+
+    <component name="AuthProvider" type="react_context">
+      <description>
+        Provides authentication state and methods throughout the app
+      </description>
+      <state>
+        <field name="user" type="User | null" />
+        <field name="isAuthenticated" type="boolean" />
+        <field name="loading" type="boolean" />
+      </state>
+      <methods>
+        <method name="login" parameters="email, password" />
+        <method name="register" parameters="userData" />
+        <method name="logout" parameters="none" />
+        <method name="checkAuth" parameters="none" private="true" />
+      </methods>
+    </component>
+
+    <component name="Button" type="react_component">
+      <description>Reusable button component with variants and sizes</description>
+      <props>
+        <prop name="variant" type="'primary' | 'secondary' | 'outline' | 'danger'" default="primary" />
+        <prop name="size" type="'sm' | 'md' | 'lg'" default="md" />
+        <prop name="isLoading" type="boolean" default="false" />
+        <prop name="children" type="ReactNode" required="true" />
+      </props>
+      <styling>
+        <framework>Tailwind CSS</framework>
+        <utilities>clsx for conditional classes</utilities>
+      </styling>
+    </component>
+
+    <component name="Input" type="react_component">
+      <description>Reusable form input with label and error handling</description>
+      <props>
+        <prop name="label" type="string" />
+        <prop name="error" type="string" />
+        <prop name="helperText" type="string" />
+      </props>
+      <features>
+        <feature>Forward ref support</feature>
+        <feature>Error state styling</feature>
+        <feature>Helper text display</feature>
+        <feature>Accessibility labels</feature>
+      </features>
+    </component>
+  </components>
+
+  <generated_files>
+    <category name="configuration">
+      <file path="frontend/package.json">
+        <purpose>NPM dependencies and scripts</purpose>
+        <scripts>
+          <script name="dev" command="next dev" />
+          <script name="build" command="next build" />
+          <script name="start" command="next start" />
+          <script name="lint" command="next lint" />
+        </scripts>
+      </file>
+
+      <file path="frontend/next.config.js">
+        <purpose>Next.js configuration</purpose>
+        <config>
+          <option name="reactStrictMode" value="true" />
+          <option name="swcMinify" value="true" />
+        </config>
+      </file>
+
+      <file path="frontend/tsconfig.json">
+        <purpose>TypeScript compiler configuration</purpose>
+        <features>
+          <feature>Path aliases (@/* for src/)</feature>
+          <feature>Strict type checking</feature>
+          <feature>JSX preserve for Next.js</feature>
+        </features>
+      </file>
+
+      <file path="frontend/tailwind.config.js">
+        <purpose>Tailwind CSS configuration</purpose>
+        <features>
+          <feature>Custom color palette</feature>
+          <feature>Plugin integration (forms, typography)</feature>
+          <feature>Content scanning paths</feature>
+        </features>
+      </file>
+    </category>
+
+    <category name="pages">
+      <file path="frontend/src/app/layout.tsx">
+        <purpose>Root layout wrapper for all pages</purpose>
+        <includes>
+          <include>Global CSS import</include>
+          <include>Font configuration (Inter)</include>
+          <include>Providers wrapper</include>
+          <include>Navbar component</include>
+          <include>Metadata configuration</include>
+        </includes>
+      </file>
+
+      <file path="frontend/src/app/page.tsx">
+        <purpose>Home page / landing page</purpose>
+        <features>
+          <feature>Authentication state check</feature>
+          <feature>Conditional rendering (logged in/out)</feature>
+          <feature>Feature cards display</feature>
+          <feature>Call-to-action buttons</feature>
+        </features>
+      </file>
+
+      <file path="frontend/src/app/login/page.tsx">
+        <purpose>User login page</purpose>
+        <features>
+          <feature>Form validation</feature>
+          <feature>Error handling</feature>
+          <feature>Loading states</feature>
+          <feature>Redirect to dashboard on success</feature>
+          <feature>Link to registration</feature>
+        </features>
+      </file>
+
+      <file path="frontend/src/app/register/page.tsx">
+        <purpose>User registration page</purpose>
+        <features>
+          <feature>Multi-field form</feature>
+          <feature>Password confirmation</feature>
+          <feature>Form validation</feature>
+          <feature>Error handling</feature>
+          <feature>Auto-login after registration</feature>
+        </features>
+      </file>
+
+      <file path="frontend/src/app/dashboard/page.tsx">
+        <purpose>Protected dashboard page</purpose>
+        <features>
+          <feature>Authentication required</feature>
+          <feature>Auto-redirect if not authenticated</feature>
+          <feature>User-specific content</feature>
+          <feature>Loading state</feature>
+        </features>
+      </file>
+    </category>
+
+    <category name="components">
+      <file path="frontend/src/components/Providers.tsx">
+        <purpose>Wrap app with context providers</purpose>
+        <providers>
+          <provider name="AuthProvider" />
+        </providers>
+      </file>
+
+      <file path="frontend/src/components/Navbar.tsx">
+        <purpose>Top navigation bar</purpose>
+        <features>
+          <feature>Responsive design</feature>
+          <feature>Conditional menu items (auth state)</feature>
+          <feature>Logout functionality</feature>
+          <feature>User display</feature>
+        </features>
+      </file>
+
+      <file path="frontend/src/components/ui/Button.tsx">
+        <purpose>Reusable button component</purpose>
+        <variants>
+          <variant name="primary" color="primary-600" />
+          <variant name="secondary" color="gray-600" />
+          <variant name="outline" border="true" />
+          <variant name="danger" color="red-600" />
+        </variants>
+        <sizes>
+          <size name="sm" padding="px-3 py-1.5" />
+          <size name="md" padding="px-4 py-2" />
+          <size name="lg" padding="px-6 py-3" />
+        </sizes>
+      </file>
+
+      <file path="frontend/src/components/ui/Input.tsx">
+        <purpose>Reusable form input component</purpose>
+        <features>
+          <feature>Label support</feature>
+          <feature>Error message display</feature>
+          <feature>Helper text</feature>
+          <feature>Forward ref for React Hook Form</feature>
+          <feature>Conditional styling (error state)</feature>
+        </features>
+      </file>
+
+      <file path="frontend/src/components/ui/Card.tsx">
+        <purpose>Reusable card container</purpose>
+        <sections>
+          <section name="header" optional="true">Title area</section>
+          <section name="body" optional="false">Main content</section>
+          <section name="footer" optional="true">Footer area</section>
+        </sections>
+      </file>
+
+      <file path="frontend/src/components/ui/Spinner.tsx">
+        <purpose>Loading spinner</purpose>
+        <sizes>
+          <size name="sm" dimension="w-4 h-4" />
+          <size name="md" dimension="w-8 h-8" />
+          <size name="lg" dimension="w-12 h-12" />
+        </sizes>
+      </file>
+    </category>
+
+    <category name="hooks">
+      <file path="frontend/src/hooks/useAuth.tsx">
+        <purpose>Authentication hook and context</purpose>
+        <exports>
+          <export name="AuthProvider" type="component" />
+          <export name="useAuth" type="hook" />
+        </exports>
+        <methods>
+          <method name="login">Login user with email/password</method>
+          <method name="register">Register new user</method>
+          <method name="logout">Logout current user</method>
+        </methods>
+        <state>
+          <field name="user">Current user object</field>
+          <field name="isAuthenticated">Boolean auth status</field>
+          <field name="loading">Loading state</field>
+        </state>
+      </file>
+
+      <file path="frontend/src/hooks/useApi.ts">
+        <purpose>Generic API data fetching hook</purpose>
+        <features>
+          <feature>Automatic data fetching</feature>
+          <feature>Loading and error states</feature>
+          <feature>Refetch method</feature>
+          <feature>Type-safe with generics</feature>
+        </features>
+      </file>
+    </category>
+
+    <category name="lib">
+      <file path="frontend/src/lib/api.ts">
+        <purpose>Axios API client configuration</purpose>
+        <features>
+          <feature name="base_url">Configured from environment</feature>
+          <feature name="interceptors">
+            <request>Add auth token to headers</request>
+            <response>Handle 401 errors with redirect</response>
+          </feature>
+          <feature name="api_methods">
+            <method name="auth.login" />
+            <method name="auth.register" />
+            <method name="auth.logout" />
+            <method name="auth.me" />
+            <method name="get" />
+            <method name="post" />
+            <method name="put" />
+            <method name="delete" />
+          </feature>
+        </features>
+      </file>
+
+      <file path="frontend/src/lib/utils.ts">
+        <purpose>Utility helper functions</purpose>
+        <functions>
+          <function name="cn">Merge Tailwind classes with clsx</function>
+          <function name="formatDate">Format dates for display</function>
+          <function name="formatCurrency">Format currency values</function>
+        </functions>
+      </file>
+    </category>
+
+    <category name="state">
+      <file path="frontend/src/store/index.ts">
+        <purpose>Zustand global state store</purpose>
+        <state_slices>
+          <slice name="sidebar">
+            <field name="sidebarOpen" type="boolean" />
+            <action name="setSidebarOpen" />
+          </slice>
+          <slice name="notifications">
+            <field name="notifications" type="array" />
+            <action name="addNotification" />
+            <action name="removeNotification" />
+          </slice>
+        </state_slices>
+      </file>
+    </category>
+
+    <category name="styles">
+      <file path="frontend/src/app/globals.css">
+        <purpose>Global CSS with Tailwind directives</purpose>
+        <layers>
+          <layer name="base">Root CSS variables and defaults</layer>
+          <layer name="components">Custom Tailwind components</layer>
+          <layer name="utilities">Custom Tailwind utilities</layer>
+        </layers>
+      </file>
+    </category>
+  </generated_files>
+
+  <features>
+    <feature name="authentication">
+      <description>Complete authentication flow with JWT tokens</description>
+      <components>
+        <component>Login page</component>
+        <component>Register page</component>
+        <component>useAuth hook</component>
+        <component>AuthProvider context</component>
+        <component>Protected routes</component>
+      </components>
+      <security>
+        <measure>Token storage in localStorage</measure>
+        <measure>Automatic token injection in API requests</measure>
+        <measure>401 redirect handling</measure>
+        <measure>Password confirmation on registration</measure>
+      </security>
+    </feature>
+
+    <feature name="routing">
+      <description>Next.js App Router with file-based routing</description>
+      <routes>
+        <route path="/" component="HomePage" protected="false" />
+        <route path="/login" component="LoginPage" protected="false" />
+        <route path="/register" component="RegisterPage" protected="false" />
+        <route path="/dashboard" component="DashboardPage" protected="true" />
+      </routes>
+    </feature>
+
+    <feature name="api_integration">
+      <description>Axios-based API client with type safety</description>
+      <configuration>
+        <base_url source="environment">NEXT_PUBLIC_API_URL</base_url>
+        <headers default="true">Content-Type: application/json</headers>
+        <interceptors>
+          <request>Add authorization token</request>
+          <response>Handle errors and redirects</response>
+        </interceptors>
+      </configuration>
+    </feature>
+
+    <feature name="state_management">
+      <description>Zustand for global state management</description>
+      <advantages>
+        <advantage>Simple API</advantage>
+        <advantage>No providers needed</advantage>
+        <advantage>TypeScript support</advantage>
+        <advantage>Minimal boilerplate</advantage>
+      </advantages>
+    </feature>
+
+    <feature name="styling">
+      <description>Tailwind CSS with custom configuration</description>
+      <plugins>
+        <plugin name="@tailwindcss/forms">Form styling</plugin>
+        <plugin name="@tailwindcss/typography">Typography styles</plugin>
+      </plugins>
+      <customization>
+        <colors>Custom primary color palette</colors>
+        <utilities>Custom animation utilities</utilities>
+      </customization>
+    </feature>
+
+    <feature name="typescript">
+      <description>Full TypeScript support with strict mode</description>
+      <benefits>
+        <benefit>Type safety</benefit>
+        <benefit>Better IDE support</benefit>
+        <benefit>Catch errors at compile time</benefit>
+        <benefit>Self-documenting code</benefit>
+      </benefits>
+    </feature>
+
+    <feature name="responsive_design">
+      <description>Mobile-first responsive design</description>
+      <breakpoints>
+        <breakpoint name="sm" width="640px" />
+        <breakpoint name="md" width="768px" />
+        <breakpoint name="lg" width="1024px" />
+        <breakpoint name="xl" width="1280px" />
+      </breakpoints>
+    </feature>
+  </features>
+
+  <integration>
+    <backend_integration>
+      <description>
+        Frontend integrates with generated backend API
+      </description>
+      <endpoints>
+        <auth>
+          <endpoint method="POST" path="/api/auth/login" />
+          <endpoint method="POST" path="/api/auth/register" />
+          <endpoint method="POST" path="/api/auth/logout" />
+          <endpoint method="GET" path="/api/auth/me" />
+        </auth>
+        <generic>
+          <endpoint method="GET" path="/api/{resource}" />
+          <endpoint method="POST" path="/api/{resource}" />
+          <endpoint method="PUT" path="/api/{resource}/{id}" />
+          <endpoint method="DELETE" path="/api/{resource}/{id}" />
+        </generic>
+      </endpoints>
+    </backend_integration>
+
+    <code_generation_flow>
+      <step order="1">
+        <name>Receive Specification</name>
+        <inputs>
+          <input>UI pages list</input>
+          <input>App features</input>
+          <input>Backend API structure</input>
+          <input>Template configuration</input>
+        </inputs>
+      </step>
+
+      <step order="2">
+        <name>Generate Configuration</name>
+        <outputs>
+          <output>package.json</output>
+          <output>next.config.js</output>
+          <output>tsconfig.json</output>
+          <output>tailwind.config.js</output>
+        </outputs>
+      </step>
+
+      <step order="3">
+        <name>Generate Core Structure</name>
+        <outputs>
+          <output>Root layout</output>
+          <output>Home page</output>
+          <output>Global styles</output>
+        </outputs>
+      </step>
+
+      <step order="4">
+        <name>Generate Pages</name>
+        <outputs>
+          <output>Dynamic pages based on ui_pages</output>
+          <output>Authentication pages</output>
+          <output>Protected pages with auth checks</output>
+        </outputs>
+      </step>
+
+      <step order="5">
+        <name>Generate Components</name>
+        <outputs>
+          <output>UI components (Button, Input, Card, etc.)</output>
+          <output>Layout components (Navbar, Providers)</output>
+          <output>Utility components (Spinner)</output>
+        </outputs>
+      </step>
+
+      <step order="6">
+        <name>Generate Integration Layer</name>
+        <outputs>
+          <output>API client</output>
+          <output>Custom hooks (useAuth, useApi)</output>
+          <output>State management</output>
+        </outputs>
+      </step>
+
+      <step order="7">
+        <name>Generate Utilities</name>
+        <outputs>
+          <output>Helper functions</output>
+          <output>Type definitions</output>
+          <output>Constants</output>
+        </outputs>
+      </step>
+    </code_generation_flow>
+  </integration>
+
+  <best_practices>
+    <practice category="code_quality">
+      <name>TypeScript Strict Mode</name>
+      <description>Enable strict type checking for better code quality</description>
+    </practice>
+
+    <practice category="performance">
+      <name>Code Splitting</name>
+      <description>Next.js automatic code splitting per route</description>
+    </practice>
+
+    <practice category="security">
+      <name>Environment Variables</name>
+      <description>Use NEXT_PUBLIC_ prefix for client-side env vars</description>
+    </practice>
+
+    <practice category="accessibility">
+      <name>Semantic HTML</name>
+      <description>Use proper HTML elements and ARIA labels</description>
+    </practice>
+
+    <practice category="seo">
+      <name>Metadata Configuration</name>
+      <description>Proper page titles and meta tags</description>
+    </practice>
+
+    <practice category="user_experience">
+      <name>Loading States</name>
+      <description>Show loading indicators during async operations</description>
+    </practice>
+
+    <practice category="error_handling">
+      <name>User-Friendly Errors</name>
+      <description>Display clear error messages to users</description>
+    </practice>
+  </best_practices>
+
+  <deployment>
+    <platform name="vercel">
+      <description>Optimized for Vercel deployment</description>
+      <commands>
+        <command name="install">npm install</command>
+        <command name="build">npm run build</command>
+        <command name="start">npm run start</command>
+      </commands>
+      <environment_variables>
+        <variable name="NEXT_PUBLIC_API_URL" required="true" />
+      </environment_variables>
+    </platform>
+
+    <platform name="netlify">
+      <description>Compatible with Netlify</description>
+      <build_command>npm run build</build_command>
+      <publish_directory>.next</publish_directory>
+    </platform>
+
+    <platform name="docker">
+      <description>Can be containerized with Docker</description>
+      <dockerfile_base>node:18-alpine</dockerfile_base>
+    </platform>
+  </deployment>
+
+  <testing_strategy>
+    <unit_tests>
+      <framework>Jest</framework>
+      <coverage_target>80%</coverage_target>
+      <test_components>
+        <component>Button</component>
+        <component>Input</component>
+        <component>Card</component>
+      </test_components>
+    </unit_tests>
+
+    <integration_tests>
+      <framework>React Testing Library</framework>
+      <test_flows>
+        <flow>Login flow</flow>
+        <flow>Registration flow</flow>
+        <flow>Protected route access</flow>
+      </test_flows>
+    </integration_tests>
+
+    <e2e_tests>
+      <framework>Playwright</framework>
+      <test_scenarios>
+        <scenario>Complete user journey</scenario>
+        <scenario>Authentication flows</scenario>
+        <scenario>API integration</scenario>
+      </test_scenarios>
+    </e2e_tests>
+  </testing_strategy>
+
+  <future_enhancements>
+    <enhancement priority="high">
+      <name>Server Components</name>
+      <description>Leverage Next.js 14 server components for better performance</description>
+    </enhancement>
+
+    <enhancement priority="high">
+      <name>Error Boundaries</name>
+      <description>Add React error boundaries for graceful error handling</description>
+    </enhancement>
+
+    <enhancement priority="medium">
+      <name>Internationalization</name>
+      <description>Add i18n support for multiple languages</description>
+    </enhancement>
+
+    <enhancement priority="medium">
+      <name>Theme Support</name>
+      <description>Add dark mode and customizable themes</description>
+    </enhancement>
+
+    <enhancement priority="low">
+      <name>Animation Library</name>
+      <description>Integrate Framer Motion for animations</description>
+    </enhancement>
+
+    <enhancement priority="low">
+      <name>PWA Support</name>
+      <description>Add Progressive Web App capabilities</description>
+    </enhancement>
+  </future_enhancements>
+
+  <summary>
+    <total_files_generated>25+</total_files_generated>
+    <lines_of_code>~2000</lines_of_code>
+    <estimated_dev_time_saved>40-60 hours</estimated_dev_time_saved>
+    <production_ready>true</production_ready>
+    <accessibility_compliant>true</accessibility_compliant>
+    <responsive_design>true</responsive_design>
+    <type_safe>true</type_safe>
+  </summary>
+
+</verifimind_frontend_generator>
