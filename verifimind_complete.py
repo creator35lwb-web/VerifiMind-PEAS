@@ -5,12 +5,16 @@ Full end-to-end orchestration: X, Z, CS agents → Iterative Generation → Prod
 
 import asyncio
 import sys
+import logging
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Optional
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
+
+# Import logging setup FIRST
+from src.core.logging_config import setup_logging, get_logger
 
 from src.agents import (
     XIntelligentAgent,
@@ -24,6 +28,9 @@ from src.generation import (
     AppSpecification
 )
 from src.llm.llm_provider import LLMProviderFactory
+
+# Get logger for this module
+logger = get_logger(__name__)
 
 
 class VerifiMindComplete:
@@ -82,15 +89,15 @@ class VerifiMindComplete:
             (GeneratedApp, ImprovementHistory) - Final app and iteration history
         """
 
-        print("\n" + "="*70)
-        print("VerifiMind™ - Complete AI Application Generation")
-        print("="*70)
-        print(f"\nYour Idea: {idea_description}\n")
+        logger.info("="*70)
+        logger.info("VerifiMind™ - Complete AI Application Generation")
+        logger.info("="*70)
+        logger.info(f"Your Idea: {idea_description}")
 
         # PHASE 1: CONCEPT VALIDATION
-        print("="*70)
-        print("PHASE 1: CONCEPT VALIDATION (X, Z, CS Agents)")
-        print("="*70 + "\n")
+        logger.info("="*70)
+        logger.info("PHASE 1: CONCEPT VALIDATION (X, Z, CS Agents)")
+        logger.info("="*70)
 
         concept = ConceptInput(
             id=f"concept-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}",
@@ -101,7 +108,8 @@ class VerifiMindComplete:
         )
 
         # Run all three agents in parallel
-        print("Running X, Z, CS agents in parallel...")
+        logger.info("Running X, Z, CS agents in parallel...")
+        logger.debug(f"Concept ID: {concept.id}, Session ID: {concept.session_id}")
         agent_results = await self.orchestrator.run_full_analysis(concept)
 
         # Get conflict resolution decision
@@ -111,15 +119,15 @@ class VerifiMindComplete:
 
         # Check if concept is approved
         if decision['decision'] == 'reject':
-            print(f"\n[X] CONCEPT REJECTED")
-            print(f"Reason: {decision['reason']}")
-            print(f"\nPlease revise your concept and try again.")
+            logger.error("CONCEPT REJECTED")
+            logger.error(f"Reason: {decision['reason']}")
+            logger.info("Please revise your concept and try again.")
             return None, None
 
         # PHASE 2: BUILD APP SPECIFICATION
-        print("\n" + "="*70)
-        print("PHASE 2: BUILDING APPLICATION SPECIFICATION")
-        print("="*70 + "\n")
+        logger.info("="*70)
+        logger.info("PHASE 2: BUILDING APPLICATION SPECIFICATION")
+        logger.info("="*70)
 
         app_spec = await self._build_app_spec(
             idea_description=idea_description,
@@ -128,19 +136,19 @@ class VerifiMindComplete:
             agent_results=agent_results
         )
 
-        print(f"[OK] Application Specification Complete")
-        print(f"   App Name: {app_spec.app_name}")
-        print(f"   Category: {app_spec.category}")
-        print(f"   Features: {len(app_spec.core_features)}")
-        print(f"   Database Tables: {len(app_spec.database_entities)}")
-        print(f"   API Endpoints: {len(app_spec.api_endpoints)}")
-        print(f"   Compliance: {', '.join(app_spec.compliance_features)}")
-        print(f"   Security: {', '.join(app_spec.security_features)}")
+        logger.info("Application Specification Complete")
+        logger.info(f"  App Name: {app_spec.app_name}")
+        logger.info(f"  Category: {app_spec.category}")
+        logger.info(f"  Features: {len(app_spec.core_features)}")
+        logger.info(f"  Database Tables: {len(app_spec.database_entities)}")
+        logger.info(f"  API Endpoints: {len(app_spec.api_endpoints)}")
+        logger.info(f"  Compliance: {', '.join(app_spec.compliance_features)}")
+        logger.info(f"  Security: {', '.join(app_spec.security_features)}")
 
         # PHASE 3: ITERATIVE CODE GENERATION
-        print("\n" + "="*70)
-        print("PHASE 3: ITERATIVE CODE GENERATION")
-        print("="*70 + "\n")
+        logger.info("="*70)
+        logger.info("PHASE 3: ITERATIVE CODE GENERATION")
+        logger.info("="*70)
 
         generated_app, history = await self.generator.generate_with_iterations(
             spec=app_spec,
@@ -148,9 +156,9 @@ class VerifiMindComplete:
         )
 
         # PHASE 4: FINAL OUTPUT
-        print("\n" + "="*70)
-        print("[OK] APPLICATION GENERATION COMPLETE!")
-        print("="*70)
+        logger.info("="*70)
+        logger.info("APPLICATION GENERATION COMPLETE!")
+        logger.info("="*70)
 
         self._print_final_output(generated_app, history, app_spec.app_name, output_dir)
 
@@ -287,7 +295,7 @@ class VerifiMindComplete:
         try:
             return await self._generate_entities_with_llm(idea, category)
         except Exception as e:
-            print(f"[WARNING] LLM entity generation failed: {e}. Using template fallback.")
+            logger.warning(f"LLM entity generation failed: {e}. Using template fallback.")
             # Fallback to basic user entity
             return [
                 {
@@ -357,7 +365,8 @@ Include user entity first, then application-specific entities."""
 
         import json
         entities = json.loads(content)
-        print(f"[AI] Generated {len(entities)} entities from concept")
+        logger.info(f"AI generated {len(entities)} entities from concept")
+        logger.debug(f"Entities: {[e.get('name') for e in entities]}")
         return entities
 
     async def _generate_endpoints(self, idea: str, category: str) -> list:
@@ -384,9 +393,9 @@ Include user entity first, then application-specific entities."""
         try:
             domain_endpoints = await self._generate_domain_endpoints_with_llm(idea, category)
             endpoints.extend(domain_endpoints)
-            print(f"[AI] Generated {len(domain_endpoints)} domain-specific API endpoints")
+            logger.info(f"AI generated {len(domain_endpoints)} domain-specific API endpoints")
         except Exception as e:
-            print(f"[WARNING] Domain endpoint generation failed: {e}. Using base endpoints only.")
+            logger.warning(f"Domain endpoint generation failed: {e}. Using base endpoints only.")
 
         return endpoints
 
@@ -456,9 +465,9 @@ Do NOT include auth endpoints (login/register). Focus on domain-specific resourc
         try:
             domain_pages = await self._generate_domain_pages_with_llm(idea, category)
             pages.extend(domain_pages)
-            print(f"[AI] Generated {len(domain_pages)} domain-specific UI pages")
+            logger.info(f"AI generated {len(domain_pages)} domain-specific UI pages")
         except Exception as e:
-            print(f"[WARNING] Domain page generation failed: {e}. Using base pages only.")
+            logger.warning(f"Domain page generation failed: {e}. Using base pages only.")
 
         return pages
 
@@ -547,56 +556,52 @@ Do NOT include login, register, dashboard, or profile pages (already included)."
         return security
 
     def _print_agent_results(self, results: Dict, decision: Dict):
-        """Print agent validation results"""
-        print("\n[INFO] AGENT VALIDATION RESULTS:\n")
+        """Log agent validation results"""
+        logger.info("AGENT VALIDATION RESULTS:")
 
         for agent_type in ['X', 'Z', 'CS']:
             result = results.get(agent_type)
             if result:
-                status_emoji = {
-                    'success': '[OK]',
-                    'warning': '[!]',
-                    'error': '[X]',
-                    'high_risk': '[!]'
-                }.get(result.status, '[?]')
+                log_level = logging.INFO if result.status == 'success' else (
+                    logging.WARNING if result.status == 'warning' else logging.ERROR
+                )
 
-                print(f"{status_emoji} {agent_type} Agent ({result.agent_type}):")
-                print(f"   Status: {result.status}")
-                print(f"   Risk Score: {result.risk_score:.1f}/100")
+                logger.log(log_level, f"{agent_type} Agent ({result.agent_type}):")
+                logger.log(log_level, f"  Status: {result.status}")
+                logger.log(log_level, f"  Risk Score: {result.risk_score:.1f}/100")
                 if result.recommendations:
-                    print(f"   Recommendations: {len(result.recommendations)}")
+                    logger.log(log_level, f"  Recommendations: {len(result.recommendations)}")
                     for rec in result.recommendations[:2]:
-                        print(f"      * {rec}")
+                        logger.log(log_level, f"    * {rec}")
 
-        print(f"\n[DECISION] FINAL DECISION: {decision['decision'].upper()}")
-        print(f"   Reason: {decision['reason']}")
-        print(f"   Priority Agent: {decision.get('priority_agent', 'N/A')}")
+        logger.info(f"FINAL DECISION: {decision['decision'].upper()}")
+        logger.info(f"  Reason: {decision['reason']}")
+        logger.info(f"  Priority Agent: {decision.get('priority_agent', 'N/A')}")
 
     def _print_final_output(self, generated_app, history, app_name: str, output_dir: str):
-        """Print final output information"""
-        print(f"\n[SUCCESS] APPLICATION GENERATED SUCCESSFULLY!")
-        print(f"\n[OUTPUT] Output Location:")
-        print(f"   {output_dir}/{app_name}/")
+        """Log final output information"""
+        logger.info("APPLICATION GENERATED SUCCESSFULLY!")
+        logger.info(f"Output Location: {output_dir}/{app_name}/")
 
-        print(f"\n[METRICS] Quality Metrics:")
-        print(f"   Final Score: {history.final_score:.1f}/100")
-        print(f"   Improvement: +{history.improvement_percentage:.1f}%")
-        print(f"   Total Iterations: {history.total_iterations}")
+        logger.info("Quality Metrics:")
+        logger.info(f"  Final Score: {history.final_score:.1f}/100")
+        logger.info(f"  Improvement: +{history.improvement_percentage:.1f}%")
+        logger.info(f"  Total Iterations: {history.total_iterations}")
 
-        print(f"\n[FILES] Generated Files:")
-        print(f"   * Backend: {len(generated_app.backend_code)} files")
-        print(f"   * Frontend: {len(generated_app.frontend_code)} files")
-        print(f"   * Database: schema.sql")
-        print(f"   * Documentation: README.md, API.md, USER_GUIDE.md")
-        print(f"   * Versions: v1.0 - v1.{history.total_iterations - 1}")
+        logger.info("Generated Files:")
+        logger.info(f"  * Backend: {len(generated_app.backend_code)} files")
+        logger.info(f"  * Frontend: {len(generated_app.frontend_code)} files")
+        logger.info(f"  * Database: schema.sql")
+        logger.info(f"  * Documentation: README.md, API.md, USER_GUIDE.md")
+        logger.info(f"  * Versions: v1.0 - v1.{history.total_iterations - 1}")
 
-        print(f"\n[NEXT] Next Steps:")
-        print(f"   1. cd {output_dir}/{app_name}")
-        print(f"   2. Review ITERATION_HISTORY.md for quality improvements")
-        print(f"   3. Check versions/ folder to see evolution")
-        print(f"   4. Deploy using: npm install && npm run deploy")
+        logger.info("Next Steps:")
+        logger.info(f"  1. cd {output_dir}/{app_name}")
+        logger.info(f"  2. Review ITERATION_HISTORY.md for quality improvements")
+        logger.info(f"  3. Check versions/ folder to see evolution")
+        logger.info(f"  4. Deploy using: npm install && npm run deploy")
 
-        print(f"\n[READY] Your app is production-ready!")
+        logger.info("Your app is production-ready!")
 
 
 async def main():
@@ -606,6 +611,11 @@ async def main():
 
     # Load environment variables
     load_dotenv()
+
+    # Initialize logging FIRST
+    setup_logging()
+
+    logger.info("*** VerifiMind Complete System - Idea to App in Minutes ***")
 
     # Example usage
     verifimind = VerifiMindComplete(config={
@@ -619,14 +629,15 @@ async def main():
     # Check for test mode
     if len(sys.argv) > 1 and sys.argv[1] == '--test':
         idea = "create a restaurant order numbering system. The orders is count by number and selected items by clients. Customization order given a list of selection add-on sub-items."
-        print(f"\n[TEST MODE] Using restaurant ordering system concept\n")
+        logger.info("TEST MODE: Using restaurant ordering system concept")
     else:
         # Example idea
-        idea = input("\n[?] Describe your app idea: ").strip()
+        print("\n[?] Describe your app idea: ", end="", flush=True)
+        idea = input().strip()
 
         if not idea:
             idea = "A fitness tracking app for runners to log workouts and track progress"
-            print(f"Using example: {idea}")
+            logger.info(f"Using example: {idea}")
 
     # Generate app
     await verifimind.create_app_from_idea(
@@ -636,5 +647,4 @@ async def main():
 
 
 if __name__ == "__main__":
-    print("\n*** VerifiMind Complete System - Idea to App in Minutes ***\n")
     asyncio.run(main())
