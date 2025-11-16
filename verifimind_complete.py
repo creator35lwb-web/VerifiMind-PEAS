@@ -6,6 +6,7 @@ Full end-to-end orchestration: X, Z, CS agents → Iterative Generation → Prod
 import asyncio
 import sys
 import logging
+import argparse
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, Optional
@@ -604,47 +605,283 @@ Do NOT include login, register, dashboard, or profile pages (already included)."
         logger.info("Your app is production-ready!")
 
 
+def parse_arguments():
+    """
+    Parse command-line arguments for VerifiMind PEAS.
+
+    Returns:
+        Parsed arguments namespace
+    """
+    parser = argparse.ArgumentParser(
+        description='VerifiMind PEAS - Genesis Prompt Ecosystem for Application Synthesis',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Examples:
+  # Interactive mode (prompts for idea)
+  python verifimind_complete.py
+
+  # With prompt file
+  python verifimind_complete.py --prompt-file ./prompts/my_app.txt
+
+  # Full specification
+  python verifimind_complete.py \\
+    --prompt-file ./prompts/fitness_app.txt \\
+    --output-dir ./generated_apps/fitness_tracker \\
+    --model claude-3-5-sonnet-20241022 \\
+    --verbose
+
+  # Test mode (uses example restaurant ordering system)
+  python verifimind_complete.py --test
+
+  # Specify app name and category
+  python verifimind_complete.py \\
+    --prompt-file ./prompts/idea.txt \\
+    --app-name "MyAwesomeApp" \\
+    --category "Productivity"
+
+Environment Variables:
+  OPENAI_API_KEY       - OpenAI API key (required if using OpenAI)
+  ANTHROPIC_API_KEY    - Anthropic API key (required if using Claude)
+  LLM_PROVIDER         - Default LLM provider: 'openai' or 'anthropic'
+  LOG_LEVEL            - Logging level: DEBUG, INFO, WARNING, ERROR
+  LOG_FILE             - Custom log file path (default: logs/verifimind.log)
+        '''
+    )
+
+    # Input source (mutually exclusive group)
+    input_group = parser.add_mutually_exclusive_group()
+    input_group.add_argument(
+        '--prompt-file',
+        type=str,
+        metavar='PATH',
+        help='Path to text file containing the app idea/description'
+    )
+    input_group.add_argument(
+        '--idea',
+        type=str,
+        metavar='TEXT',
+        help='App idea as a direct command-line string'
+    )
+    input_group.add_argument(
+        '--test',
+        action='store_true',
+        help='Run in test mode with example restaurant ordering system'
+    )
+
+    # Output configuration
+    parser.add_argument(
+        '--output-dir',
+        type=str,
+        default='./output',
+        metavar='PATH',
+        help='Directory where generated app will be saved (default: ./output)'
+    )
+
+    # App specification
+    parser.add_argument(
+        '--app-name',
+        type=str,
+        metavar='NAME',
+        help='Custom name for the generated app (auto-generated if not provided)'
+    )
+    parser.add_argument(
+        '--category',
+        type=str,
+        metavar='CATEGORY',
+        choices=['Health & Fitness', 'Social', 'E-commerce', 'Education',
+                 'Entertainment', 'Productivity', 'Health & Wellness', 'General'],
+        help='App category (auto-detected if not provided)'
+    )
+
+    # LLM configuration
+    parser.add_argument(
+        '--model',
+        type=str,
+        metavar='MODEL',
+        help='LLM model to use (e.g., gpt-4, claude-3-5-sonnet-20241022). Overrides LLM_PROVIDER env var.'
+    )
+    parser.add_argument(
+        '--provider',
+        type=str,
+        choices=['openai', 'anthropic'],
+        metavar='PROVIDER',
+        help='LLM provider: openai or anthropic (default: from LLM_PROVIDER env var or openai)'
+    )
+
+    # Generation parameters
+    parser.add_argument(
+        '--max-iterations',
+        type=int,
+        default=3,
+        metavar='N',
+        help='Maximum number of iterative refinement cycles (default: 3)'
+    )
+    parser.add_argument(
+        '--quality-threshold',
+        type=float,
+        default=85.0,
+        metavar='SCORE',
+        help='Minimum quality score threshold (0-100, default: 85.0)'
+    )
+
+    # Logging and debugging
+    parser.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        help='Enable verbose (DEBUG level) logging'
+    )
+    parser.add_argument(
+        '--log-file',
+        type=str,
+        metavar='PATH',
+        help='Custom log file path (default: logs/verifimind.log)'
+    )
+
+    # Interactive mode flag
+    parser.add_argument(
+        '--interactive',
+        action='store_true',
+        help='Force interactive mode even if prompt-file is provided (for testing)'
+    )
+
+    return parser.parse_args()
+
+
 async def main():
-    """Main entry point"""
+    """Main entry point with argument parsing"""
     import os
     from dotenv import load_dotenv
 
     # Load environment variables
     load_dotenv()
 
-    # Initialize logging FIRST
-    setup_logging()
+    # Parse command-line arguments
+    args = parse_arguments()
 
-    logger.info("*** VerifiMind Complete System - Idea to App in Minutes ***")
+    # Initialize logging with appropriate level
+    log_level = 'DEBUG' if args.verbose else os.getenv('LOG_LEVEL', 'INFO')
+    log_file = args.log_file or os.getenv('LOG_FILE', 'logs/verifimind.log')
+    setup_logging(log_level=log_level, log_file=log_file)
 
-    # Example usage
-    verifimind = VerifiMindComplete(config={
-        'max_iterations': 3,
-        'quality_threshold': 85,
-        'llm_provider': os.getenv('LLM_PROVIDER', 'openai'),
+    logger.info("=" * 70)
+    logger.info("VerifiMind PEAS - Complete AI Application Generation")
+    logger.info("=" * 70)
+    logger.debug(f"Command-line arguments: {vars(args)}")
+
+    # Determine LLM provider and model
+    if args.model:
+        # Extract provider from model name
+        if 'gpt' in args.model.lower():
+            llm_provider = 'openai'
+            model = args.model
+        elif 'claude' in args.model.lower():
+            llm_provider = 'anthropic'
+            model = args.model
+        else:
+            llm_provider = args.provider or os.getenv('LLM_PROVIDER', 'openai')
+            model = args.model
+    else:
+        llm_provider = args.provider or os.getenv('LLM_PROVIDER', 'openai')
+        model = 'gpt-4' if llm_provider == 'openai' else 'claude-3-5-sonnet-20241022'
+
+    logger.info(f"LLM Configuration: {llm_provider} / {model}")
+
+    # Initialize VerifiMind system
+    config = {
+        'max_iterations': args.max_iterations,
+        'quality_threshold': args.quality_threshold,
+        'llm_provider': llm_provider,
         'openai_api_key': os.getenv('OPENAI_API_KEY'),
-        'anthropic_api_key': os.getenv('ANTHROPIC_API_KEY')
-    })
+        'anthropic_api_key': os.getenv('ANTHROPIC_API_KEY'),
+        'model': model
+    }
 
-    # Check for test mode
-    if len(sys.argv) > 1 and sys.argv[1] == '--test':
+    verifimind = VerifiMindComplete(config=config)
+
+    # Determine app idea from various sources
+    idea = None
+    app_name = args.app_name
+    category = args.category
+
+    if args.test:
+        # Test mode
         idea = "create a restaurant order numbering system. The orders is count by number and selected items by clients. Customization order given a list of selection add-on sub-items."
         logger.info("TEST MODE: Using restaurant ordering system concept")
+
+    elif args.prompt_file:
+        # Read from file
+        prompt_path = Path(args.prompt_file)
+        if not prompt_path.exists():
+            logger.error(f"Prompt file not found: {args.prompt_file}")
+            sys.exit(1)
+
+        logger.info(f"Reading app idea from: {args.prompt_file}")
+        try:
+            idea = prompt_path.read_text(encoding='utf-8').strip()
+            if not idea:
+                logger.error("Prompt file is empty")
+                sys.exit(1)
+            logger.debug(f"Loaded idea: {idea[:100]}...")
+        except Exception as e:
+            logger.error(f"Failed to read prompt file: {e}")
+            sys.exit(1)
+
+    elif args.idea:
+        # Direct command-line string
+        idea = args.idea.strip()
+        logger.info("Using idea from command-line argument")
+
     else:
-        # Example idea
-        print("\n[?] Describe your app idea: ", end="", flush=True)
+        # Interactive mode
+        logger.info("Interactive mode: Please describe your app idea")
+        print("\n" + "=" * 70)
+        print("Welcome to VerifiMind PEAS!")
+        print("=" * 70)
+        print("\nDescribe your app idea in natural language.")
+        print("Example: 'A fitness tracking app for runners to log workouts'\n")
+        print("[?] Your app idea: ", end="", flush=True)
+
         idea = input().strip()
 
         if not idea:
+            # Use default example
             idea = "A fitness tracking app for runners to log workouts and track progress"
-            logger.info(f"Using example: {idea}")
+            logger.info(f"No input provided. Using example: {idea}")
+            print(f"\nUsing example idea: {idea}\n")
+
+    # Validate idea
+    if not idea or len(idea) < 10:
+        logger.error("App idea is too short (minimum 10 characters)")
+        sys.exit(1)
 
     # Generate app
-    await verifimind.create_app_from_idea(
-        idea_description=idea,
-        output_dir="output"
-    )
+    logger.info(f"Starting app generation with idea: '{idea[:80]}...'")
+
+    try:
+        generated_app, history = await verifimind.create_app_from_idea(
+            idea_description=idea,
+            app_name=app_name,
+            category=category,
+            output_dir=args.output_dir
+        )
+
+        if generated_app:
+            logger.info("=" * 70)
+            logger.info("SUCCESS! Application generation completed.")
+            logger.info("=" * 70)
+            return 0
+        else:
+            logger.warning("Application generation was rejected or failed.")
+            return 1
+
+    except KeyboardInterrupt:
+        logger.warning("Generation interrupted by user (Ctrl+C)")
+        return 130
+    except Exception as e:
+        logger.error(f"Application generation failed: {e}", exc_info=True)
+        return 1
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    exit_code = asyncio.run(main())
+    sys.exit(exit_code)

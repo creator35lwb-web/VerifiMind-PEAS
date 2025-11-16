@@ -1,0 +1,16 @@
+A comprehensive fitness tracking application for runners and cyclists.
+
+Users should be able to:
+- Log daily workouts with distance, time, and route information
+- Set weekly and monthly fitness goals
+- Track their progress over time with charts and statistics
+- Share achievements with friends on social media
+- Compete in challenges with other users
+- Get AI-powered training recommendations based on their performance
+
+The app should have:
+- Mobile-friendly responsive design
+- Dark mode support
+- Integration with GPS for route tracking
+- Cloud sync across devices
+- Privacy controls for sharing data
