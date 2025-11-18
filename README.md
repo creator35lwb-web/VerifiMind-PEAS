@@ -205,7 +205,7 @@ I want to build a Confucian education AI for kids to learn cultural wisdom
 ## 📖 Core Documentation
 
 ### Getting Started
-- **[VERIFIMIND_TRUE_VISION.md](VERIFIMIND_TRUE_VISION.md)** - The corrected understanding (read this first!)
+- **[docs/VISION.md](docs/VISION.md)** - The canonical vision document (read this first!)
 - **[PEAS_INTEGRATION_PLAN.md](PEAS_INTEGRATION_PLAN.md)** - How to unify v1.0 into PEAS
 - **[Quick Start Tutorial](#quick-start)** - Get running in 5 minutes
 
@@ -492,7 +492,7 @@ Every validated concept generates:
 
 ### Phase 0: Foundation & MVP (Q4 2025)
 **Status**: IN PROGRESS
-- ✅ VERIFIMIND_TRUE_VISION.md documented
+- ✅ Vision documented (docs/VISION.md)
 - ✅ PEAS_INTEGRATION_PLAN.md created
 - ✅ ARCHITECTURE_V2.md designed
 - ⏳ X-Z-CS agents implementation
@@ -684,7 +684,7 @@ mypy src/
 **Last Updated**: November 12, 2025
 
 ### Completed ✅
-- True vision documented (VERIFIMIND_TRUE_VISION.md)
+- True vision documented (docs/VISION.md)
 - Integration plan created (PEAS_INTEGRATION_PLAN.md)
 - Architecture designed (ARCHITECTURE_V2.md)
 - Roadmap planned (DEVELOPMENT_ROADMAP_V2.md)
@@ -752,7 +752,7 @@ This project represents a correction of path. After building VerifiMind v1.0 as 
 
 **VerifiMind should be PEAS**: A Genesis Prompt Ecosystem that enables true human-AI co-creation from the concept stage, with built-in ethics (Z Guardian), innovation (X Intelligent), and security (CS Security).
 
-Read the full story: [VERIFIMIND_TRUE_VISION.md](VERIFIMIND_TRUE_VISION.md)
+Read the full story: [docs/VISION.md](docs/VISION.md)
 
 ---
 
@@ -804,7 +804,7 @@ python examples/confucian_education_ai.py
 **Document**: README.md
 
 **Next Steps**:
-1. Read [VERIFIMIND_TRUE_VISION.md](VERIFIMIND_TRUE_VISION.md) to understand the corrected vision
+1. Read [docs/VISION.md](docs/VISION.md) to understand the vision
 2. Review [PEAS_INTEGRATION_PLAN.md](PEAS_INTEGRATION_PLAN.md) for technical implementation
 3. Explore [ARCHITECTURE_V2.md](ARCHITECTURE_V2.md) for system design
 4. Check [DEVELOPMENT_ROADMAP_V2.md](DEVELOPMENT_ROADMAP_V2.md) for timeline
