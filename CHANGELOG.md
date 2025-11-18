@@ -4,6 +4,13 @@ All notable changes to the VerifiMind PEAS project will be documented in this fi
 
 ---
 
+## v1.0.2 - IP Update (November 19, 2025)
+
+### Security
+- Added **Genesis Prompt Engineering Methodology** to the defensive publication to establish prior art for the multi-model validation process.
+
+---
+
 ## Phase 2 Track 1 - Complete (November 19, 2025)
 
 ### Code Enhancements
@@ -51,9 +58,9 @@ All notable changes to the VerifiMind PEAS project will be documented in this fi
 ## Phase 2 Track 2 - In Progress
 
 ### Genesis Methodology Formalization
-- ó Genesis Methodology white paper
-- ó RefleXion C1 case study documentation
-- ó API documentation
+- ï¿½ Genesis Methodology white paper
+- ï¿½ RefleXion C1 case study documentation
+- ï¿½ API documentation
 
 ---
 
