@@ -210,7 +210,7 @@ I want to build a Confucian education AI for kids to learn cultural wisdom
 - **[Quick Start Tutorial](#quick-start)** - Get running in 5 minutes
 
 ### Understanding the System
-- **[ARCHITECTURE_V2.md](ARCHITECTURE_V2.md)** - The real system design (Genesis Prompts, X-Z-CS, blockchain)
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - The real system design (Genesis Prompts, X-Z-CS, blockchain)
 - **[DEVELOPMENT_ROADMAP_V2.md](DEVELOPMENT_ROADMAP_V2.md)** - Future stepping stones (24-month plan)
 - **[reflexion-master-prompts-v1.1.md](reflexion-master-prompts-v1.1.md)** - Complete X-Z-CS agent specifications
 
@@ -339,7 +339,7 @@ I want to build a Confucian education AI for kids to learn cultural wisdom
        └───────────────────────────────────────────────────────────────────┘
 ```
 
-**See [ARCHITECTURE_V2.md](ARCHITECTURE_V2.md) for complete technical details**
+**See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for complete technical details**
 
 ---
 
@@ -494,7 +494,7 @@ Every validated concept generates:
 **Status**: IN PROGRESS
 - ✅ Vision documented (docs/VISION.md)
 - ✅ PEAS_INTEGRATION_PLAN.md created
-- ✅ ARCHITECTURE_V2.md designed
+- ✅ Architecture designed (docs/ARCHITECTURE.md)
 - ⏳ X-Z-CS agents implementation
 - ⏳ Concept Scrutinizer engine
 - ⏳ Genesis Prompt system
@@ -686,7 +686,7 @@ mypy src/
 ### Completed ✅
 - True vision documented (docs/VISION.md)
 - Integration plan created (PEAS_INTEGRATION_PLAN.md)
-- Architecture designed (ARCHITECTURE_V2.md)
+- Architecture designed (docs/ARCHITECTURE.md)
 - Roadmap planned (DEVELOPMENT_ROADMAP_V2.md)
 - Genesis Prompt framework defined
 - RefleXion C1 case study validated
@@ -806,5 +806,5 @@ python examples/confucian_education_ai.py
 **Next Steps**:
 1. Read [docs/VISION.md](docs/VISION.md) to understand the vision
 2. Review [PEAS_INTEGRATION_PLAN.md](PEAS_INTEGRATION_PLAN.md) for technical implementation
-3. Explore [ARCHITECTURE_V2.md](ARCHITECTURE_V2.md) for system design
+3. Explore [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system design
 4. Check [DEVELOPMENT_ROADMAP_V2.md](DEVELOPMENT_ROADMAP_V2.md) for timeline
