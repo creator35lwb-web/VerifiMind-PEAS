@@ -211,7 +211,7 @@ I want to build a Confucian education AI for kids to learn cultural wisdom
 
 ### Understanding the System
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - The real system design (Genesis Prompts, X-Z-CS, blockchain)
-- **[DEVELOPMENT_ROADMAP_V2.md](DEVELOPMENT_ROADMAP_V2.md)** - Future stepping stones (24-month plan)
+- **[docs/ROADMAP.md](docs/ROADMAP.md)** - Development roadmap (24-month plan)
 - **[reflexion-master-prompts-v1.1.md](reflexion-master-prompts-v1.1.md)** - Complete X-Z-CS agent specifications
 
 ### Foundational Methodology
@@ -531,7 +531,7 @@ Every validated concept generates:
 - Enterprise focus (Fortune 1000)
 - $2M+ ARR
 
-**See [DEVELOPMENT_ROADMAP_V2.md](DEVELOPMENT_ROADMAP_V2.md) for complete timeline**
+**See [docs/ROADMAP.md](docs/ROADMAP.md) for complete timeline**
 
 ---
 
@@ -617,7 +617,7 @@ We welcome contributions to the VerifiMind PEAS ecosystem!
 
 1. **Report Issues**: Found a bug or have a suggestion? Open an issue
 2. **Improve Genesis Prompts**: Contribute to X-Z-CS agent prompt engineering
-3. **Add Features**: See [DEVELOPMENT_ROADMAP_V2.md](DEVELOPMENT_ROADMAP_V2.md) for planned features
+3. **Add Features**: See [docs/ROADMAP.md](docs/ROADMAP.md) for planned features
 4. **Write Documentation**: Tutorials, case studies, guides
 5. **Create Templates**: Industry-specific validation templates
 
@@ -687,7 +687,7 @@ mypy src/
 - True vision documented (docs/VISION.md)
 - Integration plan created (PEAS_INTEGRATION_PLAN.md)
 - Architecture designed (docs/ARCHITECTURE.md)
-- Roadmap planned (DEVELOPMENT_ROADMAP_V2.md)
+- Roadmap planned (docs/ROADMAP.md)
 - Genesis Prompt framework defined
 - RefleXion C1 case study validated
 
@@ -807,4 +807,4 @@ python examples/confucian_education_ai.py
 1. Read [docs/VISION.md](docs/VISION.md) to understand the vision
 2. Review [PEAS_INTEGRATION_PLAN.md](PEAS_INTEGRATION_PLAN.md) for technical implementation
 3. Explore [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system design
-4. Check [DEVELOPMENT_ROADMAP_V2.md](DEVELOPMENT_ROADMAP_V2.md) for timeline
+4. Check [docs/ROADMAP.md](docs/ROADMAP.md) for timeline
