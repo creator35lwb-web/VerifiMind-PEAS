@@ -215,7 +215,7 @@ I want to build a Confucian education AI for kids to learn cultural wisdom
 - **[reflexion-master-prompts-v1.1.md](reflexion-master-prompts-v1.1.md)** - Complete X-Z-CS agent specifications
 
 ### Foundational Methodology
-- **[概念审思者.pdf](概念审思者.pdf)** - Socratic concept validation framework (Chinese + English)
+- **[概念审思者.pdf](docs/methodology/概念审思者.pdf)** - Socratic concept validation framework (Chinese + English)
 - **[Journey.txt](YSenseAI%20platform%20Architecture%20R%26D/Journey.txt)** - The philosophical journey behind VerifiMind
 
 ---
