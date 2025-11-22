@@ -814,7 +814,7 @@ Outstanding contributions may be featured in:
 **Questions?**
 - GitHub Discussions (general questions)
 - GitHub Issues (bug reports, feature requests)
-- Email: support@verifimind.com (enterprise support)
+- Email: creator35lwb@gmail.com
 
 **Development Help**:
 - Check ARCHITECTURE.md for technical details

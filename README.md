@@ -718,7 +718,7 @@ mypy src/
 - Your concepts and IP remain yours
 - Optional blockchain attribution (can be disabled)
 
-**Report security issues**: security@verifimind.com
+**Report security issues**: creator35lwb@gmail.com
 
 ---
 
@@ -756,7 +756,7 @@ mypy src/
 - **Documentation**: See complete docs in project root
 - **Issues**: GitHub Issues for bugs and feature requests
 - **Discussions**: GitHub Discussions for questions
-- **Email**: support@verifimind.com
+- **Email**: creator35lwb@gmail.com
 
 ### Community
 - **Discord**: discord.gg/verifimind (coming soon)

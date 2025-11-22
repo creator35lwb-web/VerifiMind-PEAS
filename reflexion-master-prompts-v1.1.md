@@ -532,11 +532,9 @@ VerifiMind是一个基于苏格拉底式对话的AI驱动概念审思框架，�
 
 ## 联系与支持
 
-**VerifiMind™ 开发团队**  
-- 技术支持: tech-support@verifimind.ai
-- 商务合作: business@verifimind.ai  
-- 安全报告: security@verifimind.ai
-- 社区论坛: community.verifimind.ai
+**VerifiMind™ 开发团队**
+- 联系邮箱: creator35lwb@gmail.com
+- GitHub: https://github.com/creator35lwb-web/VerifiMind-PEAS
 
 **版权声明**  
 © 2025 VerifiMind™ Innovation Project. All rights reserved.  
