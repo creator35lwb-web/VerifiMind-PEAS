@@ -1,25 +1,19 @@
-<p align="center">
-  <img src="docs/assets/branding/VerifiMind-PEAS-Logo.png" alt="VerifiMind PEAS" width="400"/>
-</p>
+<div align="center">
+  <img src="docs/assets/branding/VerifiMind-PEAS-Icon.png" alt="VerifiMind PEAS" width="200"/>
 
-<p align="center">
-  <strong>Multi-Agent AI Validation System powered by the Genesis Prompt Engineering Methodology</strong>
-</p>
+  # VerifiMind™ PEAS
 
-<p align="center">
-  <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/blob/main/LICENSE">
-    <img src="https://img.shields.io/badge/license-Proprietary-red.svg" alt="License">
-  </a>
-  <a href="https://doi.org/10.5281/zenodo.17645665">
-    <img src="https://img.shields.io/badge/DOI-10.5281%2Fzenodo.17645665-blue" alt="DOI">
-  </a>
-  <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS">
-    <img src="https://img.shields.io/github/stars/creator35lwb-web/VerifiMind-PEAS?style=social" alt="GitHub stars">
-  </a>
-  <img src="https://img.shields.io/badge/version-2.0.0--beta-blue.svg" alt="Version">
-  <img src="https://img.shields.io/badge/python-3.11+-green.svg" alt="Python">
-  <img src="https://img.shields.io/badge/status-In%20Development-orange.svg" alt="Status">
-</p>
+  **Prompt Ecosystem for Application Synthesis**
+
+  Transform your vision into validated, ethical, secure applications through AI co-creation — from concept to deployment, with built-in IP protection and human-centered design.
+
+  [![Version](https://img.shields.io/badge/version-2.0.0--beta-blue.svg)](https://github.com/creator35lwb-web/VerifiMind-PEAS)
+  [![Python](https://img.shields.io/badge/python-3.11+-green.svg)](https://www.python.org/)
+  [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
+  [![Status](https://img.shields.io/badge/status-In%20Development-orange.svg)](#)
+  [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17645665.svg)](https://doi.org/10.5281/zenodo.17645665)
+
+</div>
 
 ---
 
