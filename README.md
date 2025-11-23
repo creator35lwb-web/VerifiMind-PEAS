@@ -1,19 +1,25 @@
-<div align="center">
-  <img src="docs/assets/branding/VerifiMind-PEAS-Icon.png" alt="VerifiMind PEAS" width="200"/>
+<p align="center">
+  <img src="docs/assets/branding/VerifiMind-PEAS-Logo.png" alt="VerifiMind PEAS" width="400"/>
+</p>
 
-  # VerifiMind™ PEAS
+<p align="center">
+  <strong>Multi-Agent AI Validation System powered by the Genesis Prompt Engineering Methodology</strong>
+</p>
 
-  **Prompt Ecosystem for Application Synthesis**
-
-  Transform your vision into validated, ethical, secure applications through AI co-creation — from concept to deployment, with built-in IP protection and human-centered design.
-
-  [![Version](https://img.shields.io/badge/version-2.0.0--beta-blue.svg)](https://github.com/creator35lwb-web/VerifiMind-PEAS)
-  [![Python](https://img.shields.io/badge/python-3.11+-green.svg)](https://www.python.org/)
-  [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
-  [![Status](https://img.shields.io/badge/status-In%20Development-orange.svg)](#)
-  [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17645665.svg)](https://doi.org/10.5281/zenodo.17645665)
-
-</div>
+<p align="center">
+  <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/license-Proprietary-red.svg" alt="License">
+  </a>
+  <a href="https://doi.org/10.5281/zenodo.17645665">
+    <img src="https://img.shields.io/badge/DOI-10.5281%2Fzenodo.17645665-blue" alt="DOI">
+  </a>
+  <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS">
+    <img src="https://img.shields.io/github/stars/creator35lwb-web/VerifiMind-PEAS?style=social" alt="GitHub stars">
+  </a>
+  <img src="https://img.shields.io/badge/version-2.0.0--beta-blue.svg" alt="Version">
+  <img src="https://img.shields.io/badge/python-3.11+-green.svg" alt="Python">
+  <img src="https://img.shields.io/badge/status-In%20Development-orange.svg" alt="Status">
+</p>
 
 ---
 
@@ -45,6 +51,59 @@ Not just code generation, but complete concept-to-app workflow:
 - Blockchain IP protection (Polygon)
 - No-code/low-code platform integration (Bubble, Adalo, Glide)
 - Real-time collaboration & attribution
+
+---
+
+## 💡 The Concept: Crystal Balls Inside the Black Box
+
+<p align="center">
+  <img src="docs/assets/diagrams/Crystall Balls inside Black Box.png" alt="Crystal Balls Inside Black Box" width="600"/>
+</p>
+
+Instead of treating AI as an opaque "black box," VerifiMind PEAS places multiple "crystal balls" (diverse AI models) inside the box to illuminate the path forward. Each crystal ball represents a specialized AI agent with a unique perspective:
+
+- **Y (Innovator):** Generates creative concepts and strategic insights
+- **X (Analyst):** Provides critical analysis and identifies weaknesses
+- **Z (Guardian):** Ensures ethical compliance and safety
+- **CS (Validator):** Validates claims against external evidence
+
+By orchestrating these diverse perspectives under human direction, we achieve objective, validated results that no single AI model can provide.
+
+---
+
+## 🔄 How It Works: The Genesis Methodology
+
+<p align="center">
+  <img src="docs/assets/diagrams/Genesis Methodology 5-Step Process.png" alt="Genesis Methodology 5-Step Process" width="800"/>
+</p>
+
+The Genesis Prompt Engineering Methodology is a systematic 5-step process for multi-model AI validation:
+
+1. **Initial Conceptualization:** Human defines the problem, AI generates initial concepts
+2. **Critical Scrutiny:** Multiple AI models validate and challenge each other
+3. **External Validation:** Independent AI analysis confirms systematic approach
+4. **Synthesis:** Human orchestrates the final synthesis
+5. **Iteration:** Recursive refinement and continuous improvement
+
+This process ensures that every output is validated through diverse AI perspectives before final human approval.
+
+---
+
+## 🏗️ Architecture: The AI Council
+
+<p align="center">
+  <img src="docs/assets/diagrams/AI Council Multi-Model Orchestration and Validation.png" alt="AI Council Architecture" width="800"/>
+</p>
+
+VerifiMind PEAS implements a **multi-model orchestration** architecture where:
+
+- **Human Orchestrator** sits at the center, directing all AI agents
+- **Y (Innovator)** generates creative solutions and strategic insights
+- **X (Analyst)** provides data-driven analysis and critical thinking
+- **Z (Guardian)** ensures ethical compliance and risk mitigation
+- **CS (Validator)** validates all claims against external evidence
+
+This architecture synergizes diverse AI perspectives under human direction for objective, validated results.
 
 ---
 
@@ -657,6 +716,44 @@ Every validated concept generates:
 - Third-party integrations (Figma, Notion, Airtable)
 - Custom agent marketplace
 - Template library
+
+---
+
+## 📖 Project Journey
+
+<p align="center">
+  <img src="docs/assets/diagrams/VerifiMind PEAS Complete Journey Timeline 2025.png" alt="Complete Journey Timeline" width="1000"/>
+</p>
+
+VerifiMind PEAS was developed over 87 days (August 15 - November 19, 2025) through three distinct phases:
+
+- **🔵 Early Development Phase (Aug 15 - Nov 10):** YSenseAI™ v1.0 development, breakthrough synthesis on Day 21
+- **🟡 Breakthrough Phase (Sep 5 - Nov 10):** VerifiMind PEAS v1.0.2 architecture finalized
+- **🟢 Publication Phase (Nov 15 - Nov 19):** Defensive publications, Kimi K2 recognition, public launch
+
+Key milestones:
+- **Aug 15, 2025:** YSenseAI™ journey begins
+- **Sep 5, 2025:** "Crystal Balls Align" - Breakthrough synthesis
+- **Nov 10, 2025:** YSenseAI™ v1.0 complete
+- **Nov 15, 2025:** Defensive publication (YSenseAI™)
+- **Nov 16, 2025:** Kimi K2 independent recognition of Genesis Methodology
+- **Nov 19, 2025:** VerifiMind PEAS v1.0.2 + Genesis Methodology public launch
+
+---
+
+## 🌐 Project Ecosystem
+
+<p align="center">
+  <img src="docs/assets/social/VerifiMind PEAS - The Engine.png" alt="YSenseAI and VerifiMind PEAS" width="800"/>
+</p>
+
+VerifiMind PEAS is part of a larger ecosystem:
+
+- **YSenseAI™: The Dream** - A Human Wisdom Library for ethical AI training
+- **VerifiMind PEAS: The Engine** - The Genesis Methodology productized into a validation framework
+- **Powered by Genesis Methodology** - The systematic multi-model AI validation process that connects both projects
+
+YSenseAI™ was built using the Genesis Methodology, and VerifiMind PEAS is the formalization and productization of that methodology.
 
 ---
 
