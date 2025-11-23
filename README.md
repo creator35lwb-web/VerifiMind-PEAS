@@ -1,13 +1,19 @@
-# VerifiMind™ PEAS
+<div align="center">
+  <img src="docs/assets/branding/VerifiMind-PEAS-Logo.png" alt="VerifiMind PEAS Logo" width="400"/>
 
-**Genesis Prompt Ecosystem for Application Synthesis**
+  # VerifiMind™ PEAS
 
-Transform your vision into validated, ethical, secure applications through AI co-creation — from concept to deployment, with built-in IP protection and human-centered design.
+  **Prompt Ecosystem for Application Synthesis**
 
-[![Version](https://img.shields.io/badge/version-2.0.0--beta-blue.svg)](https://github.com/verifimind/verifimind)
-[![Python](https://img.shields.io/badge/python-3.11+-green.svg)](https://www.python.org/)
-[![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/status-In%20Development-orange.svg)](#)
+  Transform your vision into validated, ethical, secure applications through AI co-creation — from concept to deployment, with built-in IP protection and human-centered design.
+
+  [![Version](https://img.shields.io/badge/version-2.0.0--beta-blue.svg)](https://github.com/creator35lwb-web/VerifiMind-PEAS)
+  [![Python](https://img.shields.io/badge/python-3.11+-green.svg)](https://www.python.org/)
+  [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](LICENSE)
+  [![Status](https://img.shields.io/badge/status-In%20Development-orange.svg)](#)
+  [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17645665.svg)](https://doi.org/10.5281/zenodo.17645665)
+
+</div>
 
 ---
 
