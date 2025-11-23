@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/assets/branding/VerifiMind-PEAS-Logo.png" alt="VerifiMind PEAS Logo" width="400"/>
+  <img src="docs/assets/branding/VerifiMind-PEAS-Icon.png" alt="VerifiMind PEAS" width="200"/>
 
   # VerifiMind™ PEAS
 
