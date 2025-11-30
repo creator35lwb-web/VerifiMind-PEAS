@@ -10,38 +10,42 @@
 
 ## 📋 PUBLICATION OVERVIEW
 
-### **Publication Strategy**
+### **Current Zenodo Status**
 
-**Current Status**:
-- ✅ Genesis Methodology v1.0 published: DOI 10.5281/zenodo.17645665 (November 19, 2025)
-- ⚠️ Genesis Methodology v1.1 created: November 29, 2025 (NOT YET PUBLISHED)
+**VerifiMind PEAS** has published 3 versions to Zenodo:
 
-**Two Options for v1.1**:
+**Latest Version**: v1.0 (November 24, 2025)
+- DOI: 10.5281/zenodo.17704595
+- Type: Software + Documentation
+- Title: "creator35lwb-web/VerifiMind-PEAS: Genesis Methodology White Paper v1.0"
+- Size: 64.8 MB (full codebase + documentation)
 
-**Option A: New Version of Existing DOI** (RECOMMENDED)
-- Upload v1.1 as new version to existing DOI: 10.5281/zenodo.17645665
+**Concept DOI** (all versions): 10.5281/zenodo.17616328
+
+**Previous Versions**:
+- v1.0.2: 10.5281/zenodo.17645665 (Nov 19, 2025)
+- v1.0.1: 10.5281/zenodo.17616329 (Nov 15, 2025)
+
+### **Publication Strategy for v1.1**
+
+**RECOMMENDED**: Upload v1.1 as **NEW VERSION** to existing Zenodo record 10.5281/zenodo.17704595
+
+**Why**:
 - Maintains continuity and citation tracking
-- Zenodo automatically creates version-specific DOI (e.g., 10.5281/zenodo.XXXXXXX)
-- Original DOI always resolves to latest version
-
-**Option B: Completely New DOI**
-- Create entirely new Zenodo record
-- Gets new independent DOI
-- Use when content is substantially different (not recommended for v1.0 → v1.1)
-
-**RECOMMENDATION**: Use Option A - upload v1.1 as new version to existing DOI 10.5281/zenodo.17645665
+- Zenodo automatically creates version-specific DOI for v1.1
+- Concept DOI (10.5281/zenodo.17616328) always resolves to latest version
+- Shows clear evolution from v1.0 → v1.1
 
 ---
 
-## 🎯 ZENODO UPLOAD INSTRUCTIONS (Option A - New Version)
+## 🎯 ZENODO UPLOAD INSTRUCTIONS
 
 ### **Step 1: Access Existing Record**
 
-1. Go to https://zenodo.org
-2. Log in to your account
-3. Navigate to "My Dashboard" → "Uploads"
-4. Find record: DOI 10.5281/zenodo.17645665
-5. Click "New version" button
+1. Go to https://zenodo.org/records/17704595
+2. Log in to your account (creator35lwb@gmail.com)
+3. Click **"New version"** button (visible in top right area)
+4. Zenodo will create a draft for the new version
 
 ### **Step 2: Upload Files**
 
@@ -51,10 +55,18 @@
 ✅ **Source Document**: `Genesis_Methodology_White_Paper_v1.1.md` (Markdown source for transparency)  
 ✅ **Reference PDF**: `genesis_methodology_v1.1.pdf` (Original author PDF for reference)
 
+**Optional**: Include updated codebase ZIP if significant code changes since v1.0
+
 **File Upload Process**:
-1. Click "Choose files" or drag-and-drop
-2. Upload all three files
-3. Verify file sizes and names are correct
+1. In the draft, scroll to "Files" section
+2. Click "Choose files" or drag-and-drop
+3. Upload all three documentation files
+4. Verify file sizes and names are correct
+5. **Decision**: Keep or remove the old v1.0 codebase ZIP
+   - **Keep**: If you want v1.1 to include both updated docs and code
+   - **Remove**: If you want v1.1 to focus on documentation updates only
+
+**Recommendation**: For White Paper v1.1, focus on documentation files. Codebase can be updated separately if needed.
 
 ### **Step 3: Update Metadata**
 
@@ -86,19 +98,33 @@ Team YSenseAI AI Council (Contributing)
 ```
 The Genesis Prompt Engineering Methodology provides a systematic framework for multi-model AI validation and orchestration. Version 1.1 updates include:
 
-- YSenseAI™ | 慧觉™ correct branding throughout
+**Major Updates in v1.1** (November 29, 2025):
+- YSenseAI™ | 慧觉™ correct branding throughout (36 instances corrected)
 - RefleXion Trinity architecture (X-Z-CS) detailed documentation
 - Theoretical grounding through nested learning connection
 - Complete 87-day journey timeline (August 15 - November 29, 2025)
 - Comprehensive appendices (Master Prompt template, Trinity architecture, ecosystem overview)
 - Professional academic formatting
 
+**Core Content**:
 This work demonstrates how multiple AI models' diverse "subjective experiences" can be systematically orchestrated for more objective and robust concept validation. Two major case studies (YSenseAI™ and VerifiMind PEAS) represent 87 days of documented development and over 17,282 lines of production code.
 
-This defensive publication establishes prior art to protect the research community's freedom to operate. The Genesis Methodology belongs to the commons.
+**Key Contributions**:
+- Systematic Multi-Model Orchestration: 5-step process for coordinating multiple AI models
+- The Orchestrator Paradox: How stateless LLMs achieve stateful project development through human orchestration
+- Perspective Diversity as Feature: Treating model disagreements as valuable signal
+- Empirical Validation: 87 days of documented development with production code
+- Theoretical Grounding: Connection to nested learning and multi-level optimization
 
-Version History:
-- v1.0 (November 19, 2025): Initial defensive publication
+**Defensive Publication**:
+This work establishes prior art to protect the research community's freedom to operate. The Genesis Methodology belongs to the commons.
+
+**Ecosystem**:
+- YSenseAI™ | 慧觉™: The Dream (human wisdom library)
+- VerifiMind PEAS: The Engine (Genesis Methodology productized)
+
+**Version History**:
+- v1.0 (November 19-24, 2025): Initial defensive publication
 - v1.1 (November 29, 2025): Updated branding, architecture, and theoretical grounding
 ```
 
@@ -123,13 +149,16 @@ nested learning
 context engineering
 YSenseAI
 VerifiMind PEAS
+RefleXion Trinity
 defensive publication
+Genesis Methodology
 ```
 
 **License**:
 ```
 Creative Commons Attribution Non Commercial Share Alike 4.0 International (CC BY-NC-SA 4.0)
 ```
+*(Note: Code remains Apache 2.0 if included)*
 
 **Upload Type**:
 - Type: Publication
@@ -141,8 +170,9 @@ Creative Commons Attribution Non Commercial Share Alike 4.0 International (CC BY
 **Related Identifiers**:
 ```
 - Is supplement to: https://github.com/creator35lwb-web/VerifiMind-PEAS (GitHub Repository)
-- Is related to: 10.5281/zenodo.17072168 (YSenseAI™ White Paper v1.1)
-- Is previous version of: 10.5281/zenodo.17645665 (Genesis Methodology v1.0)
+- Is related to: 10.5281/zenodo.17072167 (YSenseAI™ Concept DOI)
+- Is previous version: 10.5281/zenodo.17704595 (Genesis Methodology v1.0)
+- Is version of: 10.5281/zenodo.17616328 (Genesis Methodology Concept DOI)
 ```
 
 **Communities** (if available):
@@ -169,26 +199,31 @@ See References section in white paper for complete academic citations
 
 **Major Updates**:
 
-1. **Branding Correction**: YSense™ → YSenseAI™ | 慧觉™ (36 instances corrected)
+1. **Branding Correction**: YSense™ → YSenseAI™ | 慧觉™ (36 instances corrected throughout document)
 
 2. **Architecture Evolution**: X-Y-Z Multi-Agent System → RefleXion Trinity (X-Z-CS)
    - X Intelligent v1.1: Innovation Engine & AI Co-Founder
    - Z Guardian v1.1: Compliance & Human-Centered Design Protector
    - CS Security v1.0: Cybersecurity & Socratic Validation
 
-3. **Theoretical Grounding**: Added connection to nested learning and multi-level optimization research
+3. **Theoretical Grounding**: Added connection to nested learning and multi-level optimization research, providing mathematical foundation for context engineering effectiveness
 
 4. **Timeline Extension**: Day 97 (Nov 19) → Day 105 (Nov 29, 2025)
+   - Day 101 (Nov 23): Genesis Methodology v1.1 formalized
+   - Day 105 (Nov 29): Complete ecosystem alignment
 
 5. **Comprehensive Appendices**: Added three appendices for practical implementation
+   - Appendix A: Genesis Master Prompt Template
+   - Appendix B: RefleXion Trinity Architecture
+   - Appendix C: YSenseAI™ + VerifiMind Ecosystem
 
 6. **Professional Formatting**: Enhanced academic paper structure and presentation
 
 **Minor Updates**:
 - Updated abstract with nested learning keywords
-- Expanded case study details
-- Added ecosystem overview
-- Improved references section
+- Expanded case study details with complete 87-day journey
+- Added ecosystem overview showing relationship between YSenseAI™ and VerifiMind PEAS
+- Improved references section with 10 academic and project sources
 - Enhanced conclusion with theoretical positioning
 
 ---
@@ -197,16 +232,17 @@ See References section in white paper for complete academic citations
 
 Before publishing to Zenodo, verify:
 
-- [ ] All three files uploaded correctly (PDF + MD + reference PDF)
+- [ ] All three documentation files uploaded correctly (v1.1 PDF + MD + reference PDF)
 - [ ] Title includes "(v1.1)" version indicator
 - [ ] Author information is accurate
-- [ ] Description includes version changelog
-- [ ] Keywords are comprehensive
-- [ ] License is CC BY-NC-SA 4.0
-- [ ] Related identifiers link to v1.0 and YSenseAI™ white paper
+- [ ] Description includes comprehensive version changelog
+- [ ] Keywords are comprehensive (12+ keywords)
+- [ ] License is CC BY-NC-SA 4.0 (documentation)
+- [ ] Related identifiers link to v1.0, YSenseAI™, and concept DOI
 - [ ] Publication date is 2025-11-29
 - [ ] Access is set to "Open Access"
 - [ ] Upload type is "Publication" → "Technical Report"
+- [ ] Old v1.0 codebase ZIP handled appropriately (kept or removed based on strategy)
 
 ---
 
@@ -214,40 +250,50 @@ Before publishing to Zenodo, verify:
 
 After Zenodo publication is complete:
 
-1. **Update GitHub README**:
+1. **Note the New Version-Specific DOI**
+   - Zenodo will assign a new DOI for v1.1 (e.g., 10.5281/zenodo.XXXXXXX)
+   - The concept DOI (10.5281/zenodo.17616328) will automatically point to this latest version
+
+2. **Update GitHub README**
    - Add new version-specific DOI badge
    - Update citation information
    - Link to Zenodo record
+   - Update documentation references
 
-2. **Update White Paper**:
-   - Replace placeholder DOI (if any) with actual version-specific DOI
-   - Regenerate PDF if DOI changed
-   - Commit updated version to GitHub
+3. **Update White Paper Cross-References**
+   - If YSenseAI™ White Paper v1.1 is also published, update cross-references between both papers
+   - Ensure both papers reference each other's latest DOIs
+   - Regenerate PDFs if DOI references changed
 
-3. **Cross-Reference Updates**:
-   - Update YSenseAI™ white paper to reference Genesis Methodology v1.1 DOI
-   - Update Genesis Master Prompt v16.1 to reference both DOIs
-   - Update project documentation with new citation
+4. **Update Genesis Master Prompt v16.1**
+   - Reference new v1.1 DOI
+   - Update documentation links
 
-4. **Announcement**:
-   - Update ysenseai.org website
-   - Announce on relevant platforms (if desired)
+5. **Update ysenseai.org Website**
+   - Feature Genesis Methodology v1.1 prominently
+   - Add download link with new DOI
+   - Update "Publications" section
+
+6. **Announcement**
    - Share with academic partners
+   - Announce on relevant platforms (if desired)
+   - Invite feedback and collaboration
 
 ---
 
-## 📊 ZENODO RECORD COMPARISON
+## 📊 VERSION COMPARISON
 
-| **Aspect** | **v1.0 (Nov 19)** | **v1.1 (Nov 29)** |
-|------------|-------------------|-------------------|
-| DOI | 10.5281/zenodo.17645665 | 10.5281/zenodo.XXXXXXX (version-specific) |
-| Branding | YSense™ | YSenseAI™ \| 慧觉™ |
-| Architecture | X-Y-Z Multi-Agent | RefleXion Trinity (X-Z-CS) |
-| Timeline | Day 1-97 | Day 1-105 |
-| Theoretical Grounding | Empirical only | + Nested learning connection |
-| Appendices | None | 3 comprehensive appendices |
-| Word Count | ~5,000 | ~6,500 |
-| Files | 1 (MD only) | 3 (MD + PDF + reference PDF) |
+| **Aspect** | **v1.0 (Nov 19-24)** | **v1.1 (Nov 29)** |
+|------------|----------------------|-------------------|
+| **Branding** | YSense™ | YSenseAI™ \| 慧觉™ |
+| **Architecture** | X-Y-Z Multi-Agent | RefleXion Trinity (X-Z-CS) |
+| **Timeline** | Day 1-97 | Day 1-105 |
+| **Theoretical Grounding** | Empirical only | + Nested learning connection |
+| **Appendices** | None | 3 comprehensive appendices |
+| **Word Count** | ~5,000 | ~6,500 |
+| **Files** | 1 MD (+ codebase ZIP) | 3 (MD + 2 PDFs) |
+| **DOI** | 10.5281/zenodo.17704595 | To be assigned |
+| **Academic Formatting** | Good | Enhanced/Professional |
 
 ---
 
@@ -261,9 +307,12 @@ https://github.com/creator35lwb-web/VerifiMind-PEAS
 - PDF: `/docs/white_paper/Genesis_Methodology_White_Paper_v1.1.pdf`
 - Reference: `/docs/white_paper/genesis_methodology_v1.1.pdf`
 
+**Current Zenodo Records**:
+- Latest (v1.0): https://zenodo.org/records/17704595
+- Concept DOI (all versions): https://zenodo.org/records/17616328
+
 **Related Publications**:
-- YSenseAI™ White Paper v1.1: DOI 10.5281/zenodo.17072168
-- Genesis Methodology v1.0: DOI 10.5281/zenodo.17645665
+- YSenseAI™ White Paper: Concept DOI 10.5281/zenodo.17072167
 
 **Contact**:
 - Email: creator35lwb@gmail.com
@@ -288,9 +337,9 @@ https://github.com/creator35lwb-web/VerifiMind-PEAS
 
 **© 2025 Alton Lee Wei Bin. All rights reserved.**
 
-**Defensive Publication**: DOI 10.5281/zenodo.17645665 (v1.0) + version-specific DOI for v1.1
+**Defensive Publication**: Concept DOI 10.5281/zenodo.17616328 + version-specific DOI for v1.1
 
-**License**: CC BY-NC-SA 4.0
+**License**: CC BY-NC-SA 4.0 (documentation) + Apache 2.0 (code)
 
 ---
 
