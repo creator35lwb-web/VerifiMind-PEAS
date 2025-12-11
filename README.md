@@ -224,15 +224,15 @@ Instead of treating AI as an opaque "black box," VerifiMind-PEAS places multiple
 
 **Choose your integration approach**:
 
-1. **[Claude Code Integration](docs/guides/CLAUDE_CODE_INTEGRATION.md)** (coming soon)
+1. **[Claude Code Integration](docs/guides/CLAUDE_CODE_INTEGRATION.md)**
    - Paste GitHub repo URL → Claude applies methodology
    - Best for: Code-focused projects
 
-2. **[Cursor Integration](docs/guides/CURSOR_INTEGRATION.md)** (coming soon)
+2. **[Cursor Integration](docs/guides/CURSOR_INTEGRATION.md)**
    - Paste GitHub repo URL → Cursor applies methodology
    - Best for: IDE-integrated development
 
-3. **[Generic LLM Integration](docs/guides/GENERIC_LLM_INTEGRATION.md)** (coming soon)
+3. **[Generic LLM Integration](docs/guides/GENERIC_LLM_INTEGRATION.md)**
    - Copy-paste Genesis Master Prompt → Any LLM applies methodology
    - Best for: Platform-agnostic approach
 
@@ -264,9 +264,31 @@ Instead of treating AI as an opaque "black box," VerifiMind-PEAS places multiple
 
 ### **Integration Guides**
 
-- **[Claude Code Integration](docs/guides/CLAUDE_CODE_INTEGRATION.md)** (coming soon)
-- **[Cursor Integration](docs/guides/CURSOR_INTEGRATION.md)** (coming soon)
-- **[Generic LLM Integration](docs/guides/GENERIC_LLM_INTEGRATION.md)** (coming soon)
+- **[Claude Code Integration](docs/guides/CLAUDE_CODE_INTEGRATION.md)**
+- **[Cursor Integration](docs/guides/CURSOR_INTEGRATION.md)**
+- **[Generic LLM Integration](docs/guides/GENERIC_LLM_INTEGRATION.md)**
+
+### **Documentation Best Practices**
+
+**VerifiMind-PEAS includes a comprehensive documentation framework** for managing context across multi-model LLM workflows.
+
+**Three-Layer Architecture**:
+1. **Genesis Master Prompt** (Project Memory) - Single source of truth, updated after every session
+2. **Module Documentation** (Deep Context) - Feature-specific details organized in `/docs`
+3. **Session Notes** (Iteration History) - Complete audit trail of decisions and insights
+
+**Why This Matters**:
+- ✅ **Context persistence** across LLM sessions (no manual re-entry)
+- ✅ **Platform-agnostic** (works with Claude, GPT, Gemini, Kimi, Grok, Qwen, etc.)
+- ✅ **Multi-model workflows** (consistent context for X-Z-CS validation)
+- ✅ **Complete audit trail** (track every decision and iteration)
+
+**Learn more**: **[Documentation Best Practices Guide](docs/guides/DOCUMENTATION_BEST_PRACTICES.md)**
+
+**Templates**:
+- [Genesis Master Prompt Template](templates/GenesisMasterPromptTemplate.md)
+- [Module Documentation Template](templates/ModuleDocumentationTemplate.md)
+- [Session Notes Template](templates/SessionNotesTemplate.md)
 
 ### **Case Studies**
 
