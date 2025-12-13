@@ -99,9 +99,34 @@ Different AI models are trained on different datasets, use different architectur
 
 Simply using multiple AI tools is insufficient. Genesis provides a structured workflow with defined roles, sequence, and information flows. This transforms ad-hoc tool-switching into systematic methodology.
 
-**Principle 3: Human as Stateful Orchestrator**
+**Principle 3: Human as Stateful Orchestrator (Human-at-Center)**
 
 LLMs are stateless—each interaction begins fresh with no memory of previous sessions. The human user serves as the system's stateful memory, maintaining context, strategic direction, and accumulated knowledge across interactions. This is the solution to the "Orchestrator Paradox."
+
+**Formal Definition of "Human-at-Center"**
+
+The Genesis Methodology positions humans as **orchestrators** (not reviewers), distinct from three related but different paradigms:
+
+**Human-at-Center (Genesis)**: The human is the **central decision-maker and stateful memory** of the system. AI agents provide diverse perspectives, but the human synthesizes insights, makes strategic decisions, and maintains project continuity. The human is **proactive** (directing AI agents) rather than **reactive** (reviewing AI outputs).
+
+**Human-in-the-Loop (HITL)**: The human is a **reviewer or labeler** who validates AI outputs at checkpoints. The AI system drives the workflow, and humans intervene when confidence is low or errors are detected. The human is **reactive** (responding to AI requests).
+
+**Human-Centered AI (HCAI)**: A **design philosophy** emphasizing that AI systems should serve human needs, values, and capabilities. HCAI is a broader framework encompassing user experience, accessibility, and ethical design. It does not specify operational roles.
+
+**Reinforcement Learning from Human Feedback (RLHF)**: A **training technique** where human feedback shapes AI model behavior during the training phase. Once deployed, the model operates autonomously without human orchestration.
+
+**Key Distinction**: In Genesis, the human is **always at the center** of the decision-making process, not just during training (RLHF) or at validation checkpoints (HITL). The human maintains **stateful memory** across sessions, which AI agents cannot do. This operational definition distinguishes Genesis from other human-AI collaboration paradigms.
+
+**Mathematical Formulation**:
+
+Let H represent the human orchestrator, M_i the set of AI agents, and S_t the system state at time t.
+
+- **HITL**: S_{t+1} = f(S_t, M_i) + H_review (human validates AI-driven state)
+- **HCAI**: Design constraint: ∀ decisions d, human_values(d) > threshold (human values guide design)
+- **RLHF**: Training phase: M_i ← optimize(M_i, H_feedback); Deployment: S_{t+1} = f(S_t, M_i) (human feedback during training only)
+- **Human-at-Center (Genesis)**: S_{t+1} = H(f_1(S_t, M_1), f_2(S_t, M_2), ..., f_n(S_t, M_n)) (human synthesizes all AI outputs and maintains state)
+
+This formalization clarifies that Genesis is not merely "human-in-the-loop" but **human-at-center**, where the human is the persistent orchestrator, not a peripheral validator.
 
 ### 3.2 The 5-Step Process
 
@@ -235,15 +260,25 @@ Connection to nested learning and multi-level optimization provides mathematical
 
 Establishing prior art through defensive publication (DOI: 10.5281/zenodo.17645665) ensures the Genesis Methodology remains available for the research community rather than being locked behind proprietary patents.
 
-### 5.2 Limitations
+### 5.2 Limitations and When NOT to Use VerifiMind-PEAS
+
+The Genesis Methodology is not universally applicable. Understanding its limitations helps practitioners make informed decisions about when to apply it.
 
 **Resource Intensity**
 
-Genesis requires access to multiple AI models and significant human orchestration time. This may be prohibitive for small-scale applications or resource-constrained users.
+Genesis requires access to multiple AI models and significant human orchestration time. For simple, low-stakes tasks (e.g., generating boilerplate code, formatting text, basic translation), the overhead of multi-model validation outweighs the benefits. **Do NOT use Genesis for**: routine tasks with clear correct answers, time-sensitive decisions requiring immediate action, or projects with limited AI model access.
 
 **Expertise Requirement**
 
-Effective orchestration requires understanding each model's strengths and limitations. Novice users may struggle to synthesize diverse outputs effectively.
+Effective orchestration requires understanding each model's strengths and limitations. Novice users may struggle to synthesize diverse outputs effectively, potentially leading to confusion rather than clarity. **Do NOT use Genesis if**: you are new to AI tools and still learning basic prompting, you lack domain expertise to evaluate AI outputs, or you cannot dedicate time to learning the methodology.
+
+**Diminishing Returns for Simple Problems**
+
+For well-defined problems with established solutions (e.g., implementing standard algorithms, following documented APIs), multi-model validation adds complexity without proportional benefit. **Do NOT use Genesis for**: problems with single correct answers, tasks where speed matters more than depth, or situations where existing documentation is comprehensive.
+
+**Human Orchestration Bottleneck**
+
+The methodology's strength—human-centered orchestration—becomes a bottleneck when scaling. One human orchestrator can only manage a limited number of concurrent validations. **Do NOT use Genesis for**: high-volume, repetitive tasks requiring parallel processing, fully automated workflows without human oversight, or real-time systems requiring sub-second responses.
 
 **No Formal Optimality Proof**
 
@@ -251,7 +286,11 @@ While nested learning theory provides theoretical grounding, we have not proven 
 
 **Limited Quantitative Evaluation**
 
-Our evaluation relies primarily on case studies and qualitative assessment. Controlled experiments comparing Genesis to single-model and baseline multi-model approaches would strengthen the evidence.
+Our evaluation relies primarily on case studies and qualitative assessment. Controlled experiments comparing Genesis to single-model and baseline multi-model approaches would strengthen the evidence. External benchmarks (LOFT: 60-80% accuracy for multi-agent systems, DoorDash: 90% accuracy for production AI systems) suggest Genesis falls within industry norms, but direct comparative studies are needed.
+
+**When Genesis Excels**
+
+Conversely, Genesis is particularly valuable for: complex, ambiguous problems requiring diverse perspectives; ethical or security-critical decisions; long-term projects requiring context persistence; novel domains without established best practices; and situations where single-model bias poses significant risk.
 
 ---
 
