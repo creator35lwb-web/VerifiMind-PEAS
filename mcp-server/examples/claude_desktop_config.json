@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "verifimind-genesis": {
+      "command": "python",
+      "args": [
+        "-m",
+        "verifimind_mcp.server"
+      ],
+      "cwd": "/absolute/path/to/VerifiMind-PEAS/mcp-server",
+      "env": {
+        "PYTHONPATH": "/absolute/path/to/VerifiMind-PEAS/mcp-server/src"
+      }
+    }
+  }
+}
