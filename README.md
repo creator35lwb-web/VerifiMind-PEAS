@@ -495,7 +495,9 @@ We welcome contributions from the community!
 
 ## 📄 License
 
-**MIT License**
+### Open Source License (MIT)
+
+**VerifiMind-PEAS is released under the MIT License** for personal, educational, and open-source use.
 
 Copyright (c) 2025 Alton Lee Wei Bin (creator35lwb)
 
@@ -504,6 +506,36 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+### Commercial License
+
+**For enterprises requiring additional features, support, and legal protections**, we offer commercial licensing options:
+
+- 🏢 **Enterprise Deployment**: Production environments with SLA requirements
+- 🔒 **Proprietary Extensions**: Building proprietary features on top of the framework
+- 📞 **Priority Support**: Dedicated support channels and guaranteed response times
+- 🛡️ **Indemnification**: Legal protection and IP indemnification
+- 📊 **Compliance**: Audit trails and compliance reports for regulated industries
+
+**Read more**: [Commercial License](COMMERCIAL-LICENSE.md)
+
+---
+
+## ™️ Trademark Notice
+
+The following are trademarks of Alton Lee:
+
+- **VerifiMind™** - Primary brand
+- **Genesis Methodology™** - Validation methodology
+- **RefleXion Trinity™** - X-Z-CS agent architecture
+
+**Usage Guidelines**:
+- ✅ Use freely for personal and educational purposes
+- ✅ Reference in documentation and discussions
+- ❌ Do not use in product names without permission
+- ❌ Do not imply official endorsement without permission
+
+Forks and derivatives may use the open-source code under MIT license, but must use different branding.
 
 ---
 
