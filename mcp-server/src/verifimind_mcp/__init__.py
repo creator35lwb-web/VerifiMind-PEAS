@@ -18,6 +18,9 @@ __version__ = "0.1.0"
 __author__ = "Alton Lee"
 __license__ = "MIT"
 
-from .server import app
+from .server import create_server
 
-__all__ = ["app"]
+# For backwards compatibility, create an app instance
+app = create_server()
+
+__all__ = ["app", "create_server"]
