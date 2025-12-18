@@ -1,53 +1,76 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
+message: "If you use this software or methodology, please cite it as below."
 type: software
-title: "VerifiMind-PEAS: Prompt Engineering Attribution System"
-version: 1.1.0
-doi: 10.5281/zenodo.XXXXXXX
-date-released: 2025-12-18
-url: "https://github.com/creator35lwb-web/VerifiMind-PEAS"
-repository-code: "https://github.com/creator35lwb-web/VerifiMind-PEAS"
-license: MIT
+title: "VerifiMind-PEAS: Prompt Engineering Attribution System with Genesis Methodology v2.0"
+abstract: "VerifiMind-PEAS is a production-ready Model Context Protocol (MCP) server providing systematic multi-model AI validation capabilities. Developed over 87 days using the Genesis Prompt Engineering Methodology v2.0, it demonstrates a comprehensive framework for AI-assisted development with multi-agent collaboration, context persistence, and evidence-based refinement."
 authors:
   - family-names: "Lee"
     given-names: "Alton"
-    email: creator35lwb@gmail.com
-    affiliation: "VerifiMind Innovation Project"
+    email: "creator35lwb@gmail.com"
+    affiliation: "VerifiMind™ Innovation Project"
+    orcid: "https://orcid.org/0000-0000-0000-0000"
   - name: "Manus AI"
-    affiliation: "VerifiMind Innovation Project - Strategic Agent (X Agent, CTO)"
+    alias: "X Agent, CTO"
+    affiliation: "Manus AI Platform"
   - name: "Claude Code"
-    affiliation: "VerifiMind Innovation Project - Implementation Agent"
-abstract: >-
-  VerifiMind-PEAS (Prompt Engineering Attribution System) is a production-ready
-  Model Context Protocol (MCP) server providing systematic multi-model AI validation
-  capabilities. Developed over 87 days using the Genesis Prompt Engineering Methodology v2.0,
-  this system provides comprehensive validation of AI-generated content across multiple
-  LLM providers (Anthropic Claude, OpenAI GPT, Google Gemini, Perplexity).
-
-  The system implements four core validation tools:
-  1. analyze_prompt - Comprehensive prompt analysis
-  2. validate_response - Multi-model response validation
-  3. detect_hallucinations - Advanced hallucination detection
-  4. suggest_improvements - Intelligent improvement recommendations
-
-  Code quality: 98/100, Test pass rate: 100%, Production readiness: 85%.
+    alias: "Implementation Agent"
+    affiliation: "Anthropic"
+repository-code: "https://github.com/creator35lwb-web/VerifiMind-PEAS"
+url: "https://github.com/creator35lwb-web/VerifiMind-PEAS"
+license: "MIT"
+version: "1.1.0"
+date-released: "2025-12-18"
 keywords:
-  - AI validation
-  - prompt engineering
-  - multi-model validation
-  - MCP server
-  - Model Context Protocol
-  - LLM validation
-  - hallucination detection
-  - Genesis Methodology
-  - AI quality assurance
+  - "AI validation"
+  - "multi-model validation"
+  - "prompt engineering"
+  - "MCP server"
+  - "Genesis Methodology"
+  - "multi-agent collaboration"
+  - "AI-assisted development"
+  - "hallucination detection"
+  - "LLM validation"
+  - "systematic validation"
+
 references:
   - type: software
     title: "Genesis Prompt Engineering Methodology v2.0"
+    abstract: "Comprehensive framework for multi-agent AI validation and orchestration, validated through 87-day production development. Includes multi-agent orchestration, context persistence mechanisms, Meta-Genesis recursive validation, and comprehensive practical templates."
     authors:
       - family-names: "Lee"
         given-names: "Alton"
       - name: "Manus AI"
-      - name: "Claude Code"
+    version: "2.0.0"
+    date-released: "2025-12-18"
     doi: "10.5281/zenodo.17972751"
-    year: 2025
+    repository-code: "https://github.com/creator35lwb-web/VerifiMind-PEAS"
+    url: "https://doi.org/10.5281/zenodo.17972751"
+    keywords:
+      - "AI methodology"
+      - "multi-agent systems"
+      - "prompt engineering"
+      - "AI validation framework"
+      - "context persistence"
+      - "evidence-based development"
+
+preferred-citation:
+  type: software
+  title: "VerifiMind-PEAS: Prompt Engineering Attribution System"
+  authors:
+    - family-names: "Lee"
+      given-names: "Alton"
+    - name: "Manus AI"
+    - name: "Claude Code"
+  version: "1.1.0"
+  doi: "10.5281/zenodo.XXXXXXX"
+  date-released: "2025-12-18"
+  url: "https://github.com/creator35lwb-web/VerifiMind-PEAS"
+  repository-code: "https://github.com/creator35lwb-web/VerifiMind-PEAS"
+  abstract: "VerifiMind-PEAS is a production-ready MCP server for systematic multi-model AI validation. Developed over 87 days using Genesis Methodology v2.0, achieving 98/100 code quality, 100% test pass rate, and deployment readiness for Smithery marketplace."
+  license: "MIT"
+  keywords:
+    - "AI validation"
+    - "multi-model validation"
+    - "MCP server"
+    - "Genesis Methodology"
+    - "production-ready"

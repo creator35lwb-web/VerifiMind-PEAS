@@ -10,7 +10,7 @@
   [![Version](https://img.shields.io/badge/version-2.0.0--beta-blue.svg)](https://github.com/creator35lwb-web/VerifiMind-PEAS)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Status](https://img.shields.io/badge/status-Methodology%20Framework-orange.svg)](#)
-  [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17645665.svg)](https://doi.org/10.5281/zenodo.17645665)
+  [![Genesis v2.0 DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17972751.svg)](https://doi.org/10.5281/zenodo.17972751)
 
 </div>
 
@@ -175,10 +175,11 @@ VerifiMind-PEAS implements a **multi-model orchestration** architecture where:
 - **Responsibility**: Synthesize AI perspectives, make final decisions
 - **Tools**: Genesis Master Prompts, integration guides
 
-### **X Intelligent Agent** (Innovation)
-- **Role**: Innovation engine and AI co-founder
-- **Focus**: Creative solutions, strategic insights, technical feasibility
-- **Models**: Kimi, GPT-4, Gemini (innovation-focused)
+### **X Intelligent Agent** (Analyst/Researcher)
+- **Role**: Market intelligence and feasibility analysis
+- **Focus**: Research, technical feasibility, market analysis
+- **Models**: Perplexity, GPT-4, Gemini (research-focused)
+- **Note**: X agent focuses on analytical research and validation
 
 ### **Z Guardian Agent** (Ethics)
 - **Role**: Compliance and human-centered design protector
@@ -192,6 +193,17 @@ VerifiMind-PEAS implements a **multi-model orchestration** architecture where:
 
 **This architecture synergizes diverse AI perspectives under human direction for objective, validated results.**
 
+### **About Y Agent (Innovator)**
+
+You may see **Y Agent (Innovator)** in some diagrams. This agent is part of the broader **YSenseAI™** project, which focuses on innovation and strategic vision. The complete ecosystem includes:
+
+- **Y Agent (YSenseAI™)**: Innovation and creative ideation
+- **X Agent (VerifiMind-PEAS)**: Research and analytical validation
+- **Z Agent (VerifiMind-PEAS)**: Ethical compliance
+- **CS Agent (VerifiMind-PEAS)**: Security validation
+
+**VerifiMind-PEAS focuses on the X-Z-CS Trinity** (Research, Ethics, Security), while **YSenseAI™ provides the Y Agent** (Innovation). Together, they form a complete validation framework.
+
 ---
 
 ## 💡 The Concept: Crystal Balls Inside the Black Box
@@ -204,9 +216,12 @@ Instead of treating AI as an opaque "black box," VerifiMind-PEAS places multiple
 
 **Each crystal ball represents a specialized AI agent with a unique perspective**:
 
-- **X (Innovator)**: Generates creative concepts and strategic insights
-- **Z (Guardian)**: Ensures ethical compliance and safety
-- **CS (Validator)**: Validates claims against external evidence and security best practices
+- **Y (Innovator)**: Generates creative concepts and strategic vision (from YSenseAI™)
+- **X (Analyst)**: Researches feasibility and market intelligence (from VerifiMind-PEAS)
+- **Z (Guardian)**: Ensures ethical compliance and safety (from VerifiMind-PEAS)
+- **CS (Validator)**: Validates claims against external evidence and security best practices (from VerifiMind-PEAS)
+
+**Note**: The diagram shows the complete 4-agent system (Y-X-Z-CS). VerifiMind-PEAS specifically implements the **X-Z-CS Trinity**, while **Y Agent comes from YSenseAI™**.
 
 **By orchestrating these diverse perspectives under human direction**, we achieve objective, validated results that no single AI model can provide.
 
@@ -493,7 +508,93 @@ We welcome contributions from the community!
 
 ---
 
-## 📄 License
+## 📚 How to Cite
+
+### **Citing VerifiMind-PEAS v1.1.0 (MCP Server)**
+
+If you use the VerifiMind-PEAS MCP server in your research or project, please cite:
+
+**APA Style**:
+```
+Lee, A. (2025). VerifiMind-PEAS: Prompt Engineering Attribution System (Version 1.1.0) [Computer software]. GitHub. https://github.com/creator35lwb-web/VerifiMind-PEAS
+```
+
+**BibTeX**:
+```bibtex
+@software{verifimind_peas_v1_2025,
+  author = {Lee, Alton and {Manus AI} and {Claude Code}},
+  title = {VerifiMind-PEAS: Prompt Engineering Attribution System},
+  year = {2025},
+  version = {1.1.0},
+  url = {https://github.com/creator35lwb-web/VerifiMind-PEAS},
+  doi = {10.5281/zenodo.XXXXXXX},
+  note = {MCP server for multi-model AI validation}
+}
+```
+
+**IEEE Style**:
+```
+A. Lee, Manus AI, and Claude Code, "VerifiMind-PEAS: Prompt Engineering Attribution System," Version 1.1.0, GitHub, 2025. [Online]. Available: https://github.com/creator35lwb-web/VerifiMind-PEAS
+```
+
+### **Citing Genesis Methodology v2.0 (Methodology)**
+
+If you use or reference the Genesis Prompt Engineering Methodology, please cite:
+
+**APA Style**:
+```
+Lee, A., & Manus AI. (2025). Genesis Prompt Engineering Methodology v2.0: Multi-Agent AI Validation Framework (Version 2.0.0) [Methodology]. Zenodo. https://doi.org/10.5281/zenodo.17972751
+```
+
+**BibTeX**:
+```bibtex
+@misc{genesis_v2_2025,
+  author = {Lee, Alton and {Manus AI}},
+  title = {Genesis Prompt Engineering Methodology v2.0: Multi-Agent AI Validation Framework},
+  year = {2025},
+  version = {2.0.0},
+  url = {https://doi.org/10.5281/zenodo.17972751},
+  doi = {10.5281/zenodo.17972751},
+  note = {Validated through 87-day production development, 21,356 words}
+}
+```
+
+**IEEE Style**:
+```
+A. Lee and Manus AI, "Genesis Prompt Engineering Methodology v2.0: Multi-Agent AI Validation Framework," Version 2.0.0, Zenodo, 2025. [Online]. Available: https://doi.org/10.5281/zenodo.17972751
+```
+
+### **GitHub Citation**
+
+GitHub provides automatic citation support. Click the **"Cite this repository"** button on the repository page to get formatted citations in APA and BibTeX formats.
+
+### **DOI Badges**
+
+**VerifiMind-PEAS v1.0**:  
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX)
+
+**Genesis Methodology v2.0**:  
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.YYYYYYY.svg)](https://doi.org/10.5281/zenodo.YYYYYYY)
+
+*Note: DOI badges will be updated after Zenodo registration is complete.*
+
+### **Release Information**
+
+**VerifiMind-PEAS v1.1.0**:
+- **Release Date**: December 18, 2025
+- **Tag**: `verifimind-v1.1.0`
+- **Release Notes**: [RELEASE_NOTES_V1.1.0.md](RELEASE_NOTES_V1.1.0.md)
+- **Status**: Production-ready, deployment-ready for Smithery marketplace
+
+**Genesis Methodology v2.0**:
+- **Release Date**: December 18, 2025
+- **Tag**: `genesis-v2.0`
+- **Release Notes**: [RELEASE_NOTES_GENESIS_V2.0.md](RELEASE_NOTES_GENESIS_V2.0.md)
+- **Status**: Production-validated through 87-day development journey
+
+---
+
+## 📜 License
 
 ### Open Source License (MIT)
 
