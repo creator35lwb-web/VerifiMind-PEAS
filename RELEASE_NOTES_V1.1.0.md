@@ -9,7 +9,7 @@
 
 ## 🎯 Overview
 
-VerifiMind-PEAS (Prompt Engineering Attribution System) v1.0 is a production-ready Model Context Protocol (MCP) server that provides systematic multi-model AI validation capabilities. Developed over 87 days using the Genesis Prompt Engineering Methodology v2.0, this release represents a fully functional, tested, and deployment-ready system for validating AI-generated content across multiple LLM providers.
+VerifiMind-PEAS (Prompt Engineering Attribution System) v1.1.0 is a production-ready Model Context Protocol (MCP) server that provides systematic multi-model AI validation capabilities. Developed over 87 days using the Genesis Prompt Engineering Methodology v2.0, this release represents a fully functional, tested, and deployment-ready system for validating AI-generated content across multiple LLM providers.
 
 ---
 
