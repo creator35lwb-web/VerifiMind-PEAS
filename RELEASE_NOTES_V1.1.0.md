@@ -1,8 +1,8 @@
-# VerifiMind-PEAS v1.0 - Release Notes
+# VerifiMind-PEAS v1.1.0 - Release Notes
 
 **Release Date**: December 18, 2025  
-**Version**: 1.0.0  
-**Tag**: `v1.0.0`  
+**Version**: 1.1.0  
+**Tag**: `v1.1.0`  
 **Type**: Major Production Release
 
 ---
@@ -208,7 +208,7 @@ Flexible configuration system:
 ## 🚀 Deployment
 
 ### **Smithery Marketplace**
-VerifiMind-PEAS v1.0 is ready for deployment to the Smithery marketplace:
+VerifiMind-PEAS v1.1.0 is ready for deployment to the Smithery marketplace:
 
 **Installation Command**:
 ```bash
@@ -251,7 +251,7 @@ python -m verifimind_peas.server
 
 ## 🎓 Methodology Validation
 
-VerifiMind-PEAS v1.0 serves as the primary validation case study for the Genesis Prompt Engineering Methodology v2.0. The development journey demonstrates:
+VerifiMind-PEAS v1.1.0 serves as the primary validation case study for the Genesis Prompt Engineering Methodology v2.0. The development journey demonstrates:
 
 ### **Multi-Agent Collaboration**
 - **Strategic Agent** (Manus AI): Architectural direction, implementation guides, reviews
@@ -345,7 +345,7 @@ VerifiMind-PEAS v1.0 serves as the primary validation case study for the Genesis
 ## 📚 How to Cite
 
 ### **APA Style**
-Lee, A., Manus AI, & Claude Code. (2025). *VerifiMind-PEAS: Prompt Engineering Attribution System* (Version 1.0.0) [Computer software]. GitHub. https://github.com/creator35lwb-web/VerifiMind-PEAS
+Lee, A., Manus AI, & Claude Code. (2025). *VerifiMind-PEAS: Prompt Engineering Attribution System* (Version 1.1.0) [Computer software]. GitHub. https://github.com/creator35lwb-web/VerifiMind-PEAS
 
 ### **BibTeX**
 ```bibtex
@@ -353,14 +353,14 @@ Lee, A., Manus AI, & Claude Code. (2025). *VerifiMind-PEAS: Prompt Engineering A
   author = {Lee, Alton and {Manus AI} and {Claude Code}},
   title = {VerifiMind-PEAS: Prompt Engineering Attribution System},
   year = {2025},
-  version = {1.0.0},
+  version = {1.1.0},
   url = {https://github.com/creator35lwb-web/VerifiMind-PEAS},
   note = {MCP server for multi-model AI validation}
 }
 ```
 
 ### **IEEE Style**
-A. Lee, Manus AI, and Claude Code, "VerifiMind-PEAS: Prompt Engineering Attribution System," Version 1.0.0, GitHub, 2025. [Online]. Available: https://github.com/creator35lwb-web/VerifiMind-PEAS
+A. Lee, Manus AI, and Claude Code, "VerifiMind-PEAS: Prompt Engineering Attribution System," Version 1.1.0, GitHub, 2025. [Online]. Available: https://github.com/creator35lwb-web/VerifiMind-PEAS
 
 ---
 
@@ -413,7 +413,7 @@ We welcome contributions! Please see CONTRIBUTING.md for guidelines.
 
 ## 🚀 Next Steps
 
-### **v1.1 Roadmap**
+### **v1.2 Roadmap**
 - Additional LLM provider integrations
 - Enhanced caching and performance optimization
 - Web interface for easier access
@@ -431,7 +431,7 @@ We welcome contributions! Please see CONTRIBUTING.md for guidelines.
 
 ## 🎊 Milestone Achievement
 
-VerifiMind-PEAS v1.0 represents a significant milestone in AI-assisted development:
+VerifiMind-PEAS v1.1.0 represents a significant milestone in AI-assisted development:
 
 - ✅ **87-day development journey** completed successfully
 - ✅ **17,282+ lines of production code** with 98/100 quality
@@ -445,10 +445,10 @@ VerifiMind-PEAS v1.0 represents a significant milestone in AI-assisted developme
 
 ---
 
-**VerifiMind-PEAS v1.0**  
+**VerifiMind-PEAS v1.1.0**  
 *Systematic Multi-Model AI Validation for Reliable AI-Generated Content*
 
-**Version**: 1.0.0  
+**Version**: 1.1.0  
 **Release Date**: December 18, 2025  
 **Status**: Production-Ready, Deployment-Ready
 
