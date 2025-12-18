@@ -10,7 +10,7 @@
   [![Version](https://img.shields.io/badge/version-2.0.0--beta-blue.svg)](https://github.com/creator35lwb-web/VerifiMind-PEAS)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Status](https://img.shields.io/badge/status-Methodology%20Framework-orange.svg)](#)
-  [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17645665.svg)](https://doi.org/10.5281/zenodo.17645665)
+  [![Genesis v2.0 DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17972751.svg)](https://doi.org/10.5281/zenodo.17972751)
 
 </div>
 
@@ -510,13 +510,13 @@ We welcome contributions from the community!
 
 ## 📚 How to Cite
 
-### **Citing VerifiMind-PEAS v1.0 (MCP Server)**
+### **Citing VerifiMind-PEAS v1.1 (MCP Server)**
 
 If you use the VerifiMind-PEAS MCP server in your research or project, please cite:
 
 **APA Style**:
 ```
-Lee, A., Manus AI, & Claude Code. (2025). VerifiMind-PEAS: Prompt Engineering Attribution System (Version 1.0.0) [Computer software]. GitHub. https://github.com/creator35lwb-web/VerifiMind-PEAS
+Lee, A., Manus AI, & Claude Code. (2025). VerifiMind-PEAS: Prompt Engineering Attribution System (Version 1.1.0) [Computer software]. GitHub. https://github.com/creator35lwb-web/VerifiMind-PEAS
 ```
 
 **BibTeX**:
@@ -525,7 +525,7 @@ Lee, A., Manus AI, & Claude Code. (2025). VerifiMind-PEAS: Prompt Engineering At
   author = {Lee, Alton and {Manus AI} and {Claude Code}},
   title = {VerifiMind-PEAS: Prompt Engineering Attribution System},
   year = {2025},
-  version = {1.0.0},
+  version = {1.1.0},
   url = {https://github.com/creator35lwb-web/VerifiMind-PEAS},
   doi = {10.5281/zenodo.XXXXXXX},
   note = {MCP server for multi-model AI validation}
@@ -534,7 +534,7 @@ Lee, A., Manus AI, & Claude Code. (2025). VerifiMind-PEAS: Prompt Engineering At
 
 **IEEE Style**:
 ```
-A. Lee, Manus AI, and Claude Code, "VerifiMind-PEAS: Prompt Engineering Attribution System," Version 1.0.0, GitHub, 2025. [Online]. Available: https://github.com/creator35lwb-web/VerifiMind-PEAS. DOI: 10.5281/zenodo.XXXXXXX
+A. Lee, Manus AI, and Claude Code, "VerifiMind-PEAS: Prompt Engineering Attribution System," Version 1.1.0, GitHub, 2025. [Online]. Available: https://github.com/creator35lwb-web/VerifiMind-PEAS. DOI: 10.5281/zenodo.XXXXXXX
 ```
 
 ### **Citing Genesis Methodology v2.0 (Methodology)**
@@ -543,7 +543,7 @@ If you use or reference the Genesis Prompt Engineering Methodology, please cite:
 
 **APA Style**:
 ```
-Lee, A., & Manus AI. (2025). Genesis Prompt Engineering Methodology v2.0: Multi-Agent AI Validation Framework (Version 2.0.0) [Methodology]. GitHub. https://github.com/creator35lwb-web/VerifiMind-PEAS/blob/main/docs/methodology/GENESIS_MASTER_PROMPT_V2.0.md
+Lee, A., & Manus AI. (2025). Genesis Prompt Engineering Methodology v2.0: Multi-Agent AI Validation Framework (Version 2.0.0) [Methodology]. Zenodo. https://doi.org/10.5281/zenodo.17972751
 ```
 
 **BibTeX**:
@@ -553,15 +553,15 @@ Lee, A., & Manus AI. (2025). Genesis Prompt Engineering Methodology v2.0: Multi-
   title = {Genesis Prompt Engineering Methodology v2.0: Multi-Agent AI Validation Framework},
   year = {2025},
   version = {2.0.0},
-  url = {https://github.com/creator35lwb-web/VerifiMind-PEAS/blob/main/docs/methodology/GENESIS_MASTER_PROMPT_V2.0.md},
-  doi = {10.5281/zenodo.YYYYYYY},
+  url = {https://doi.org/10.5281/zenodo.17972751},
+  doi = {10.5281/zenodo.17972751},
   note = {Validated through 87-day production development, 21,356 words}
 }
 ```
 
 **IEEE Style**:
 ```
-A. Lee and Manus AI, "Genesis Prompt Engineering Methodology v2.0: Multi-Agent AI Validation Framework," Version 2.0.0, GitHub, 2025. [Online]. Available: https://github.com/creator35lwb-web/VerifiMind-PEAS/blob/main/docs/methodology/GENESIS_MASTER_PROMPT_V2.0.md. DOI: 10.5281/zenodo.YYYYYYY
+A. Lee and Manus AI, "Genesis Prompt Engineering Methodology v2.0: Multi-Agent AI Validation Framework," Version 2.0.0, Zenodo, 2025. [Online]. Available: https://doi.org/10.5281/zenodo.17972751
 ```
 
 ### **GitHub Citation**
