@@ -510,13 +510,13 @@ We welcome contributions from the community!
 
 ## 📚 How to Cite
 
-### **Citing VerifiMind-PEAS v1.1 (MCP Server)**
+### **Citing VerifiMind-PEAS v1.1.0 (MCP Server)**
 
 If you use the VerifiMind-PEAS MCP server in your research or project, please cite:
 
 **APA Style**:
 ```
-Lee, A., Manus AI, & Claude Code. (2025). VerifiMind-PEAS: Prompt Engineering Attribution System (Version 1.1.0) [Computer software]. GitHub. https://github.com/creator35lwb-web/VerifiMind-PEAS
+Lee, A. (2025). VerifiMind-PEAS: Prompt Engineering Attribution System (Version 1.1.0) [Computer software]. GitHub. https://github.com/creator35lwb-web/VerifiMind-PEAS
 ```
 
 **BibTeX**:
@@ -534,7 +534,7 @@ Lee, A., Manus AI, & Claude Code. (2025). VerifiMind-PEAS: Prompt Engineering At
 
 **IEEE Style**:
 ```
-A. Lee, Manus AI, and Claude Code, "VerifiMind-PEAS: Prompt Engineering Attribution System," Version 1.1.0, GitHub, 2025. [Online]. Available: https://github.com/creator35lwb-web/VerifiMind-PEAS. DOI: 10.5281/zenodo.XXXXXXX
+A. Lee, Manus AI, and Claude Code, "VerifiMind-PEAS: Prompt Engineering Attribution System," Version 1.1.0, GitHub, 2025. [Online]. Available: https://github.com/creator35lwb-web/VerifiMind-PEAS
 ```
 
 ### **Citing Genesis Methodology v2.0 (Methodology)**
@@ -580,10 +580,10 @@ GitHub provides automatic citation support. Click the **"Cite this repository"**
 
 ### **Release Information**
 
-**VerifiMind-PEAS v1.0**:
+**VerifiMind-PEAS v1.1.0**:
 - **Release Date**: December 18, 2025
-- **Tag**: `v1.0.0`
-- **Release Notes**: [RELEASE_NOTES_V1.0.md](RELEASE_NOTES_V1.0.md)
+- **Tag**: `verifimind-v1.1.0`
+- **Release Notes**: [RELEASE_NOTES_V1.1.0.md](RELEASE_NOTES_V1.1.0.md)
 - **Status**: Production-ready, deployment-ready for Smithery marketplace
 
 **Genesis Methodology v2.0**:
