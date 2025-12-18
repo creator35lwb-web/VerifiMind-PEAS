@@ -493,7 +493,93 @@ We welcome contributions from the community!
 
 ---
 
-## 📄 License
+## 📚 How to Cite
+
+### **Citing VerifiMind-PEAS v1.0 (MCP Server)**
+
+If you use the VerifiMind-PEAS MCP server in your research or project, please cite:
+
+**APA Style**:
+```
+Lee, A., Manus AI, & Claude Code. (2025). VerifiMind-PEAS: Prompt Engineering Attribution System (Version 1.0.0) [Computer software]. GitHub. https://github.com/creator35lwb-web/VerifiMind-PEAS
+```
+
+**BibTeX**:
+```bibtex
+@software{verifimind_peas_v1_2025,
+  author = {Lee, Alton and {Manus AI} and {Claude Code}},
+  title = {VerifiMind-PEAS: Prompt Engineering Attribution System},
+  year = {2025},
+  version = {1.0.0},
+  url = {https://github.com/creator35lwb-web/VerifiMind-PEAS},
+  doi = {10.5281/zenodo.XXXXXXX},
+  note = {MCP server for multi-model AI validation}
+}
+```
+
+**IEEE Style**:
+```
+A. Lee, Manus AI, and Claude Code, "VerifiMind-PEAS: Prompt Engineering Attribution System," Version 1.0.0, GitHub, 2025. [Online]. Available: https://github.com/creator35lwb-web/VerifiMind-PEAS. DOI: 10.5281/zenodo.XXXXXXX
+```
+
+### **Citing Genesis Methodology v2.0 (Methodology)**
+
+If you use or reference the Genesis Prompt Engineering Methodology, please cite:
+
+**APA Style**:
+```
+Lee, A., & Manus AI. (2025). Genesis Prompt Engineering Methodology v2.0: Multi-Agent AI Validation Framework (Version 2.0.0) [Methodology]. GitHub. https://github.com/creator35lwb-web/VerifiMind-PEAS/blob/main/docs/methodology/GENESIS_MASTER_PROMPT_V2.0.md
+```
+
+**BibTeX**:
+```bibtex
+@misc{genesis_v2_2025,
+  author = {Lee, Alton and {Manus AI}},
+  title = {Genesis Prompt Engineering Methodology v2.0: Multi-Agent AI Validation Framework},
+  year = {2025},
+  version = {2.0.0},
+  url = {https://github.com/creator35lwb-web/VerifiMind-PEAS/blob/main/docs/methodology/GENESIS_MASTER_PROMPT_V2.0.md},
+  doi = {10.5281/zenodo.YYYYYYY},
+  note = {Validated through 87-day production development, 21,356 words}
+}
+```
+
+**IEEE Style**:
+```
+A. Lee and Manus AI, "Genesis Prompt Engineering Methodology v2.0: Multi-Agent AI Validation Framework," Version 2.0.0, GitHub, 2025. [Online]. Available: https://github.com/creator35lwb-web/VerifiMind-PEAS/blob/main/docs/methodology/GENESIS_MASTER_PROMPT_V2.0.md. DOI: 10.5281/zenodo.YYYYYYY
+```
+
+### **GitHub Citation**
+
+GitHub provides automatic citation support. Click the **"Cite this repository"** button on the repository page to get formatted citations in APA and BibTeX formats.
+
+### **DOI Badges**
+
+**VerifiMind-PEAS v1.0**:  
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX)
+
+**Genesis Methodology v2.0**:  
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.YYYYYYY.svg)](https://doi.org/10.5281/zenodo.YYYYYYY)
+
+*Note: DOI badges will be updated after Zenodo registration is complete.*
+
+### **Release Information**
+
+**VerifiMind-PEAS v1.0**:
+- **Release Date**: December 18, 2025
+- **Tag**: `v1.0.0`
+- **Release Notes**: [RELEASE_NOTES_V1.0.md](RELEASE_NOTES_V1.0.md)
+- **Status**: Production-ready, deployment-ready for Smithery marketplace
+
+**Genesis Methodology v2.0**:
+- **Release Date**: December 18, 2025
+- **Tag**: `genesis-v2.0`
+- **Release Notes**: [RELEASE_NOTES_GENESIS_V2.0.md](RELEASE_NOTES_GENESIS_V2.0.md)
+- **Status**: Production-validated through 87-day development journey
+
+---
+
+## 📜 License
 
 ### Open Source License (MIT)
 
