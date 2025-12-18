@@ -187,21 +187,19 @@ Flexible configuration system:
 ## 📚 Documentation
 
 ### **User Documentation**
-- **README.md**: Project overview and quick start
-- **INSTALLATION.md**: Detailed installation instructions
-- **USAGE.md**: Comprehensive usage guide
-- **API.md**: API reference documentation
+- **[README.md](README.md)**: Project overview and quick start
+- **[QUICK_START.md](QUICK_START.md)**: Quick start guide
+- **[SETUP.md](SETUP.md)**: Detailed setup instructions
 
 ### **Developer Documentation**
-- **CONTRIBUTING.md**: Contribution guidelines
-- **ARCHITECTURE.md**: System architecture documentation
-- **TESTING.md**: Testing guide and standards
+- **[CONTRIBUTING.md](CONTRIBUTING.md)**: Contribution guidelines
+- **[ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md)**: System architecture documentation
 
 ### **Methodology Documentation**
-- **Genesis Master Prompt v2.0**: Complete methodology (21,356 words)
-- **Implementation Guides**: 5+ detailed guides
-- **Review Reports**: 5+ comprehensive reviews
-- **Deployment Guides**: 2 deployment procedures
+- **[Genesis Master Prompt v2.0](docs/methodology/GENESIS_MASTER_PROMPT_V2.0.md)**: Complete methodology (21,356 words)
+- **[Implementation Guides](docs/implementation-guides/)**: Detailed guides
+- **[Review Reports](docs/review-reports/)**: Comprehensive reviews
+- **[Deployment Guides](docs/deployment-guides/)**: Deployment procedures
 
 ---
 
@@ -366,8 +364,8 @@ A. Lee, Manus AI, and Claude Code, "VerifiMind-PEAS: Prompt Engineering Attribut
 
 ## 🔗 Related Releases
 
-- **Genesis Master Prompt v2.0**: Methodology used to develop this system
-- **YSenseAI**: Related attribution infrastructure project
+- **[Genesis Master Prompt v2.0](https://doi.org/10.5281/zenodo.17972751)**: Methodology used to develop this system (DOI: 10.5281/zenodo.17972751)
+- **YSenseAI™**: Related attribution infrastructure project (Y Agent - Innovator)
 
 ---
 
@@ -380,7 +378,7 @@ A. Lee, Manus AI, and Claude Code, "VerifiMind-PEAS: Prompt Engineering Attribut
 - **Manus Project**: YSenseAI™ | 慧觉™ (a3sMNnpwFXPLBFiYv4aRkt)
 
 ### **Contributing**
-We welcome contributions! Please see CONTRIBUTING.md for guidelines.
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 **Ways to Contribute**:
 - Report bugs or issues
@@ -393,7 +391,11 @@ We welcome contributions! Please see CONTRIBUTING.md for guidelines.
 
 ## 📜 License
 
-[License information to be added]
+VerifiMind-PEAS is licensed under the **MIT License**. See [LICENSE](LICENSE) for full details.
+
+For commercial licensing options and enterprise support, see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md).
+
+**Copyright © 2025 Alton & VerifiMind Contributors. All rights reserved.**
 
 ---
 

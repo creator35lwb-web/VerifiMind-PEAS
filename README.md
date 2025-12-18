@@ -175,10 +175,11 @@ VerifiMind-PEAS implements a **multi-model orchestration** architecture where:
 - **Responsibility**: Synthesize AI perspectives, make final decisions
 - **Tools**: Genesis Master Prompts, integration guides
 
-### **X Intelligent Agent** (Innovation)
-- **Role**: Innovation engine and AI co-founder
-- **Focus**: Creative solutions, strategic insights, technical feasibility
-- **Models**: Kimi, GPT-4, Gemini (innovation-focused)
+### **X Intelligent Agent** (Analyst/Researcher)
+- **Role**: Market intelligence and feasibility analysis
+- **Focus**: Research, technical feasibility, market analysis
+- **Models**: Perplexity, GPT-4, Gemini (research-focused)
+- **Note**: X agent focuses on analytical research and validation
 
 ### **Z Guardian Agent** (Ethics)
 - **Role**: Compliance and human-centered design protector
@@ -192,6 +193,17 @@ VerifiMind-PEAS implements a **multi-model orchestration** architecture where:
 
 **This architecture synergizes diverse AI perspectives under human direction for objective, validated results.**
 
+### **About Y Agent (Innovator)**
+
+You may see **Y Agent (Innovator)** in some diagrams. This agent is part of the broader **YSenseAI™** project, which focuses on innovation and strategic vision. The complete ecosystem includes:
+
+- **Y Agent (YSenseAI™)**: Innovation and creative ideation
+- **X Agent (VerifiMind-PEAS)**: Research and analytical validation
+- **Z Agent (VerifiMind-PEAS)**: Ethical compliance
+- **CS Agent (VerifiMind-PEAS)**: Security validation
+
+**VerifiMind-PEAS focuses on the X-Z-CS Trinity** (Research, Ethics, Security), while **YSenseAI™ provides the Y Agent** (Innovation). Together, they form a complete validation framework.
+
 ---
 
 ## 💡 The Concept: Crystal Balls Inside the Black Box
@@ -204,9 +216,12 @@ Instead of treating AI as an opaque "black box," VerifiMind-PEAS places multiple
 
 **Each crystal ball represents a specialized AI agent with a unique perspective**:
 
-- **X (Innovator)**: Generates creative concepts and strategic insights
-- **Z (Guardian)**: Ensures ethical compliance and safety
-- **CS (Validator)**: Validates claims against external evidence and security best practices
+- **Y (Innovator)**: Generates creative concepts and strategic vision (from YSenseAI™)
+- **X (Analyst)**: Researches feasibility and market intelligence (from VerifiMind-PEAS)
+- **Z (Guardian)**: Ensures ethical compliance and safety (from VerifiMind-PEAS)
+- **CS (Validator)**: Validates claims against external evidence and security best practices (from VerifiMind-PEAS)
+
+**Note**: The diagram shows the complete 4-agent system (Y-X-Z-CS). VerifiMind-PEAS specifically implements the **X-Z-CS Trinity**, while **Y Agent comes from YSenseAI™**.
 
 **By orchestrating these diverse perspectives under human direction**, we achieve objective, validated results that no single AI model can provide.
 
