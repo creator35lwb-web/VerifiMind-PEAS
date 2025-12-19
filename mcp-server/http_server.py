@@ -1,36 +1,25 @@
 """
 HTTP Server Entry Point for VerifiMind MCP Server
 Designed for Smithery deployment with HTTP transport
-Uses FastMCP's http_app() mounted in FastAPI for full endpoint control
+Properly handles FastMCP lifespan context for session management
 """
 import os
+import contextlib
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from starlette.applications import Starlette
+from starlette.routing import Mount, Route
 from verifimind_mcp.server import create_http_server
 
-# Create main FastAPI app for custom routes
-app = FastAPI(
-    title="VerifiMind-PEAS MCP Server",
-    description="Model Context Protocol server for Genesis Methodology validation",
-    version="0.2.0"
-)
-
 # Create MCP server instance (raw FastMCP, not SmitheryFastMCP wrapper)
-# This allows us to call .http_app() method
 mcp_server = create_http_server()
 
-# Mount MCP server at /mcp endpoint
-# This exposes the MCP protocol with SSE transport
-app.mount("/mcp", mcp_server.http_app())
+# Get ASGI app from FastMCP with proper path
+mcp_app = mcp_server.http_app(path="/mcp")
 
-# Custom endpoints for Smithery discovery and monitoring
-
-@app.get("/.well-known/mcp-config")
-async def mcp_config():
-    """
-    Smithery server discovery endpoint.
-    Provides metadata about the MCP server for client configuration.
-    """
+# Custom route handlers
+async def mcp_config_handler(request):
+    """Smithery server discovery endpoint"""
     return JSONResponse({
         "mcpServers": {
             "verifimind-genesis": {
@@ -67,13 +56,8 @@ async def mcp_config():
         }
     })
 
-
-@app.get("/health")
-async def health():
-    """
-    Health check endpoint for monitoring.
-    Returns server status and basic information.
-    """
+async def health_handler(request):
+    """Health check endpoint"""
     return JSONResponse({
         "status": "healthy",
         "server": "verifimind-genesis",
@@ -86,12 +70,8 @@ async def health():
         }
     })
 
-
-@app.get("/")
-async def root():
-    """
-    Root endpoint providing server information and available endpoints.
-    """
+async def root_handler(request):
+    """Root endpoint with server info"""
     return JSONResponse({
         "name": "VerifiMind PEAS MCP Server",
         "version": "0.2.0",
@@ -101,89 +81,23 @@ async def root():
         "endpoints": {
             "mcp": "/mcp",
             "config": "/.well-known/mcp-config",
-            "health": "/health",
-            "docs": "/docs",
-            "redoc": "/redoc"
+            "health": "/health"
         },
         "resources": 4,
         "tools": 4,
         "status": "online"
     })
 
-
-# Add .well-known/mcp-config endpoint for Smithery discovery
-from fastapi.responses import JSONResponse
-
-@app.get("/.well-known/mcp-config")
-async def mcp_config():
-    """
-    MCP Server Configuration Endpoint
-    
-    This endpoint is required by Smithery to discover the MCP server
-    and its capabilities without authentication.
-    """
-    return JSONResponse({
-        "mcpServers": {
-            "verifimind-genesis": {
-                "url": "/mcp",
-                "transport": "sse",
-                "metadata": {
-                    "name": "VerifiMind PEAS Genesis",
-                    "version": "0.2.0",
-                    "description": "Model Context Protocol server for VerifiMind-PEAS Genesis Methodology",
-                    "author": "Alton Lee",
-                    "homepage": "https://github.com/creator35lwb-web/VerifiMind-PEAS"
-                },
-                "capabilities": {
-                    "resources": {
-                        "count": 4,
-                        "list": [
-                            "genesis://config/master_prompt",
-                            "genesis://history/latest",
-                            "genesis://history/all",
-                            "genesis://state/project_info"
-                        ]
-                    },
-                    "tools": {
-                        "count": 4,
-                        "list": [
-                            "consult_agent_x",
-                            "consult_agent_z",
-                            "consult_agent_cs",
-                            "run_full_trinity"
-                        ]
-                    }
-                }
-            }
-        }
-    })
-
-# Health check endpoint
-@app.get("/health")
-async def health_check():
-    """Health check endpoint for monitoring"""
-    return JSONResponse({
-        "status": "healthy",
-        "server": "verifimind-genesis",
-        "version": "0.2.0"
-    })
-
-# Root endpoint
-@app.get("/")
-async def root():
-    """Root endpoint with server information"""
-    return JSONResponse({
-        "name": "VerifiMind PEAS MCP Server",
-        "version": "0.2.0",
-        "description": "Model Context Protocol server for VerifiMind-PEAS Genesis Methodology",
-        "endpoints": {
-            "mcp": "/mcp",
-            "config": "/.well-known/mcp-config",
-            "health": "/health"
-        },
-        "resources": 4,
-        "tools": 4
-    })
+# Create Starlette app with proper lifespan from MCP app
+app = Starlette(
+    routes=[
+        Route("/.well-known/mcp-config", mcp_config_handler),
+        Route("/health", health_handler),
+        Route("/", root_handler),
+        Mount("/mcp", app=mcp_app),
+    ],
+    lifespan=mcp_app.lifespan  # CRITICAL: Pass lifespan for session initialization
+)
 
 # Print server info when module is loaded
 print("=" * 70)
@@ -199,7 +113,6 @@ print("=" * 70)
 print("Resources: 4 | Tools: 4")
 print("Server ready for connections...")
 print("=" * 70)
-
 
 # For direct execution (testing)
 if __name__ == "__main__":
