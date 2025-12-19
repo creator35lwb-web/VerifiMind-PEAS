@@ -1,8 +1,6 @@
-runtime: "python"
-name: "verifimind-mcp-server"
-description: "Model Context Protocol server for VerifiMind-PEAS Genesis Methodology validation."
-version: "0.1.0"
-author: "creator35lwb-web"
-repository: "https://github.com/creator35lwb-web/VerifiMind-PEAS"
-install: "pip install -e ."
-run: "python3 -m verifimind_mcp.server"
+runtime: "container"
+build:
+  dockerfile: "Dockerfile"
+  dockerBuildPath: "."
+startCommand:
+  type: "http"
