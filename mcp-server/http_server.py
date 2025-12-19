@@ -1,36 +1,38 @@
 """
 HTTP Server Entry Point for VerifiMind MCP Server
 Designed for Smithery deployment with HTTP transport
+Uses Smithery's create_smithery_server for proper SSE support
 """
 import os
-import sys
-from pathlib import Path
-
-# Add src directory to Python path
-src_path = Path(__file__).parent / "src"
-sys.path.insert(0, str(src_path))
-
-# Import the server creation function
+from fastapi import FastAPI
+from smithery.server import create_smithery_server
 from verifimind_mcp.server import create_server
 
-# Create the MCP server instance
+# Create FastAPI app
+app = FastAPI(
+    title="VerifiMind-PEAS MCP Server",
+    description="Model Context Protocol server for Genesis Methodology validation",
+    version="0.1.0"
+)
+
+# Create MCP server instance
 mcp_server = create_server()
 
-# Create ASGI application for uvicorn
-# This exposes the MCP server at /mcp endpoint
-app = mcp_server.http_app()
+# Add Smithery SSE endpoint at /mcp
+# This creates the proper HTTP endpoint with Server-Sent Events support
+create_smithery_server(app, mcp_server)
 
 # Print server info when module is loaded
 print("=" * 70)
-print("VerifiMind-PEAS MCP Server - HTTP Mode")
+print("VerifiMind-PEAS MCP Server - Smithery Mode")
 print("=" * 70)
-print(f"Server: verifimind-genesis")
-print(f"Transport: HTTP (Smithery Streamable)")
+print(f"Server: verifimind-mcp")
+print(f"Transport: HTTP with SSE (Smithery)")
 print(f"Port: {os.getenv('PORT', '8081')}")
 print(f"Endpoint: /mcp")
 print("=" * 70)
 print("Resources: 4 | Tools: 4")
-print("Server ready for connections...")
+print("Server ready for Smithery connections...")
 print("=" * 70)
 
 # For direct execution (optional, mainly for testing)
