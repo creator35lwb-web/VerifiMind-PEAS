@@ -1,5 +1,5 @@
 [project]
-name = "verifimind-mcp-server"
+name = "verifimind-mcp"
 version = "0.1.0"
 description = "Model Context Protocol server for VerifiMind-PEAS Genesis Methodology"
 authors = [
