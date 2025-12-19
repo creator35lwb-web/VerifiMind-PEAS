@@ -110,6 +110,80 @@ async def root():
     })
 
 
+# Add .well-known/mcp-config endpoint for Smithery discovery
+from fastapi.responses import JSONResponse
+
+@app.get("/.well-known/mcp-config")
+async def mcp_config():
+    """
+    MCP Server Configuration Endpoint
+    
+    This endpoint is required by Smithery to discover the MCP server
+    and its capabilities without authentication.
+    """
+    return JSONResponse({
+        "mcpServers": {
+            "verifimind-genesis": {
+                "url": "/mcp",
+                "transport": "sse",
+                "metadata": {
+                    "name": "VerifiMind PEAS Genesis",
+                    "version": "0.2.0",
+                    "description": "Model Context Protocol server for VerifiMind-PEAS Genesis Methodology",
+                    "author": "Alton Lee",
+                    "homepage": "https://github.com/creator35lwb-web/VerifiMind-PEAS"
+                },
+                "capabilities": {
+                    "resources": {
+                        "count": 4,
+                        "list": [
+                            "genesis://config/master_prompt",
+                            "genesis://history/latest",
+                            "genesis://history/all",
+                            "genesis://state/project_info"
+                        ]
+                    },
+                    "tools": {
+                        "count": 4,
+                        "list": [
+                            "consult_agent_x",
+                            "consult_agent_z",
+                            "consult_agent_cs",
+                            "run_full_trinity"
+                        ]
+                    }
+                }
+            }
+        }
+    })
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for monitoring"""
+    return JSONResponse({
+        "status": "healthy",
+        "server": "verifimind-genesis",
+        "version": "0.2.0"
+    })
+
+# Root endpoint
+@app.get("/")
+async def root():
+    """Root endpoint with server information"""
+    return JSONResponse({
+        "name": "VerifiMind PEAS MCP Server",
+        "version": "0.2.0",
+        "description": "Model Context Protocol server for VerifiMind-PEAS Genesis Methodology",
+        "endpoints": {
+            "mcp": "/mcp",
+            "config": "/.well-known/mcp-config",
+            "health": "/health"
+        },
+        "resources": 4,
+        "tools": 4
+    })
+
 # Print server info when module is loaded
 print("=" * 70)
 print("VerifiMind-PEAS MCP Server - HTTP Mode")
