@@ -149,12 +149,14 @@ def get_project_info() -> dict[str, Any]:
     }
 
 
-@smithery.server(config_schema=VerifiMindConfig)
-def create_server():
-    """Create and return VerifiMind Genesis MCP Server instance.
+def _create_mcp_instance():
+    """Internal function to create the raw FastMCP instance.
 
-    This function is called by Smithery to initialize the server with
-    user-specific configuration.
+    This is used by both create_server() (Smithery playground) and
+    create_http_server() (HTTP deployment).
+
+    Returns:
+        FastMCP: Raw FastMCP server instance with all tools and resources registered.
     """
     # Initialize MCP server
     app = FastMCP("verifimind-genesis")
@@ -680,6 +682,31 @@ def create_server():
             }
 
     return app
+
+
+def create_http_server():
+    """Create MCP server for HTTP deployment.
+
+    Returns raw FastMCP instance without Smithery wrapper.
+    This allows using .http_app() for HTTP/SSE transport.
+
+    Returns:
+        FastMCP: Server instance that can be mounted in FastAPI.
+    """
+    return _create_mcp_instance()
+
+
+@smithery.server(config_schema=VerifiMindConfig)
+def create_server():
+    """Create MCP server for Smithery playground/CLI.
+
+    This is wrapped with @smithery.server decorator for session configuration.
+    Returns SmitheryFastMCP instance for Smithery's playground mode.
+
+    Returns:
+        SmitheryFastMCP: Wrapped server instance for Smithery.
+    """
+    return _create_mcp_instance()
 
 
 # Entry point for direct execution

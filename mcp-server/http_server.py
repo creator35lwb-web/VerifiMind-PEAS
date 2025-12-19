@@ -6,7 +6,7 @@ Uses FastMCP's http_app() mounted in FastAPI for full endpoint control
 import os
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
-from verifimind_mcp.server import create_server
+from verifimind_mcp.server import create_http_server
 
 # Create main FastAPI app for custom routes
 app = FastAPI(
@@ -15,8 +15,9 @@ app = FastAPI(
     version="0.2.0"
 )
 
-# Create MCP server instance
-mcp_server = create_server()
+# Create MCP server instance (raw FastMCP, not SmitheryFastMCP wrapper)
+# This allows us to call .http_app() method
+mcp_server = create_http_server()
 
 # Mount MCP server at /mcp endpoint
 # This exposes the MCP protocol with SSE transport
