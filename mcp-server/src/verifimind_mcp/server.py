@@ -54,10 +54,36 @@ class VerifiMindConfig(BaseModel):
     )
 
 
-# Constants
-REPO_ROOT = Path(__file__).parent.parent.parent.parent
-MASTER_PROMPT_PATH = REPO_ROOT / "reflexion-master-prompts-v1.1.md"
-HISTORY_PATH = REPO_ROOT / "verifimind_history.json"
+# Constants - Use robust path resolution for Docker and local environments
+def _get_master_prompt_path() -> Path:
+    """Find master prompt file in Docker or local environment."""
+    # Locations to check (in order of priority):
+    # 1. Current working directory (Docker: /app)
+    # 2. Parent of package directory
+    # 3. Repository root (development)
+
+    candidates = [
+        Path.cwd() / "reflexion-master-prompts-v1.1.md",  # Docker: /app/
+        Path(__file__).parent.parent.parent / "reflexion-master-prompts-v1.1.md",  # Package parent
+        Path(__file__).parent.parent.parent.parent / "reflexion-master-prompts-v1.1.md",  # Repo root
+    ]
+
+    for path in candidates:
+        if path.exists():
+            return path
+
+    # Return first candidate as default (will show error in load_master_prompt)
+    return candidates[0]
+
+
+def _get_history_path() -> Path:
+    """Find or create validation history file path."""
+    # Use current working directory (Docker: /app, Local: project root)
+    return Path.cwd() / "verifimind_history.json"
+
+
+MASTER_PROMPT_PATH = _get_master_prompt_path()
+HISTORY_PATH = _get_history_path()
 
 
 def load_master_prompt() -> str:
@@ -66,9 +92,9 @@ def load_master_prompt() -> str:
         if MASTER_PROMPT_PATH.exists():
             return MASTER_PROMPT_PATH.read_text(encoding="utf-8")
         else:
-            return "# Genesis Master Prompt v16.1\n\n(Master Prompt file not found. Please ensure reflexion-master-prompts-v1.1.md exists in repository root.)"
+            return f"# Genesis Master Prompt v16.1\n\n(Master Prompt file not found at: {MASTER_PROMPT_PATH})\n\nSearched locations:\n- {Path.cwd()}/reflexion-master-prompts-v1.1.md\n- {Path(__file__).parent.parent.parent}/reflexion-master-prompts-v1.1.md"
     except Exception as e:
-        return f"# Error Loading Master Prompt\n\nError: {str(e)}"
+        return f"# Error Loading Master Prompt\n\nError: {str(e)}\nPath: {MASTER_PROMPT_PATH}"
 
 
 def load_validation_history() -> dict[str, Any]:
