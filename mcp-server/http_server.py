@@ -18,44 +18,6 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path="/mcp")
 
 # Custom route handlers
-async def mcp_config_handler(request):
-    """Smithery server discovery endpoint"""
-    return JSONResponse({
-        "mcpServers": {
-            "verifimind-genesis": {
-                "url": "/mcp",
-                "transport": "sse",
-                "metadata": {
-                    "name": "VerifiMind PEAS Genesis",
-                    "version": "0.2.0",
-                    "description": "Model Context Protocol server for VerifiMind-PEAS Genesis Methodology",
-                    "author": "Alton Lee",
-                    "homepage": "https://github.com/creator35lwb-web/VerifiMind-PEAS"
-                },
-                "capabilities": {
-                    "resources": {
-                        "count": 4,
-                        "list": [
-                            "genesis://config/master_prompt",
-                            "genesis://history/latest",
-                            "genesis://history/all",
-                            "genesis://state/project_info"
-                        ]
-                    },
-                    "tools": {
-                        "count": 4,
-                        "list": [
-                            "consult_agent_x",
-                            "consult_agent_z",
-                            "consult_agent_cs",
-                            "run_full_trinity"
-                        ]
-                    }
-                }
-            }
-        }
-    })
-
 async def health_handler(request):
     """Health check endpoint"""
     return JSONResponse({
@@ -89,9 +51,9 @@ async def root_handler(request):
     })
 
 # Create Starlette app with proper lifespan from MCP app
+# Note: /.well-known/mcp-config is handled by Smithery's sidecar, not our app
 app = Starlette(
     routes=[
-        Route("/.well-known/mcp-config", mcp_config_handler),
         Route("/health", health_handler),
         Route("/", root_handler),
         Mount("/mcp", app=mcp_app),
@@ -107,8 +69,8 @@ print(f"Server: verifimind-genesis")
 print(f"Transport: HTTP with SSE (FastMCP)")
 print(f"Port: {os.getenv('PORT', '8081')}")
 print(f"MCP Endpoint: /mcp")
-print(f"Config Endpoint: /.well-known/mcp-config")
 print(f"Health Endpoint: /health")
+print(f"Note: /.well-known/mcp-config handled by Smithery sidecar")
 print("=" * 70)
 print("Resources: 4 | Tools: 4")
 print("Server ready for connections...")
@@ -123,7 +85,6 @@ if __name__ == "__main__":
     print(f"Try:")
     print(f"  curl http://localhost:{port}/")
     print(f"  curl http://localhost:{port}/health")
-    print(f"  curl http://localhost:{port}/.well-known/mcp-config")
     print(f"  curl http://localhost:{port}/mcp\n")
 
     uvicorn.run(
