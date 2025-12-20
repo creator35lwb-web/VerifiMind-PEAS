@@ -17,10 +17,10 @@ RUN uv pip install --system --no-cache .
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
-ENV PORT=8081
+ENV PORT=8080
 
-# Expose the port (Smithery will map this)
-EXPOSE 8081
+# Expose the port (Cloud Run will map this)
+EXPOSE 8080
 
 # Add healthcheck so Smithery knows when server is ready
 HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=3 \

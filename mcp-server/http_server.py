@@ -85,7 +85,7 @@ print("VerifiMind-PEAS MCP Server - HTTP Mode")
 print("=" * 70)
 print(f"Server: verifimind-genesis")
 print(f"Transport: HTTP with SSE (FastMCP)")
-print(f"Port: {os.getenv('PORT', '8081')}")
+print(f"Port: {os.getenv('PORT', '8080')}")
 print(f"MCP Endpoint: /mcp")
 print(f"Health Endpoint: /health")
 print(f"Config Endpoint: /.well-known/mcp-config")
@@ -97,7 +97,7 @@ print("=" * 70)
 # For direct execution (testing)
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", "8081"))
+    port = int(os.getenv("PORT", "8080"))
 
     print(f"\nStarting HTTP server on 0.0.0.0:{port}")
     print(f"Try:")
