@@ -1,2 +1,51 @@
-runtime: python
-entrypoint: src/verifimind_mcp/server.py
+runtime: "container"
+
+startCommand:
+  type: "http"
+  configSchema:
+    type: "object"
+    title: "VerifiMind PEAS Configuration"
+    description: "Configuration for VerifiMind PEAS MCP Server - A Validation-First Methodology for Ethical and Secure Application Development"
+    properties:
+      llm_provider:
+        type: "string"
+        title: "LLM Provider"
+        description: "The LLM provider to use for validation"
+        enum: ["openai", "anthropic", "mock"]
+        default: "mock"
+      llm_model:
+        type: "string"
+        title: "LLM Model"
+        description: "The specific model to use (e.g., gpt-4, claude-3-opus)"
+        default: "gpt-4"
+      api_key:
+        type: "string"
+        title: "API Key"
+        description: "API key for the selected LLM provider (optional for mock provider)"
+        default: ""
+      max_iterations:
+        type: "integer"
+        title: "Max RefleXion Iterations"
+        description: "Maximum number of RefleXion iterations for validation"
+        default: 3
+        minimum: 1
+        maximum: 10
+      enable_logging:
+        type: "boolean"
+        title: "Enable Logging"
+        description: "Enable detailed logging for debugging"
+        default: true
+  exampleConfig:
+    llm_provider: "mock"
+    llm_model: "gpt-4"
+    api_key: ""
+    max_iterations: 3
+    enable_logging: true
+
+build:
+  dockerfile: "Dockerfile"
+  dockerBuildPath: "."
+
+env:
+  PYTHONUNBUFFERED: "1"
+  LOG_LEVEL: "INFO"
