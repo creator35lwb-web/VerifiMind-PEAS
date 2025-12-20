@@ -1,5 +1,7 @@
 runtime: "container"
 
+hostedUrl: "https://verifimind-mcp-server-690976799907.us-central1.run.app"
+
 startCommand:
   type: "http"
   configSchema:
