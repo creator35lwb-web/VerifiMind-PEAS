@@ -6,6 +6,9 @@ FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 # Set working directory
 WORKDIR /app
 
+# Install curl for healthcheck
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
 # Copy all source code (needed for package installation)
 COPY . .
 
@@ -18,6 +21,10 @@ ENV PORT=8081
 
 # Expose the port (Smithery will map this)
 EXPOSE 8081
+
+# Add healthcheck so Smithery knows when server is ready
+HEALTHCHECK --interval=5s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:${PORT}/health || exit 1
 
 # Run the MCP server with Uvicorn HTTP server
 # Smithery sets PORT=8081, server will be available at /mcp endpoint
