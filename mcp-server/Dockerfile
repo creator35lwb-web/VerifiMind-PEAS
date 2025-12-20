@@ -6,14 +6,11 @@ FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 # Set working directory
 WORKDIR /app
 
-# Copy dependency files AND readme first (for better layer caching)
-COPY pyproject.toml README.md ./
-
-# Install dependencies using uv
-RUN uv pip install --system --no-cache -e .
-
-# Copy the entire source code
+# Copy all source code (needed for package installation)
 COPY . .
+
+# Install the package and dependencies using uv
+RUN uv pip install --system --no-cache .
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1

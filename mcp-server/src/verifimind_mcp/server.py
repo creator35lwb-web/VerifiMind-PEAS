@@ -26,7 +26,7 @@ import os
 from pathlib import Path
 from typing import Any, Optional
 
-from mcp.server.fastmcp import Context, FastMCP
+from fastmcp import FastMCP, Context
 from smithery.decorators import smithery
 from pydantic import BaseModel, Field
 
