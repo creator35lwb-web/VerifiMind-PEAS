@@ -32,6 +32,24 @@ async def health_handler(request):
         }
     })
 
+async def mcp_config_handler(request):
+    """MCP configuration endpoint for Claude Desktop and other MCP clients"""
+    # Get the base URL from the request
+    base_url = str(request.url).replace("/.well-known/mcp-config", "")
+    
+    return JSONResponse({
+        "mcpServers": {
+            "verifimind-genesis": {
+                "url": f"{base_url}/mcp",
+                "description": "VerifiMind PEAS Genesis Methodology MCP Server",
+                "version": "0.2.0",
+                "transport": "http-sse",
+                "resources": 4,
+                "tools": 4
+            }
+        }
+    })
+
 async def root_handler(request):
     """Root endpoint with server info"""
     return JSONResponse({
@@ -51,11 +69,11 @@ async def root_handler(request):
     })
 
 # Create Starlette app with proper lifespan from MCP app
-# Note: /.well-known/mcp-config is handled by Smithery's sidecar, not our app
 app = Starlette(
     routes=[
         Route("/health", health_handler),
         Route("/", root_handler),
+        Route("/.well-known/mcp-config", mcp_config_handler),  # MCP config endpoint
         Mount("/mcp", app=mcp_app),
     ],
     lifespan=mcp_app.lifespan  # CRITICAL: Pass lifespan for session initialization
@@ -70,7 +88,7 @@ print(f"Transport: HTTP with SSE (FastMCP)")
 print(f"Port: {os.getenv('PORT', '8081')}")
 print(f"MCP Endpoint: /mcp")
 print(f"Health Endpoint: /health")
-print(f"Note: /.well-known/mcp-config handled by Smithery sidecar")
+print(f"Config Endpoint: /.well-known/mcp-config")
 print("=" * 70)
 print("Resources: 4 | Tools: 4")
 print("Server ready for connections...")
