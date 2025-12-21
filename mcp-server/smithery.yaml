@@ -1,13 +1,16 @@
 runtime: "container"
 
-hostedUrl: "https://verifimind-mcp-server-690976799907.us-central1.run.app"
+# Custom domain (will be active after DNS propagation)
+hostedUrl: "https://verifimind.ysenseai.org"
+# Fallback URL if custom domain not yet active
+# hostedUrl: "https://verifimind-mcp-server-690976799907.us-central1.run.app"
 
 startCommand:
   type: "http"
   configSchema:
     type: "object"
     title: "VerifiMind PEAS Configuration"
-    description: "Configuration for VerifiMind PEAS MCP Server - A Validation-First Methodology for Ethical and Secure Application Development"
+    description: "Configuration for VerifiMind PEAS MCP Server - Multi-Model AI Validation with X-Z-CS Trinity (Innovation, Ethics, Security). Supports OpenAI GPT-4 and Anthropic Claude. See 20 real validation examples at https://github.com/creator35lwb-web/VerifiMind-PEAS/tree/main/examples"
     properties:
       llm_provider:
         type: "string"
