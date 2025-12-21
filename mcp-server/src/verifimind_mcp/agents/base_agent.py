@@ -21,6 +21,11 @@ from ..models import (
 )
 from ..llm import LLMProvider, get_provider
 
+try:
+    from ..utils.metrics import AgentMetrics
+except ImportError:
+    AgentMetrics = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -92,7 +97,8 @@ class BaseAgent(ABC):
     async def analyze(
         self,
         concept: Concept,
-        prior_reasoning: Optional[PriorReasoning] = None
+        prior_reasoning: Optional[PriorReasoning] = None,
+        metrics: Optional[Any] = None
     ) -> BaseModel:
         """
         Analyze a concept with Chain of Thought reasoning.
@@ -100,12 +106,18 @@ class BaseAgent(ABC):
         Args:
             concept: The concept to analyze
             prior_reasoning: Optional reasoning from previous agents
+            metrics: Optional metrics object to track performance
             
         Returns:
             Structured analysis result (specific to agent type)
         """
         if self.OUTPUT_MODEL is None:
             raise ValueError("OUTPUT_MODEL must be defined in subclass")
+        
+        # Initialize metrics if provided
+        if metrics and AgentMetrics:
+            metrics.agent_type = self.AGENT_ID.lower()
+            metrics.model_name = self.llm.get_model_name()
         
         # Build prompt
         prompt = self.build_prompt(concept, prior_reasoning)
@@ -127,12 +139,21 @@ class BaseAgent(ABC):
             # Parse response into model
             result = self.OUTPUT_MODEL.model_validate(response)
             
+            # Update metrics if provided
+            if metrics:
+                metrics.success = True
+                metrics.finish()
+            
             logger.info(f"{self.config.name} completed analysis with confidence: {result.confidence}")
             
             return result
             
         except Exception as e:
             logger.error(f"{self.config.name} analysis failed: {e}")
+            if metrics:
+                metrics.error_count += 1
+                metrics.error_message = str(e)
+                metrics.finish()
             raise
     
     async def analyze_with_cot(
