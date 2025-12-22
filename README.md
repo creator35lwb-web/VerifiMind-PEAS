@@ -425,8 +425,8 @@ The reference implementation demonstrates how to automate the X-Z-CS Trinity:
 
 ### **Case Studies**
 
-- **[YSenseAI™ 87-Day Journey](docs/case_studies/ysenseai_87_day_journey.md)** (coming soon): Real-world validation of Genesis Methodology
-- **[VerifiMind-PEAS Development](docs/case_studies/verifimind_peas_development.md)** (coming soon): Meta-application of methodology to itself
+- **[YSenseAI™ 87-Day Journey](https://journey.manus.space/)** (Landing Pages): Real-world validation of Genesis Methodology
+- **[VerifiMind-PEAS Development](https://verifimind.manus.space/)** (Landing Pages): Meta-application of methodology to itself
 
 ### **Additional Resources**
 
@@ -462,7 +462,7 @@ The reference implementation demonstrates how to automate the X-Z-CS Trinity:
 3. **Human-at-center is critical**: AI provides perspectives, human synthesizes and decides
 4. **Iteration is key**: Continuous refinement through 87 days led to success
 
-**Read the full case study**: [YSenseAI™ 87-Day Journey](docs/case_studies/ysenseai_87_day_journey.md) (coming soon)
+**Read the full case study**: [YSenseAI™ 87-Day Journey](https://journey.manus.space/)
 
 ---
 
@@ -628,11 +628,11 @@ GitHub provides automatic citation support. Click the **"Cite this repository"**
 
 ### **DOI Badges**
 
-**VerifiMind-PEAS v1.0**:  
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX)
+**VerifiMind-PEAS v1.1.0**:  
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17980791.svg)](https://doi.org/10.5281/zenodo.17980791)
 
 **Genesis Methodology v2.0**:  
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.YYYYYYY.svg)](https://doi.org/10.5281/zenodo.YYYYYYY)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17972751.svg)](https://doi.org/10.5281/zenodo.17972751)
 
 *Note: DOI badges will be updated after Zenodo registration is complete.*
 
