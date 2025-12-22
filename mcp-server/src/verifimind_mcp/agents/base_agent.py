@@ -136,11 +136,25 @@ class BaseAgent(ABC):
                 max_tokens=self.config.max_tokens
             )
             
+            # Extract content and usage from response
+            if isinstance(response, dict) and "content" in response:
+                content = response["content"]
+                usage = response.get("usage", {})
+            else:
+                # Backward compatibility: response is content directly
+                content = response
+                usage = {}
+            
             # Parse response into model
-            result = self.OUTPUT_MODEL.model_validate(response)
+            result = self.OUTPUT_MODEL.model_validate(content)
             
             # Update metrics if provided
             if metrics:
+                if usage:
+                    metrics.input_tokens = usage.get("input_tokens", 0)
+                    metrics.output_tokens = usage.get("output_tokens", 0)
+                    metrics.total_tokens = usage.get("total_tokens", 0)
+                    metrics.calculate_cost()
                 metrics.success = True
                 metrics.finish()
             
