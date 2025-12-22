@@ -1,0 +1,557 @@
+{
+  "total_validations": 60,
+  "successful": 57,
+  "failed": 3,
+  "total_cost": 0.0,
+  "average_duration": 18.608591401786136,
+  "results": [
+    {
+      "index": 1,
+      "concept_name": "AI-Powered Fraud Detection for Banking",
+      "score": 7.2,
+      "verdict": "proceed_with_caution",
+      "duration": 19.446878910064697,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 2,
+      "concept_name": "Blockchain-Based Cross-Border Payment Platform",
+      "score": 6.7,
+      "verdict": "proceed_with_caution",
+      "duration": 19.526745796203613,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 3,
+      "concept_name": "AI Credit Scoring for Unbanked Populations",
+      "score": 7.0,
+      "verdict": "proceed_with_caution",
+      "duration": 19.071232557296753,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 4,
+      "concept_name": "Robo-Advisor for Personalized Investment",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 19.112146615982056,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 5,
+      "concept_name": "AI-Powered Insurance Claims Processing",
+      "score": 6.9,
+      "verdict": "proceed_with_caution",
+      "duration": 16.55317974090576,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 6,
+      "concept_name": "Decentralized Lending Protocol (DeFi)",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 18.296775579452515,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 7,
+      "concept_name": "AI Tax Optimization Assistant",
+      "score": 6.4,
+      "verdict": "proceed_with_caution",
+      "duration": 18.980530500411987,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 8,
+      "concept_name": "Predictive Banking with Spending Insights",
+      "score": 6.9,
+      "verdict": "proceed_with_caution",
+      "duration": 17.328864574432373,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 9,
+      "concept_name": "Biometric Payment Authentication",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 17.604155778884888,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 10,
+      "concept_name": "AI-Powered Stock Trading Bot",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 17.766913414001465,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 11,
+      "concept_name": "AI-Powered Dynamic Pricing for E-commerce",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 17.72403335571289,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 12,
+      "concept_name": "Virtual Try-On with AR Technology",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 17.85209369659424,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 13,
+      "concept_name": "AI Personal Shopping Assistant",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 16.466177225112915,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 14,
+      "concept_name": "Predictive Inventory Management System",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 16.101918697357178,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 15,
+      "concept_name": "AI-Powered Product Recommendation Engine",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 18.045698642730713,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 16,
+      "concept_name": "Visual Search for Product Discovery",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 19.319031238555908,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 17,
+      "concept_name": "AI Chatbot for Customer Service",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 18.878617763519287,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 18,
+      "concept_name": "Subscription Box Personalization Engine",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 18.261342525482178,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 19,
+      "concept_name": "AI-Powered Size Recommendation",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 19.759806394577026,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 20,
+      "concept_name": "Cashierless Store with Computer Vision",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 16.866795539855957,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 21,
+      "concept_name": "AI Game Character Behavior Engine",
+      "score": 6.4,
+      "verdict": "proceed_with_caution",
+      "duration": 20.674246549606323,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 22,
+      "concept_name": "Procedural Content Generation for Games",
+      "error": "7 validation errors for XAgentAnalysis\nreasoning_steps\n  Field required [type=missing, input_value={'raw_response': '```json... column 77 (char 1221)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\ninnovation_score\n  Field required [type=missing, input_value={'raw_response': '```json... column 77 (char 1221)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nstrategic_value\n  Field required [type=missing, input_value={'raw_response': '```json... column 77 (char 1221)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nopportunities\n  Field required [type=missing, input_value={'raw_response': '```json... column 77 (char 1221)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nrisks\n  Field required [type=missing, input_value={'raw_response': '```json... column 77 (char 1221)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nrecommendation\n  Field required [type=missing, input_value={'raw_response': '```json... column 77 (char 1221)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nconfidence\n  Field required [type=missing, input_value={'raw_response': '```json... column 77 (char 1221)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing",
+      "success": false
+    },
+    {
+      "index": 23,
+      "concept_name": "AI-Powered Game Difficulty Adjustment",
+      "score": 7.0,
+      "verdict": "proceed_with_caution",
+      "duration": 17.90025043487549,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 24,
+      "concept_name": "AI Music Composition for Games",
+      "error": "7 validation errors for XAgentAnalysis\nreasoning_steps\n  Field required [type=missing, input_value={'raw_response': '```json... column 65 (char 2561)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\ninnovation_score\n  Field required [type=missing, input_value={'raw_response': '```json... column 65 (char 2561)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nstrategic_value\n  Field required [type=missing, input_value={'raw_response': '```json... column 65 (char 2561)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nopportunities\n  Field required [type=missing, input_value={'raw_response': '```json... column 65 (char 2561)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nrisks\n  Field required [type=missing, input_value={'raw_response': '```json... column 65 (char 2561)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nrecommendation\n  Field required [type=missing, input_value={'raw_response': '```json... column 65 (char 2561)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nconfidence\n  Field required [type=missing, input_value={'raw_response': '```json... column 65 (char 2561)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing",
+      "success": false
+    },
+    {
+      "index": 25,
+      "concept_name": "AI-Powered Anti-Cheat System",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 19.688349723815918,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 26,
+      "concept_name": "AI Dungeon Master for Tabletop RPGs",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 18.02957057952881,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 27,
+      "concept_name": "AI-Generated Game Trailers",
+      "score": 6.5,
+      "verdict": "proceed_with_caution",
+      "duration": 19.009541273117065,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 28,
+      "concept_name": "AI Voice Acting for Game Characters",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 17.88418173789978,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 29,
+      "concept_name": "AI Player Matchmaking System",
+      "score": 7.1,
+      "verdict": "proceed_with_caution",
+      "duration": 18.84375286102295,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 30,
+      "concept_name": "AI-Powered Game Testing Automation",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 17.316669940948486,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 31,
+      "concept_name": "AI Content Moderation for Social Media",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 19.445628881454468,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 32,
+      "concept_name": "AI-Powered Misinformation Detection",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 18.793373107910156,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 33,
+      "concept_name": "AI Social Media Post Generator",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 18.55134105682373,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 34,
+      "concept_name": "AI-Powered Sentiment Analysis for Brands",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 17.070046186447144,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 35,
+      "concept_name": "AI Influencer Matching Platform",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 21.24798321723938,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 36,
+      "concept_name": "AI-Powered Video Summarization",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 18.951634407043457,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 37,
+      "concept_name": "AI Conversation Starter for Dating Apps",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 19.112935066223145,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 38,
+      "concept_name": "AI-Powered Community Moderation Bot",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 19.346885919570923,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 39,
+      "concept_name": "AI Profile Picture Generator",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 17.13417673110962,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 40,
+      "concept_name": "AI-Powered Comment Reply Assistant",
+      "error": "8 validation errors for CSAgentAnalysis\nreasoning_steps\n  Field required [type=missing, input_value={'raw_response': '{\\n    ...0 column 9 (char 2367)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nsecurity_score\n  Field required [type=missing, input_value={'raw_response': '{\\n    ...0 column 9 (char 2367)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nvulnerabilities\n  Field required [type=missing, input_value={'raw_response': '{\\n    ...0 column 9 (char 2367)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nattack_vectors\n  Field required [type=missing, input_value={'raw_response': '{\\n    ...0 column 9 (char 2367)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nsecurity_recommendations\n  Field required [type=missing, input_value={'raw_response': '{\\n    ...0 column 9 (char 2367)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nsocratic_questions\n  Field required [type=missing, input_value={'raw_response': '{\\n    ...0 column 9 (char 2367)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nrecommendation\n  Field required [type=missing, input_value={'raw_response': '{\\n    ...0 column 9 (char 2367)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing\nconfidence\n  Field required [type=missing, input_value={'raw_response': '{\\n    ...0 column 9 (char 2367)'}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.12/v/missing",
+      "success": false
+    },
+    {
+      "index": 41,
+      "concept_name": "AI Carbon Footprint Tracker",
+      "score": 6.7,
+      "verdict": "proceed_with_caution",
+      "duration": 19.067089080810547,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 42,
+      "concept_name": "AI-Powered Smart Grid Optimization",
+      "score": 7.1,
+      "verdict": "proceed_with_caution",
+      "duration": 19.07148790359497,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 43,
+      "concept_name": "AI Precision Agriculture Platform",
+      "score": 6.9,
+      "verdict": "proceed_with_caution",
+      "duration": 17.953062057495117,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 44,
+      "concept_name": "AI-Powered Recycling Sorting Robot",
+      "score": 7.2,
+      "verdict": "proceed_with_caution",
+      "duration": 21.06872296333313,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 45,
+      "concept_name": "AI Climate Risk Assessment Tool",
+      "score": 7.1,
+      "verdict": "proceed_with_caution",
+      "duration": 21.722870349884033,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 46,
+      "concept_name": "AI-Powered Energy Consumption Optimizer",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 19.661277294158936,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 47,
+      "concept_name": "AI Forest Fire Prediction System",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 19.754485368728638,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 48,
+      "concept_name": "AI-Powered Sustainable Supply Chain",
+      "score": 7.3,
+      "verdict": "proceed_with_caution",
+      "duration": 19.784752368927002,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 49,
+      "concept_name": "AI Water Quality Monitoring System",
+      "score": 7.0,
+      "verdict": "proceed_with_caution",
+      "duration": 17.656425714492798,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 50,
+      "concept_name": "AI-Powered Biodiversity Monitoring",
+      "score": 7.2,
+      "verdict": "proceed_with_caution",
+      "duration": 19.155323266983032,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 51,
+      "concept_name": "AI Citizen Service Chatbot",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 18.684083938598633,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 52,
+      "concept_name": "AI-Powered Traffic Management System",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 19.491978883743286,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 53,
+      "concept_name": "AI Predictive Policing System",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 16.456506729125977,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 54,
+      "concept_name": "AI-Powered Public Health Surveillance",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 18.491760730743408,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 55,
+      "concept_name": "AI Document Processing for Government",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 17.37223529815674,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 56,
+      "concept_name": "AI-Powered Welfare Fraud Detection",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 18.93626308441162,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 57,
+      "concept_name": "AI Emergency Response Coordinator",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 19.39708113670349,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 58,
+      "concept_name": "AI-Powered Legislative Analysis",
+      "score": 6.8,
+      "verdict": "proceed_with_caution",
+      "duration": 17.597460985183716,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 59,
+      "concept_name": "AI Voter Registration Assistant",
+      "score": 7.0,
+      "verdict": "proceed_with_caution",
+      "duration": 19.877107858657837,
+      "cost": 0.0,
+      "success": true
+    },
+    {
+      "index": 60,
+      "concept_name": "AI-Powered Infrastructure Maintenance",
+      "score": 3.0,
+      "verdict": "reject",
+      "duration": 17.526228666305542,
+      "cost": 0.0,
+      "success": true
+    }
+  ],
+  "metrics": {
+    "total_validations": 57,
+    "successful_validations": 0,
+    "success_rate": 0.0,
+    "error_rate": 0.0,
+    "total_errors": 0,
+    "total_retries": 0,
+    "avg_duration": 18.608591401786136,
+    "avg_tokens": 0.0,
+    "avg_cost": 0.0,
+    "total_cost": 0.0,
+    "avg_latencies": {
+      "x_agent": 0,
+      "z_agent": 0,
+      "cs_agent": 0
+    }
+  }
+}

@@ -106,14 +106,27 @@ class OpenAIProvider(LLMProvider):
             
             content = response.choices[0].message.content
             
+            # Extract token usage
+            usage = {
+                "input_tokens": response.usage.prompt_tokens if hasattr(response, 'usage') else 0,
+                "output_tokens": response.usage.completion_tokens if hasattr(response, 'usage') else 0,
+                "total_tokens": response.usage.total_tokens if hasattr(response, 'usage') else 0
+            }
+            
             # Parse JSON response
             try:
-                return json.loads(content)
+                parsed_content = json.loads(content)
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse JSON response: {e}")
                 logger.debug(f"Raw response: {content}")
                 # Return raw content wrapped in dict
-                return {"raw_response": content, "parse_error": str(e)}
+                parsed_content = {"raw_response": content, "parse_error": str(e)}
+            
+            # Return both content and usage
+            return {
+                "content": parsed_content,
+                "usage": usage
+            }
                 
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
@@ -170,21 +183,35 @@ class AnthropicProvider(LLMProvider):
             
             content = response.content[0].text
             
+            # Extract token usage
+            usage = {
+                "input_tokens": response.usage.input_tokens if hasattr(response, 'usage') else 0,
+                "output_tokens": response.usage.output_tokens if hasattr(response, 'usage') else 0,
+                "total_tokens": (response.usage.input_tokens + response.usage.output_tokens) if hasattr(response, 'usage') else 0
+            }
+            
             # Parse JSON response
             try:
                 # Try to extract JSON from response
                 if content.strip().startswith("{"):
-                    return json.loads(content)
+                    parsed_content = json.loads(content)
                 else:
                     # Try to find JSON in response
                     import re
                     json_match = re.search(r'\{[\s\S]*\}', content)
                     if json_match:
-                        return json.loads(json_match.group())
-                    return {"raw_response": content}
+                        parsed_content = json.loads(json_match.group())
+                    else:
+                        parsed_content = {"raw_response": content}
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse JSON response: {e}")
-                return {"raw_response": content, "parse_error": str(e)}
+                parsed_content = {"raw_response": content, "parse_error": str(e)}
+            
+            # Return both content and usage
+            return {
+                "content": parsed_content,
+                "usage": usage
+            }
                 
         except Exception as e:
             logger.error(f"Anthropic API error: {e}")
@@ -192,6 +219,98 @@ class AnthropicProvider(LLMProvider):
     
     def get_model_name(self) -> str:
         return f"anthropic/{self.model}"
+
+
+class GeminiProvider(LLMProvider):
+    """
+    Google Gemini provider implementation.
+    
+    Supports Gemini 2.0 Flash, Gemini 1.5 Pro, and other Gemini models.
+    Uses prompt engineering for structured JSON output.
+    """
+    
+    def __init__(
+        self,
+        model: str = "gemini-2.0-flash-exp",
+        api_key: Optional[str] = None
+    ):
+        self.model = model
+        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
+        
+        if not self.api_key:
+            raise ValueError("Gemini API key not provided. Set GEMINI_API_KEY environment variable.")
+        
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=self.api_key)
+            self.genai = genai
+        except ImportError:
+            raise ImportError("google-generativeai package not installed. Run: pip install google-generativeai")
+    
+    async def generate(
+        self,
+        prompt: str,
+        output_schema: Optional[Dict[str, Any]] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4096
+    ) -> Dict[str, Any]:
+        """Generate response using Gemini API."""
+        
+        # Add JSON instruction if schema provided
+        if output_schema:
+            prompt += f"\n\nRespond with valid JSON only, matching this schema:\n{json.dumps(output_schema, indent=2)}\n\nJSON Response:"
+        
+        try:
+            # Create model instance
+            model = self.genai.GenerativeModel(self.model)
+            
+            # Generate response (synchronous call)
+            response = model.generate_content(
+                prompt,
+                generation_config={
+                    "temperature": temperature,
+                    "max_output_tokens": max_tokens,
+                }
+            )
+            
+            content = response.text
+            
+            # Extract token usage
+            usage = {
+                "input_tokens": response.usage_metadata.prompt_token_count if hasattr(response, 'usage_metadata') else 0,
+                "output_tokens": response.usage_metadata.candidates_token_count if hasattr(response, 'usage_metadata') else 0,
+                "total_tokens": response.usage_metadata.total_token_count if hasattr(response, 'usage_metadata') else 0
+            }
+            
+            # Parse JSON response
+            try:
+                # Try to extract JSON from response
+                if content.strip().startswith("{"):
+                    parsed_content = json.loads(content)
+                else:
+                    # Try to find JSON in response
+                    import re
+                    json_match = re.search(r'\{[\s\S]*\}', content)
+                    if json_match:
+                        parsed_content = json.loads(json_match.group())
+                    else:
+                        parsed_content = {"raw_response": content}
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse JSON response: {e}")
+                parsed_content = {"raw_response": content, "parse_error": str(e)}
+            
+            # Return both content and usage
+            return {
+                "content": parsed_content,
+                "usage": usage
+            }
+                
+        except Exception as e:
+            logger.error(f"Gemini API error: {e}")
+            raise
+    
+    def get_model_name(self) -> str:
+        return f"gemini/{self.model}"
 
 
 class MockProvider(LLMProvider):

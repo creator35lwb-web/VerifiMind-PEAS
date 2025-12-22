@@ -54,7 +54,7 @@ class AgentMetrics:
         self.end_time = time.time()
         self.latency = self.end_time - self.start_time
     
-    def calculate_cost(self, provider: str):
+    def calculate_cost(self, provider: Optional[str] = None):
         """Calculate cost based on token usage and provider pricing."""
         # Pricing per 1M tokens (as of Dec 2025)
         pricing = {
@@ -78,13 +78,39 @@ class AgentMetrics:
                     "output": 15.0,
                 },
             },
+            "gemini": {
+                "gemini-2.0-flash-exp": {
+                    "input": 0.0,  # FREE (within limits)
+                    "output": 0.0,  # FREE (within limits)
+                },
+                "gemini-1.5-pro": {
+                    "input": 1.25,  # $1.25 per 1M input tokens
+                    "output": 5.0,  # $5.00 per 1M output tokens
+                },
+                "gemini-1.5-flash": {
+                    "input": 0.075,  # $0.075 per 1M input tokens
+                    "output": 0.30,  # $0.30 per 1M output tokens
+                },
+            },
         }
         
         # Extract provider and model from model_name
         if "/" in self.model_name:
             provider_name, model = self.model_name.split("/", 1)
-        else:
+        elif provider:
             provider_name = provider
+            model = self.model_name
+        else:
+            # Auto-detect provider from model name
+            if "gpt" in self.model_name.lower():
+                provider_name = "openai"
+            elif "claude" in self.model_name.lower():
+                provider_name = "anthropic"
+            elif "gemini" in self.model_name.lower():
+                provider_name = "gemini"
+            else:
+                logger.warning(f"Cannot detect provider for model: {self.model_name}")
+                return
             model = self.model_name
         
         # Get pricing for this model

@@ -20,7 +20,7 @@ class LLMConfig:
     """Standard LLM configuration for consistent results."""
     
     # Model Selection (Pinned Versions)
-    x_agent_model: str = "gpt-4-turbo-2024-04-09"  # OpenAI GPT-4 Turbo (supports JSON mode)
+    x_agent_model: str = "gemini-2.0-flash-exp"  # Google Gemini 2.0 Flash (creative, free tier)
     z_agent_model: str = "claude-3-haiku-20240307"  # Anthropic Claude Haiku (pinned)
     cs_agent_model: str = "claude-3-haiku-20240307"  # Anthropic Claude Haiku (pinned)
     
