@@ -402,6 +402,7 @@ class MockProvider(LLMProvider):
 _PROVIDERS: Dict[str, Type[LLMProvider]] = {
     "openai": OpenAIProvider,
     "anthropic": AnthropicProvider,
+    "gemini": GeminiProvider,
     "mock": MockProvider
 }
 
