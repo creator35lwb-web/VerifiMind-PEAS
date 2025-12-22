@@ -97,9 +97,9 @@ class TrinityReportRunner:
             )
             
             # Update validation metrics
-            validation_metrics.x_metrics = x_metrics
-            validation_metrics.z_metrics = z_metrics
-            validation_metrics.cs_metrics = cs_metrics
+            validation_metrics.x_agent = x_metrics
+            validation_metrics.z_agent = z_metrics
+            validation_metrics.cs_agent = cs_metrics
             validation_metrics.overall_score = synthesis.synthesis.overall_score
             validation_metrics.verdict = synthesis.synthesis.recommendation
             validation_metrics.finish()
@@ -249,9 +249,9 @@ Total Tokens: {metrics.total_tokens}
 Total Cost: ${metrics.total_cost:.6f}
 
 Agent Breakdown:
-- X Agent (Gemini):  {metrics.x_metrics.latency:.2f}s, {metrics.x_metrics.total_tokens} tokens, ${metrics.x_metrics.total_cost:.6f}
-- Z Agent (Claude):  {metrics.z_metrics.latency:.2f}s, {metrics.z_metrics.total_tokens} tokens, ${metrics.z_metrics.total_cost:.6f}
-- CS Agent (Claude): {metrics.cs_metrics.latency:.2f}s, {metrics.cs_metrics.total_tokens} tokens, ${metrics.cs_metrics.total_cost:.6f}
+- X Agent (Gemini):  {metrics.x_agent.latency:.2f}s, {metrics.x_agent.total_tokens} tokens, ${metrics.x_agent.total_cost:.6f}
+- Z Agent (Claude):  {metrics.z_agent.latency:.2f}s, {metrics.z_agent.total_tokens} tokens, ${metrics.z_agent.total_cost:.6f}
+- CS Agent (Claude): {metrics.cs_agent.latency:.2f}s, {metrics.cs_agent.total_tokens} tokens, ${metrics.cs_agent.total_cost:.6f}
 
 ================================================================================
 END OF REPORT
