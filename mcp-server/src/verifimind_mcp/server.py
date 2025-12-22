@@ -38,7 +38,7 @@ class VerifiMindConfig(BaseModel):
     """
     llm_provider: str = Field(
         default="mock",
-        description="LLM provider to use: 'openai', 'anthropic', or 'mock' (for testing)"
+        description="LLM provider to use: 'openai', 'anthropic', 'gemini', or 'mock' (for testing)"
     )
     openai_api_key: str = Field(
         default="",
@@ -47,6 +47,10 @@ class VerifiMindConfig(BaseModel):
     anthropic_api_key: str = Field(
         default="",
         description="Anthropic API key (optional, can also use ANTHROPIC_API_KEY env var)"
+    )
+    gemini_api_key: str = Field(
+        default="",
+        description="Gemini API key (optional, can also use GEMINI_API_KEY env var)"
     )
     validation_mode: str = Field(
         default="standard",
@@ -303,6 +307,9 @@ def _create_mcp_instance():
                     elif config.llm_provider == "anthropic" and config.anthropic_api_key:
                         from .llm import AnthropicProvider
                         provider = AnthropicProvider(api_key=config.anthropic_api_key)
+                    elif config.llm_provider == "gemini" and config.gemini_api_key:
+                        from .llm import GeminiProvider
+                        provider = GeminiProvider(api_key=config.gemini_api_key)
                     else:
                         # Fallback to mock provider if no keys provided
                         from .llm import MockProvider
@@ -412,6 +419,9 @@ def _create_mcp_instance():
                     elif config.llm_provider == "anthropic" and config.anthropic_api_key:
                         from .llm import AnthropicProvider
                         provider = AnthropicProvider(api_key=config.anthropic_api_key)
+                    elif config.llm_provider == "gemini" and config.gemini_api_key:
+                        from .llm import GeminiProvider
+                        provider = GeminiProvider(api_key=config.gemini_api_key)
                     else:
                         # Fallback to mock provider if no keys provided
                         from .llm import MockProvider
@@ -518,6 +528,9 @@ def _create_mcp_instance():
                     elif config.llm_provider == "anthropic" and config.anthropic_api_key:
                         from .llm import AnthropicProvider
                         provider = AnthropicProvider(api_key=config.anthropic_api_key)
+                    elif config.llm_provider == "gemini" and config.gemini_api_key:
+                        from .llm import GeminiProvider
+                        provider = GeminiProvider(api_key=config.gemini_api_key)
                     else:
                         # Fallback to mock provider if no keys provided
                         from .llm import MockProvider
@@ -614,6 +627,9 @@ def _create_mcp_instance():
                     elif config.llm_provider == "anthropic" and config.anthropic_api_key:
                         from .llm import AnthropicProvider
                         provider = AnthropicProvider(api_key=config.anthropic_api_key)
+                    elif config.llm_provider == "gemini" and config.gemini_api_key:
+                        from .llm import GeminiProvider
+                        provider = GeminiProvider(api_key=config.gemini_api_key)
                     else:
                         # Fallback to mock provider if no keys provided
                         from .llm import MockProvider
