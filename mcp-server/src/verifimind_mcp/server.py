@@ -296,32 +296,8 @@ def _create_mcp_instance():
             )
 
             # Get LLM provider (use session config if available, fallback to env vars)
-            try:
-                if ctx and ctx.session_config:
-                    config = ctx.session_config
-
-                    # Use session config to select provider
-                    if config.llm_provider == "openai" and config.openai_api_key:
-                        from .llm import OpenAIProvider
-                        provider = OpenAIProvider(api_key=config.openai_api_key)
-                    elif config.llm_provider == "anthropic" and config.anthropic_api_key:
-                        from .llm import AnthropicProvider
-                        provider = AnthropicProvider(api_key=config.anthropic_api_key)
-                    elif config.llm_provider == "gemini" and config.gemini_api_key:
-                        from .llm import GeminiProvider
-                        provider = GeminiProvider(api_key=config.gemini_api_key)
-                    else:
-                        # Fallback to mock provider if no keys provided
-                        from .llm import MockProvider
-                        provider = MockProvider()
-                else:
-                    # No session config - use environment variables
-                    provider = get_provider()
-
-            except ValueError:
-                # No API key configured - return mock response for testing
-                from .llm import MockProvider
-                provider = MockProvider()
+            from .config_helper import get_provider_from_config
+            provider = get_provider_from_config(ctx)
 
             # Create agent and analyze
             agent = XAgent(llm_provider=provider)
@@ -408,32 +384,8 @@ def _create_mcp_instance():
                 ))
 
             # Get LLM provider (use session config if available, fallback to env vars)
-            try:
-                if ctx and ctx.session_config:
-                    config = ctx.session_config
-
-                    # Use session config to select provider
-                    if config.llm_provider == "openai" and config.openai_api_key:
-                        from .llm import OpenAIProvider
-                        provider = OpenAIProvider(api_key=config.openai_api_key)
-                    elif config.llm_provider == "anthropic" and config.anthropic_api_key:
-                        from .llm import AnthropicProvider
-                        provider = AnthropicProvider(api_key=config.anthropic_api_key)
-                    elif config.llm_provider == "gemini" and config.gemini_api_key:
-                        from .llm import GeminiProvider
-                        provider = GeminiProvider(api_key=config.gemini_api_key)
-                    else:
-                        # Fallback to mock provider if no keys provided
-                        from .llm import MockProvider
-                        provider = MockProvider()
-                else:
-                    # No session config - use environment variables
-                    provider = get_provider()
-
-            except ValueError:
-                # No API key configured - return mock response for testing
-                from .llm import MockProvider
-                provider = MockProvider()
+            from .config_helper import get_provider_from_config
+            provider = get_provider_from_config(ctx)
 
             # Create agent and analyze
             agent = ZAgent(llm_provider=provider)
@@ -517,32 +469,8 @@ def _create_mcp_instance():
                 ))
 
             # Get LLM provider (use session config if available, fallback to env vars)
-            try:
-                if ctx and ctx.session_config:
-                    config = ctx.session_config
-
-                    # Use session config to select provider
-                    if config.llm_provider == "openai" and config.openai_api_key:
-                        from .llm import OpenAIProvider
-                        provider = OpenAIProvider(api_key=config.openai_api_key)
-                    elif config.llm_provider == "anthropic" and config.anthropic_api_key:
-                        from .llm import AnthropicProvider
-                        provider = AnthropicProvider(api_key=config.anthropic_api_key)
-                    elif config.llm_provider == "gemini" and config.gemini_api_key:
-                        from .llm import GeminiProvider
-                        provider = GeminiProvider(api_key=config.gemini_api_key)
-                    else:
-                        # Fallback to mock provider if no keys provided
-                        from .llm import MockProvider
-                        provider = MockProvider()
-                else:
-                    # No session config - use environment variables
-                    provider = get_provider()
-
-            except ValueError:
-                # No API key configured - return mock response for testing
-                from .llm import MockProvider
-                provider = MockProvider()
+            from .config_helper import get_provider_from_config
+            provider = get_provider_from_config(ctx)
 
             # Create agent and analyze
             agent = CSAgent(llm_provider=provider)
@@ -616,32 +544,8 @@ def _create_mcp_instance():
             )
 
             # Get LLM provider (use session config if available, fallback to env vars)
-            try:
-                if ctx and ctx.session_config:
-                    config = ctx.session_config
-
-                    # Use session config to select provider
-                    if config.llm_provider == "openai" and config.openai_api_key:
-                        from .llm import OpenAIProvider
-                        provider = OpenAIProvider(api_key=config.openai_api_key)
-                    elif config.llm_provider == "anthropic" and config.anthropic_api_key:
-                        from .llm import AnthropicProvider
-                        provider = AnthropicProvider(api_key=config.anthropic_api_key)
-                    elif config.llm_provider == "gemini" and config.gemini_api_key:
-                        from .llm import GeminiProvider
-                        provider = GeminiProvider(api_key=config.gemini_api_key)
-                    else:
-                        # Fallback to mock provider if no keys provided
-                        from .llm import MockProvider
-                        provider = MockProvider()
-                else:
-                    # No session config - use environment variables
-                    provider = get_provider()
-
-            except ValueError:
-                # No API key configured - return mock response for testing
-                from .llm import MockProvider
-                provider = MockProvider()
+            from .config_helper import get_provider_from_config
+            provider = get_provider_from_config(ctx)
 
             # Initialize agents
             x_agent = XAgent(llm_provider=provider)
