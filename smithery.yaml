@@ -34,6 +34,7 @@ startCommand:
       enable_logging:
         type: "boolean"
         description: "Enable detailed logging"
+    required: []
   exampleConfig:
     llm_provider: "gemini"
     llm_model: "gemini-2.0-flash-exp"
