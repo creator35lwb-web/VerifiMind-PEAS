@@ -1,7 +1,7 @@
 runtime: "container"
 build:
-  dockerfile: "mcp-server/Dockerfile"
-  dockerBuildPath: "mcp-server"
+  dockerfile: "Dockerfile"
+  dockerBuildPath: "."
 startCommand:
   type: "http"
   configSchema:
