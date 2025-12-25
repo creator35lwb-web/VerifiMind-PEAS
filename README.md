@@ -7,12 +7,44 @@
 
   Transform your vision into validated, ethical, secure applications through systematic multi-model AI orchestration — from concept to deployment, with human-centered wisdom validation.
 
-  [![Version](https://img.shields.io/badge/version-2.0.0--beta-blue.svg)](https://github.com/creator35lwb-web/VerifiMind-PEAS)
+  [![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/creator35lwb-web/VerifiMind-PEAS)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-  [![Status](https://img.shields.io/badge/status-Methodology%20Framework-orange.svg)](#)
+  [![Status](https://img.shields.io/badge/status-MCP%20LIVE-brightgreen.svg)](#-mcp-live-production-deployed)
   [![Genesis v2.0 DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17972751.svg)](https://doi.org/10.5281/zenodo.17972751)
+  
+  [![API](https://img.shields.io/badge/API-verifimind.ysenseai.org-success)](https://verifimind.ysenseai.org)
+  [![Smithery](https://img.shields.io/badge/Smithery-Available-blue)](https://smithery.ai/server/creator35lwb-web/verifimind-genesis)
+  [![HuggingFace](https://img.shields.io/badge/🤗%20HuggingFace-Demo-yellow)](https://huggingface.co/spaces/YSenseAI/verifimind-peas)
 
 </div>
+
+---
+
+## 🎉 MCP LIVE: Production Deployed
+
+VerifiMind PEAS is now **live and accessible** across multiple platforms:
+
+| Platform | Type | Access | Status |
+|----------|------|--------|--------|
+| **GCP Cloud Run** | Production API | [verifimind.ysenseai.org](https://verifimind.ysenseai.org) | ✅ LIVE |
+| **Smithery.ai** | Native MCP | [Install for Claude Desktop](https://smithery.ai/server/creator35lwb-web/verifimind-genesis) | ✅ LIVE |
+| **Hugging Face** | Interactive Demo | [YSenseAI/verifimind-peas](https://huggingface.co/spaces/YSenseAI/verifimind-peas) | ✅ LIVE |
+
+### Quick Start
+
+**Claude Desktop (Recommended):**
+```bash
+npx -y @smithery/cli@latest install creator35lwb-web/verifimind-genesis --client claude
+```
+
+**Direct API:**
+```bash
+curl -X POST https://verifimind.ysenseai.org/mcp/ \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"validate_with_trinity","arguments":{"concept":"Your AI concept here"}}}'
+```
+
+**Interactive Demo:** Visit [Hugging Face Space](https://huggingface.co/spaces/YSenseAI/verifimind-peas) for a no-code experience.
 
 ---
 
@@ -491,9 +523,9 @@ We welcome contributions from the community!
 
 ## 🗺️ Roadmap
 
-**Current Phase**: Phase 2 - MCP Server Implementation (December 2025)
+**Current Phase**: Phase 5 - Community Building & Adoption (December 2025)
 
-**Status**: Phase 2 COMPLETE ✅ | Phase 1: 100% complete ✅
+**Status**: Phases 1-4 COMPLETE ✅ | MCP LIVE 🎉
 
 ### **Phase 1: Methodology Framework** ✅ COMPLETE
 **Completed**:
@@ -502,40 +534,50 @@ We welcome contributions from the community!
 - ✅ X-Z-CS RefleXion Trinity master prompts
 - ✅ Genesis Master Prompt Guide
 - ✅ Integration guides (Claude Code, Cursor, Generic LLM)
-- ✅ Updated README and ROADMAP
 
 ### **Phase 2: MCP Server Implementation** ✅ COMPLETE
 **Completed** (December 21, 2025):
-- ✅ **All 4 core tools working** with real LLMs (X, Z, CS, run_full_trinity)
-- ✅ **Cross-model validation** (OpenAI GPT-4 + Anthropic Claude)
-- ✅ **20 real concept validations** generated and published
-- ✅ **Examples directory** with comprehensive analysis (35 pages)
-- ✅ **Deployed to Cloud Run** (https://verifimind-mcp-server-690976799907.us-central1.run.app)
-- ✅ **Listed on Smithery Marketplace** (https://smithery.ai/server/creator35lwb-web/verifimind-peas)
-- ✅ **Z Agent veto power** demonstrated (6 concepts vetoed for safety)
-- ✅ **Cost efficiency** proven ($0.08 per validation)
-- ✅ **Flywheel established** (examples → users → more examples)
+- ✅ All 4 core tools working (consult_x_agent, consult_z_agent, consult_cs_agent, validate_with_trinity)
+- ✅ Multi-provider LLM support (Gemini, Groq, Anthropic, OpenAI)
+- ✅ 57 real concept validations generated and published
+- ✅ Z Agent veto power demonstrated (65% veto rate)
+- ✅ Cost efficiency proven (~$0.003 per validation)
 
-**Key Results**:
-- 12 concepts APPROVED (60%), 2 CONDITIONAL (10%), 6 VETOED (30%)
-- Average score: 7.2/10 across 5 categories
-- Top concept: Smart Contract Review Tool (8.3/10)
-- Total cost: $1.60 for 20 comprehensive validations
-- 400+ pages of validation insights generated
+### **Phase 3: Production Deployment** ✅ COMPLETE
+**Completed** (December 2025):
+- ✅ **GCP Cloud Run** deployed at [verifimind.ysenseai.org](https://verifimind.ysenseai.org)
+- ✅ **Custom domain** with SSL/TLS configured
+- ✅ **Health monitoring** and production logging
+- ✅ **Docker containerization** for reproducible deployments
 
-**See Examples**: [/examples/](/examples/) | [Analysis Report](/examples/reports/VALIDATION_RESULTS_ANALYSIS.md)
+### **Phase 4: Multi-Platform Distribution** ✅ COMPLETE
+**Completed** (December 25, 2025):
+- ✅ **Smithery.ai** native MCP server ([creator35lwb-web/verifimind-genesis](https://smithery.ai/server/creator35lwb-web/verifimind-genesis))
+- ✅ **Hugging Face Space** interactive demo ([YSenseAI/verifimind-peas](https://huggingface.co/spaces/YSenseAI/verifimind-peas))
+- ✅ **TypeScript MCP server** for native Smithery support
+- ✅ **Streamable HTTP transport** for MCP protocol
 
+### **Phase 5: Community Building & Adoption** 🚧 CURRENT
 **In Progress**:
-- ⏳ Custom domain setup (verifimind.ysenseai.org)
-- ⏳ GitHub Discussions launch
-- ⏳ Test suite (30+ unit tests)
-- ⏳ Community engagement
+- ⏳ GitHub Discussions community setup
+- ⏳ Documentation and Wiki updates
+- ⏳ Community engagement and feedback collection
+- ⏳ Tutorial and guide creation
 
-**Next Phases**:
-- **Phase 3**: Community Growth & Scale (Q1 2026)
-- **Phase 4**: Premium Features (Q2 2026, if validated)
-- **Phase 5**: Enterprise Services (2026-2027, if validated)
-- **Phase 6**: Advanced Research (2027+, exploratory)
+### **Future Phases** 📋 PLANNED
+- **Phase 6**: Feature Enhancement (Q1 2026) - Specialized domain agents, learning integration
+- **Phase 7**: Enterprise Features (Q2 2026) - Team collaboration, audit logging
+- **Phase 8**: Ecosystem Expansion (Q3 2026) - IDE extensions, API marketplace
+
+**Key Metrics**:
+| Metric | Value | Significance |
+|--------|-------|-------------|
+| **Validation Reports** | 57+ | Proof of methodology at scale |
+| **Platforms Live** | 3 | GCP, Smithery, HuggingFace |
+| **Cost per Validation** | ~$0.003 | Sustainable for all developers |
+| **Veto Rate** | 65% | Strong ethical safeguards |
+
+**See Examples**: [/validation_archive/](/validation_archive/) | [Examples](/examples/)
 
 **Read more**: [Roadmap](docs/ROADMAP.md)
 
@@ -703,7 +745,7 @@ Forks and derivatives may use the open-source code under MIT license, but must u
 **General Inquiries**: creator35lwb@gmail.com  
 **Twitter/X**: [@creator35lwb](https://x.com/creator35lwb)  
 **GitHub Discussions**: [Join discussions](https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions)  
-**Domain**: verifimind.io (coming soon)
+**Domain**: [verifimind.ysenseai.org](https://verifimind.ysenseai.org) (LIVE)
 
 ---
 
