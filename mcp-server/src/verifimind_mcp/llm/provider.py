@@ -313,6 +313,91 @@ class GeminiProvider(LLMProvider):
         return f"gemini/{self.model}"
 
 
+class GroqProvider(LLMProvider):
+    """
+    Groq provider implementation.
+    
+    Supports Llama 3.1, Mixtral, and other models.
+    FREE tier available with generous rate limits!
+    """
+    
+    def __init__(
+        self,
+        model: str = "llama-3.1-70b-versatile",
+        api_key: Optional[str] = None
+    ):
+        self.model = model
+        self.api_key = api_key or os.getenv("GROQ_API_KEY")
+        
+        if not self.api_key:
+            raise ValueError("Groq API key not provided. Set GROQ_API_KEY environment variable.")
+        
+        try:
+            from groq import AsyncGroq
+            self.client = AsyncGroq(api_key=self.api_key)
+        except ImportError:
+            raise ImportError("groq package not installed. Run: pip install groq")
+    
+    async def generate(
+        self,
+        prompt: str,
+        output_schema: Optional[Dict[str, Any]] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4096
+    ) -> Dict[str, Any]:
+        """Generate response using Groq API."""
+        
+        messages = [{"role": "user", "content": prompt}]
+        
+        # Add JSON instruction if schema provided
+        if output_schema:
+            messages[0]["content"] += f"\n\nRespond with valid JSON only, matching this schema:\n{json.dumps(output_schema, indent=2)}\n\nJSON Response:"
+        
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+            
+            content = response.choices[0].message.content
+            
+            # Extract token usage
+            usage = {
+                "input_tokens": response.usage.prompt_tokens if hasattr(response, 'usage') else 0,
+                "output_tokens": response.usage.completion_tokens if hasattr(response, 'usage') else 0,
+                "total_tokens": response.usage.total_tokens if hasattr(response, 'usage') else 0
+            }
+            
+            # Parse JSON response
+            try:
+                if content.strip().startswith("{"):
+                    parsed_content = json.loads(content)
+                else:
+                    import re
+                    json_match = re.search(r'\{[\s\S]*\}', content)
+                    if json_match:
+                        parsed_content = json.loads(json_match.group())
+                    else:
+                        parsed_content = {"raw_response": content}
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse JSON response: {e}")
+                parsed_content = {"raw_response": content, "parse_error": str(e)}
+            
+            return {
+                "content": parsed_content,
+                "usage": usage
+            }
+                
+        except Exception as e:
+            logger.error(f"Groq API error: {e}")
+            raise
+    
+    def get_model_name(self) -> str:
+        return f"groq/{self.model}"
+
+
 class MockProvider(LLMProvider):
     """
     Mock LLM provider for testing.
@@ -403,6 +488,7 @@ _PROVIDERS: Dict[str, Type[LLMProvider]] = {
     "openai": OpenAIProvider,
     "anthropic": AnthropicProvider,
     "gemini": GeminiProvider,
+    "groq": GroqProvider,
     "mock": MockProvider
 }
 
@@ -427,7 +513,7 @@ def get_provider(
     """
     # Get provider name from env if not specified
     if provider_name is None:
-        provider_name = os.getenv("VERIFIMIND_LLM_PROVIDER", "openai")
+        provider_name = os.getenv("VERIFIMIND_LLM_PROVIDER", "gemini")  # Default to Gemini (FREE tier available)
     
     provider_name = provider_name.lower()
     
