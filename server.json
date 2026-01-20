@@ -1,0 +1,42 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.creator35lwb-web/verifimind-genesis",
+  "title": "VerifiMind PEAS - RefleXion Trinity",
+  "description": "Multi-Agent AI Validation System with X-Z-CS RefleXion Trinity for ethical, secure, and innovative application development",
+  "version": "2.0.0",
+  "repository": {
+    "url": "https://github.com/creator35lwb-web/VerifiMind-PEAS",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://verifimind.ysenseai.org/mcp"
+    }
+  ],
+  "_meta": {
+    "io.modelcontextprotocol.registry/publisher-provided": {
+      "homepage": "https://verifimind.ysenseai.org",
+      "license": "MIT",
+      "keywords": ["ai-validation", "multi-agent", "ethics", "security", "mcp"],
+      "tools": [
+        {
+          "name": "consult_agent_x",
+          "description": "Innovation & Strategy Analysis using Gemini 2.0 Flash"
+        },
+        {
+          "name": "consult_agent_z",
+          "description": "Ethics & Safety Review using Claude 3 Haiku"
+        },
+        {
+          "name": "consult_agent_cs",
+          "description": "Security & Feasibility Validation using Claude 3 Haiku"
+        },
+        {
+          "name": "run_full_trinity",
+          "description": "Complete X → Z → CS validation sequence with unified report"
+        }
+      ]
+    }
+  }
+}
