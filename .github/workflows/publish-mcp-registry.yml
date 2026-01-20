@@ -24,8 +24,13 @@ jobs:
 
       - name: Download MCP Publisher
         run: |
-          curl -fsSL https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher-linux-amd64 -o mcp-publisher
+          # Get latest release download URL
+          DOWNLOAD_URL=$(curl -s https://api.github.com/repos/modelcontextprotocol/registry/releases/latest | jq -r '.assets[] | select(.name == "mcp-publisher_linux_amd64.tar.gz") | .browser_download_url')
+          echo "Downloading from: $DOWNLOAD_URL"
+          curl -fsSL "$DOWNLOAD_URL" -o mcp-publisher.tar.gz
+          tar -xzf mcp-publisher.tar.gz
           chmod +x mcp-publisher
+          ./mcp-publisher --version
           echo "MCP Publisher downloaded successfully"
 
       - name: Validate server.json
