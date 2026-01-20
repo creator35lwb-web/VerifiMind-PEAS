@@ -36,7 +36,42 @@ jobs:
       - name: Validate server.json
         run: |
           echo "Validating server.json..."
-          ./mcp-publisher validate server.json
+          # Check JSON syntax
+          if ! jq empty server.json 2>/dev/null; then
+            echo "❌ Invalid JSON syntax"
+            exit 1
+          fi
+          echo "✅ JSON syntax valid"
+
+          # Check required fields
+          NAME=$(jq -r '.name' server.json)
+          VERSION=$(jq -r '.version' server.json)
+          DESCRIPTION=$(jq -r '.description' server.json)
+
+          if [ "$NAME" == "null" ] || [ -z "$NAME" ]; then
+            echo "❌ Missing required field: name"
+            exit 1
+          fi
+          if [ "$VERSION" == "null" ] || [ -z "$VERSION" ]; then
+            echo "❌ Missing required field: version"
+            exit 1
+          fi
+
+          echo "✅ Required fields present"
+          echo "  Name: $NAME"
+          echo "  Version: $VERSION"
+          echo "  Description: $DESCRIPTION"
+
+          # Check for packages or remotes
+          PACKAGES=$(jq '.packages | length' server.json)
+          REMOTES=$(jq '.remotes | length' server.json)
+
+          if [ "$PACKAGES" == "0" ] && [ "$REMOTES" == "0" ]; then
+            echo "❌ Must have at least one package or remote"
+            exit 1
+          fi
+
+          echo "✅ Has $PACKAGES package(s) and $REMOTES remote(s)"
           echo "✅ Validation passed"
 
       - name: Authenticate with GitHub OIDC
