@@ -32,19 +32,40 @@ VerifiMind PEAS is now **live and accessible** across multiple platforms:
 
 ### Quick Start
 
-**Claude Desktop (Recommended):**
-```bash
-npx -y @smithery/cli@latest install creator35lwb-web/verifimind-genesis --client claude
+**Claude Code** (Copy & Paste to Settings > MCP Servers):
+```json
+{
+  "mcpServers": {
+    "verifimind-genesis": {
+      "url": "https://verifimind.ysenseai.org/mcp",
+      "transport": "http-sse"
+    }
+  }
+}
 ```
 
-**Direct API:**
-```bash
-curl -X POST https://verifimind.ysenseai.org/mcp/ \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"validate_with_trinity","arguments":{"concept":"Your AI concept here"}}}'
+**Claude Desktop** (Edit config file):
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+**Cursor** (Add to settings.json):
+```json
+{
+  "mcp.servers": {
+    "verifimind-genesis": {
+      "url": "https://verifimind.ysenseai.org/mcp",
+      "transport": "http-sse"
+    }
+  }
+}
 ```
 
-**Interactive Demo:** Visit [Hugging Face Space](https://huggingface.co/spaces/YSenseAI/verifimind-peas) for a no-code experience.
+**One-Click Setup Script:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/creator35lwb-web/VerifiMind-PEAS/main/scripts/setup-mcp.sh | bash
+```
+
+📖 **[Full Setup Guide](MCP_SETUP_GUIDE.md)** | 🎮 **[Interactive Demo](https://huggingface.co/spaces/YSenseAI/wisdom-canvas)**
 
 ---
 
