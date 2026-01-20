@@ -1,0 +1,70 @@
+name: Publish to MCP Registry
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Validate only (do not publish)'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download MCP Publisher
+        run: |
+          curl -fsSL https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher-linux-amd64 -o mcp-publisher
+          chmod +x mcp-publisher
+          echo "MCP Publisher downloaded successfully"
+
+      - name: Validate server.json
+        run: |
+          echo "Validating server.json..."
+          ./mcp-publisher validate server.json
+          echo "✅ Validation passed"
+
+      - name: Authenticate with GitHub OIDC
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          echo "Authenticating with MCP Registry via GitHub OIDC..."
+          ./mcp-publisher login github-oidc
+
+      - name: Publish to MCP Registry
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          echo "Publishing to MCP Registry..."
+          ./mcp-publisher publish server.json
+          echo "✅ Published successfully!"
+
+      - name: Dry Run Summary
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        run: |
+          echo "🔍 Dry run completed - validation only, no publish"
+
+      - name: Summary
+        run: |
+          echo "## MCP Registry Publication" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Server**: io.github.creator35lwb-web/verifimind-genesis" >> $GITHUB_STEP_SUMMARY
+          echo "**Version**: 2.0.0" >> $GITHUB_STEP_SUMMARY
+          echo "**Endpoint**: https://verifimind.ysenseai.org/mcp" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
+            echo "**Mode**: Validation only (dry run)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Mode**: Published to registry" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "🎉 Server is now available at:" >> $GITHUB_STEP_SUMMARY
+            echo "https://registry.modelcontextprotocol.io" >> $GITHUB_STEP_SUMMARY
+          fi
