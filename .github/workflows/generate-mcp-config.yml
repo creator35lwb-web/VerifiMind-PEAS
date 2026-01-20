@@ -1,0 +1,126 @@
+name: Generate MCP Configuration
+
+on:
+  workflow_dispatch:
+    inputs:
+      client:
+        description: 'Target MCP Client'
+        required: true
+        default: 'claude-code'
+        type: choice
+        options:
+          - claude-code
+          - claude-desktop
+          - cursor
+          - all
+      custom_url:
+        description: 'Custom MCP Server URL (optional, leave empty for default)'
+        required: false
+        default: ''
+
+jobs:
+  generate-config:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set MCP Server URL
+        id: set-url
+        run: |
+          if [ -n "${{ github.event.inputs.custom_url }}" ]; then
+            echo "MCP_URL=${{ github.event.inputs.custom_url }}" >> $GITHUB_OUTPUT
+          else
+            echo "MCP_URL=https://verifimind.ysenseai.org/mcp" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate Claude Code Config
+        if: ${{ github.event.inputs.client == 'claude-code' || github.event.inputs.client == 'all' }}
+        run: |
+          mkdir -p generated-configs
+          cat > generated-configs/claude-code-config.json << 'EOF'
+          {
+            "mcpServers": {
+              "verifimind-genesis": {
+                "url": "${{ steps.set-url.outputs.MCP_URL }}",
+                "transport": "http-sse"
+              }
+            }
+          }
+          EOF
+          echo "Generated Claude Code configuration"
+          cat generated-configs/claude-code-config.json
+
+      - name: Generate Claude Desktop Config
+        if: ${{ github.event.inputs.client == 'claude-desktop' || github.event.inputs.client == 'all' }}
+        run: |
+          mkdir -p generated-configs
+          cat > generated-configs/claude-desktop-config.json << 'EOF'
+          {
+            "mcpServers": {
+              "verifimind-genesis": {
+                "url": "${{ steps.set-url.outputs.MCP_URL }}",
+                "transport": "http-sse"
+              }
+            }
+          }
+          EOF
+          echo ""
+          echo "=== Claude Desktop Configuration ==="
+          echo "macOS: ~/Library/Application Support/Claude/claude_desktop_config.json"
+          echo "Windows: %APPDATA%\\Claude\\claude_desktop_config.json"
+          echo ""
+          cat generated-configs/claude-desktop-config.json
+
+      - name: Generate Cursor Config
+        if: ${{ github.event.inputs.client == 'cursor' || github.event.inputs.client == 'all' }}
+        run: |
+          mkdir -p generated-configs
+          cat > generated-configs/cursor-settings.json << 'EOF'
+          {
+            "mcp.servers": {
+              "verifimind-genesis": {
+                "url": "${{ steps.set-url.outputs.MCP_URL }}",
+                "transport": "http-sse"
+              }
+            }
+          }
+          EOF
+          echo ""
+          echo "=== Cursor Configuration ==="
+          echo "Add to settings.json (Cmd/Ctrl+Shift+P > 'Preferences: Open Settings (JSON)')"
+          echo ""
+          cat generated-configs/cursor-settings.json
+
+      - name: Upload Configuration Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-configurations
+          path: generated-configs/
+          retention-days: 7
+
+      - name: Verify Server Status
+        run: |
+          echo "Verifying MCP Server status..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" https://verifimind.ysenseai.org/health || echo "000")
+          if [ "$RESPONSE" = "200" ]; then
+            echo "✅ MCP Server is online and healthy!"
+          else
+            echo "⚠️ Server returned status: $RESPONSE"
+          fi
+
+      - name: Summary
+        run: |
+          echo "## MCP Configuration Generated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Client**: ${{ github.event.inputs.client }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Server URL**: ${{ steps.set-url.outputs.MCP_URL }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Available Tools" >> $GITHUB_STEP_SUMMARY
+          echo "| Tool | Description |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| \`consult_agent_x\` | Innovation & Strategy Analysis |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`consult_agent_z\` | Ethics & Safety Review |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`consult_agent_cs\` | Security & Feasibility Validation |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`run_full_trinity\` | Complete X → Z → CS Validation |" >> $GITHUB_STEP_SUMMARY
