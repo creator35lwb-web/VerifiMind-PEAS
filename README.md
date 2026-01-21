@@ -69,6 +69,32 @@ curl -fsSL https://raw.githubusercontent.com/creator35lwb-web/VerifiMind-PEAS/ma
 
 📖 **[Full Setup Guide](MCP_SETUP_GUIDE.md)** | 🎮 **[Interactive Demo](https://huggingface.co/spaces/YSenseAI/wisdom-canvas)**
 
+### API Keys
+
+| Platform | API Key Required | Notes |
+|----------|------------------|-------|
+| **GCP Server** / **MCP Registry** | ❌ No | Server-side configured, ready to use |
+| **HuggingFace Demo** | ❌ No | Server-side configured |
+| **Smithery** | ✅ Yes (BYOK) | Bring Your Own Key |
+
+**For Smithery users**: Configure your own LLM API key (Gemini FREE or Groq FREE recommended):
+
+```json
+{
+  "mcpServers": {
+    "verifimind-genesis": {
+      "url": "https://smithery.ai/server/creator35lwb-web/verifimind-genesis",
+      "config": {
+        "llm_provider": "gemini",
+        "gemini_api_key": "YOUR_API_KEY_HERE"
+      }
+    }
+  }
+}
+```
+
+**Get FREE API Keys**: [Google AI Studio](https://aistudio.google.com/apikey) | [Groq Console](https://console.groq.com/keys)
+
 ---
 
 ## 🌟 What is VerifiMind-PEAS?
