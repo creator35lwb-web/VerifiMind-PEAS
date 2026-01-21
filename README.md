@@ -13,6 +13,7 @@
   [![Genesis v2.0 DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17972751.svg)](https://doi.org/10.5281/zenodo.17972751)
   
   [![API](https://img.shields.io/badge/API-verifimind.ysenseai.org-success)](https://verifimind.ysenseai.org)
+  [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Listed-purple)](https://registry.modelcontextprotocol.io/?q=verifimind)
   [![Smithery](https://img.shields.io/badge/Smithery-Available-blue)](https://smithery.ai/server/creator35lwb-web/verifimind-genesis)
   [![HuggingFace](https://img.shields.io/badge/🤗%20HuggingFace-Demo-yellow)](https://huggingface.co/spaces/YSenseAI/verifimind-peas)
 
@@ -27,6 +28,7 @@ VerifiMind PEAS is now **live and accessible** across multiple platforms:
 | Platform | Type | Access | Status |
 |----------|------|--------|--------|
 | **GCP Cloud Run** | Production API | [verifimind.ysenseai.org](https://verifimind.ysenseai.org) | ✅ LIVE |
+| **Official MCP Registry** | Registry Listing | [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/?q=verifimind) | ✅ LISTED |
 | **Smithery.ai** | Native MCP | [Install for Claude Desktop](https://smithery.ai/server/creator35lwb-web/verifimind-genesis) | ✅ LIVE |
 | **Hugging Face** | Interactive Demo | [YSenseAI/verifimind-peas](https://huggingface.co/spaces/YSenseAI/verifimind-peas) | ✅ LIVE |
 
