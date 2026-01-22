@@ -169,6 +169,32 @@ This iteration demonstrates our commitment to dogfooding—we use our own method
 
 ---
 
+## 📚 Case Studies: Real-World Applications
+
+VerifiMind-PEAS has been applied to validate real-world projects from concept to production. These case studies demonstrate the practical application of our methodology.
+
+### MarketPulse v5.0
+
+**AI-Powered Daily Market Intelligence for Value Investors**
+
+| Attribute | Value |
+|-----------|-------|
+| **Project** | [MarketPulse](https://github.com/creator35lwb-web/MarketPulse) |
+| **Version** | 5.0 (Production Ready) |
+| **Validation Date** | January 2026 |
+| **Status** | ✅ VALIDATED |
+
+MarketPulse is an open-source n8n workflow that delivers comprehensive daily market briefings for value investors. It demonstrates the "Bootstrapper's Edge" philosophy—leveraging free-tier infrastructure and open-source AI to build persistent, high-value intelligence systems at minimal cost.
+
+**Trinity Validation Results:**
+- **X-Agent (Innovation):** ✅ Approved - Democratizes financial intelligence through clever synthesis of free tools.
+- **Z-Agent (Ethics):** ✅ Approved - Includes clear disclaimers that this is not financial advice.
+- **CS-Agent (Security):** ✅ Approved - Secure credential management through n8n's built-in system.
+
+📖 **[Read the Full MarketPulse Case Study →](docs/case-studies/MarketPulse_Case_Study.md)**
+
+---
+
 ## 💡 Why VerifiMind-PEAS?
 
 ### **The Problem: Single-Model Bias**
