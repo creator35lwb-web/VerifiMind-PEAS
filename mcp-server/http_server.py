@@ -31,7 +31,7 @@ async def health_handler(request):
     return JSONResponse({
         "status": "healthy",
         "server": "verifimind-genesis",
-        "version": "0.2.4",
+        "version": "0.2.5",
         "transport": "streamable-http",
         "endpoints": {
             "mcp": "/mcp",
@@ -62,7 +62,7 @@ async def mcp_config_handler(request):
             "verifimind-genesis": {
                 "url": f"{base_url}/mcp/",
                 "description": "VerifiMind PEAS Genesis Methodology MCP Server - Multi-Model AI Validation with RefleXion Trinity",
-                "version": "0.2.4",
+                "version": "0.2.5",
                 "transport": "streamable-http",
                 "resources": 4,
                 "tools": 4,
@@ -144,13 +144,56 @@ async def mcp_config_handler(request):
         # BYOK Authentication
         "authentication": {
             "description": "Bring Your Own Key (BYOK) - provide API keys via session config",
-            "supported_providers": ["openai", "anthropic", "gemini", "mock"],
+            "supported_providers": ["openai", "anthropic", "gemini", "groq", "mock"],
             "default_provider": "mock",
-            "setup_instructions": {
-                "step1": "Set environment variables: GEMINI_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY",
-                "step2": "Or pass keys via MCP session config when connecting",
-                "step3": "The mock provider works without any API keys (for testing)"
-            }
+            "important_note": "ONE provider is used for ALL agents (X, Z, CS). Per-agent provider selection is not supported.",
+            "hosted_server_config": {
+                "agent_x": "Gemini 2.0 Flash (developer key - FREE)",
+                "agent_z": "Uses same provider as configured",
+                "agent_cs": "Uses same provider as configured",
+                "default": "Mock provider (no API key needed)"
+            },
+            "setup_options": {
+                "option_1_use_hosted": {
+                    "description": "Use the hosted server with developer-provided Gemini key",
+                    "cost": "FREE (covered by developer)",
+                    "action": "Just use the tools - no configuration needed"
+                },
+                "option_2_environment_variables": {
+                    "description": "Set environment variables before starting Claude Code",
+                    "variables": {
+                        "LLM_PROVIDER": "gemini | anthropic | openai | groq | mock",
+                        "GEMINI_API_KEY": "your-gemini-api-key",
+                        "ANTHROPIC_API_KEY": "your-anthropic-api-key",
+                        "OPENAI_API_KEY": "your-openai-api-key",
+                        "GROQ_API_KEY": "your-groq-api-key"
+                    },
+                    "example_bash": "export GEMINI_API_KEY='your-key' && export LLM_PROVIDER='gemini' && claude",
+                    "example_powershell": "$env:GEMINI_API_KEY='your-key'; $env:LLM_PROVIDER='gemini'; claude"
+                },
+                "option_3_claude_desktop_env": {
+                    "description": "Add env to Claude Desktop config",
+                    "config_example": {
+                        "mcpServers": {
+                            "verifimind": {
+                                "command": "npx",
+                                "args": ["-y", "mcp-remote", "https://server.smithery.ai/creator35lwb-web/verifimind-genesis/mcp"],
+                                "env": {
+                                    "LLM_PROVIDER": "gemini",
+                                    "GEMINI_API_KEY": "your-api-key"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "get_free_api_keys": {
+                "gemini": "https://aistudio.google.com (FREE tier)",
+                "groq": "https://console.groq.com (FREE tier)",
+                "anthropic": "https://console.anthropic.com (paid)",
+                "openai": "https://platform.openai.com (paid)"
+            },
+            "security_warning": "NEVER share API keys in chat messages. Use environment variables or config files."
         }
     })
 
@@ -158,7 +201,7 @@ async def root_handler(request):
     """Root endpoint with server info and quick start guide"""
     return JSONResponse({
         "name": "VerifiMind PEAS MCP Server",
-        "version": "0.2.4",
+        "version": "0.2.5",
         "description": "Model Context Protocol server for VerifiMind-PEAS Genesis Methodology - Multi-Model AI Validation System",
         "author": "Alton Lee",
         "repository": "https://github.com/creator35lwb-web/VerifiMind-PEAS",
@@ -205,7 +248,7 @@ async def setup_handler(request):
 
     return JSONResponse({
         "title": "VerifiMind MCP Server Setup Guide",
-        "version": "0.2.4",
+        "version": "0.2.5",
 
         "step_1_choose_client": {
             "description": "Choose your MCP client",
@@ -299,7 +342,7 @@ async def setup_handler(request):
             },
             "run_full_trinity": {
                 "description": "Complete validation workflow",
-                "flow": "X (Innovation) → Z (Ethics) → CS (Security) → Synthesis",
+                "flow": "X (Innovation) -> Z (Ethics) -> CS (Security) -> Synthesis",
                 "use_for": "Comprehensive concept validation with all three agents"
             }
         },
@@ -350,7 +393,7 @@ app.add_middleware(
 
 # Print server info when module is loaded
 print("=" * 70)
-print("VerifiMind-PEAS MCP Server - HTTP Mode (v0.2.4)")
+print("VerifiMind-PEAS MCP Server - HTTP Mode (v0.2.5)")
 print("=" * 70)
 print(f"Server: verifimind-genesis")
 print(f"Version: 0.2.4")
