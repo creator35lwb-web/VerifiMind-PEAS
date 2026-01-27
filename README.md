@@ -16,6 +16,7 @@
   [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Listed-purple)](https://registry.modelcontextprotocol.io/?q=verifimind)
   [![Smithery](https://img.shields.io/badge/Smithery-Available-blue)](https://smithery.ai/server/creator35lwb-web/verifimind-genesis)
   [![HuggingFace](https://img.shields.io/badge/🤗%20HuggingFace-Demo-yellow)](https://huggingface.co/spaces/YSenseAI/verifimind-peas)
+[![Roadmap](https://img.shields.io/badge/Roadmap-2026-orange)](ROADMAP.md)
 
 </div>
 
