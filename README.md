@@ -703,7 +703,7 @@ Lee, A. (2025). VerifiMind-PEAS: Prompt Engineering Attribution System (Version 
   year = {2025},
   version = {1.1.0},
   url = {https://github.com/creator35lwb-web/VerifiMind-PEAS},
-  doi = {10.5281/zenodo.XXXXXXX},
+  doi = {10.5281/zenodo.17980791},
   note = {MCP server for multi-model AI validation}
 }
 ```
