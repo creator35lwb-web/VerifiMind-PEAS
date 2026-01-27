@@ -246,7 +246,6 @@ As an open-source project with real infrastructure costs, we face the classic su
 |---------|---------|------|
 | GitHub Discussions | Questions, ideas, feedback | [Discussions](https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions) |
 | GitHub Issues | Bug reports, feature requests | [Issues](https://github.com/creator35lwb-web/VerifiMind-PEAS/issues) |
-| MCP Discord | MCP community chat | [#registry-dev](https://discord.gg/mcp) |
 
 ### Contribution Areas
 
