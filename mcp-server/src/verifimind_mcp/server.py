@@ -34,11 +34,14 @@ from pydantic import BaseModel, Field
 class VerifiMindConfig(BaseModel):
     """Session configuration for VerifiMind Genesis Server.
 
-    Allows users to customize their validation experience.
+    BYOK v0.3.0 - Multi-Provider Support
+
+    Allows users to bring their own API keys for any supported LLM provider.
+    Free tier providers (Gemini, Groq, Ollama) are recommended for cost-free usage.
     """
     llm_provider: str = Field(
         default="mock",
-        description="LLM provider to use: 'openai', 'anthropic', 'gemini', or 'mock' (for testing)"
+        description="LLM provider: 'gemini' (FREE), 'groq' (FREE), 'openai', 'anthropic', 'mistral', 'ollama' (local), or 'mock' (testing)"
     )
     openai_api_key: str = Field(
         default="",
@@ -50,7 +53,15 @@ class VerifiMindConfig(BaseModel):
     )
     gemini_api_key: str = Field(
         default="",
-        description="Gemini API key (optional, can also use GEMINI_API_KEY env var)"
+        description="Gemini API key (optional, can also use GEMINI_API_KEY env var) - FREE tier available!"
+    )
+    groq_api_key: str = Field(
+        default="",
+        description="Groq API key (optional, can also use GROQ_API_KEY env var) - FREE tier available!"
+    )
+    mistral_api_key: str = Field(
+        default="",
+        description="Mistral API key (optional, can also use MISTRAL_API_KEY env var)"
     )
     validation_mode: str = Field(
         default="standard",

@@ -4,6 +4,76 @@ All notable changes to the VerifiMind PEAS project will be documented in this fi
 
 ---
 
+## v0.3.0 - BYOK Multi-Provider Support (January 28, 2026)
+
+### BYOK (Bring Your Own Key) Enhancement
+
+This release implements full multi-provider BYOK support, enabling users to connect their own LLM API keys for multiple providers, making the system sustainable without increasing maintainer costs.
+
+### New Features
+- **Multi-Provider Support**: Added support for 7 LLM providers:
+  - Gemini (FREE tier available)
+  - Groq (FREE tier available)
+  - OpenAI
+  - Anthropic
+  - Mistral (NEW)
+  - Ollama (local, FREE) (NEW)
+  - Mock (testing)
+
+- **Automatic Fallback**: New `LLM_FALLBACK_PROVIDER` environment variable enables automatic fallback if primary provider fails
+
+- **Provider Configuration**: New `PROVIDER_CONFIGS` dictionary with metadata about each provider including:
+  - Default models
+  - Available models
+  - Free tier availability
+  - Rate limits
+
+- **Validation Utilities**: New helper functions:
+  - `get_provider_with_fallback()` - Factory with automatic fallback
+  - `validate_provider_config()` - Validate provider setup
+  - `list_providers()` - List all available providers
+  - `list_free_tier_providers()` - List free tier options
+
+### Files Modified
+- `mcp-server/src/verifimind_mcp/llm/provider.py` - Added Mistral and Ollama providers, fallback support
+- `mcp-server/src/verifimind_mcp/llm/__init__.py` - Updated exports
+- `mcp-server/src/verifimind_mcp/config_helper.py` - Multi-provider support
+- `mcp-server/src/verifimind_mcp/server.py` - Added Groq/Mistral config fields
+- `.env.example` - Updated with BYOK v0.3.0 configuration
+- `MCP_SETUP_GUIDE.md` - Updated BYOK documentation
+- `CHANGELOG.md` - This update
+
+### Environment Variables
+```bash
+# Primary provider
+LLM_PROVIDER=gemini
+
+# Fallback provider
+LLM_FALLBACK_PROVIDER=mock
+
+# Optional overrides
+LLM_MODEL=gemini-1.5-flash
+LLM_TEMPERATURE=0.7
+LLM_MAX_TOKENS=4096
+```
+
+### Breaking Changes
+- None. Backward compatible with v0.2.x environment variables.
+
+### Credits
+- Implementation: Claude Code
+- Specifications: Manus AI (T), CTO - Team YSenseAI
+
+---
+
+## v0.2.5 - Documentation & Encoding Fixes (January 2026)
+
+### Documentation
+- Improved BYOK documentation
+- Fixed encoding issues in documentation files
+
+---
+
 ## v1.0.2 - IP Update (November 19, 2025)
 
 ### Security
