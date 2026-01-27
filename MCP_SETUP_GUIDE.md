@@ -105,24 +105,61 @@ using facial recognition for attendance tracking in schools."
 
 ---
 
-## BYOK (Bring Your Own Keys)
+## BYOK v0.3.0 (Bring Your Own Keys)
 
-The free tier uses Gemini 2.0 Flash for Agent X. For enhanced rate limits or to use your own API keys:
+VerifiMind PEAS supports **7 LLM providers** with automatic fallback support. Choose based on your needs:
+
+### Supported Providers
+
+| Provider | Free Tier | Default Model | Notes |
+|----------|-----------|---------------|-------|
+| **Gemini** | Yes | gemini-1.5-flash | Recommended for free usage |
+| **Groq** | Yes | llama-3.3-70b-versatile | Fast inference, generous limits |
+| **OpenAI** | No | gpt-4o-mini | Most capable models |
+| **Anthropic** | No | claude-3-5-sonnet-20241022 | Best for complex reasoning |
+| **Mistral** | No | mistral-small-latest | Good balance of cost/performance |
+| **Ollama** | Yes (local) | llama3.2 | Run locally, complete privacy |
+| **Mock** | Yes | mock-v1 | For testing only |
 
 ### Environment Variables
 
-Set these in your environment before connecting:
+Set these in your environment:
 
 ```bash
-export ANTHROPIC_API_KEY="your-anthropic-key"  # For Z and CS agents
-export GEMINI_API_KEY="your-gemini-key"        # For X agent
+# Primary provider (choose one)
+export LLM_PROVIDER="gemini"  # Options: gemini, groq, openai, anthropic, mistral, ollama, mock
+
+# Fallback if primary fails (optional)
+export LLM_FALLBACK_PROVIDER="mock"
+
+# API key for your chosen provider
+export GEMINI_API_KEY="your-gemini-key"        # FREE tier available!
+export GROQ_API_KEY="your-groq-key"            # FREE tier available!
+export OPENAI_API_KEY="your-openai-key"
+export ANTHROPIC_API_KEY="your-anthropic-key"
+export MISTRAL_API_KEY="your-mistral-key"
+
+# Optional: Override default model
+export LLM_MODEL="gemini-1.5-pro"
+
+# Optional: Override parameters
+export LLM_TEMPERATURE="0.7"
+export LLM_MAX_TOKENS="4096"
 ```
 
+### Get Free API Keys
+
+1. **Google Gemini (Recommended)**: https://aistudio.google.com/apikey
+2. **Groq**: https://console.groq.com/keys
+3. **Ollama (Local)**: https://ollama.ai - No API key needed!
+
 ### Benefits of BYOK
-- Higher rate limits
+- Choose your preferred provider
+- Higher rate limits with your own keys
 - Use your own billing
 - Access to premium models
 - Full control over API usage
+- Automatic fallback if primary fails
 
 ---
 
