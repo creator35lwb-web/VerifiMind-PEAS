@@ -42,8 +42,8 @@ logger = logging.getLogger(__name__)
 PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     "gemini": {
         "name": "Google Gemini",
-        "default_model": "gemini-1.5-flash",
-        "models": ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"],
+        "default_model": "gemini-2.5-flash",
+        "models": ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"],
         "api_key_env": "GEMINI_API_KEY",
         "base_url": "https://generativelanguage.googleapis.com/v1beta",
         "free_tier": True,
@@ -343,15 +343,16 @@ class GeminiProvider(LLMProvider):
     """
     Google Gemini provider implementation.
 
-    Supports Gemini 1.5 Flash, Gemini 1.5 Pro, and other Gemini models.
+    Supports Gemini 2.5 Flash, Gemini 2.0 Flash, and other Gemini models.
     Uses prompt engineering for structured JSON output.
 
-    Default: gemini-1.5-flash (FREE tier, reliable, fast)
+    Default: gemini-2.5-flash (FREE tier, reliable, fast)
+    Note: Gemini 1.5 models retired in 2026
     """
 
     def __init__(
         self,
-        model: str = "gemini-1.5-flash",
+        model: str = "gemini-2.5-flash",
         api_key: Optional[str] = None
     ):
         self.model = model
