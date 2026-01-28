@@ -4,9 +4,11 @@
 
 ---
 
-## Current Status: Maintenance Required
+## Current Status: Operational
 
-We have identified configuration issues affecting the public MCP server at `https://verifimind.ysenseai.org`. We are actively working to resolve these.
+**v0.3.1 deployed successfully on January 29, 2026**
+
+All known issues have been resolved. The server is now operational with enhanced security features.
 
 ---
 
@@ -14,22 +16,16 @@ We have identified configuration issues affecting the public MCP server at `http
 
 ### Issue #1: Gemini Model Update Required
 
-**Status:** Code Fix Ready - Pending Deployment
+**Status:** RESOLVED
 **Severity:** High
 **Affected:** All agent consultations (X, Z, CS)
 
 **Description:**
-The server is configured with `gemini-2.0-flash-exp` which has been deprecated by Google. This causes a 404 error when attempting to use any agent.
+The server was configured with `gemini-2.0-flash-exp` which was deprecated by Google.
 
-**Error Message:**
-```
-404 models/gemini-2.0-flash-exp is not found for API version v1beta
-```
-
-**Resolution:**
-- Code fix implemented in v0.3.1 (see CHANGELOG.md)
+**Resolution:** DEPLOYED
 - Changed default model to `gemini-1.5-flash` (stable, FREE tier)
-- Awaiting server redeployment
+- Deployed v0.3.1 on January 29, 2026
 
 ---
 
@@ -71,7 +67,7 @@ Get a free Gemini API key: https://aistudio.google.com/apikey
 |----------|-------|
 | Endpoint | `https://verifimind.ysenseai.org/mcp` |
 | Health Check | `https://verifimind.ysenseai.org/health` |
-| Server Version | 0.3.1 (pending deployment) |
+| Server Version | 0.3.1 (deployed) |
 | Transport | Streamable HTTP (SSE) |
 
 ---
@@ -91,9 +87,9 @@ We will update this status page as issues are resolved. For real-time updates:
 |------|--------|--------|
 | Jan 28, 2026 | Issue identified | Complete |
 | Jan 28, 2026 | Code fix implemented (v0.3.1) | Complete |
-| TBD | Server redeployment | Pending |
-| TBD | API key renewal | Pending |
-| TBD | Service restoration | Pending |
+| Jan 29, 2026 | v0.3.1 deployed with EDoS protection | Complete |
+| Jan 29, 2026 | Rate limiting enabled | Complete |
+| Jan 29, 2026 | Service restoration | **COMPLETE** |
 
 ---
 
