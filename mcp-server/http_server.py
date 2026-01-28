@@ -3,11 +3,13 @@ HTTP Server Entry Point for VerifiMind MCP Server
 Designed for Smithery deployment with HTTP transport
 Properly handles FastMCP lifespan context for session management
 
-Features:
+v0.3.1 Features:
 - CORS middleware for browser-based clients (Smithery)
-- Health check endpoint
+- Rate limiting for EDoS protection (Economic Denial of Sustainability)
+- Health check endpoint with rate limit stats
 - MCP configuration endpoint
 - Streamable HTTP transport for MCP protocol
+- Smart Fallback per-agent provider system
 """
 import os
 import contextlib
@@ -17,6 +19,7 @@ from starlette.applications import Starlette
 from starlette.routing import Mount, Route
 from starlette.middleware.cors import CORSMiddleware
 from verifimind_mcp.server import create_http_server
+from verifimind_mcp.middleware import RateLimitMiddleware, get_rate_limit_stats
 
 # Create MCP server instance (raw FastMCP, not SmitheryFastMCP wrapper)
 mcp_server = create_http_server()
@@ -25,13 +28,18 @@ mcp_server = create_http_server()
 # When mounted at /mcp, requests to /mcp will go to / in the app
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
+# Server version
+SERVER_VERSION = "0.3.1"
+
 # Custom route handlers
 async def health_handler(request):
-    """Health check endpoint"""
+    """Health check endpoint with rate limit stats"""
+    rate_stats = get_rate_limit_stats()
+
     return JSONResponse({
         "status": "healthy",
         "server": "verifimind-genesis",
-        "version": "0.2.5",
+        "version": SERVER_VERSION,
         "transport": "streamable-http",
         "endpoints": {
             "mcp": "/mcp",
@@ -41,6 +49,17 @@ async def health_handler(request):
         },
         "resources": 4,
         "tools": 4,
+        "features": {
+            "smart_fallback": True,
+            "per_agent_providers": True,
+            "rate_limiting": True,
+            "free_tier_default": True
+        },
+        "rate_limits": {
+            "per_ip": f"{rate_stats['ip_limit']} req/{rate_stats['window_seconds']}s",
+            "global": f"{rate_stats['global_limit']} req/{rate_stats['window_seconds']}s",
+            "current_load": f"{rate_stats['global_requests_in_window']}/{rate_stats['global_limit']}"
+        },
         "quick_start": "Run: claude mcp add -s user verifimind -- npx -y mcp-remote https://server.smithery.ai/creator35lwb-web/verifimind-genesis/mcp"
     })
 
@@ -62,15 +81,17 @@ async def mcp_config_handler(request):
             "verifimind-genesis": {
                 "url": f"{base_url}/mcp/",
                 "description": "VerifiMind PEAS Genesis Methodology MCP Server - Multi-Model AI Validation with RefleXion Trinity",
-                "version": "0.2.5",
+                "version": SERVER_VERSION,
                 "transport": "streamable-http",
                 "resources": 4,
                 "tools": 4,
                 "features": {
                     "agents": ["X (Innovation)", "Z (Ethics)", "CS (Security)"],
-                    "models": ["Gemini 2.0 Flash (FREE)", "Claude 3 Haiku", "GPT-4"],
-                    "cost_per_validation": "$0.003",
-                    "byok": True
+                    "models": ["Gemini 1.5 Flash (FREE)", "Claude 3.5 Sonnet (BYOK)", "GPT-4o (BYOK)"],
+                    "cost_per_validation": "$0 (FREE tier)",
+                    "byok": True,
+                    "smart_fallback": True,
+                    "rate_limiting": True
                 },
                 "headers": {
                     "Accept": "application/json, text/event-stream"
@@ -115,22 +136,22 @@ async def mcp_config_handler(request):
         "tools": [
             {
                 "name": "consult_agent_x",
-                "description": "Innovation & Strategy analysis powered by Gemini 2.0 Flash",
+                "description": "Innovation & Strategy analysis (Smart Fallback: Gemini FREE)",
                 "parameters": ["concept_name", "concept_description", "context (optional)"]
             },
             {
                 "name": "consult_agent_z",
-                "description": "Ethics & Safety review with VETO power, powered by Claude 3 Haiku",
+                "description": "Ethics & Safety review with VETO power (Smart Fallback: Claude if BYOK, else Gemini FREE)",
                 "parameters": ["concept_name", "concept_description", "context (optional)", "prior_reasoning (optional)"]
             },
             {
                 "name": "consult_agent_cs",
-                "description": "Security & Feasibility validation with Socratic questioning",
+                "description": "Security & Feasibility validation (Smart Fallback: Claude if BYOK, else Gemini FREE)",
                 "parameters": ["concept_name", "concept_description", "context (optional)", "prior_reasoning (optional)"]
             },
             {
                 "name": "run_full_trinity",
-                "description": "Complete X → Z → CS validation workflow with synthesis",
+                "description": "Complete X → Z → CS validation with per-agent optimized providers",
                 "parameters": ["concept_name", "concept_description", "context (optional)", "save_to_history (default: true)"]
             }
         ],
@@ -201,7 +222,7 @@ async def root_handler(request):
     """Root endpoint with server info and quick start guide"""
     return JSONResponse({
         "name": "VerifiMind PEAS MCP Server",
-        "version": "0.2.5",
+        "version": SERVER_VERSION,
         "description": "Model Context Protocol server for VerifiMind-PEAS Genesis Methodology - Multi-Model AI Validation System",
         "author": "Alton Lee",
         "repository": "https://github.com/creator35lwb-web/VerifiMind-PEAS",
@@ -227,14 +248,24 @@ async def root_handler(request):
         ],
         "resources": 4,
         "agents": {
-            "X": "Innovation & Strategy (Gemini 2.0 Flash - FREE)",
-            "Z": "Ethics & Safety (Claude 3 Haiku)",
-            "CS": "Security & Feasibility (Claude 3 Haiku)"
+            "X": "Innovation & Strategy (Gemini 1.5 Flash - FREE)",
+            "Z": "Ethics & Safety (Claude if BYOK, else Gemini FREE)",
+            "CS": "Security & Feasibility (Claude if BYOK, else Gemini FREE)"
+        },
+        "smart_fallback": {
+            "description": "v0.3.1 - Per-agent provider selection with FREE tier default",
+            "default": "Gemini 1.5 Flash (FREE) for all agents",
+            "upgrade": "Z and CS auto-upgrade to Claude if ANTHROPIC_API_KEY is set"
         },
         "byok": {
             "description": "Bring Your Own Key - provide your API keys via session config",
-            "supported_providers": ["openai", "anthropic", "gemini", "mock"],
-            "default_provider": "mock"
+            "supported_providers": ["openai", "anthropic", "gemini", "groq", "mistral", "ollama", "mock"],
+            "default_provider": "gemini (FREE)"
+        },
+        "rate_limiting": {
+            "enabled": True,
+            "per_ip": "10 req/min",
+            "description": "EDoS protection enabled"
         }
     })
 
@@ -248,7 +279,7 @@ async def setup_handler(request):
 
     return JSONResponse({
         "title": "VerifiMind MCP Server Setup Guide",
-        "version": "0.2.5",
+        "version": SERVER_VERSION,
 
         "step_1_choose_client": {
             "description": "Choose your MCP client",
@@ -326,23 +357,23 @@ async def setup_handler(request):
         "available_tools": {
             "consult_agent_x": {
                 "description": "Innovation & Strategy analysis",
-                "powered_by": "Gemini 2.0 Flash (FREE)",
+                "powered_by": "Gemini 1.5 Flash (FREE) - Smart Fallback",
                 "use_for": "Evaluating market potential, competitive positioning, innovation score"
             },
             "consult_agent_z": {
                 "description": "Ethics & Safety review",
-                "powered_by": "Claude 3 Haiku",
+                "powered_by": "Claude (if BYOK) or Gemini FREE - Smart Fallback",
                 "use_for": "Privacy concerns, bias detection, social impact, Z-Protocol compliance",
                 "special": "Has VETO POWER - can reject unethical concepts"
             },
             "consult_agent_cs": {
                 "description": "Security & Feasibility validation",
-                "powered_by": "Claude 3 Haiku",
+                "powered_by": "Claude (if BYOK) or Gemini FREE - Smart Fallback",
                 "use_for": "Security vulnerabilities, attack vectors, Socratic questioning"
             },
             "run_full_trinity": {
-                "description": "Complete validation workflow",
-                "flow": "X (Innovation) -> Z (Ethics) -> CS (Security) -> Synthesis",
+                "description": "Complete validation workflow with per-agent optimized providers",
+                "flow": "X (Gemini) -> Z (Claude/Gemini) -> CS (Claude/Gemini) -> Synthesis",
                 "use_for": "Comprehensive concept validation with all three agents"
             }
         },
@@ -379,33 +410,49 @@ app = Starlette(
     lifespan=mcp_app.lifespan  # CRITICAL: Pass lifespan for session initialization
 )
 
-# IMPORTANT: Add CORS middleware for Smithery browser-based clients
-# This must be added AFTER creating the app but BEFORE running
+# IMPORTANT: Add middleware in correct order
+# 1. Rate limiting (first, to block before any processing)
+# 2. CORS (second, for browser clients)
+
+# Rate limiting middleware - EDoS protection
+# Prevents auto-scale cost attacks and API abuse
+app.add_middleware(RateLimitMiddleware)
+
+# CORS middleware for Smithery browser-based clients
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allow all origins for MCP clients
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS", "DELETE"],
     allow_headers=["*"],
-    expose_headers=["mcp-session-id", "mcp-protocol-version"],
+    expose_headers=["mcp-session-id", "mcp-protocol-version", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
     max_age=86400,  # Cache preflight for 24 hours
 )
 
 # Print server info when module is loaded
 print("=" * 70)
-print("VerifiMind-PEAS MCP Server - HTTP Mode (v0.2.5)")
+print(f"VerifiMind-PEAS MCP Server - HTTP Mode (v{SERVER_VERSION})")
 print("=" * 70)
 print(f"Server: verifimind-genesis")
-print(f"Version: 0.2.4")
+print(f"Version: {SERVER_VERSION}")
 print(f"Transport: streamable-http (FastMCP)")
 print(f"Port: {os.getenv('PORT', '8080')}")
-print(f"CORS: Enabled (all origins)")
+print("-" * 70)
+print("SECURITY FEATURES (v0.3.1):")
+print(f"  Rate Limiting: {os.getenv('RATE_LIMIT_PER_IP', '10')} req/min per IP")
+print(f"  Global Limit:  {os.getenv('RATE_LIMIT_GLOBAL', '100')} req/min per instance")
+print(f"  CORS: Enabled (all origins)")
+print("-" * 70)
+print("SMART FALLBACK (v0.3.1):")
+print("  X Agent:  Gemini (FREE) - Innovation/Strategy")
+print("  Z Agent:  Gemini (FREE) -> Claude if ANTHROPIC_API_KEY set")
+print("  CS Agent: Gemini (FREE) -> Claude if ANTHROPIC_API_KEY set")
 print("-" * 70)
 print("Endpoints:")
 print(f"  MCP:    /mcp/")
 print(f"  Health: /health")
 print(f"  Config: /.well-known/mcp-config")
-print(f"  Setup:  /setup  (NEW - User-friendly setup guide)")
+print(f"  Setup:  /setup")
 print("-" * 70)
 print("Resources: 4 | Tools: 4")
 print("Agents: X (Innovation) | Z (Ethics) | CS (Security)")
@@ -413,9 +460,6 @@ print("-" * 70)
 print("Quick Start (Claude Code):")
 print("  claude mcp add -s user verifimind -- npx -y mcp-remote \\")
 print("    https://server.smithery.ai/creator35lwb-web/verifimind-genesis/mcp")
-print("-" * 70)
-print("BYOK (Bring Your Own Key): Enabled")
-print("Default Provider: mock (for testing without API keys)")
 print("=" * 70)
 print("Server ready for connections...")
 print("=" * 70)
