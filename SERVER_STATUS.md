@@ -14,7 +14,7 @@ We have identified configuration issues affecting the public MCP server at `http
 
 ### Issue #1: Gemini Model Update Required
 
-**Status:** In Progress
+**Status:** Code Fix Ready - Pending Deployment
 **Severity:** High
 **Affected:** All agent consultations (X, Z, CS)
 
@@ -26,7 +26,10 @@ The server is configured with `gemini-2.0-flash-exp` which has been deprecated b
 404 models/gemini-2.0-flash-exp is not found for API version v1beta
 ```
 
-**Resolution:** Updating model configuration to `gemini-1.5-flash`
+**Resolution:**
+- Code fix implemented in v0.3.1 (see CHANGELOG.md)
+- Changed default model to `gemini-1.5-flash` (stable, FREE tier)
+- Awaiting server redeployment
 
 ---
 
@@ -68,7 +71,7 @@ Get a free Gemini API key: https://aistudio.google.com/apikey
 |----------|-------|
 | Endpoint | `https://verifimind.ysenseai.org/mcp` |
 | Health Check | `https://verifimind.ysenseai.org/health` |
-| Server Version | 0.2.5 |
+| Server Version | 0.3.1 (pending deployment) |
 | Transport | Streamable HTTP (SSE) |
 
 ---
@@ -87,7 +90,8 @@ We will update this status page as issues are resolved. For real-time updates:
 | Date | Action | Status |
 |------|--------|--------|
 | Jan 28, 2026 | Issue identified | Complete |
-| TBD | Model configuration update | Pending |
+| Jan 28, 2026 | Code fix implemented (v0.3.1) | Complete |
+| TBD | Server redeployment | Pending |
 | TBD | API key renewal | Pending |
 | TBD | Service restoration | Pending |
 

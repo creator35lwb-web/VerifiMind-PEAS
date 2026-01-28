@@ -18,7 +18,7 @@ Tools Exposed:
 - run_full_trinity - Run complete X → Z → CS validation
 
 Author: Alton Lee
-Version: 0.2.0 (Phase 2 - Core Tools)
+Version: 0.3.1 (Smart Fallback + Per-Agent Providers)
 """
 
 import json
@@ -164,7 +164,7 @@ def get_project_info() -> dict[str, Any]:
         "methodology": "Genesis Methodology",
         "version": "2.0.1",
         "architecture": "RefleXion Trinity (X-Z-CS)",
-        "mcp_server_version": "0.2.0",
+        "mcp_server_version": "0.3.1",
         "agents": {
             "X": {
                 "name": "X Intelligent",
@@ -306,9 +306,10 @@ def _create_mcp_instance():
                 context=context
             )
 
-            # Get LLM provider (use session config if available, fallback to env vars)
-            from .config_helper import get_provider_from_config
-            provider = get_provider_from_config(ctx)
+            # Get LLM provider optimized for X Agent (innovation/strategy)
+            # v0.3.1: Smart fallback - Gemini recommended for creative analysis
+            from .config_helper import get_agent_provider
+            provider = get_agent_provider("X", ctx)
 
             # Create agent and analyze
             agent = XAgent(llm_provider=provider)
@@ -394,9 +395,10 @@ def _create_mcp_instance():
                     overall_confidence=0.8
                 ))
 
-            # Get LLM provider (use session config if available, fallback to env vars)
-            from .config_helper import get_provider_from_config
-            provider = get_provider_from_config(ctx)
+            # Get LLM provider optimized for Z Agent (ethics/reasoning)
+            # v0.3.1: Smart fallback - Anthropic Claude recommended for ethical analysis
+            from .config_helper import get_agent_provider
+            provider = get_agent_provider("Z", ctx)
 
             # Create agent and analyze
             agent = ZAgent(llm_provider=provider)
@@ -479,9 +481,10 @@ def _create_mcp_instance():
                     overall_confidence=0.8
                 ))
 
-            # Get LLM provider (use session config if available, fallback to env vars)
-            from .config_helper import get_provider_from_config
-            provider = get_provider_from_config(ctx)
+            # Get LLM provider optimized for CS Agent (security/code analysis)
+            # v0.3.1: Smart fallback - Anthropic Claude recommended for security validation
+            from .config_helper import get_agent_provider
+            provider = get_agent_provider("CS", ctx)
 
             # Create agent and analyze
             agent = CSAgent(llm_provider=provider)
@@ -554,14 +557,17 @@ def _create_mcp_instance():
                 context=context
             )
 
-            # Get LLM provider (use session config if available, fallback to env vars)
-            from .config_helper import get_provider_from_config
-            provider = get_provider_from_config(ctx)
+            # Get optimized providers for each agent (v0.3.1 Smart Fallback)
+            # X Agent: Gemini (creative/innovative thinking)
+            # Z Agent: Anthropic Claude if available (ethical reasoning)
+            # CS Agent: Anthropic Claude if available (code/security analysis)
+            from .config_helper import get_trinity_providers
+            providers = get_trinity_providers(ctx)
 
-            # Initialize agents
-            x_agent = XAgent(llm_provider=provider)
-            z_agent = ZAgent(llm_provider=provider)
-            cs_agent = CSAgent(llm_provider=provider)
+            # Initialize agents with their optimized providers
+            x_agent = XAgent(llm_provider=providers["X"])
+            z_agent = ZAgent(llm_provider=providers["Z"])
+            cs_agent = CSAgent(llm_provider=providers["CS"])
 
             # Step 1: X Agent analysis (no prior reasoning)
             x_result = await x_agent.analyze(concept)

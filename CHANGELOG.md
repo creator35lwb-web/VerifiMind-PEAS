@@ -4,6 +4,73 @@ All notable changes to the VerifiMind PEAS project will be documented in this fi
 
 ---
 
+## v0.3.1 - Smart Fallback + Per-Agent Providers (January 28, 2026)
+
+### New Features
+
+#### Smart Fallback Per-Agent Provider System
+Intelligent provider selection optimized for each agent's specialty:
+
+| Agent | Default (FREE) | Recommended (BYOK) | Specialty |
+|-------|----------------|-------------------|-----------|
+| **X Agent** | Gemini | Gemini | Innovation, creativity |
+| **Z Agent** | Gemini | Anthropic Claude | Ethical reasoning |
+| **CS Agent** | Gemini | Anthropic Claude | Code/security analysis |
+
+**Strategy:**
+- **Default**: All agents use Gemini (FREE tier) - no cost to maintainer
+- **Smart Upgrade**: If `ANTHROPIC_API_KEY` is set, Z and CS agents automatically use Claude
+- **Per-Agent Override**: `X_AGENT_PROVIDER`, `Z_AGENT_PROVIDER`, `CS_AGENT_PROVIDER` env vars
+
+#### New Helper Functions
+- `get_agent_provider(agent_id, ctx)` - Get optimized provider for specific agent
+- `get_trinity_providers(ctx)` - Get all three agent providers at once
+- `get_provider_status()` - Diagnostic function showing current configuration
+
+### Bug Fixes
+- **Critical**: Fixed deprecated Gemini model causing 404 errors
+  - Changed default model from `gemini-2.0-flash-exp` to `gemini-1.5-flash`
+  - Updated `GeminiProvider` class default in `provider.py`
+  - Updated `PROVIDER_CONFIGS` models list
+
+### Technical Details
+- **Root Cause**: Google deprecated `gemini-2.0-flash-exp` model
+- **Error**: `404 models/gemini-2.0-flash-exp is not found for API version v1beta`
+- **Resolution**: Default to `gemini-1.5-flash` (stable, FREE tier)
+
+### Environment Variables
+```bash
+# Default: All agents use Gemini FREE tier
+GEMINI_API_KEY=your-key
+
+# Optional: Z and CS automatically upgrade to Claude if set
+ANTHROPIC_API_KEY=your-key
+
+# Optional: Per-agent overrides
+X_AGENT_PROVIDER=gemini
+Z_AGENT_PROVIDER=anthropic
+CS_AGENT_PROVIDER=anthropic
+```
+
+### Files Modified
+- `mcp-server/src/verifimind_mcp/llm/provider.py` - Updated default Gemini model
+- `mcp-server/src/verifimind_mcp/config_helper.py` - Added smart fallback functions
+- `mcp-server/src/verifimind_mcp/server.py` - Updated all tools to use per-agent providers
+- `CHANGELOG.md` - This update
+- `SERVER_STATUS.md` - Updated status
+
+### Benefits
+- **Sustainable**: Public server uses FREE Gemini tier (no cost to maintainer)
+- **Accessible**: Works out-of-box for everyone
+- **Optimized**: Right model for each agent when BYOK configured
+- **Flexible**: Full customization via environment variables
+
+### Credits
+- Implementation: Claude Code
+- Architecture: Alton Lee Wei Bin (CTO Team YSenseAI)
+
+---
+
 ## v0.3.0 - BYOK Multi-Provider Support (January 28, 2026)
 
 ### BYOK (Bring Your Own Key) Enhancement
