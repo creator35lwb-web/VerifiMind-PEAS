@@ -4,6 +4,28 @@ All notable changes to the VerifiMind PEAS project will be documented in this fi
 
 ---
 
+## v0.3.2 - Gemini 2.5 Model Update (January 29, 2026)
+
+### Bug Fixes
+- **Critical**: Fixed Gemini 1.5-flash model retirement
+  - Changed default model from `gemini-1.5-flash` to `gemini-2.5-flash`
+  - Updated `GeminiProvider` class default in `provider.py`
+  - Updated `PROVIDER_CONFIGS` models list
+
+### Technical Details
+- **Root Cause**: Google retired `gemini-1.5-flash` model in 2026
+- **Error**: `404 models/gemini-1.5-flash is not found`
+- **Resolution**: Default to `gemini-2.5-flash` (stable, FREE tier)
+
+### Deployment
+- Deployed to GCP Cloud Run: `verifimind-mcp-server-690976799907.us-central1.run.app`
+- All v0.3.1 protection features remain active
+
+### Credits
+- Implementation: Claude Code
+
+---
+
 ## v0.3.1 - Smart Fallback + Rate Limiting + Per-Agent Providers (January 29, 2026)
 
 ### New Features

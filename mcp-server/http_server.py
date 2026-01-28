@@ -3,7 +3,7 @@ HTTP Server Entry Point for VerifiMind MCP Server
 Designed for Smithery deployment with HTTP transport
 Properly handles FastMCP lifespan context for session management
 
-v0.3.1 Features:
+v0.3.2 Features:
 - CORS middleware for browser-based clients (Smithery)
 - Rate limiting for EDoS protection (Economic Denial of Sustainability)
 - Health check endpoint with rate limit stats
@@ -29,7 +29,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.3.1"
+SERVER_VERSION = "0.3.2"
 
 # Custom route handlers
 async def health_handler(request):

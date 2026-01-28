@@ -1,12 +1,15 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** January 29, 2026
+**Last Updated:** January 29, 2026 (Updated)
 
 ---
 
 ## Current Status: Operational
 
-**v0.3.1 deployed successfully on January 29, 2026**
+**v0.3.2 deployed successfully on January 29, 2026**
+
+- Gemini model updated to `gemini-2.5-flash` (stable, FREE tier)
+- All protection features active (rate limiting, max instances cap)
 
 All known issues have been resolved. The server is now operational with enhanced security features.
 
@@ -67,7 +70,7 @@ Get a free Gemini API key: https://aistudio.google.com/apikey
 |----------|-------|
 | Endpoint | `https://verifimind.ysenseai.org/mcp` |
 | Health Check | `https://verifimind.ysenseai.org/health` |
-| Server Version | 0.3.1 (deployed) |
+| Server Version | 0.3.2 (deployed) |
 | Transport | Streamable HTTP (SSE) |
 
 ---
