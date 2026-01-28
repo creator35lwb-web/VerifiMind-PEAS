@@ -4,9 +4,26 @@ All notable changes to the VerifiMind PEAS project will be documented in this fi
 
 ---
 
-## v0.3.1 - Smart Fallback + Per-Agent Providers (January 28, 2026)
+## v0.3.1 - Smart Fallback + Rate Limiting + Per-Agent Providers (January 29, 2026)
 
 ### New Features
+
+#### Rate Limiting (EDoS Protection)
+Protects against Economic Denial of Sustainability attacks:
+
+| Limit | Value | Purpose |
+|-------|-------|---------|
+| Per IP | 10 req/min | Prevent single-user abuse |
+| Global | 100 req/min/instance | Prevent auto-scale cost attacks |
+| Burst | 2x limit | Allow short bursts |
+
+**Environment Variables:**
+```bash
+RATE_LIMIT_PER_IP=10      # requests per minute per IP
+RATE_LIMIT_GLOBAL=100     # requests per minute per instance
+RATE_LIMIT_BURST=2.0      # burst multiplier
+RATE_LIMIT_WINDOW=60      # window in seconds
+```
 
 #### Smart Fallback Per-Agent Provider System
 Intelligent provider selection optimized for each agent's specialty:
@@ -56,6 +73,10 @@ CS_AGENT_PROVIDER=anthropic
 - `mcp-server/src/verifimind_mcp/llm/provider.py` - Updated default Gemini model
 - `mcp-server/src/verifimind_mcp/config_helper.py` - Added smart fallback functions
 - `mcp-server/src/verifimind_mcp/server.py` - Updated all tools to use per-agent providers
+- `mcp-server/src/verifimind_mcp/middleware/rate_limiter.py` - NEW: Rate limiting middleware
+- `mcp-server/src/verifimind_mcp/middleware/__init__.py` - NEW: Middleware module
+- `mcp-server/http_server.py` - Integrated rate limiting, updated version
+- `.env.example` - Added rate limiting variables
 - `CHANGELOG.md` - This update
 - `SERVER_STATUS.md` - Updated status
 
