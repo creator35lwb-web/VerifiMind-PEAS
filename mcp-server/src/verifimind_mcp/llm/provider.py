@@ -35,6 +35,45 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
+
+def strip_markdown_code_fences(text: str) -> str:
+    """
+    Strip markdown code fences from LLM responses.
+
+    Many LLMs wrap JSON output in markdown code blocks like:
+    ```json
+    {...}
+    ```
+
+    This function removes those fences to get clean JSON.
+    """
+    import re
+    text = text.strip()
+
+    # Method 1: Full fence pattern (strict match)
+    pattern = r'^```(?:json|JSON)?\s*\n?([\s\S]*?)\n?```\s*$'
+    match = re.match(pattern, text, re.MULTILINE)
+    if match:
+        return match.group(1).strip()
+
+    # Method 2: Remove leading fence and trailing fence separately
+    # Handle cases where the fence doesn't match strictly
+    if text.startswith('```'):
+        # Find end of first line (the opening fence)
+        first_newline = text.find('\n')
+        if first_newline != -1:
+            text = text[first_newline + 1:]
+        else:
+            # No newline, remove ```json or ``` prefix
+            text = re.sub(r'^```(?:json|JSON)?\s*', '', text)
+
+    # Remove trailing fence
+    if text.rstrip().endswith('```'):
+        text = re.sub(r'\n?```\s*$', '', text)
+
+    return text.strip()
+
+
 # ============================================================================
 # PROVIDER CONFIGURATION (BYOK v0.3.0)
 # ============================================================================
@@ -405,31 +444,48 @@ class GeminiProvider(LLMProvider):
             
             # Parse JSON response
             try:
+                # Strip markdown code fences first (common with Gemini)
+                clean_content = strip_markdown_code_fences(content)
+                logger.debug(f"Cleaned content: {clean_content[:200]}...")
+
                 # Try to extract JSON from response
-                if content.strip().startswith("{"):
-                    parsed_content = json.loads(content)
+                if clean_content.strip().startswith("{"):
+                    parsed_content = json.loads(clean_content)
                 else:
-                    # Try to find JSON in response
+                    # Try to find JSON object in response
                     import re
-                    json_match = re.search(r'\{[\s\S]*\}', content)
+                    # Match the outermost JSON object
+                    json_match = re.search(r'\{[\s\S]*\}', clean_content)
                     if json_match:
                         parsed_content = json.loads(json_match.group())
                     else:
+                        logger.warning(f"No JSON object found in response")
                         parsed_content = {"raw_response": content}
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse JSON response: {e}")
-                parsed_content = {"raw_response": content, "parse_error": str(e)}
-            
+                logger.error(f"Content was: {clean_content[:500]}...")
+                # Try one more time with aggressive cleanup
+                try:
+                    import re
+                    # Extract just the JSON object
+                    json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', clean_content)
+                    if json_match:
+                        parsed_content = json.loads(json_match.group())
+                    else:
+                        parsed_content = {"raw_response": content, "parse_error": str(e)}
+                except:
+                    parsed_content = {"raw_response": content, "parse_error": str(e)}
+
             # Return both content and usage
             return {
                 "content": parsed_content,
                 "usage": usage
             }
-                
+
         except Exception as e:
             logger.error(f"Gemini API error: {e}")
             raise
-    
+
     def get_model_name(self) -> str:
         return f"gemini/{self.model}"
 
