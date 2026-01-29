@@ -18,17 +18,21 @@ Tools Exposed:
 - run_full_trinity - Run complete X → Z → CS validation
 
 Author: Alton Lee
-Version: 0.3.1 (Smart Fallback + Per-Agent Providers)
+Version: 0.3.5 (Input Sanitization + Security Hardening)
 """
 
 import json
 import os
+import logging
 from pathlib import Path
 from typing import Any, Optional
 
 from fastmcp import FastMCP, Context
 from smithery.decorators import smithery
 from pydantic import BaseModel, Field
+
+# Initialize logger for security events
+logger = logging.getLogger(__name__)
 
 
 class VerifiMindConfig(BaseModel):
@@ -164,7 +168,7 @@ def get_project_info() -> dict[str, Any]:
         "methodology": "Genesis Methodology",
         "version": "2.0.1",
         "architecture": "RefleXion Trinity (X-Z-CS)",
-        "mcp_server_version": "0.3.1",
+        "mcp_server_version": "0.3.5",
         "agents": {
             "X": {
                 "name": "X Intelligent",
@@ -298,12 +302,22 @@ def _create_mcp_instance():
             from .models import Concept
             from .agents import XAgent
             from .llm import get_provider
+            from .utils import sanitize_concept_input
 
-            # Create concept
-            concept = Concept(
+            # Sanitize inputs for security (v0.3.5)
+            sanitized = sanitize_concept_input(
                 name=concept_name,
                 description=concept_description,
                 context=context
+            )
+            if sanitized['was_modified']:
+                logger.warning(f"X Agent input sanitized: {sanitized['warnings']}")
+
+            # Create concept with sanitized values
+            concept = Concept(
+                name=sanitized['name'],
+                description=sanitized['description'],
+                context=sanitized['context']
             )
 
             # Get LLM provider optimized for X Agent (innovation/strategy)
@@ -373,12 +387,22 @@ def _create_mcp_instance():
             from .models import Concept, PriorReasoning, ChainOfThought, ReasoningStep
             from .agents import ZAgent
             from .llm import get_provider
+            from .utils import sanitize_concept_input
 
-            # Create concept
-            concept = Concept(
+            # Sanitize inputs for security (v0.3.5)
+            sanitized = sanitize_concept_input(
                 name=concept_name,
                 description=concept_description,
                 context=context
+            )
+            if sanitized['was_modified']:
+                logger.warning(f"Z Agent input sanitized: {sanitized['warnings']}")
+
+            # Create concept with sanitized values
+            concept = Concept(
+                name=sanitized['name'],
+                description=sanitized['description'],
+                context=sanitized['context']
             )
 
             # Parse prior reasoning if provided
@@ -460,12 +484,22 @@ def _create_mcp_instance():
             from .models import Concept, PriorReasoning, ChainOfThought, ReasoningStep
             from .agents import CSAgent
             from .llm import get_provider
+            from .utils import sanitize_concept_input
 
-            # Create concept
-            concept = Concept(
+            # Sanitize inputs for security (v0.3.5)
+            sanitized = sanitize_concept_input(
                 name=concept_name,
                 description=concept_description,
                 context=context
+            )
+            if sanitized['was_modified']:
+                logger.warning(f"CS Agent input sanitized: {sanitized['warnings']}")
+
+            # Create concept with sanitized values
+            concept = Concept(
+                name=sanitized['name'],
+                description=sanitized['description'],
+                context=sanitized['context']
             )
 
             # Parse prior reasoning if provided
@@ -548,13 +582,22 @@ def _create_mcp_instance():
             from .models import Concept, PriorReasoning
             from .agents import XAgent, ZAgent, CSAgent
             from .llm import get_provider
-            from .utils import create_trinity_result
+            from .utils import create_trinity_result, sanitize_concept_input
 
-            # Create concept
-            concept = Concept(
+            # Sanitize inputs for security (v0.3.5)
+            sanitized = sanitize_concept_input(
                 name=concept_name,
                 description=concept_description,
                 context=context
+            )
+            if sanitized['was_modified']:
+                logger.warning(f"Trinity input sanitized: {sanitized['warnings']}")
+
+            # Create concept with sanitized values
+            concept = Concept(
+                name=sanitized['name'],
+                description=sanitized['description'],
+                context=sanitized['context']
             )
 
             # Get optimized providers for each agent (v0.3.1 Smart Fallback)

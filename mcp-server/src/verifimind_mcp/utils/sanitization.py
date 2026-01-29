@@ -28,6 +28,7 @@ MAX_CONTEXT_LENGTH = 5000
 PROMPT_INJECTION_PATTERNS = [
     r"ignore\s+(previous|above|all)\s+(instructions?|prompts?)",
     r"disregard\s+(previous|above|all)\s+(instructions?|prompts?)",
+    r"disregard\s+all\s+previous\s+(prompts?|instructions?)",
     r"forget\s+(everything|all|previous)",
     r"you\s+are\s+now\s+(a|an)\s+",
     r"new\s+instructions?:",

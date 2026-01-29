@@ -48,7 +48,7 @@ class TestProviderConfiguration:
         gemini_info = get_provider_info('gemini')
         assert gemini_info['name'] == 'Google Gemini'
         assert gemini_info['free_tier'] is True
-        assert 'gemini-1.5-flash' in gemini_info['models']
+        assert 'gemini-2.5-flash' in gemini_info['models']
 
     def test_list_providers_returns_all(self):
         """Test list_providers returns all configured providers."""

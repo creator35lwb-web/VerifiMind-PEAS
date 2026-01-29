@@ -3,7 +3,8 @@ HTTP Server Entry Point for VerifiMind MCP Server
 Designed for Smithery deployment with HTTP transport
 Properly handles FastMCP lifespan context for session management
 
-v0.3.2 Features:
+v0.3.5 Features:
+- Input sanitization for prompt injection protection
 - CORS middleware for browser-based clients (Smithery)
 - Rate limiting for EDoS protection (Economic Denial of Sustainability)
 - Health check endpoint with rate limit stats
@@ -29,7 +30,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.3.4"
+SERVER_VERSION = "0.3.5"
 
 # Custom route handlers
 async def health_handler(request):
@@ -53,7 +54,8 @@ async def health_handler(request):
             "smart_fallback": True,
             "per_agent_providers": True,
             "rate_limiting": True,
-            "free_tier_default": True
+            "free_tier_default": True,
+            "input_sanitization": True
         },
         "rate_limits": {
             "per_ip": f"{rate_stats['ip_limit']} req/{rate_stats['window_seconds']}s",
@@ -438,7 +440,8 @@ print(f"Version: {SERVER_VERSION}")
 print(f"Transport: streamable-http (FastMCP)")
 print(f"Port: {os.getenv('PORT', '8080')}")
 print("-" * 70)
-print("SECURITY FEATURES (v0.3.1):")
+print("SECURITY FEATURES (v0.3.5):")
+print(f"  Input Sanitization: Prompt injection protection (v0.3.5)")
 print(f"  Rate Limiting: {os.getenv('RATE_LIMIT_PER_IP', '10')} req/min per IP")
 print(f"  Global Limit:  {os.getenv('RATE_LIMIT_GLOBAL', '100')} req/min per instance")
 print(f"  CORS: Enabled (all origins)")
