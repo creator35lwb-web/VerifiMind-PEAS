@@ -9,7 +9,7 @@
 
   [![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/creator35lwb-web/VerifiMind-PEAS)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-  [![Status](https://img.shields.io/badge/status-Maintenance-yellow.svg)](SERVER_STATUS.md)
+  [![Status](https://img.shields.io/badge/status-Operational-success.svg)](SERVER_STATUS.md)
   [![Genesis v2.0 DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17972751.svg)](https://doi.org/10.5281/zenodo.17972751)
   
   [![API](https://img.shields.io/badge/API-verifimind.ysenseai.org-success)](https://verifimind.ysenseai.org)
@@ -22,11 +22,9 @@
 
 ---
 
-> **Server Status Notice (Jan 28, 2026):** We are currently performing maintenance on the public API server. Some features may be temporarily unavailable. See [SERVER_STATUS.md](SERVER_STATUS.md) for details and workarounds. BYOK (Bring Your Own Key) users are not affected.
-
----
-
 ## MCP Server: Production Deployed
+
+> **v0.3.4 Live** - Trinity validation fully operational with Gemini 2.5-flash. [Health Check](https://verifimind-mcp-server-690976799907.us-central1.run.app/health)
 
 VerifiMind PEAS is now **live and accessible** across multiple platforms:
 
