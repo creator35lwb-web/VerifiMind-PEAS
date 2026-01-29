@@ -43,11 +43,11 @@ jobs:
           pytest tests/unit/ -v --tb=short
         env:
           VERIFIMIND_TEST_MODE: "true"
-      
+
       - name: Run integration tests
         run: |
           cd mcp-server
-          pytest tests/integration/ -v --tb=short
+          pytest tests/integration/ -v --tb=short --no-cov
         env:
           VERIFIMIND_TEST_MODE: "true"
 
