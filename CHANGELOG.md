@@ -4,6 +4,62 @@ All notable changes to the VerifiMind PEAS project will be documented in this fi
 
 ---
 
+## v0.3.5 - Input Sanitization + Security Hardening (January 30, 2026)
+
+### Security Enhancements
+
+#### Input Sanitization Module
+Comprehensive input sanitization for all MCP tools to protect against:
+
+| Attack Type | Protection | Status |
+|------------|------------|--------|
+| Prompt Injection | Pattern detection + logging | Active |
+| XSS Attacks | HTML entity escaping | Active |
+| Null Byte Injection | Control character removal | Active |
+| Input Length Abuse | Field truncation | Active |
+
+**Sanitization Functions:**
+- `sanitize_concept_name()` - Concept name sanitization (max 200 chars)
+- `sanitize_description()` - Description sanitization (max 10,000 chars)
+- `sanitize_category()` - Category sanitization (max 100 chars)
+- `sanitize_context()` - Context sanitization (max 5,000 chars)
+- `sanitize_concept_input()` - Full concept input sanitization
+- `detect_prompt_injection()` - Pattern-based injection detection
+- `is_safe_input()` - Quick safety check
+
+**Prompt Injection Detection Patterns:**
+- "ignore previous/all instructions"
+- "disregard all previous prompts"
+- "you are now a..."
+- System prompt markers ([INST], <|im_start|>, etc.)
+- Role hijacking attempts
+
+### Integration
+All four MCP tools now sanitize inputs:
+- `consult_agent_x` - Sanitized
+- `consult_agent_z` - Sanitized
+- `consult_agent_cs` - Sanitized
+- `run_full_trinity` - Sanitized
+
+### Files Modified
+- `mcp-server/src/verifimind_mcp/server.py` - Added sanitization to all tools
+- `mcp-server/src/verifimind_mcp/utils/sanitization.py` - Fixed pattern for "disregard all previous"
+- `mcp-server/http_server.py` - Updated version to v0.3.5
+
+### Files Created
+- `mcp-server/requirements.txt` - For CI/CD compatibility
+
+### Testing
+- 29/29 sanitization unit tests passing
+- Server imports successfully
+- All existing functionality preserved
+
+### Credits
+- Implementation: Claude Code
+- Task: Issue #3 (verifimind-genesis-mcp)
+
+---
+
 ## v0.3.2 - Gemini 2.5 Model Update (January 29, 2026)
 
 ### Bug Fixes
