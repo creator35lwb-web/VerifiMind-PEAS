@@ -1,0 +1,390 @@
+# VerifiMind-PEAS Template Library: Trinity Synthesis
+# ====================================================
+# Templates for multi-agent synthesis and collaboration
+# Primary Agent: All (X, Z, CS)
+# Genesis Phase: Phase 4 (Synthesis)
+
+library_id: trinity_synthesis
+name: Trinity Synthesis Templates
+description: |
+  Templates for multi-agent synthesis where all three agents
+  (X Intelligent, Z Guardian, CS Security) collaborate to
+  produce unified assessments. These templates are used in
+  the synthesis phase where individual agent perspectives
+  are combined.
+agent_id: all
+genesis_phase: genesis:phase-4
+category: synthesis
+version: 1.0.0
+
+templates:
+  - template_id: trinity-synthesis-standard
+    name: Trinity Synthesis
+    agent_id: all
+    description: |
+      Standard synthesis template for combining X, Z, and CS agent
+      perspectives into a unified assessment.
+    version: 1.0.0
+    category: synthesis
+    tags:
+      - genesis:phase-4
+      - synthesis
+      - trinity
+      - collaboration
+      - default
+    content: |
+      TRINITY SYNTHESIS - Multi-Agent Assessment
+      ==========================================
+
+      You are synthesizing perspectives from all three RefleXion agents.
+
+      CONCEPT UNDER REVIEW:
+      Name: {concept_name}
+      Description: {concept_description}
+
+      X INTELLIGENT ANALYSIS (Innovation & Strategy):
+      {x_analysis}
+
+      Z GUARDIAN ANALYSIS (Ethics & Z-Protocol):
+      {z_analysis}
+
+      CS SECURITY ANALYSIS (Security & Scrutiny):
+      {cs_analysis}
+
+      SYNTHESIS TASK:
+      1. Identify areas of AGREEMENT between agents
+      2. Identify areas of DISAGREEMENT or tension
+      3. Weigh the perspectives based on their confidence levels
+      4. Produce a UNIFIED RECOMMENDATION
+      5. Note any VETO conditions from Z Guardian
+
+      IMPORTANT:
+      - If Z Guardian triggered a veto, the recommendation MUST be to NOT proceed
+      - Balance innovation potential with ethical and security concerns
+      - Highlight key trade-offs the human decision-maker should consider
+
+      Provide synthesis with:
+      - overall_score (0-10)
+      - recommendation (proceed/proceed_with_caution/do_not_proceed)
+      - veto_triggered (true/false, from Z Guardian)
+      - key_agreements
+      - key_tensions
+      - trade_offs
+      - action_items
+      - confidence (0-1)
+
+    variables:
+      - name: concept_name
+        description: Concept name
+        type_hint: str
+        required: true
+
+      - name: concept_description
+        description: Concept description
+        type_hint: str
+        required: true
+
+      - name: x_analysis
+        description: X Intelligent agent's analysis summary
+        type_hint: str
+        required: true
+
+      - name: z_analysis
+        description: Z Guardian agent's analysis summary
+        type_hint: str
+        required: true
+
+      - name: cs_analysis
+        description: CS Security agent's analysis summary
+        type_hint: str
+        required: true
+
+    compatible_providers:
+      - gemini
+      - openai
+      - anthropic
+      - groq
+      - mistral
+      - ollama
+      - mock
+    min_context_length: 8192
+    recommended_temperature: 0.6
+    recommended_max_tokens: 4096
+    changelog:
+      - "v1.0.0 - Initial Trinity synthesis template"
+
+  - template_id: trinity-conflict-resolution
+    name: Trinity Conflict Resolution
+    agent_id: all
+    description: |
+      Template for resolving significant disagreements between agents.
+    version: 1.0.0
+    category: synthesis
+    tags:
+      - genesis:phase-4
+      - synthesis
+      - conflict
+      - resolution
+    content: |
+      TRINITY CONFLICT RESOLUTION
+      ===========================
+
+      The agents have significant disagreements that require resolution.
+
+      CONCEPT:
+      Name: {concept_name}
+      Description: {concept_description}
+
+      CONFLICT SUMMARY:
+      {conflict_summary}
+
+      X INTELLIGENT POSITION:
+      {x_position}
+
+      Z GUARDIAN POSITION:
+      {z_position}
+
+      CS SECURITY POSITION:
+      {cs_position}
+
+      RESOLUTION FRAMEWORK:
+      1. Identify the ROOT CAUSE of disagreement
+      2. Determine which concerns are CRITICAL vs NEGOTIABLE
+      3. Propose COMPROMISE positions where possible
+      4. Define CONDITIONS under which each position would be valid
+      5. Recommend a RESOLUTION PATH
+
+      PRIORITY HIERARCHY:
+      - Z Guardian veto authority is ABSOLUTE for ethical red lines
+      - Security concerns that affect user safety are HIGH priority
+      - Innovation potential is valuable but must not override safety
+
+      Provide:
+      - conflict_root_cause
+      - critical_concerns (list)
+      - negotiable_concerns (list)
+      - proposed_compromises
+      - resolution_conditions
+      - recommended_path
+      - remaining_tensions
+      - escalation_needed (true/false)
+
+    variables:
+      - name: concept_name
+        description: Concept name
+        type_hint: str
+        required: true
+
+      - name: concept_description
+        description: Concept description
+        type_hint: str
+        required: true
+
+      - name: conflict_summary
+        description: Summary of the conflict
+        type_hint: str
+        required: true
+
+      - name: x_position
+        description: X Intelligent's position
+        type_hint: str
+        required: true
+
+      - name: z_position
+        description: Z Guardian's position
+        type_hint: str
+        required: true
+
+      - name: cs_position
+        description: CS Security's position
+        type_hint: str
+        required: true
+
+    compatible_providers:
+      - gemini
+      - openai
+      - anthropic
+      - groq
+      - mistral
+      - ollama
+      - mock
+    min_context_length: 8192
+    recommended_temperature: 0.5
+    recommended_max_tokens: 4096
+    changelog:
+      - "v1.0.0 - Initial conflict resolution template"
+
+  - template_id: trinity-executive-summary
+    name: Trinity Executive Summary
+    agent_id: all
+    description: |
+      Generate an executive summary from Trinity validation results.
+    version: 1.0.0
+    category: synthesis
+    tags:
+      - genesis:phase-4
+      - synthesis
+      - executive
+      - summary
+    content: |
+      TRINITY EXECUTIVE SUMMARY
+      =========================
+
+      Generate a concise executive summary for stakeholders.
+
+      CONCEPT: {concept_name}
+
+      TRINITY VALIDATION RESULTS:
+      {validation_results}
+
+      Create an executive summary that includes:
+
+      1. ONE-SENTENCE VERDICT
+         Clear go/no-go recommendation
+
+      2. KEY SCORES
+         - Innovation Score: X/10
+         - Ethics Score: X/10
+         - Security Score: X/10
+         - Overall Score: X/10
+
+      3. TOP 3 STRENGTHS
+         What makes this concept valuable
+
+      4. TOP 3 CONCERNS
+         What needs attention
+
+      5. RECOMMENDATION
+         Specific next steps
+
+      6. HUMAN DECISION REQUIRED
+         What the human stakeholder needs to decide
+
+      Format as a brief, scannable summary suitable for executives.
+
+    variables:
+      - name: concept_name
+        description: Concept name
+        type_hint: str
+        required: true
+
+      - name: validation_results
+        description: Full Trinity validation results
+        type_hint: str
+        required: true
+
+    compatible_providers:
+      - gemini
+      - openai
+      - anthropic
+      - groq
+      - mistral
+      - ollama
+      - mock
+    min_context_length: 4096
+    recommended_temperature: 0.5
+    recommended_max_tokens: 2048
+    changelog:
+      - "v1.0.0 - Initial executive summary template"
+
+  - template_id: trinity-iteration-feedback
+    name: Trinity Iteration Feedback
+    agent_id: all
+    description: |
+      Template for providing feedback on concept iterations (Phase 5 - Reflexion).
+    version: 1.0.0
+    category: synthesis
+    tags:
+      - genesis:phase-5
+      - synthesis
+      - iteration
+      - reflexion
+    content: |
+      TRINITY ITERATION FEEDBACK (Reflexion Phase)
+      =============================================
+
+      Provide feedback on the revised concept based on previous Trinity feedback.
+
+      ORIGINAL CONCEPT:
+      Name: {concept_name}
+      {original_description}
+
+      PREVIOUS TRINITY FEEDBACK:
+      {previous_feedback}
+
+      REVISED CONCEPT:
+      {revised_description}
+
+      CHANGES MADE:
+      {changes_made}
+
+      Evaluate the iteration:
+
+      1. ADDRESSED CONCERNS
+         Which previous concerns have been adequately addressed?
+
+      2. REMAINING CONCERNS
+         Which concerns still need attention?
+
+      3. NEW CONCERNS
+         Did the changes introduce new issues?
+
+      4. IMPROVEMENT ASSESSMENT
+         - Innovation: Improved / Unchanged / Declined
+         - Ethics: Improved / Unchanged / Declined
+         - Security: Improved / Unchanged / Declined
+
+      5. ITERATION VERDICT
+         - Ready for approval
+         - Needs minor refinement
+         - Needs significant rework
+         - Fundamental issues remain
+
+      Provide:
+      - addressed_concerns (list)
+      - remaining_concerns (list)
+      - new_concerns (list)
+      - improvement_assessment
+      - iteration_verdict
+      - specific_suggestions
+      - confidence_in_progress (0-1)
+
+    variables:
+      - name: concept_name
+        description: Concept name
+        type_hint: str
+        required: true
+
+      - name: original_description
+        description: Original concept description
+        type_hint: str
+        required: true
+
+      - name: previous_feedback
+        description: Previous Trinity feedback
+        type_hint: str
+        required: true
+
+      - name: revised_description
+        description: Revised concept description
+        type_hint: str
+        required: true
+
+      - name: changes_made
+        description: Summary of changes made
+        type_hint: str
+        required: true
+
+    compatible_providers:
+      - gemini
+      - openai
+      - anthropic
+      - groq
+      - mistral
+      - ollama
+      - mock
+    min_context_length: 8192
+    recommended_temperature: 0.6
+    recommended_max_tokens: 4096
+    changelog:
+      - "v1.0.0 - Initial iteration feedback template"

@@ -35,6 +35,7 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest pytest-asyncio pytest-cov
+          pip install -e .  # Install local package for imports
       
       - name: Run unit tests
         run: |

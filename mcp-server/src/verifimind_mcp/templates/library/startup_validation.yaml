@@ -1,0 +1,238 @@
+# VerifiMind-PEAS Template Library: Startup Validation
+# =====================================================
+# Templates for validating startup concepts and ideas
+# Primary Agent: X Intelligent
+# Genesis Phase: Phase 1 (Initial Conceptualization)
+
+library_id: startup_validation
+name: Startup Validation Templates
+description: |
+  Templates for validating startup concepts through innovation and
+  strategic analysis. Designed for early-stage idea validation,
+  market opportunity assessment, and growth potential evaluation.
+agent_id: X
+genesis_phase: genesis:phase-1
+category: startup
+version: 1.0.0
+
+templates:
+  - template_id: startup-concept-validation
+    name: Startup Concept Validation
+    agent_id: X
+    description: |
+      Comprehensive startup concept validation analyzing innovation potential,
+      market fit, scalability, and strategic value.
+    version: 1.0.0
+    category: startup
+    tags:
+      - genesis:phase-1
+      - innovation
+      - startup
+      - validation
+      - default
+    content: |
+      You are X Intelligent, the Innovation and Strategy Analyst in the RefleXion Trinity.
+
+      STARTUP CONCEPT VALIDATION ANALYSIS
+      ====================================
+
+      Analyze the following startup concept with focus on:
+      1. Innovation Potential - How novel and creative is this idea?
+      2. Market Fit - Does it address a real market need?
+      3. Scalability - Can it grow efficiently?
+      4. Competitive Advantage - What makes it defensible?
+      5. Growth Potential - What's the trajectory?
+
+      {prior_reasoning}
+
+      STARTUP CONCEPT:
+      Name: {concept_name}
+      Description: {concept_description}
+      Target Market: {target_market}
+      Business Model: {business_model}
+      Additional Context: {context}
+
+      Provide your analysis in JSON format with reasoning_steps, innovation_score (0-10),
+      strategic_value (0-10), opportunities, risks, recommendation, and confidence (0-1).
+
+    variables:
+      - name: concept_name
+        description: Name of the startup concept
+        type_hint: str
+        required: true
+        examples:
+          - "AI-Powered Code Review"
+          - "Sustainable Delivery Network"
+
+      - name: concept_description
+        description: Detailed description of the startup concept
+        type_hint: str
+        required: true
+
+      - name: target_market
+        description: Target market segment
+        type_hint: str
+        required: false
+        default: "Not specified"
+        examples:
+          - "Enterprise software companies"
+          - "Small business owners"
+
+      - name: business_model
+        description: Revenue model and business approach
+        type_hint: str
+        required: false
+        default: "Not specified"
+        examples:
+          - "SaaS subscription"
+          - "Marketplace transaction fees"
+
+      - name: context
+        description: Additional context or constraints
+        type_hint: str
+        required: false
+        default: "No additional context provided."
+
+      - name: prior_reasoning
+        description: Reasoning from previous agents (auto-filled)
+        type_hint: str
+        required: false
+        default: ""
+
+    compatible_providers:
+      - gemini
+      - openai
+      - anthropic
+      - groq
+      - mistral
+      - ollama
+      - mock
+    min_context_length: 4096
+    recommended_temperature: 0.7
+    recommended_max_tokens: 4096
+    changelog:
+      - "v1.0.0 - Initial template for startup concept validation"
+
+  - template_id: startup-quick-assessment
+    name: Startup Quick Assessment
+    agent_id: X
+    description: |
+      Rapid startup idea assessment for initial screening.
+      Provides quick go/no-go recommendation with key insights.
+    version: 1.0.0
+    category: startup
+    tags:
+      - genesis:phase-1
+      - innovation
+      - startup
+      - quick
+    content: |
+      You are X Intelligent. Perform a QUICK ASSESSMENT of this startup idea.
+
+      Focus on the top 3 most critical factors:
+      1. Is there a clear market need?
+      2. Is the solution feasible with current technology?
+      3. Is there a viable path to revenue?
+
+      STARTUP IDEA:
+      Name: {concept_name}
+      Description: {concept_description}
+
+      Provide a concise assessment with:
+      - Overall viability score (1-10)
+      - Top 3 strengths
+      - Top 3 concerns
+      - Quick recommendation (Proceed / Pivot / Pause)
+
+    variables:
+      - name: concept_name
+        description: Startup name or concept title
+        type_hint: str
+        required: true
+
+      - name: concept_description
+        description: Brief description of the startup idea
+        type_hint: str
+        required: true
+
+    compatible_providers:
+      - gemini
+      - openai
+      - anthropic
+      - groq
+      - mistral
+      - ollama
+      - mock
+    min_context_length: 2048
+    recommended_temperature: 0.5
+    recommended_max_tokens: 2048
+    changelog:
+      - "v1.0.0 - Initial quick assessment template"
+
+  - template_id: startup-pivot-analysis
+    name: Startup Pivot Analysis
+    agent_id: X
+    description: |
+      Analyze potential pivot directions for a struggling or evolving startup.
+    version: 1.0.0
+    category: startup
+    tags:
+      - genesis:phase-1
+      - innovation
+      - startup
+      - pivot
+    content: |
+      You are X Intelligent, analyzing PIVOT OPTIONS for a startup.
+
+      CURRENT STATE:
+      Startup: {concept_name}
+      Current Model: {current_model}
+      Challenges: {challenges}
+
+      PIVOT DIRECTION TO ANALYZE:
+      {pivot_direction}
+
+      Evaluate this pivot based on:
+      1. Alignment with existing assets and capabilities
+      2. Market opportunity in new direction
+      3. Transition feasibility
+      4. Risk/reward profile
+      5. Timeline to value
+
+      Provide structured analysis with pivot_score (0-10), key_benefits, key_risks,
+      required_changes, and recommendation.
+
+    variables:
+      - name: concept_name
+        description: Current startup name
+        type_hint: str
+        required: true
+
+      - name: current_model
+        description: Current business model and approach
+        type_hint: str
+        required: true
+
+      - name: challenges
+        description: Current challenges driving pivot consideration
+        type_hint: str
+        required: true
+
+      - name: pivot_direction
+        description: Proposed pivot direction to analyze
+        type_hint: str
+        required: true
+
+    compatible_providers:
+      - gemini
+      - openai
+      - anthropic
+      - groq
+      - mistral
+      - ollama
+      - mock
+    min_context_length: 4096
+    recommended_temperature: 0.7
+    recommended_max_tokens: 4096
+    changelog:
+      - "v1.0.0 - Initial pivot analysis template"

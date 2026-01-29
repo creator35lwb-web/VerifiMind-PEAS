@@ -1,0 +1,257 @@
+# VerifiMind-PEAS Template Library: Market Research
+# ==================================================
+# Templates for market analysis and competitive research
+# Primary Agent: X Intelligent
+# Genesis Phase: Phase 1 (Initial Conceptualization)
+
+library_id: market_research
+name: Market Research Templates
+description: |
+  Templates for comprehensive market analysis, competitive landscape
+  assessment, and market opportunity identification. Designed to support
+  strategic decision-making in the initial conceptualization phase.
+agent_id: X
+genesis_phase: genesis:phase-1
+category: market
+version: 1.0.0
+
+templates:
+  - template_id: market-opportunity-analysis
+    name: Market Opportunity Analysis
+    agent_id: X
+    description: |
+      Analyze market opportunities for a product or service concept.
+      Evaluates market size, growth potential, and entry barriers.
+    version: 1.0.0
+    category: market
+    tags:
+      - genesis:phase-1
+      - market
+      - opportunity
+      - analysis
+      - default
+    content: |
+      You are X Intelligent, conducting MARKET OPPORTUNITY ANALYSIS.
+
+      MARKET OPPORTUNITY FRAMEWORK
+      ============================
+
+      Analyze the market opportunity for:
+
+      CONCEPT: {concept_name}
+      DESCRIPTION: {concept_description}
+      TARGET SEGMENT: {target_segment}
+
+      Evaluate across these dimensions:
+      1. Market Size (TAM, SAM, SOM)
+      2. Market Growth Rate
+      3. Entry Barriers
+      4. Buyer Power
+      5. Competitive Intensity
+
+      {prior_reasoning}
+
+      Additional Context: {context}
+
+      Provide analysis with:
+      - market_attractiveness_score (0-10)
+      - estimated_tam (if determinable)
+      - growth_assessment
+      - barriers_analysis
+      - opportunities
+      - threats
+      - recommendation
+
+    variables:
+      - name: concept_name
+        description: Product or service concept name
+        type_hint: str
+        required: true
+
+      - name: concept_description
+        description: Description of the product or service
+        type_hint: str
+        required: true
+
+      - name: target_segment
+        description: Target market segment
+        type_hint: str
+        required: true
+        examples:
+          - "SMB SaaS buyers in North America"
+          - "Healthcare providers with 100+ beds"
+
+      - name: context
+        description: Additional market context
+        type_hint: str
+        required: false
+        default: "No additional context provided."
+
+      - name: prior_reasoning
+        description: Prior agent reasoning
+        type_hint: str
+        required: false
+        default: ""
+
+    compatible_providers:
+      - gemini
+      - openai
+      - anthropic
+      - groq
+      - mistral
+      - ollama
+      - mock
+    min_context_length: 4096
+    recommended_temperature: 0.6
+    recommended_max_tokens: 4096
+    changelog:
+      - "v1.0.0 - Initial market opportunity template"
+
+  - template_id: competitive-landscape-analysis
+    name: Competitive Landscape Analysis
+    agent_id: X
+    description: |
+      Analyze the competitive landscape for strategic positioning.
+    version: 1.0.0
+    category: market
+    tags:
+      - genesis:phase-1
+      - market
+      - competitive
+      - analysis
+    content: |
+      You are X Intelligent, conducting COMPETITIVE LANDSCAPE ANALYSIS.
+
+      PRODUCT/SERVICE: {concept_name}
+      DESCRIPTION: {concept_description}
+
+      KNOWN COMPETITORS:
+      {competitors}
+
+      Analyze the competitive landscape:
+      1. Competitor Positioning Map
+      2. Strengths/Weaknesses of each competitor
+      3. Market share distribution (estimated)
+      4. Differentiation opportunities
+      5. Competitive moats to build
+
+      Provide analysis with:
+      - competitive_intensity_score (0-10)
+      - competitor_analysis (for each)
+      - differentiation_opportunities
+      - recommended_positioning
+      - moat_recommendations
+
+    variables:
+      - name: concept_name
+        description: Your product/service name
+        type_hint: str
+        required: true
+
+      - name: concept_description
+        description: Your product/service description
+        type_hint: str
+        required: true
+
+      - name: competitors
+        description: List of known competitors with brief descriptions
+        type_hint: str
+        required: true
+        examples:
+          - "1. CompetitorA - Market leader, enterprise focus\n2. CompetitorB - SMB focus, lower price"
+
+    compatible_providers:
+      - gemini
+      - openai
+      - anthropic
+      - groq
+      - mistral
+      - ollama
+      - mock
+    min_context_length: 4096
+    recommended_temperature: 0.6
+    recommended_max_tokens: 4096
+    changelog:
+      - "v1.0.0 - Initial competitive landscape template"
+
+  - template_id: market-entry-strategy
+    name: Market Entry Strategy
+    agent_id: X
+    description: |
+      Develop market entry strategy recommendations.
+    version: 1.0.0
+    category: market
+    tags:
+      - genesis:phase-1
+      - market
+      - strategy
+      - entry
+    content: |
+      You are X Intelligent, developing a MARKET ENTRY STRATEGY.
+
+      PRODUCT/SERVICE: {concept_name}
+      TARGET MARKET: {target_market}
+      GEOGRAPHIC FOCUS: {geography}
+      AVAILABLE RESOURCES: {resources}
+
+      Develop a market entry strategy covering:
+      1. Entry Mode (Direct, Partnership, Acquisition, etc.)
+      2. Beachhead Market Selection
+      3. Go-to-Market Approach
+      4. Pricing Strategy
+      5. Channel Strategy
+      6. Key Success Metrics
+
+      {context}
+
+      Provide strategic recommendations with:
+      - recommended_entry_mode
+      - beachhead_market
+      - gtm_approach
+      - pricing_strategy
+      - success_metrics
+      - key_risks
+      - timeline_phases
+
+    variables:
+      - name: concept_name
+        description: Product/service name
+        type_hint: str
+        required: true
+
+      - name: target_market
+        description: Target market description
+        type_hint: str
+        required: true
+
+      - name: geography
+        description: Geographic focus
+        type_hint: str
+        required: false
+        default: "Global"
+
+      - name: resources
+        description: Available resources and constraints
+        type_hint: str
+        required: false
+        default: "Standard startup resources"
+
+      - name: context
+        description: Additional strategic context
+        type_hint: str
+        required: false
+        default: ""
+
+    compatible_providers:
+      - gemini
+      - openai
+      - anthropic
+      - groq
+      - mistral
+      - ollama
+      - mock
+    min_context_length: 4096
+    recommended_temperature: 0.7
+    recommended_max_tokens: 4096
+    changelog:
+      - "v1.0.0 - Initial market entry strategy template"
