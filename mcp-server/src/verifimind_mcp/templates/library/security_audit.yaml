@@ -1,0 +1,336 @@
+# VerifiMind-PEAS Template Library: Security Audit
+# =================================================
+# Templates for security validation and vulnerability assessment
+# Primary Agent: CS Security
+# Genesis Phase: Phase 3 (External Validation)
+
+library_id: security_audit
+name: Security Audit Templates
+description: |
+  Templates for comprehensive security analysis including
+  vulnerability assessment, attack vector identification,
+  and Socratic security questioning.
+agent_id: CS
+genesis_phase: genesis:phase-3
+category: security
+version: 1.0.0
+
+templates:
+  - template_id: security-comprehensive-audit
+    name: Comprehensive Security Audit
+    agent_id: CS
+    description: |
+      Full security audit covering vulnerabilities, attack vectors,
+      and security recommendations with Socratic questioning.
+    version: 1.0.0
+    category: security
+    tags:
+      - genesis:phase-3
+      - security
+      - audit
+      - comprehensive
+      - default
+    content: |
+      You are CS Security, the Security Analyst and Concept Scrutinizer in the RefleXion Trinity.
+
+      COMPREHENSIVE SECURITY AUDIT
+      ============================
+
+      Apply rigorous security analysis AND Socratic questioning to challenge assumptions.
+
+      {prior_reasoning}
+
+      SYSTEM/CONCEPT TO AUDIT:
+      Name: {concept_name}
+      Description: {concept_description}
+      Architecture: {architecture}
+      Tech Stack: {tech_stack}
+      Context: {context}
+
+      Analyze for:
+      1. Security Vulnerabilities - What weaknesses exist?
+      2. Attack Vectors - How could this be exploited?
+      3. Data Security - How is sensitive data protected?
+      4. System Integrity - How robust is the system?
+      5. Socratic Questions - What assumptions need challenging?
+
+      OWASP Top 10 Considerations:
+      - Injection
+      - Broken Authentication
+      - Sensitive Data Exposure
+      - XML External Entities (XXE)
+      - Broken Access Control
+      - Security Misconfiguration
+      - Cross-Site Scripting (XSS)
+      - Insecure Deserialization
+      - Using Components with Known Vulnerabilities
+      - Insufficient Logging & Monitoring
+
+      Provide analysis in JSON with:
+      - reasoning_steps
+      - security_score (0-10)
+      - vulnerabilities (list)
+      - attack_vectors (list)
+      - security_recommendations (list)
+      - socratic_questions (list)
+      - recommendation
+      - confidence (0-1)
+
+    variables:
+      - name: concept_name
+        description: System or concept name
+        type_hint: str
+        required: true
+
+      - name: concept_description
+        description: Detailed description
+        type_hint: str
+        required: true
+
+      - name: architecture
+        description: System architecture overview
+        type_hint: str
+        required: false
+        default: "Not specified"
+        examples:
+          - "Microservices on Kubernetes"
+          - "Monolithic Django application"
+          - "Serverless AWS Lambda functions"
+
+      - name: tech_stack
+        description: Technology stack
+        type_hint: str
+        required: false
+        default: "Not specified"
+        examples:
+          - "Python, FastAPI, PostgreSQL, Redis"
+          - "Node.js, React, MongoDB"
+
+      - name: context
+        description: Additional security context
+        type_hint: str
+        required: false
+        default: "No additional context provided."
+
+      - name: prior_reasoning
+        description: Reasoning from previous agents
+        type_hint: str
+        required: false
+        default: ""
+
+    compatible_providers:
+      - gemini
+      - openai
+      - anthropic
+      - groq
+      - mistral
+      - ollama
+      - mock
+    min_context_length: 4096
+    recommended_temperature: 0.5
+    recommended_max_tokens: 4096
+    changelog:
+      - "v1.0.0 - Initial comprehensive security audit template"
+
+  - template_id: security-api-review
+    name: API Security Review
+    agent_id: CS
+    description: |
+      Security review focused on API design and implementation.
+    version: 1.0.0
+    category: security
+    tags:
+      - genesis:phase-3
+      - security
+      - api
+      - review
+    content: |
+      You are CS Security, conducting an API SECURITY REVIEW.
+
+      API SECURITY CHECKLIST
+      ======================
+
+      Review the API design against security best practices.
+
+      API TO REVIEW:
+      Name: {concept_name}
+      Description: {concept_description}
+      API Type: {api_type}
+      Authentication: {auth_method}
+      Endpoints: {endpoints}
+
+      Evaluate:
+      1. Authentication & Authorization
+         - Token handling
+         - Session management
+         - Role-based access control
+
+      2. Input Validation
+         - Parameter validation
+         - Request body validation
+         - File upload security
+
+      3. Rate Limiting & Throttling
+         - DDoS protection
+         - Abuse prevention
+
+      4. Data Protection
+         - Encryption in transit
+         - Sensitive data handling
+         - Response filtering
+
+      5. Error Handling
+         - Information disclosure
+         - Stack trace exposure
+
+      Provide:
+      - api_security_score (0-10)
+      - vulnerabilities_found
+      - owasp_api_top_10_findings
+      - security_recommendations
+      - socratic_questions
+
+    variables:
+      - name: concept_name
+        description: API name
+        type_hint: str
+        required: true
+
+      - name: concept_description
+        description: API description
+        type_hint: str
+        required: true
+
+      - name: api_type
+        description: API type
+        type_hint: str
+        required: false
+        default: "REST"
+        examples:
+          - "REST"
+          - "GraphQL"
+          - "gRPC"
+
+      - name: auth_method
+        description: Authentication method
+        type_hint: str
+        required: false
+        default: "Not specified"
+        examples:
+          - "JWT Bearer tokens"
+          - "OAuth 2.0"
+          - "API Keys"
+
+      - name: endpoints
+        description: Key endpoints to review
+        type_hint: str
+        required: false
+        default: "General API endpoints"
+
+    compatible_providers:
+      - gemini
+      - openai
+      - anthropic
+      - groq
+      - mistral
+      - ollama
+      - mock
+    min_context_length: 4096
+    recommended_temperature: 0.5
+    recommended_max_tokens: 4096
+    changelog:
+      - "v1.0.0 - Initial API security review template"
+
+  - template_id: security-threat-modeling
+    name: Threat Modeling Analysis
+    agent_id: CS
+    description: |
+      STRIDE-based threat modeling for system security.
+    version: 1.0.0
+    category: security
+    tags:
+      - genesis:phase-3
+      - security
+      - threat-modeling
+      - stride
+    content: |
+      You are CS Security, conducting THREAT MODELING using STRIDE.
+
+      STRIDE THREAT MODEL
+      ===================
+
+      Systematically identify threats using the STRIDE framework:
+      - Spoofing: Can attackers impersonate users or systems?
+      - Tampering: Can data be modified maliciously?
+      - Repudiation: Can users deny actions?
+      - Information Disclosure: Can sensitive data leak?
+      - Denial of Service: Can the system be made unavailable?
+      - Elevation of Privilege: Can attackers gain unauthorized access?
+
+      SYSTEM TO MODEL:
+      Name: {concept_name}
+      Description: {concept_description}
+      Data Flows: {data_flows}
+      Trust Boundaries: {trust_boundaries}
+      Assets: {assets}
+
+      For each STRIDE category:
+      1. Identify potential threats
+      2. Assess likelihood (Low/Medium/High)
+      3. Assess impact (Low/Medium/High)
+      4. Recommend mitigations
+
+      Provide:
+      - threat_model_summary
+      - spoofing_threats
+      - tampering_threats
+      - repudiation_threats
+      - information_disclosure_threats
+      - dos_threats
+      - elevation_of_privilege_threats
+      - prioritized_mitigations
+      - socratic_questions
+
+    variables:
+      - name: concept_name
+        description: System name
+        type_hint: str
+        required: true
+
+      - name: concept_description
+        description: System description
+        type_hint: str
+        required: true
+
+      - name: data_flows
+        description: Key data flows in the system
+        type_hint: str
+        required: true
+        examples:
+          - "User -> API -> Database, API -> External Service"
+
+      - name: trust_boundaries
+        description: Trust boundaries in the architecture
+        type_hint: str
+        required: false
+        default: "Standard web application trust boundaries"
+
+      - name: assets
+        description: Key assets to protect
+        type_hint: str
+        required: false
+        default: "User data, system integrity, availability"
+
+    compatible_providers:
+      - gemini
+      - openai
+      - anthropic
+      - groq
+      - mistral
+      - ollama
+      - mock
+    min_context_length: 4096
+    recommended_temperature: 0.5
+    recommended_max_tokens: 4096
+    changelog:
+      - "v1.0.0 - Initial threat modeling template"

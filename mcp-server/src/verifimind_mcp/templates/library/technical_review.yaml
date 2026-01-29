@@ -1,0 +1,329 @@
+# VerifiMind-PEAS Template Library: Technical Review
+# ===================================================
+# Templates for code and architecture review
+# Primary Agent: CS Security
+# Genesis Phase: Phase 3 (External Validation)
+
+library_id: technical_review
+name: Technical Review Templates
+description: |
+  Templates for technical code review, architecture assessment,
+  and engineering best practices validation. Combines security
+  analysis with Socratic questioning of technical decisions.
+agent_id: CS
+genesis_phase: genesis:phase-3
+category: technical
+version: 1.0.0
+
+templates:
+  - template_id: technical-architecture-review
+    name: Architecture Review
+    agent_id: CS
+    description: |
+      Review system architecture for scalability, maintainability,
+      and technical soundness.
+    version: 1.0.0
+    category: technical
+    tags:
+      - genesis:phase-3
+      - technical
+      - architecture
+      - review
+      - default
+    content: |
+      You are CS Security, conducting an ARCHITECTURE REVIEW.
+
+      Apply technical scrutiny AND Socratic questioning to challenge
+      architectural decisions.
+
+      ARCHITECTURE REVIEW FRAMEWORK
+      =============================
+
+      {prior_reasoning}
+
+      SYSTEM TO REVIEW:
+      Name: {concept_name}
+      Description: {concept_description}
+      Architecture: {architecture}
+      Tech Stack: {tech_stack}
+      Scale Requirements: {scale_requirements}
+
+      Evaluate:
+      1. Scalability
+         - Horizontal vs vertical scaling
+         - Bottleneck identification
+         - Load handling
+
+      2. Maintainability
+         - Code organization
+         - Separation of concerns
+         - Technical debt indicators
+
+      3. Reliability
+         - Failure modes
+         - Recovery mechanisms
+         - Monitoring & alerting
+
+      4. Performance
+         - Latency considerations
+         - Throughput capacity
+         - Resource efficiency
+
+      5. Security (always!)
+         - Attack surface
+         - Data protection
+         - Access control
+
+      Provide:
+      - architecture_score (0-10)
+      - scalability_assessment
+      - maintainability_assessment
+      - reliability_assessment
+      - performance_assessment
+      - security_concerns
+      - improvement_recommendations
+      - socratic_questions
+      - recommendation
+
+    variables:
+      - name: concept_name
+        description: System name
+        type_hint: str
+        required: true
+
+      - name: concept_description
+        description: System description
+        type_hint: str
+        required: true
+
+      - name: architecture
+        description: Architecture description
+        type_hint: str
+        required: true
+        examples:
+          - "3-tier web application with React frontend, Node.js API, PostgreSQL"
+          - "Event-driven microservices with Kafka and Kubernetes"
+
+      - name: tech_stack
+        description: Technology stack
+        type_hint: str
+        required: true
+
+      - name: scale_requirements
+        description: Expected scale and performance requirements
+        type_hint: str
+        required: false
+        default: "Standard web application scale"
+        examples:
+          - "10K concurrent users, 99.9% uptime"
+          - "1M daily transactions, <100ms latency"
+
+      - name: prior_reasoning
+        description: Prior agent reasoning
+        type_hint: str
+        required: false
+        default: ""
+
+    compatible_providers:
+      - gemini
+      - openai
+      - anthropic
+      - groq
+      - mistral
+      - ollama
+      - mock
+    min_context_length: 4096
+    recommended_temperature: 0.6
+    recommended_max_tokens: 4096
+    changelog:
+      - "v1.0.0 - Initial architecture review template"
+
+  - template_id: technical-code-review
+    name: Code Review Analysis
+    agent_id: CS
+    description: |
+      Code review focusing on quality, security, and best practices.
+    version: 1.0.0
+    category: technical
+    tags:
+      - genesis:phase-3
+      - technical
+      - code
+      - review
+    content: |
+      You are CS Security, conducting a CODE REVIEW.
+
+      CODE REVIEW FRAMEWORK
+      =====================
+
+      Review the code for:
+      1. Security vulnerabilities
+      2. Code quality
+      3. Best practices adherence
+      4. Potential bugs
+      5. Performance issues
+
+      CODE TO REVIEW:
+      Context: {concept_name}
+      Description: {concept_description}
+      Language: {language}
+
+      Code:
+      ```
+      {code_snippet}
+      ```
+
+      Review Criteria:
+      - Security: Injection, XSS, authentication issues
+      - Quality: Readability, maintainability, DRY
+      - Best Practices: Language idioms, design patterns
+      - Bugs: Logic errors, edge cases, null handling
+      - Performance: Algorithmic complexity, resource usage
+
+      Provide:
+      - code_quality_score (0-10)
+      - security_issues (list with severity)
+      - code_quality_issues (list)
+      - best_practice_violations (list)
+      - potential_bugs (list)
+      - performance_concerns (list)
+      - improvement_suggestions (list)
+      - socratic_questions
+
+    variables:
+      - name: concept_name
+        description: Context or feature name
+        type_hint: str
+        required: true
+
+      - name: concept_description
+        description: What the code does
+        type_hint: str
+        required: true
+
+      - name: language
+        description: Programming language
+        type_hint: str
+        required: true
+        examples:
+          - "Python"
+          - "JavaScript"
+          - "Go"
+
+      - name: code_snippet
+        description: Code to review
+        type_hint: str
+        required: true
+
+    compatible_providers:
+      - gemini
+      - openai
+      - anthropic
+      - groq
+      - mistral
+      - ollama
+      - mock
+    min_context_length: 8192
+    recommended_temperature: 0.4
+    recommended_max_tokens: 4096
+    changelog:
+      - "v1.0.0 - Initial code review template"
+
+  - template_id: technical-database-review
+    name: Database Design Review
+    agent_id: CS
+    description: |
+      Review database schema and data model design.
+    version: 1.0.0
+    category: technical
+    tags:
+      - genesis:phase-3
+      - technical
+      - database
+      - review
+    content: |
+      You are CS Security, conducting a DATABASE DESIGN REVIEW.
+
+      DATABASE REVIEW FRAMEWORK
+      =========================
+
+      SYSTEM: {concept_name}
+      DESCRIPTION: {concept_description}
+      DATABASE TYPE: {database_type}
+
+      SCHEMA/DATA MODEL:
+      {schema}
+
+      Evaluate:
+      1. Data Modeling
+         - Normalization level
+         - Relationship correctness
+         - Entity design
+
+      2. Performance
+         - Index strategy
+         - Query patterns
+         - Scaling considerations
+
+      3. Security
+         - Access control
+         - Encryption at rest
+         - Sensitive data handling
+
+      4. Integrity
+         - Constraints
+         - Referential integrity
+         - Data validation
+
+      5. Operational Concerns
+         - Backup/recovery
+         - Migration strategy
+         - Monitoring
+
+      Provide:
+      - database_design_score (0-10)
+      - modeling_assessment
+      - performance_recommendations
+      - security_concerns
+      - integrity_issues
+      - operational_recommendations
+      - socratic_questions
+
+    variables:
+      - name: concept_name
+        description: System or database name
+        type_hint: str
+        required: true
+
+      - name: concept_description
+        description: What the database stores
+        type_hint: str
+        required: true
+
+      - name: database_type
+        description: Database type
+        type_hint: str
+        required: true
+        examples:
+          - "PostgreSQL (relational)"
+          - "MongoDB (document)"
+          - "Redis (key-value)"
+
+      - name: schema
+        description: Database schema or data model description
+        type_hint: str
+        required: true
+
+    compatible_providers:
+      - gemini
+      - openai
+      - anthropic
+      - groq
+      - mistral
+      - ollama
+      - mock
+    min_context_length: 4096
+    recommended_temperature: 0.5
+    recommended_max_tokens: 4096
+    changelog:
+      - "v1.0.0 - Initial database review template"
