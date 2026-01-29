@@ -187,6 +187,37 @@ gcloud run deploy verifimind-mcp-server \
 2. **Communication Protocol:** GitHub Issues in PRIVATE repo
 3. **Changelog Protocol:** `CHANGELOG.md` format
 4. **Session Handoff:** `iteration/Session_Handoff_*.md`
+5. **CTO Alignment:** `iteration/Claude_Code_Alignment_Summary_Jan29.md`
+
+---
+
+## Current Roadmap (from CTO)
+
+| Version | Target | Focus | Status |
+|---------|--------|-------|--------|
+| v0.4.0 | Feb 2026 | Unified Prompt Templates | NEXT |
+| v0.5.0 | Mar 2026 | Agent Skills | Planned |
+| v0.6.0 | Apr-May 2026 | MCP App | Planned |
+| v0.7.0 | Jun 2026 | Local Models | Planned |
+
+**Reference:** `ROADMAP.md`, `iteration/Claude_Code_Alignment_Summary_Jan29.md`
+
+---
+
+## Custom Skills (Slash Commands)
+
+The following custom skills are available for this project:
+
+| Skill | Purpose | Usage |
+|-------|---------|-------|
+| `/verifimind-status` | Check server and repo status | `/verifimind-status` |
+| `/verifimind-deploy` | Deploy to GCP Cloud Run | `/verifimind-deploy 0.4.0` |
+| `/verifimind-align` | Create CTO alignment issue | `/verifimind-align 0.4.0 "Summary"` |
+| `/verifimind-handoff` | Create session handoff | `/verifimind-handoff` |
+| `/verifimind-sync` | Sync PRIVATE → PUBLIC | `/verifimind-sync files...` |
+| `/verifimind-test` | Test Trinity validation | `/verifimind-test "Concept" "Desc"` |
+
+**Location:** `.claude/commands/`
 
 ---
 
