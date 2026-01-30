@@ -3,7 +3,8 @@ HTTP Server Entry Point for VerifiMind MCP Server
 Designed for Smithery deployment with HTTP transport
 Properly handles FastMCP lifespan context for session management
 
-v0.3.5 Features:
+v0.4.0 Features:
+- Unified Prompt Templates (6 new MCP tools)
 - Input sanitization for prompt injection protection
 - CORS middleware for browser-based clients (Smithery)
 - Rate limiting for EDoS protection (Economic Denial of Sustainability)
@@ -30,7 +31,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.3.5"
+SERVER_VERSION = "0.4.0"
 
 # Custom route handlers
 async def health_handler(request):
@@ -49,7 +50,7 @@ async def health_handler(request):
             "setup": "/setup"
         },
         "resources": 4,
-        "tools": 4,
+        "tools": 10,
         "features": {
             "smart_fallback": True,
             "per_agent_providers": True,
@@ -86,7 +87,7 @@ async def mcp_config_handler(request):
                 "version": SERVER_VERSION,
                 "transport": "streamable-http",
                 "resources": 4,
-                "tools": 4,
+                "tools": 10,
                 "features": {
                     "agents": ["X (Innovation)", "Z (Ethics)", "CS (Security)"],
                     "models": ["Gemini 1.5 Flash (FREE)", "Claude 3.5 Sonnet (BYOK)", "GPT-4o (BYOK)"],
@@ -155,6 +156,37 @@ async def mcp_config_handler(request):
                 "name": "run_full_trinity",
                 "description": "Complete X → Z → CS validation with per-agent optimized providers",
                 "parameters": ["concept_name", "concept_description", "context (optional)", "save_to_history (default: true)"]
+            },
+            # v0.4.0 Template Tools
+            {
+                "name": "list_prompt_templates",
+                "description": "List available prompt templates with filtering",
+                "parameters": ["agent_id (optional)", "category (optional)", "tags (optional)"]
+            },
+            {
+                "name": "get_prompt_template",
+                "description": "Get a specific template by ID",
+                "parameters": ["template_id", "include_content (default: true)"]
+            },
+            {
+                "name": "export_prompt_template",
+                "description": "Export template to Markdown or JSON",
+                "parameters": ["template_id", "format (markdown/json)"]
+            },
+            {
+                "name": "register_custom_template",
+                "description": "Register a new custom prompt template",
+                "parameters": ["name", "agent_id", "content", "category", "description", "tags"]
+            },
+            {
+                "name": "import_template_from_url",
+                "description": "Import template from URL (GitHub Gist, raw file)",
+                "parameters": ["url", "validate (default: true)"]
+            },
+            {
+                "name": "get_template_statistics",
+                "description": "Get template registry statistics",
+                "parameters": []
             }
         ],
         # Resources
@@ -457,7 +489,7 @@ print(f"  Health: /health")
 print(f"  Config: /.well-known/mcp-config")
 print(f"  Setup:  /setup")
 print("-" * 70)
-print("Resources: 4 | Tools: 4")
+print("Resources: 4 | Tools: 10")
 print("Agents: X (Innovation) | Z (Ethics) | CS (Security)")
 print("-" * 70)
 print("Quick Start (Claude Code):")

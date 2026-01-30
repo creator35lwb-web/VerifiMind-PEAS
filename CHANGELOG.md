@@ -4,6 +4,55 @@ All notable changes to the VerifiMind PEAS project will be documented in this fi
 
 ---
 
+## v0.4.0 - Unified Prompt Templates (January 30, 2026)
+
+### New MCP Tools (6 new tools, 10 total)
+
+| Tool | Purpose | Parameters |
+|------|---------|------------|
+| `list_prompt_templates` | List/filter templates | agent_id, category, tags |
+| `get_prompt_template` | Get template by ID | template_id, include_content |
+| `export_prompt_template` | Export to MD/JSON | template_id, format |
+| `register_custom_template` | Create custom template | name, agent_id, content, ... |
+| `import_template_from_url` | Import from URL/Gist | url, validate |
+| `get_template_statistics` | Registry statistics | - |
+
+### Template Library (6 libraries, 18+ templates)
+
+| Library | Agent | Genesis Phase | Templates |
+|---------|-------|---------------|-----------|
+| `startup_validation` | X | Phase 1 | 3 |
+| `market_research` | X | Phase 1 | 3 |
+| `ethics_review` | Z | Phase 2 | 3 |
+| `security_audit` | CS | Phase 3 | 3 |
+| `technical_review` | CS | Phase 3 | 3 |
+| `trinity_synthesis` | ALL | Phase 4 | 3 |
+
+### Template Features
+- **Prompt Export** - Download as Markdown/JSON with full documentation
+- **Custom Variables** - User-defined placeholders with validation
+- **Version Control** - Template versioning and changelog
+- **Import from URL** - GitHub Gist and raw file support
+- **Provider Compatibility** - Multi-LLM awareness matrix
+- **Genesis Methodology Tags** - Phase alignment (phase-1 to phase-4)
+
+### Files Added
+- `templates/models.py` - PromptTemplate, TemplateVariable models
+- `templates/registry.py` - TemplateRegistry singleton
+- `templates/export.py` - Markdown/JSON export utilities
+- `templates/import_url.py` - URL/Gist import functionality
+- `templates/library/*.yaml` - 6 template library files
+
+### Files Modified
+- `server.py` - Added 6 new MCP tools, version 0.4.0
+- `http_server.py` - Updated tool count to 10, version 0.4.0
+
+### Credits
+- Implementation: Claude Code
+- Architecture Review: Manus AI (CTO)
+
+---
+
 ## v0.3.5 - Input Sanitization + Security Hardening (January 30, 2026)
 
 ### Security Enhancements
