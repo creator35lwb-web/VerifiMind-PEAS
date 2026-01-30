@@ -18,7 +18,7 @@ Tools Exposed:
 - run_full_trinity - Run complete X → Z → CS validation
 
 Author: Alton Lee
-Version: 0.3.5 (Input Sanitization + Security Hardening)
+Version: 0.4.0 (Unified Prompt Templates)
 """
 
 import json
@@ -168,7 +168,7 @@ def get_project_info() -> dict[str, Any]:
         "methodology": "Genesis Methodology",
         "version": "2.0.1",
         "architecture": "RefleXion Trinity (X-Z-CS)",
-        "mcp_server_version": "0.3.5",
+        "mcp_server_version": "0.4.0",
         "agents": {
             "X": {
                 "name": "X Intelligent",
@@ -685,6 +685,376 @@ def _create_mcp_instance():
                 "status": "error",
                 "error": str(e),
                 "concept": concept_name
+            }
+
+    # ===== v0.4.0 TEMPLATE TOOLS =====
+
+    @app.tool()
+    async def list_prompt_templates(
+        agent_id: Optional[str] = None,
+        category: Optional[str] = None,
+        tags: Optional[str] = None,
+        ctx: Context = None
+    ) -> dict:
+        """
+        List available prompt templates with optional filtering.
+
+        v0.4.0 Unified Prompt Templates feature.
+
+        Args:
+            agent_id: Filter by agent (X, Z, CS, or 'all')
+            category: Filter by category (startup, security, ethics, etc.)
+            tags: Comma-separated tags to filter by (e.g., 'genesis:phase-1,default')
+
+        Returns:
+            List of templates with metadata
+        """
+        try:
+            from .templates import TemplateRegistry
+
+            registry = TemplateRegistry()
+
+            # Parse tags if provided
+            tag_list = None
+            if tags:
+                tag_list = [t.strip() for t in tags.split(',')]
+
+            templates = registry.list_templates(
+                agent_id=agent_id,
+                category=category,
+                tags=tag_list
+            )
+
+            return {
+                "count": len(templates),
+                "filters": {
+                    "agent_id": agent_id,
+                    "category": category,
+                    "tags": tag_list
+                },
+                "templates": [
+                    {
+                        "template_id": t.template_id,
+                        "name": t.name,
+                        "agent_id": t.agent_id,
+                        "category": t.category,
+                        "version": t.version,
+                        "tags": t.tags,
+                        "description": t.description,
+                        "variable_count": len(t.variables)
+                    }
+                    for t in templates
+                ]
+            }
+
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e)
+            }
+
+    @app.tool()
+    async def get_prompt_template(
+        template_id: str,
+        include_content: bool = True,
+        ctx: Context = None
+    ) -> dict:
+        """
+        Get a specific prompt template by ID.
+
+        v0.4.0 Unified Prompt Templates feature.
+
+        Args:
+            template_id: Unique template identifier
+            include_content: Whether to include full template content
+
+        Returns:
+            Complete template with all metadata and variables
+        """
+        try:
+            from .templates import TemplateRegistry
+
+            registry = TemplateRegistry()
+            template = registry.get_template(template_id)
+
+            if not template:
+                return {
+                    "status": "not_found",
+                    "error": f"Template not found: {template_id}",
+                    "available_templates": len(registry.list_templates())
+                }
+
+            result = {
+                "template_id": template.template_id,
+                "name": template.name,
+                "agent_id": template.agent_id,
+                "category": template.category,
+                "version": template.version,
+                "tags": template.tags,
+                "description": template.description,
+                "variables": [
+                    {
+                        "name": v.name,
+                        "type_hint": v.type_hint,
+                        "required": v.required,
+                        "default": v.default,
+                        "description": v.description
+                    }
+                    for v in template.variables
+                ],
+                "compatible_providers": template.compatible_providers,
+                "recommended_temperature": template.recommended_temperature,
+                "recommended_max_tokens": template.recommended_max_tokens,
+                "changelog": template.changelog
+            }
+
+            if include_content:
+                result["content"] = template.content
+
+            return result
+
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e)
+            }
+
+    @app.tool()
+    async def export_prompt_template(
+        template_id: str,
+        format: str = "markdown",
+        ctx: Context = None
+    ) -> dict:
+        """
+        Export a prompt template to Markdown or JSON format.
+
+        v0.4.0 Unified Prompt Templates feature.
+
+        Args:
+            template_id: Template to export
+            format: Export format ('markdown' or 'json')
+
+        Returns:
+            Exported template content in specified format
+        """
+        try:
+            from .templates import (
+                TemplateRegistry,
+                export_template_markdown,
+                export_template_json,
+            )
+
+            registry = TemplateRegistry()
+            template = registry.get_template(template_id)
+
+            if not template:
+                return {
+                    "status": "not_found",
+                    "error": f"Template not found: {template_id}"
+                }
+
+            format_lower = format.lower()
+            if format_lower == "markdown" or format_lower == "md":
+                exported = export_template_markdown(template)
+                content_type = "text/markdown"
+            elif format_lower == "json":
+                exported = export_template_json(template)
+                content_type = "application/json"
+            else:
+                return {
+                    "status": "error",
+                    "error": f"Unsupported format: {format}. Use 'markdown' or 'json'"
+                }
+
+            return {
+                "template_id": template_id,
+                "format": format_lower,
+                "content_type": content_type,
+                "exported_content": exported,
+                "template_name": template.name,
+                "template_version": template.version
+            }
+
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e)
+            }
+
+    @app.tool()
+    async def register_custom_template(
+        name: str,
+        agent_id: str,
+        content: str,
+        category: str = "custom",
+        description: Optional[str] = None,
+        tags: Optional[str] = None,
+        ctx: Context = None
+    ) -> dict:
+        """
+        Register a new custom prompt template.
+
+        v0.4.0 Unified Prompt Templates feature.
+
+        Args:
+            name: Template display name
+            agent_id: Target agent (X, Z, CS, or 'all')
+            content: Template content with {variable} placeholders
+            category: Template category (default: 'custom')
+            description: Template description
+            tags: Comma-separated tags
+
+        Returns:
+            Registered template info with generated ID
+        """
+        try:
+            from .templates import TemplateRegistry
+
+            registry = TemplateRegistry()
+
+            # Parse tags
+            tag_list = None
+            if tags:
+                tag_list = [t.strip() for t in tags.split(',')]
+
+            template = registry.register_custom_template(
+                name=name,
+                agent_id=agent_id.upper(),
+                content=content,
+                category=category,
+                description=description,
+                tags=tag_list
+            )
+
+            return {
+                "status": "success",
+                "message": f"Template registered successfully",
+                "template_id": template.template_id,
+                "name": template.name,
+                "agent_id": template.agent_id,
+                "category": template.category,
+                "tags": template.tags
+            }
+
+        except ValueError as e:
+            return {
+                "status": "error",
+                "error": str(e)
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e)
+            }
+
+    @app.tool()
+    async def import_template_from_url(
+        url: str,
+        validate: bool = True,
+        ctx: Context = None
+    ) -> dict:
+        """
+        Import a prompt template from a URL (GitHub Gist, raw file, etc.).
+
+        v0.4.0 Unified Prompt Templates feature.
+
+        Supports:
+        - GitHub Gist URLs
+        - Raw GitHub file URLs
+        - Any HTTPS URL pointing to JSON/YAML template
+
+        Args:
+            url: URL to import template from
+            validate: Whether to validate template content (default: True)
+
+        Returns:
+            Import result with template info or error details
+        """
+        try:
+            from .templates import (
+                import_template_from_url as do_import,
+                validate_template_url,
+                TemplateRegistry,
+            )
+
+            # Validate URL first
+            is_valid, source_type, error = validate_template_url(url)
+            if not is_valid:
+                return {
+                    "status": "error",
+                    "error": f"Invalid URL: {error}"
+                }
+
+            # Import the template
+            result = await do_import(url, validate=validate)
+
+            if not result.success:
+                return {
+                    "status": "error",
+                    "error": result.error,
+                    "warnings": result.warnings
+                }
+
+            # Register the imported template
+            registry = TemplateRegistry()
+            if result.template:
+                registry._custom_templates[result.template.template_id] = result.template
+
+            return {
+                "status": "success",
+                "message": "Template imported and registered",
+                "source_url": url,
+                "source_type": source_type,
+                "template_id": result.template.template_id if result.template else None,
+                "template_name": result.template.name if result.template else None,
+                "warnings": result.warnings
+            }
+
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e)
+            }
+
+    @app.tool()
+    async def get_template_statistics(
+        ctx: Context = None
+    ) -> dict:
+        """
+        Get statistics about the template registry.
+
+        v0.4.0 Unified Prompt Templates feature.
+
+        Returns:
+            Statistics including template counts by agent, phase, and type
+        """
+        try:
+            from .templates import TemplateRegistry
+
+            registry = TemplateRegistry()
+            stats = registry.get_statistics()
+
+            # Add library info
+            libraries = registry.list_libraries()
+
+            return {
+                "status": "success",
+                **stats,
+                "libraries": [
+                    {
+                        "library_id": lib.library_id,
+                        "name": lib.name,
+                        "template_count": len(lib.templates),
+                        "genesis_phase": lib.genesis_phase
+                    }
+                    for lib in libraries
+                ]
+            }
+
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e)
             }
 
     return app
