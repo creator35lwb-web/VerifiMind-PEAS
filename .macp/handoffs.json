@@ -1,0 +1,18 @@
+{
+  "handoffs": [
+    {
+      "id": "handoff-template",
+      "timestamp": "2025-11-01T00:00:00Z",
+      "from_agent": "X",
+      "to_agent": "Z",
+      "phase": "Template",
+      "summary": "This is a template handoff record for VerifiMind-PEAS methodology.",
+      "next_steps": [
+        "Ethical evaluation",
+        "Risk assessment"
+      ],
+      "context": "VerifiMind-PEAS is a methodology, not a specific project. Handoffs occur within validated projects.",
+      "commit_sha": "N/A"
+    }
+  ]
+}

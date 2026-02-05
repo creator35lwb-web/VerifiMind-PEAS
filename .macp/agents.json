@@ -1,0 +1,43 @@
+{
+  "agents": [
+    {
+      "id": "X",
+      "name": "Any LLM (Perplexity Sonar Pro recommended)",
+      "role": "Innovation & Market Intelligence Agent",
+      "responsibilities": [
+        "Innovation analysis",
+        "Market research",
+        "Strategic opportunities",
+        "Competitive landscape"
+      ],
+      "active_since": "2025-11-01T00:00:00Z",
+      "last_handoff": null
+    },
+    {
+      "id": "Z",
+      "name": "Any LLM (Anthropic Claude recommended)",
+      "role": "Ethical Guardian Agent",
+      "responsibilities": [
+        "Ethical evaluation",
+        "Risk assessment",
+        "Compliance review",
+        "Bias detection"
+      ],
+      "active_since": "2025-11-01T00:00:00Z",
+      "last_handoff": null
+    },
+    {
+      "id": "CS",
+      "name": "Any LLM (Manus AI recommended)",
+      "role": "Security & Technical Validator Agent",
+      "responsibilities": [
+        "Security analysis",
+        "Threat modeling",
+        "Technical validation",
+        "Vulnerability assessment"
+      ],
+      "active_since": "2025-11-01T00:00:00Z",
+      "last_handoff": null
+    }
+  ]
+}
