@@ -1,66 +1,22 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** January 29, 2026 (Updated)
+**Last Updated:** February 8, 2026
 
 ---
 
 ## Current Status: Operational
 
-**v0.3.2 deployed successfully on January 29, 2026**
+**v0.4.0 deployed successfully on January 30, 2026**
 
-- Gemini model updated to `gemini-2.5-flash` (stable, FREE tier)
-- All protection features active (rate limiting, max instances cap)
+The VerifiMind MCP server is fully operational with the following capabilities:
 
-All known issues have been resolved. The server is now operational with enhanced security features.
-
----
-
-## Known Issues
-
-### Issue #1: Gemini Model Update Required
-
-**Status:** RESOLVED
-**Severity:** High
-**Affected:** All agent consultations (X, Z, CS)
-
-**Description:**
-The server was configured with `gemini-2.0-flash-exp` which was deprecated by Google.
-
-**Resolution:** DEPLOYED
-- Changed default model to `gemini-1.5-flash` (stable, FREE tier)
-- Deployed v0.3.1 on January 29, 2026
-
----
-
-### Issue #2: API Key Renewal
-
-**Status:** Scheduled
-**Severity:** Medium
-**Affected:** Premium model features
-
-**Description:**
-Certain API keys require renewal for continued service.
-
-**Resolution:** API key renewal in progress
-
----
-
-## Workarounds
-
-While we resolve these issues, you can:
-
-1. **Use BYOK (Bring Your Own Key):** Configure your own API keys in Claude Desktop
-2. **Self-Host:** Run your own instance with your API keys
-
-### BYOK Quick Setup
-
-```bash
-# Set your own Gemini API key (FREE tier available)
-export LLM_PROVIDER="gemini"
-export GEMINI_API_KEY="your-api-key"
-```
-
-Get a free Gemini API key: https://aistudio.google.com/apikey
+- 10 MCP tools (4 core validation + 6 template management)
+- 19 pre-built prompt templates across 6 libraries
+- Input sanitization active on all tools (v0.3.5+)
+- Gemini 2.5-flash as default FREE provider
+- Rate limiting and EDoS protection active
+- GCP Global Uptime Check monitoring `/health` every 5 minutes
+- CI/CD pipeline passing (GitHub Actions)
 
 ---
 
@@ -68,34 +24,73 @@ Get a free Gemini API key: https://aistudio.google.com/apikey
 
 | Property | Value |
 |----------|-------|
-| Endpoint | `https://verifimind.ysenseai.org/mcp` |
-| Health Check | `https://verifimind.ysenseai.org/health` |
-| Server Version | 0.3.2 (deployed) |
-| Transport | Streamable HTTP (SSE) |
+| **Endpoint** | `https://verifimind.ysenseai.org/mcp` |
+| **Health Check** | `https://verifimind.ysenseai.org/health` |
+| **Server Version** | 0.4.0 (deployed) |
+| **Transport** | Streamable HTTP (SSE) |
+| **Default Provider** | Gemini 2.5-flash (FREE) |
+| **BYOK Providers** | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama, Perplexity |
+| **Monthly Cost** | $0 (GCP free tier) |
+
+---
+
+## Monitoring
+
+| Feature | Status | Details |
+|---------|--------|---------|
+| **GCP Uptime Check** | ✅ Active | 5-minute intervals, email alerts |
+| **Error Rate Alert** | ✅ Active | Threshold: >50 errors in 5 minutes |
+| **Traffic Spike Alert** | ✅ Active | Threshold: >500 requests in 1 hour |
+| **CI/CD Pipeline** | ✅ Passing | Unit tests, Bandit, Safety |
+
+---
+
+## Resolved Issues
+
+### Issue #1: Gemini Model Deprecation
+**Status:** RESOLVED (v0.3.2, January 29, 2026)
+
+Google deprecated `gemini-2.0-flash-exp`. Updated default to `gemini-2.5-flash` (stable, FREE tier).
+
+### Issue #2: Input Sanitization
+**Status:** RESOLVED (v0.3.5, January 30, 2026)
+
+Added comprehensive input sanitization to all MCP tools. 29/29 unit tests passing.
+
+---
+
+## Workarounds
+
+If you experience connectivity issues:
+
+1. **Verify URL**: Use `https://verifimind.ysenseai.org/mcp/` (with trailing slash)
+2. **Test connectivity**: `curl https://verifimind.ysenseai.org/mcp/`
+3. **Use BYOK**: Configure your own API keys for premium providers
+4. **Self-Host**: Run your own instance with your API keys
+
+**Full troubleshooting guide**: [MCP_Server_Troubleshooting_Guide.md](docs/MCP_Server_Troubleshooting_Guide.md)
+
+---
+
+## Maintenance History
+
+| Date | Action | Version | Status |
+|------|--------|---------|--------|
+| Jan 30, 2026 | Unified Prompt Templates deployed | v0.4.0 | Complete |
+| Jan 30, 2026 | Input sanitization deployed | v0.3.5 | Complete |
+| Jan 29, 2026 | Gemini 2.5-flash model update | v0.3.2 | Complete |
+| Jan 29, 2026 | Smart Fallback + Rate Limiting | v0.3.1 | Complete |
+| Jan 28, 2026 | BYOK multi-provider support | v0.3.0 | Complete |
 
 ---
 
 ## Updates
 
-We will update this status page as issues are resolved. For real-time updates:
+For real-time updates:
 
 - **GitHub Issues:** [Report or track issues](https://github.com/creator35lwb-web/VerifiMind-PEAS/issues)
 - **GitHub Discussions:** [Community support](https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions)
 
 ---
 
-## Maintenance Schedule
-
-| Date | Action | Status |
-|------|--------|--------|
-| Jan 28, 2026 | Issue identified | Complete |
-| Jan 28, 2026 | Code fix implemented (v0.3.1) | Complete |
-| Jan 29, 2026 | v0.3.1 deployed with EDoS protection | Complete |
-| Jan 29, 2026 | Rate limiting enabled | Complete |
-| Jan 29, 2026 | Service restoration | **COMPLETE** |
-
----
-
-**Thank you for your patience as we work to restore full service.**
-
-*VerifiMind-PEAS Team*
+*VerifiMind-PEAS FLYWHEEL TEAM*
