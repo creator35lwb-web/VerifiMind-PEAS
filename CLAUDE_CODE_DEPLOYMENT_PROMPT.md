@@ -73,12 +73,12 @@ docker images | grep verifimind-mcp-server
 
 ```bash
 # Tag for GCR
-docker tag verifimind-mcp-server:v2.0 gcr.io/ysense-platform-v4-1/verifimind-mcp-server:v2.0
-docker tag verifimind-mcp-server:v2.0 gcr.io/ysense-platform-v4-1/verifimind-mcp-server:latest
+docker tag verifimind-mcp-server:v2.0 gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:v2.0
+docker tag verifimind-mcp-server:v2.0 gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:latest
 
 # Push to GCR
-docker push gcr.io/ysense-platform-v4-1/verifimind-mcp-server:v2.0
-docker push gcr.io/ysense-platform-v4-1/verifimind-mcp-server:latest
+docker push gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:v2.0
+docker push gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:latest
 ```
 
 ### Step 5: Deploy to Cloud Run
@@ -86,7 +86,7 @@ docker push gcr.io/ysense-platform-v4-1/verifimind-mcp-server:latest
 ```bash
 # Deploy with environment variables
 gcloud run deploy verifimind-mcp-server \
-  --image gcr.io/ysense-platform-v4-1/verifimind-mcp-server:latest \
+  --image gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:latest \
   --region us-central1 \
   --platform managed \
   --allow-unauthenticated \
