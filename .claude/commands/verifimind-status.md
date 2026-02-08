@@ -12,7 +12,7 @@ Check the current status of VerifiMind-PEAS deployment and repos.
 
 1. **Check server health:**
    ```bash
-   curl -s https://verifimind-mcp-server-690976799907.us-central1.run.app/health
+   curl -s https://verifimind.ysenseai.org/health
    ```
 
 2. **Check PUBLIC repo status:**
@@ -41,7 +41,7 @@ Check the current status of VerifiMind-PEAS deployment and repos.
 ### Server
 - Version: {version}
 - Status: {healthy/unhealthy}
-- URL: https://verifimind-mcp-server-690976799907.us-central1.run.app
+- URL: https://verifimind.ysenseai.org
 
 ### Repos
 - PUBLIC: {clean/dirty}
