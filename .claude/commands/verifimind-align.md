@@ -46,7 +46,7 @@ Create an alignment update for Manus AI (CTO) in the PRIVATE repo.
    |----------|-------|
    | Version | {version} |
    | Status | {status} |
-   | URL | https://verifimind-mcp-server-690976799907.us-central1.run.app |
+   | URL | https://verifimind.ysenseai.org |
 
    ## Next Steps
    {next steps}
