@@ -137,14 +137,14 @@ docker build -t verifimind-mcp-server:v2.0 .
 
 ### Step 3: Push to Google Container Registry
 ```bash
-docker tag verifimind-mcp-server:v2.0 gcr.io/ysense-platform-v4-1/verifimind-mcp-server:latest
-docker push gcr.io/ysense-platform-v4-1/verifimind-mcp-server:latest
+docker tag verifimind-mcp-server:v2.0 gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:latest
+docker push gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:latest
 ```
 
 ### Step 4: Deploy to Cloud Run
 ```bash
 gcloud run deploy verifimind-mcp-server \
-  --image gcr.io/ysense-platform-v4-1/verifimind-mcp-server:latest \
+  --image gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:latest \
   --region us-central1 \
   --platform managed \
   --allow-unauthenticated \
