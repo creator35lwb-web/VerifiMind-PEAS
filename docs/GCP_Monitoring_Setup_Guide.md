@@ -14,7 +14,7 @@ This guide provides step-by-step instructions for setting up monitoring and aler
 
 ## 1. IP Identification Result
 
-The IP address *****REMOVED***** that caused the January 31 spike has been identified:
+The IP address **[REDACTED_IP]** that caused the January 31 spike has been identified:
 
 | Field | Value |
 |-------|-------|
@@ -38,7 +38,7 @@ The IP address *****REMOVED***** that caused the January 31 spike has been ident
 ```
 resource.type = "cloud_run_revision"
 resource.labels.service_name = "verifimind-mcp-server"
-httpRequest.remoteIp = "***REMOVED***"
+httpRequest.remoteIp = "[REDACTED_IP]"
 ```
 
 **Step 3:** Click "Run Query" to see all requests from that IP
@@ -47,7 +47,7 @@ httpRequest.remoteIp = "***REMOVED***"
 ```
 resource.type = "cloud_run_revision"
 resource.labels.service_name = "verifimind-mcp-server"
-NOT httpRequest.remoteIp = "***REMOVED***"
+NOT httpRequest.remoteIp = "[REDACTED_IP]"
 ```
 
 ### Option B: Using Log Analytics (SQL-like queries)
@@ -239,7 +239,7 @@ httpRequest.requestUrl =~ "/mcp/"
 ```
 resource.type = "cloud_run_revision"
 resource.labels.service_name = "verifimind-mcp-server"
-NOT httpRequest.remoteIp = "***REMOVED***"
+NOT httpRequest.remoteIp = "[REDACTED_IP]"
 ```
 
 ---
@@ -260,7 +260,7 @@ Based on your current usage and budget constraints, here's the recommended appro
 
 ## 10. Next Steps
 
-1. **Verify your IP:** Check if ***REMOVED*** is indeed your Maxis connection
+1. **Verify your IP:** Check if [REDACTED_IP] is indeed your Maxis connection
 2. **Set up uptime check:** Ensures you're notified if server goes down
 3. **Create error alert:** Catches issues before users report them
 4. **Review weekly:** Check dashboard once a week for patterns
