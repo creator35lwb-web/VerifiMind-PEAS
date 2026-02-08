@@ -302,8 +302,8 @@ Please switch to the `google.genai` package as soon as possible.
    ```bash
    cd /home/ubuntu/VerifiMind-PEAS/mcp-server
    docker build -t verifimind-mcp-server:v2.0 .
-   docker tag verifimind-mcp-server:v2.0 gcr.io/ysense-platform-v4-1/verifimind-mcp-server:latest
-   docker push gcr.io/ysense-platform-v4-1/verifimind-mcp-server:latest
+   docker tag verifimind-mcp-server:v2.0 gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:latest
+   docker push gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:latest
    ```
 
 2. **Set Environment Variables**
