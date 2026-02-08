@@ -18,13 +18,13 @@ Deploy VerifiMind-PEAS to GCP Cloud Run.
 2. **Build container:**
    ```bash
    cd mcp-server
-   gcloud builds submit --tag gcr.io/ysense-platform-v4-1/verifimind-mcp-server:v{VERSION}
+   gcloud builds submit --tag gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:v{VERSION}
    ```
 
 3. **Deploy to Cloud Run:**
    ```bash
    gcloud run deploy verifimind-mcp-server \
-     --image gcr.io/ysense-platform-v4-1/verifimind-mcp-server:v{VERSION} \
+     --image gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:v{VERSION} \
      --region us-central1 \
      --max-instances 3 \
      --min-instances 0 \
