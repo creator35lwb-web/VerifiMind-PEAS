@@ -8,7 +8,7 @@ Your domain **ysenseai.org** is already configured with Google Cloud and hosted 
 ## STEP 1: Access Google Cloud Console
 
 **Click here to set up domain mapping:**
-https://console.cloud.google.com/run/domains?project=ysense-platform-v4-1
+https://console.cloud.google.com/run/domains?project=YOUR_GCP_PROJECT_ID
 
 1. Click **"ADD MAPPING"**
 2. Select service: **verifimind-mcp-server**
@@ -76,7 +76,7 @@ If GoDaddy doesn't allow CNAME for some reason, add these **4 A records** instea
 
 ## STEP 3: Wait for Google to Provision SSL Certificate
 
-1. Go back to Google Cloud Console: https://console.cloud.google.com/run/domains?project=ysense-platform-v4-1
+1. Go back to Google Cloud Console: https://console.cloud.google.com/run/domains?project=YOUR_GCP_PROJECT_ID
 2. Watch the domain mapping status change from "Pending" to "Active"
 3. This usually takes 15-60 minutes after DNS propagates
 
@@ -143,9 +143,9 @@ verifimind.ysenseai.org  ──→  verifimind-mcp-server (Cloud Run)
 | What | Where | Link |
 |------|-------|------|
 | **GoDaddy DNS** | Manage DNS Records | https://dcc.godaddy.com/control/portfolio/ysenseai.org/settings?subtab=dns |
-| **Google Cloud** | Add Domain Mapping | https://console.cloud.google.com/run/domains?project=ysense-platform-v4-1 |
+| **Google Cloud** | Add Domain Mapping | https://console.cloud.google.com/run/domains?project=YOUR_GCP_PROJECT_ID |
 | **Test DNS** | DNS Checker | https://dnschecker.org/#CNAME/verifimind.ysenseai.org |
-| **View Logs** | Cloud Run Logs | https://console.cloud.google.com/logs/query?project=ysense-platform-v4-1 |
+| **View Logs** | Cloud Run Logs | https://console.cloud.google.com/logs/query?project=YOUR_GCP_PROJECT_ID |
 
 ---
 
