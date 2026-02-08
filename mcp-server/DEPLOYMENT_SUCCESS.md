@@ -4,7 +4,7 @@
 
 Your VerifiMind MCP Server is successfully deployed and running on Google Cloud Run!
 
-**Live URL**: https://verifimind-mcp-server-690976799907.us-central1.run.app
+**Live URL**: https://verifimind.ysenseai.org
 
 ---
 
@@ -12,17 +12,17 @@ Your VerifiMind MCP Server is successfully deployed and running on Google Cloud 
 
 | Endpoint | URL | Status |
 |----------|-----|--------|
-| **Root Info** | https://verifimind-mcp-server-690976799907.us-central1.run.app/ | ✅ Working |
-| **Health Check** | https://verifimind-mcp-server-690976799907.us-central1.run.app/health | ✅ Working |
-| **MCP Config** | https://verifimind-mcp-server-690976799907.us-central1.run.app/.well-known/mcp-config | ✅ Working |
-| **MCP Endpoint** | https://verifimind-mcp-server-690976799907.us-central1.run.app/mcp | ✅ Working |
+| **Root Info** | https://verifimind.ysenseai.org/ | ✅ Working |
+| **Health Check** | https://verifimind.ysenseai.org/health | ✅ Working |
+| **MCP Config** | https://verifimind.ysenseai.org/.well-known/mcp-config | ✅ Working |
+| **MCP Endpoint** | https://verifimind.ysenseai.org/mcp | ✅ Working |
 
 ---
 
 ## 📋 Quick Checklist: Add Custom Domain
 
 ### ☐ STEP 1: Google Cloud Console
-1. Open: https://console.cloud.google.com/run/domains?project=ysense-platform-v4-1
+1. Open: https://console.cloud.google.com/run/domains?project=YOUR_GCP_PROJECT_ID
 2. Click "ADD MAPPING"
 3. Service: verifimind-mcp-server
 4. Domain: verifimind.ysenseai.org
@@ -75,10 +75,10 @@ Added to `pyproject.toml`:
 
 | Setting | Value |
 |---------|-------|
-| **Project** | ysense-platform-v4-1 |
+| **Project** | YOUR_GCP_PROJECT_ID |
 | **Service** | verifimind-mcp-server |
 | **Region** | us-central1 |
-| **Image** | gcr.io/ysense-platform-v4-1/verifimind-mcp-server:latest |
+| **Image** | gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:latest |
 | **Port** | 8080 |
 | **Memory** | 512Mi |
 | **CPU** | 1 |
@@ -113,10 +113,10 @@ Added to `pyproject.toml`:
 
 | Purpose | URL |
 |---------|-----|
-| **Cloud Run Service** | https://console.cloud.google.com/run/detail/us-central1/verifimind-mcp-server/metrics?project=ysense-platform-v4-1 |
-| **Domain Mappings** | https://console.cloud.google.com/run/domains?project=ysense-platform-v4-1 |
+| **Cloud Run Service** | https://console.cloud.google.com/run/detail/us-central1/verifimind-mcp-server/metrics?project=YOUR_GCP_PROJECT_ID |
+| **Domain Mappings** | https://console.cloud.google.com/run/domains?project=YOUR_GCP_PROJECT_ID |
 | **GoDaddy DNS** | https://dcc.godaddy.com/control/portfolio/ysenseai.org/settings?subtab=dns |
-| **Service Logs** | https://console.cloud.google.com/logs/query?project=ysense-platform-v4-1 |
+| **Service Logs** | https://console.cloud.google.com/logs/query?project=YOUR_GCP_PROJECT_ID |
 | **DNS Checker** | https://dnschecker.org/#CNAME/verifimind.ysenseai.org |
 
 ---
@@ -125,7 +125,7 @@ Added to `pyproject.toml`:
 
 ```bash
 # Current working URL
-curl https://verifimind-mcp-server-690976799907.us-central1.run.app/health
+curl https://verifimind.ysenseai.org/health
 
 # After DNS setup (will work once propagated)
 curl https://verifimind.ysenseai.org/health
@@ -174,7 +174,7 @@ Or use the current URL while waiting for DNS:
 {
   "mcpServers": {
     "verifimind-genesis": {
-      "url": "https://verifimind-mcp-server-690976799907.us-central1.run.app/mcp",
+      "url": "https://verifimind.ysenseai.org/mcp",
       "transport": "http-sse",
       "description": "VerifiMind PEAS Genesis Methodology Server"
     }
