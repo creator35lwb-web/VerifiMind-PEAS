@@ -12,7 +12,7 @@ Test the VerifiMind-PEAS Trinity validation on the deployed server.
 
 1. **Initialize MCP session:**
    ```bash
-   SESSION_ID=$(curl -s -i -X POST "https://verifimind-mcp-server-690976799907.us-central1.run.app/mcp/" \
+   SESSION_ID=$(curl -s -i -X POST "https://verifimind.ysenseai.org/mcp/" \
      -H "Content-Type: application/json" \
      -H "Accept: application/json, text/event-stream" \
      -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' \
@@ -21,7 +21,7 @@ Test the VerifiMind-PEAS Trinity validation on the deployed server.
 
 2. **Run Trinity validation:**
    ```bash
-   curl -s -X POST "https://verifimind-mcp-server-690976799907.us-central1.run.app/mcp/" \
+   curl -s -X POST "https://verifimind.ysenseai.org/mcp/" \
      -H "Content-Type: application/json" \
      -H "Accept: application/json, text/event-stream" \
      -H "mcp-session-id: $SESSION_ID" \
