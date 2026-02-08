@@ -4,11 +4,11 @@
 
 ### 1.1 Open Cloud Run Service
 **Click this link to go directly to your service:**
-https://console.cloud.google.com/run/detail/us-central1/verifimind-mcp-server/metrics?project=ysense-platform-v4-1
+https://console.cloud.google.com/run/detail/us-central1/verifimind-mcp-server/metrics?project=YOUR_GCP_PROJECT_ID
 
 ### 1.2 Navigate to Custom Domains
 1. On the service page, click the **"MANAGE CUSTOM DOMAINS"** button (top right)
-2. Or click this direct link: https://console.cloud.google.com/run/domains?project=ysense-platform-v4-1
+2. Or click this direct link: https://console.cloud.google.com/run/domains?project=YOUR_GCP_PROJECT_ID
 
 ### 1.3 Add Domain Mapping
 1. Click **"ADD MAPPING"** button
@@ -21,7 +21,7 @@ https://console.cloud.google.com/run/detail/us-central1/verifimind-mcp-server/me
 ## STEP 2: Verify Domain Ownership (if not already verified)
 
 ### 2.1 Check if ysenseai.org is Already Verified
-- Go to: https://console.cloud.google.com/run/domains?project=ysense-platform-v4-1
+- Go to: https://console.cloud.google.com/run/domains?project=YOUR_GCP_PROJECT_ID
 - Look for "ysenseai.org" in the verified domains list
 
 ### 2.2 If NOT Verified, You'll Need to Verify
@@ -165,25 +165,25 @@ Update your Claude Desktop config or other MCP clients to use:
 ### Still Getting 404 Errors?
 - Verify the domain mapping is "Active" in Cloud Console
 - Ensure you're accessing HTTPS (not HTTP)
-- Check Cloud Run logs: https://console.cloud.google.com/logs/query?project=ysense-platform-v4-1
+- Check Cloud Run logs: https://console.cloud.google.com/logs/query?project=YOUR_GCP_PROJECT_ID
 
 ---
 
 ## Quick Links Reference
 
-- **Cloud Run Service**: https://console.cloud.google.com/run/detail/us-central1/verifimind-mcp-server/metrics?project=ysense-platform-v4-1
-- **Domain Mappings**: https://console.cloud.google.com/run/domains?project=ysense-platform-v4-1
-- **Service Logs**: https://console.cloud.google.com/logs/query?project=ysense-platform-v4-1
+- **Cloud Run Service**: https://console.cloud.google.com/run/detail/us-central1/verifimind-mcp-server/metrics?project=YOUR_GCP_PROJECT_ID
+- **Domain Mappings**: https://console.cloud.google.com/run/domains?project=YOUR_GCP_PROJECT_ID
+- **Service Logs**: https://console.cloud.google.com/logs/query?project=YOUR_GCP_PROJECT_ID
 - **DNS Checker**: https://dnschecker.org
 
 ---
 
 ## Current Deployment Info
 
-- **Project**: ysense-platform-v4-1
+- **Project**: YOUR_GCP_PROJECT_ID
 - **Service**: verifimind-mcp-server
 - **Region**: us-central1
-- **Current URL**: https://verifimind-mcp-server-690976799907.us-central1.run.app
+- **Current URL**: https://verifimind.ysenseai.org
 - **Target Domain**: verifimind.ysenseai.org
 - **Status**: ✓ Deployed and Running
 
