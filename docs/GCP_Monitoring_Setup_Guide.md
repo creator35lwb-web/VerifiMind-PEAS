@@ -32,7 +32,7 @@ The IP address **[REDACTED_IP]** that caused the January 31 spike has been ident
 ### Option A: Using Logs Explorer (Recommended)
 
 **Step 1:** Navigate to Logs Explorer
-- Go to: https://console.cloud.google.com/logs/query?project=ysense-platform-v4-1
+- Go to: https://console.cloud.google.com/logs/query?project=YOUR_GCP_PROJECT_ID
 
 **Step 2:** Enter this query to filter by IP:
 ```
@@ -53,14 +53,14 @@ NOT httpRequest.remoteIp = "[REDACTED_IP]"
 ### Option B: Using Log Analytics (SQL-like queries)
 
 **Step 1:** Navigate to Log Analytics
-- Go to: https://console.cloud.google.com/logs/analytics?project=ysense-platform-v4-1
+- Go to: https://console.cloud.google.com/logs/analytics?project=YOUR_GCP_PROJECT_ID
 
 **Step 2:** Run this SQL query for IP distribution:
 ```sql
 SELECT 
   httpRequest.remoteIp AS ip,
   COUNT(*) AS request_count
-FROM `ysense-platform-v4-1.global._Default._AllLogs`
+FROM `YOUR_GCP_PROJECT_ID.global._Default._AllLogs`
 WHERE 
   resource.type = 'cloud_run_revision'
   AND resource.labels.service_name = 'verifimind-mcp-server'
@@ -75,7 +75,7 @@ LIMIT 20
 ## 3. Setting Up a Custom Dashboard
 
 ### Step 1: Create Dashboard
-1. Go to: **Monitoring → Dashboards** (https://console.cloud.google.com/monitoring/dashboards?project=ysense-platform-v4-1)
+1. Go to: **Monitoring → Dashboards** (https://console.cloud.google.com/monitoring/dashboards?project=YOUR_GCP_PROJECT_ID)
 2. Click **"+ CREATE DASHBOARD"**
 3. Name it: "VerifiMind MCP Server Monitoring"
 
@@ -113,7 +113,7 @@ LIMIT 20
 **Purpose:** Notify when error rate exceeds threshold
 
 **Setup:**
-1. Go to: **Monitoring → Alerting** (https://console.cloud.google.com/monitoring/alerting?project=ysense-platform-v4-1)
+1. Go to: **Monitoring → Alerting** (https://console.cloud.google.com/monitoring/alerting?project=YOUR_GCP_PROJECT_ID)
 2. Click **"+ CREATE POLICY"**
 3. Configure:
    - **Condition:** Cloud Run - Request count
@@ -177,11 +177,11 @@ Log-based metrics allow you to track specific patterns in your logs.
 **Purpose:** Monitor if your server is responding
 
 **Setup:**
-1. Go to: **Monitoring → Uptime checks** (https://console.cloud.google.com/monitoring/uptime?project=ysense-platform-v4-1)
+1. Go to: **Monitoring → Uptime checks** (https://console.cloud.google.com/monitoring/uptime?project=YOUR_GCP_PROJECT_ID)
 2. Click **"+ CREATE UPTIME CHECK"**
 3. Configure:
    - **Protocol:** HTTPS
-   - **Host:** verifimind-mcp-server-690976799907.us-central1.run.app
+   - **Host:** verifimind.ysenseai.org
    - **Path:** /health
    - **Check frequency:** 5 minutes
    - **Timeout:** 30 seconds
