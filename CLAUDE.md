@@ -10,7 +10,7 @@ VerifiMind-PEAS is a multi-model AI validation framework with the X-Z-CS RefleXi
 
 **Current Version:** v0.3.4
 **Status:** OPERATIONAL
-**Server:** https://verifimind-mcp-server-690976799907.us-central1.run.app
+**Server:** https://verifimind.ysenseai.org
 
 ---
 
@@ -159,14 +159,14 @@ Save to: `iteration/Session_Handoff_{YYYYMMDD}.md`
 
 ## GCP Deployment
 
-**Project:** ysense-platform-v4-1
+**Project:** YOUR_GCP_PROJECT_ID
 **Region:** us-central1
 **Service:** verifimind-mcp-server
 
 **Deploy Command:**
 ```bash
 gcloud run deploy verifimind-mcp-server \
-  --image gcr.io/ysense-platform-v4-1/verifimind-mcp-server:v{VERSION} \
+  --image gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:v{VERSION} \
   --region us-central1 \
   --max-instances 3 \
   --allow-unauthenticated
@@ -225,7 +225,7 @@ The following custom skills are available for this project:
 
 ```bash
 # Check server health
-curl https://verifimind-mcp-server-690976799907.us-central1.run.app/health
+curl https://verifimind.ysenseai.org/health
 
 # Clone PRIVATE repo (for development)
 gh repo clone creator35lwb-web/verifimind-genesis-mcp
@@ -235,8 +235,8 @@ gh issue create --repo creator35lwb-web/verifimind-genesis-mcp --label cto-align
 
 # Build and deploy
 cd mcp-server
-gcloud builds submit --tag gcr.io/ysense-platform-v4-1/verifimind-mcp-server:v{VERSION}
-gcloud run deploy verifimind-mcp-server --image gcr.io/ysense-platform-v4-1/verifimind-mcp-server:v{VERSION} --region us-central1
+gcloud builds submit --tag gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:v{VERSION}
+gcloud run deploy verifimind-mcp-server --image gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:v{VERSION} --region us-central1
 ```
 
 ---
