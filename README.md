@@ -25,7 +25,7 @@
 
 ## MCP Server: Production Deployed
 
-> **v0.4.0 Live** — Unified Prompt Templates with 19 pre-built templates, 10 MCP tools, input sanitization, and CI/CD pipeline. Trinity validation fully operational with Gemini 2.5-flash. [Health Check](https://verifimind-mcp-server-690976799907.us-central1.run.app/health)
+> **v0.4.0 Live** — Unified Prompt Templates with 19 pre-built templates, 10 MCP tools, input sanitization, and CI/CD pipeline. Trinity validation fully operational with Gemini 2.5-flash. [Health Check](https://verifimind.ysenseai.org/health)
 
 VerifiMind PEAS is now **live and accessible** across multiple platforms:
 
