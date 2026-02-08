@@ -12,7 +12,7 @@
 - **Status:** Active with SSL certificate
 - **DNS:** Configured in GoDaddy (CNAME → ghs.googlehosted.com)
 - **Cloud Run:** verifimind-mcp-server (us-central1)
-- **Account:** alton@ysenseai.org / ysense-platform-v4-1
+- **Account:** alton@ysenseai.org / YOUR_GCP_PROJECT_ID
 
 **Timeline:**
 - DNS Configuration: 5 minutes
@@ -72,8 +72,8 @@ CS Agent (Security):   Score 6.5/10 ✅
 
 ### **Google Cloud Platform**
 ```yaml
-Project: ysense-platform-v4-1
-Account: alton@ysenseai.org
+Project: YOUR_GCP_PROJECT_ID
+Account: [REDACTED]
 Service: verifimind-mcp-server
 Region: us-central1
 Runtime: Python 3.11
@@ -158,7 +158,7 @@ cd mcp-server
 gcloud run deploy verifimind-mcp-server \
   --source . \
   --region us-central1 \
-  --project ysense-platform-v4-1 \
+  --project YOUR_GCP_PROJECT_ID \
   --allow-unauthenticated
 ```
 
@@ -233,7 +233,7 @@ https://github.com/creator35lwb-web/VerifiMind-PEAS/issues
 https://verifimind.ysenseai.org
 
 ### **Cloud Console:**
-https://console.cloud.google.com/run?project=ysense-platform-v4-1
+https://console.cloud.google.com/run?project=YOUR_GCP_PROJECT_ID
 
 ### **DNS Management:**
 https://dcc.godaddy.com/control/portfolio/ysenseai.org/settings?subtab=dns
