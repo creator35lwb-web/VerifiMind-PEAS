@@ -172,3 +172,28 @@ cython_debug/
 
 # Exported assets
 exported-assets*.zip
+
+# Security: Prevent accidental credential commits
+*.key
+*.pem
+*.env
+*.env.*
+.env.local
+.env.production
+*API*key*
+*api*key*
+*secret*
+*credential*
+*.p12
+*.pfx
+
+# Internal development artifacts
+/iteration/
+/docs/internal/
+
+# IDE and OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
