@@ -7,7 +7,7 @@
 
   Transform your vision into validated, ethical, secure applications through systematic multi-model AI orchestration — from concept to deployment, with human-centered wisdom validation.
 
-  [![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/creator35lwb-web/VerifiMind-PEAS)
+  [![Version](https://img.shields.io/badge/version-v0.4.0-blue.svg)](CHANGELOG.md)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Status](https://img.shields.io/badge/status-Operational-success.svg)](SERVER_STATUS.md)
   [![Genesis v2.0 DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17972751.svg)](https://doi.org/10.5281/zenodo.17972751)
@@ -25,7 +25,7 @@
 
 ## MCP Server: Production Deployed
 
-> **v0.3.4 Live** - Trinity validation fully operational with Gemini 2.5-flash. [Health Check](https://verifimind-mcp-server-690976799907.us-central1.run.app/health)
+> **v0.4.0 Live** — Unified Prompt Templates with 19 pre-built templates, 10 MCP tools, input sanitization, and CI/CD pipeline. Trinity validation fully operational with Gemini 2.5-flash. [Health Check](https://verifimind-mcp-server-690976799907.us-central1.run.app/health)
 
 VerifiMind PEAS is now **live and accessible** across multiple platforms:
 
@@ -99,6 +99,49 @@ curl -fsSL https://raw.githubusercontent.com/creator35lwb-web/VerifiMind-PEAS/ma
 
 **Get FREE API Keys**: [Google AI Studio](https://aistudio.google.com/apikey) | [Groq Console](https://console.groq.com/keys)
 
+### MCP Tools (10 Total)
+
+The VerifiMind MCP server exposes 10 tools organized into two categories: **Core Validation** (4 tools) and **Template Management** (6 tools, added in v0.4.0).
+
+| Tool | Category | Description |
+|------|----------|-------------|
+| `consult_agent_x` | Core | Innovation & Strategy analysis (Gemini FREE) |
+| `consult_agent_z` | Core | Ethics & Safety review with VETO power |
+| `consult_agent_cs` | Core | Security & Feasibility validation |
+| `run_full_trinity` | Core | Complete X → Z → CS validation pipeline |
+| `list_prompt_templates` | Template | List/filter templates by agent, category, tags |
+| `get_prompt_template` | Template | Retrieve template by ID with full content |
+| `export_prompt_template` | Template | Export to Markdown or JSON format |
+| `register_custom_template` | Template | Create custom prompt templates |
+| `import_template_from_url` | Template | Import from GitHub Gist or raw URL |
+| `get_template_statistics` | Template | Registry statistics and usage data |
+
+### Template Library (6 Libraries, 19 Templates)
+
+v0.4.0 introduced the **Unified Prompt Template** system with pre-built, versioned YAML templates aligned to Genesis Methodology phases.
+
+| Library | Agent | Genesis Phase | Templates |
+|---------|-------|---------------|:---------:|
+| `startup_validation` | X | Phase 1: Conceptualization | 3 |
+| `market_research` | X | Phase 1: Conceptualization | 3 |
+| `ethics_review` | Z | Phase 2: Critical Scrutiny | 3 |
+| `security_audit` | CS | Phase 3: External Validation | 3 |
+| `technical_review` | CS | Phase 3: External Validation | 3 |
+| `trinity_synthesis` | ALL | Phase 4: Synthesis | 4 |
+
+Templates support custom variables with type validation, export to Markdown/JSON, import from URL, and version control with changelogs. Users can also register custom templates at runtime.
+
+### Security Features (v0.3.5+)
+
+All MCP tools include **input sanitization** to protect against prompt injection, XSS, null byte injection, and input length abuse. The system detects 15+ prompt injection patterns and logs suspicious activity without blocking legitimate requests.
+
+### CI/CD Pipeline
+
+Automated testing and security scanning runs on every push to `main` via GitHub Actions:
+- Unit tests and integration tests (Python 3.11)
+- Security scanning with Bandit (static analysis) and Safety (dependency audit)
+- Coverage reporting with configurable thresholds
+
 ---
 
 ## 🌟 What is VerifiMind-PEAS?
@@ -139,37 +182,45 @@ We provide a systematic approach to **multi-model AI validation** that ensures y
 
 ---
 
-## 🎯 Latest Achievements: Standardization Protocol v1.0
+## 🎯 Latest Achievements
 
-**December 2025** - We've completed a major iteration implementing production-grade standardization and generating **57 complete Trinity validation reports** as proof of methodology.
+### v0.4.0 — Unified Prompt Templates (January 30, 2026)
 
-### **What We Built**
+The v0.4.0 release introduced the **Unified Prompt Template** system, adding 6 new MCP tools (10 total) and 19 pre-built YAML templates organized across 6 libraries. Templates are aligned to Genesis Methodology phases, support custom variables with type validation, and can be exported to Markdown or JSON. Users can import templates from GitHub Gists or raw URLs, and register custom templates at runtime. This release also includes the MACP v2.0 specification (DOI: [10.5281/zenodo.18504478](https://doi.org/10.5281/zenodo.18504478)) and the L (GODEL) Ethical Operating Framework v1.1.
 
-VerifiMind-PEAS now includes a **production-ready MCP (Model Context Protocol) server** with standardized multi-provider support. This iteration transformed our methodology from concept to validated, reproducible system.
+### v0.3.5 — Security Hardening (January 30, 2026)
 
-**Standardization Protocol v1.0** provides reproducible, cost-efficient validation through multi-provider orchestration. By combining Gemini's free tier for innovation analysis with Claude for ethics and security validation, we achieved sustainable costs (~$0.003 per validation) while maintaining research-grade quality.
+Comprehensive input sanitization was added to all MCP tools, protecting against prompt injection (15+ patterns), XSS attacks, null byte injection, and input length abuse. All 29 sanitization unit tests pass. A CI/CD pipeline was established with GitHub Actions for automated testing and security scanning (Bandit, Safety) on every push.
 
-**57 Trinity Validation Reports** demonstrate our methodology at scale across seven domains including financial services, healthcare, education, and civic technology. Each report provides complete Trinity analysis with detailed reasoning, actionable recommendations, and traceable performance metrics. The 65% veto rate confirms our ethical safeguards work as designed, with Z Agent consistently identifying concepts that cross ethical red lines.
+### Standardization Protocol v1.0 (December 2025)
 
-**MCP Server Integration** delivers a unified interface across three LLM providers (Gemini, Claude, OpenAI) with built-in metrics tracking, retry logic, and Trinity synthesis. The server is production-ready for integration with Claude Desktop and other MCP-compatible tools.
+The standardization phase generated **57 complete Trinity validation reports** across seven domains including financial services, healthcare, education, and civic technology. By combining Gemini’s free tier for innovation analysis with Claude for ethics and security validation, we achieved sustainable costs (~$0.003 per validation) while maintaining research-grade quality. The 65% veto rate confirms our ethical safeguards work as designed.
 
 ### **Key Metrics**
 
 | Metric | Value | Significance |
 |--------|-------|-------------|
+| **MCP Tools** | 10 | 4 core validation + 6 template management |
+| **Templates** | 19 | Pre-built across 6 libraries |
 | **Validation Reports** | 57 | Proof of methodology at scale |
 | **Success Rate** | 95% | Reliable, production-ready system |
 | **Cost per Validation** | ~$0.003 | Sustainable for solo developers |
-| **Average Duration** | 18.6s | Fast enough for iterative workflows |
 | **Veto Rate** | 65% | Strong ethical safeguards working |
+| **LLM Providers** | 7 | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama, Perplexity |
 
-### **Iteration Journey**
+### **Version History**
 
-Our development followed a systematic progression from vision to validation. The methodology design phase (2024) established the X-Z-CS RefleXion Trinity concept and Genesis Master Prompts framework. Initial implementation (early 2025) built the MCP server with basic agent structure and generated initial validation reports. The current standardization phase (December 2025) solved API reliability issues, reduced costs by 94%, and validated the methodology with 57 real-world concepts.
+| Version | Date | Highlights |
+|---------|------|------------|
+| **v0.4.0** | Jan 30, 2026 | Unified Prompt Templates, 6 new tools, MACP v2.0 |
+| **v0.3.5** | Jan 30, 2026 | Input sanitization, CI/CD pipeline |
+| **v0.3.2** | Jan 29, 2026 | Gemini 2.5-flash model update |
+| **v0.3.1** | Jan 29, 2026 | Smart Fallback, rate limiting, per-agent providers |
+| **v0.3.0** | Jan 28, 2026 | BYOK multi-provider support (7 providers) |
+| **v0.2.0** | Dec 25, 2025 | Multi-platform distribution |
+| **v0.1.0** | Dec 21, 2025 | Initial MCP server deployment |
 
-This iteration demonstrates our commitment to dogfooding—we use our own methodology to improve itself. All code, reports, and learnings are public on GitHub, enabling community-driven continuous improvement.
-
-**[View 57 Complete Trinity Validation Reports →](validation_archive/)**
+**[View Full Changelog →](CHANGELOG.md)** | **[View 57 Trinity Validation Reports →](validation_archive/)**
 
 ---
 
@@ -539,11 +590,57 @@ The reference implementation demonstrates how to automate the X-Z-CS Trinity:
 - **[YSenseAI™ 87-Day Journey](https://journey.manus.space/)** (Landing Pages): Real-world validation of Genesis Methodology
 - **[VerifiMind-PEAS Development](https://verifimind.manus.space/)** (Landing Pages): Meta-application of methodology to itself
 
+### **Operations & Troubleshooting**
+
+- **[MCP Server Troubleshooting Guide](docs/MCP_Server_Troubleshooting_Guide.md)**: Common HTTP status codes, configuration errors, and solutions
+- **[GCP Monitoring Setup Guide](docs/GCP_Monitoring_Setup_Guide.md)**: Dashboard, alerting, and log query reference
+- **[GCP Deployment Guide](docs/GCP_DEPLOYMENT_GUIDE.md)**: Cloud Run deployment instructions
+- **[Server Status](SERVER_STATUS.md)**: Current operational status
+
 ### **Additional Resources**
 
-- **[Roadmap](docs/ROADMAP.md)**: Strategic development plan
+- **[Roadmap](ROADMAP.md)**: Strategic development plan
+- **[Changelog](CHANGELOG.md)**: Detailed version history
 - **[Contributing Guidelines](CONTRIBUTING.md)**: How to contribute
 - **[Zenodo Publication Guide](docs/white_paper/Zenodo-Publication-Guide-v1.1.md)**: Defensive publication documentation
+- **[MACP v2.0 Specification](docs/MACP_v2.0_Specification.md)**: Multi-Agent Communication Protocol
+- **[L (GODEL) Ethical Operating Framework](docs/L_GODEL_Ethical_Operating_Framework.md)**: Ethical constitution for AI agents
+
+---
+
+## 🔧 Troubleshooting
+
+If you encounter issues connecting to the VerifiMind MCP server, consult the table below for common HTTP status codes and their resolutions.
+
+| Status Code | Meaning | Solution |
+|:-----------:|---------|----------|
+| **302/307** | Redirect (normal) | Use `https://verifimind.ysenseai.org/mcp/` with trailing slash |
+| **404** | Not Found | Check URL for typos; use the correct `/mcp/` endpoint |
+| **405** | Method Not Allowed | Use GET for discovery, POST for MCP method calls |
+| **400** | Bad Request | Verify JSON syntax, headers include `Content-Type: application/json` |
+
+**Quick connectivity test:**
+```bash
+curl https://verifimind.ysenseai.org/mcp/
+```
+
+**Full troubleshooting guide:** **[MCP_Server_Troubleshooting_Guide.md](docs/MCP_Server_Troubleshooting_Guide.md)**
+
+### Operational Insights
+
+Traffic analysis from GCP Cloud Run logs (2-week sample, February 2026) provides the following operational baseline:
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| **Total Requests** | 6,298 | Excluding health checks |
+| **Unique IPs** | 330 | Based on unique IP addresses |
+| **Real Users** | 235 | Excluding owner, bots, health checks |
+| **Top Client** | Node.js MCP (67.7%) | Primary integration method |
+| **Cursor IDE** | 12.5% | Growing IDE adoption |
+| **Health Check Traffic** | 96.8% of raw logs | GCP Global Uptime Checks (filtered) |
+| **Monthly Cost** | $0 | Within GCP free tier |
+
+The server runs on GCP Cloud Run with zero minimum instances (cold start architecture) to maintain a **$0/month operating cost**. GCP Global Uptime Checks monitor the `/health` endpoint every 5 minutes with email alerts to the project maintainer. All monitoring features operate within GCP’s free tier.
 
 ---
 
@@ -602,63 +699,47 @@ We welcome contributions from the community!
 
 ## 🗺️ Roadmap
 
-**Current Phase**: Phase 5 - Community Building & Adoption (December 2025)
+**Current Phase**: Phase 6 — Feature Enhancement & Hardening (Q1 2026)
 
-**Status**: Phases 1-4 COMPLETE ✅ | MCP LIVE 🎉
+**Status**: Phases 1–5 COMPLETE ✅ | v0.4.0 DEPLOYED 🎉 | v0.5.0 IN PLANNING
 
-### **Phase 1: Methodology Framework** ✅ COMPLETE
-**Completed**:
-- ✅ Genesis Methodology White Paper v2.0 (DOI: 10.5281/zenodo.17972751)
-- ✅ Defensive publication (DOI: 10.5281/zenodo.17645665)
-- ✅ X-Z-CS RefleXion Trinity master prompts
-- ✅ Genesis Master Prompt Guide
-- ✅ Integration guides (Claude Code, Cursor, Generic LLM)
+### **Phase 1–4: Foundation** ✅ COMPLETE
 
-### **Phase 2: MCP Server Implementation** ✅ COMPLETE
-**Completed** (December 21, 2025):
-- ✅ All 4 core tools working (consult_x_agent, consult_z_agent, consult_cs_agent, validate_with_trinity)
-- ✅ Multi-provider LLM support (Gemini, Groq, Anthropic, OpenAI)
-- ✅ 57 real concept validations generated and published
-- ✅ Z Agent veto power demonstrated (65% veto rate)
-- ✅ Cost efficiency proven (~$0.003 per validation)
+Phases 1 through 4 established the methodology framework, MCP server implementation, production deployment on GCP Cloud Run, and multi-platform distribution across Smithery.ai, Hugging Face, and the Official MCP Registry.
 
-### **Phase 3: Production Deployment** ✅ COMPLETE
-**Completed** (December 2025):
-- ✅ **GCP Cloud Run** deployed at [verifimind.ysenseai.org](https://verifimind.ysenseai.org)
-- ✅ **Custom domain** with SSL/TLS configured
-- ✅ **Health monitoring** and production logging
-- ✅ **Docker containerization** for reproducible deployments
+### **Phase 5: Hardening & Standardization** ✅ COMPLETE
+**Completed** (January 2026):
+- ✅ **v0.3.0–v0.3.5**: BYOK multi-provider (7 providers), smart fallback, rate limiting, input sanitization
+- ✅ **v0.4.0**: Unified Prompt Templates (19 templates, 6 libraries, 6 new tools)
+- ✅ **CI/CD pipeline**: GitHub Actions with unit tests, security scanning (Bandit, Safety)
+- ✅ **MACP v2.0**: Multi-Agent Communication Protocol published (DOI: 10.5281/zenodo.18504478)
+- ✅ **L (GODEL) Ethical Operating Framework v1.1**: Fairness, bias mitigation, update mechanism
+- ✅ **GCP Monitoring**: Uptime checks, alerting, log analysis pipeline
 
-### **Phase 4: Multi-Platform Distribution** ✅ COMPLETE
-**Completed** (December 25, 2025):
-- ✅ **Smithery.ai** native MCP server ([creator35lwb-web/verifimind-genesis](https://smithery.ai/server/creator35lwb-web/verifimind-genesis))
-- ✅ **Hugging Face Space** interactive demo ([YSenseAI/verifimind-peas](https://huggingface.co/spaces/YSenseAI/verifimind-peas))
-- ✅ **TypeScript MCP server** for native Smithery support
-- ✅ **Streamable HTTP transport** for MCP protocol
-
-### **Phase 5: Community Building & Adoption** 🚧 CURRENT
-**In Progress**:
-- ⏳ GitHub Discussions community setup
-- ⏳ Documentation and Wiki updates
-- ⏳ Community engagement and feedback collection
-- ⏳ Tutorial and guide creation
+### **Phase 6: Feature Enhancement** 🚧 CURRENT
+**In Progress** (February–March 2026):
+- ⏳ **v0.5.0 Agent Skills**: `/.well-known/agent-skills.json` for automated discovery
+- ⏳ **MACP v2.0 as MCP Skills**: Expose collaboration protocols as discoverable skills
+- ⏳ **Documentation updates**: README, troubleshooting guides, operational insights
+- ⏳ **Community engagement**: GitHub Discussions, feedback collection
 
 ### **Future Phases** 📋 PLANNED
-- **Phase 6**: Feature Enhancement (Q1 2026) - Specialized domain agents, learning integration
-- **Phase 7**: Enterprise Features (Q2 2026) - Team collaboration, audit logging
-- **Phase 8**: Ecosystem Expansion (Q3 2026) - IDE extensions, API marketplace
+- **Phase 7**: Enterprise Features (Q2 2026) — Team collaboration, audit logging
+- **Phase 8**: Ecosystem Expansion (Q3 2026) — IDE extensions, API marketplace
 
 **Key Metrics**:
 | Metric | Value | Significance |
-|--------|-------|-------------|
+|--------|-------|--------------|
+| **MCP Tools** | 10 | 4 core + 6 template management |
+| **Templates** | 19 | Pre-built across 6 libraries |
 | **Validation Reports** | 57+ | Proof of methodology at scale |
-| **Platforms Live** | 3 | GCP, Smithery, HuggingFace |
+| **Platforms Live** | 4 | GCP, Smithery, HuggingFace, MCP Registry |
+| **LLM Providers** | 7 | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama, Perplexity |
 | **Cost per Validation** | ~$0.003 | Sustainable for all developers |
-| **Veto Rate** | 65% | Strong ethical safeguards |
 
 **See Examples**: [/validation_archive/](/validation_archive/) | [Examples](/examples/)
 
-**Read more**: [Roadmap](docs/ROADMAP.md)
+**Read more**: [Roadmap](ROADMAP.md) | [v0.5.0 Agent Skills Specification](iteration/v0.5.0_Agent_Skills_Specification.md)
 
 ---
 
@@ -689,31 +770,31 @@ We welcome contributions from the community!
 
 ## 📚 How to Cite
 
-### **Citing VerifiMind-PEAS v1.1.0 (MCP Server)**
+### **Citing VerifiMind-PEAS v0.4.0 (MCP Server)**
 
 If you use the VerifiMind-PEAS MCP server in your research or project, please cite:
 
 **APA Style**:
 ```
-Lee, A. (2025). VerifiMind-PEAS: Prompt Engineering Attribution System (Version 1.1.0) [Computer software]. GitHub. https://github.com/creator35lwb-web/VerifiMind-PEAS
+Lee, A., Manus AI, & Claude Code. (2026). VerifiMind-PEAS: Prompt Engineering Attribution System (Version 0.4.0) [Computer software]. GitHub. https://github.com/creator35lwb-web/VerifiMind-PEAS
 ```
 
 **BibTeX**:
 ```bibtex
-@software{verifimind_peas_v1_2025,
+@software{verifimind_peas_v040_2026,
   author = {Lee, Alton and {Manus AI} and {Claude Code}},
   title = {VerifiMind-PEAS: Prompt Engineering Attribution System},
-  year = {2025},
-  version = {1.1.0},
+  year = {2026},
+  version = {0.4.0},
   url = {https://github.com/creator35lwb-web/VerifiMind-PEAS},
   doi = {10.5281/zenodo.17980791},
-  note = {MCP server for multi-model AI validation}
+  note = {MCP server for multi-model AI validation with Unified Prompt Templates}
 }
 ```
 
 **IEEE Style**:
 ```
-A. Lee, Manus AI, and Claude Code, "VerifiMind-PEAS: Prompt Engineering Attribution System," Version 1.1.0, GitHub, 2025. [Online]. Available: https://github.com/creator35lwb-web/VerifiMind-PEAS
+A. Lee, Manus AI, and Claude Code, "VerifiMind-PEAS: Prompt Engineering Attribution System," Version 0.4.0, GitHub, 2026. [Online]. Available: https://github.com/creator35lwb-web/VerifiMind-PEAS
 ```
 
 ### **Citing Genesis Methodology v2.0 (Methodology)**
@@ -759,7 +840,13 @@ GitHub provides automatic citation support. Click the **"Cite this repository"**
 
 ### **Release Information**
 
-**VerifiMind-PEAS v1.1.0**:
+**VerifiMind-PEAS MCP Server v0.4.0** (Current):
+- **Release Date**: January 30, 2026
+- **Highlights**: Unified Prompt Templates, 10 MCP tools, MACP v2.0
+- **Changelog**: [CHANGELOG.md](CHANGELOG.md)
+- **Status**: Production deployed on GCP Cloud Run
+
+**VerifiMind-PEAS v1.1.0** (Methodology):
 - **Release Date**: December 18, 2025
 - **Tag**: `verifimind-v1.1.0`
 - **Release Notes**: [RELEASE_NOTES_V1.1.0.md](RELEASE_NOTES_V1.1.0.md)
@@ -779,7 +866,7 @@ GitHub provides automatic citation support. Click the **"Cite this repository"**
 
 **VerifiMind-PEAS is released under the MIT License** for personal, educational, and open-source use.
 
-Copyright (c) 2025 Alton Lee Wei Bin (creator35lwb)
+Copyright (c) 2025-2026 Alton Lee Wei Bin (creator35lwb)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -824,24 +911,40 @@ Forks and derivatives may use the open-source code under MIT license, but must u
 **General Inquiries**: creator35lwb@gmail.com  
 **Twitter/X**: [@creator35lwb](https://x.com/creator35lwb)  
 **GitHub Discussions**: [Join discussions](https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions)  
-**Domain**: [verifimind.ysenseai.org](https://verifimind.ysenseai.org) (LIVE)
+**MCP Server**: [verifimind.ysenseai.org](https://verifimind.ysenseai.org) (LIVE — v0.4.0)  
+**Landing Page**: [verifimind.manus.space](https://verifimind.manus.space)
 
 ---
 
 ## 🙏 Acknowledgments
 
-**VerifiMind-PEAS was made possible by**:
-- **Anthropic Claude**: Ethics and safety validation
-- **OpenAI GPT-4**: Technical implementation and analysis
-- **Google Gemini**: Research and synthesis
-- **Moonshot AI Kimi**: Innovation and creative insights
-- **xAI Grok**: Alternative perspectives
-- **Alibaba Qwen**: Multilingual support
+### FLYWHEEL TEAM
 
-**Special thanks to**:
+VerifiMind-PEAS is developed through the **FLYWHEEL TEAM** multi-agent collaboration protocol:
+
+| Agent | Role | Contribution |
+|-------|------|--------------|
+| **Alton Lee** (L/GODEL) | Human Orchestrator & Founder | Vision, strategy, final decisions |
+| **Manus AI** (T/CTO) | Strategic Architecture | Documentation, roadmap, ecosystem alignment |
+| **Claude Code** | Implementation | Code, testing, deployment, CI/CD |
+| **Gemini** (Antigravity) | GCP Operations | Log analysis, monitoring, troubleshooting |
+
+### LLM Providers
+
+- **Google Gemini**: Default FREE provider for innovation analysis and GCP operations
+- **Anthropic Claude**: Ethics and safety validation, code implementation
+- **OpenAI GPT-4**: Technical analysis and structured output
+- **Moonshot AI Kimi**: Innovation and creative insights
+- **xAI Grok**: Alternative perspectives and validation
+- **Alibaba Qwen**: Multilingual support
+- **Groq / Mistral / Perplexity / Ollama**: BYOK multi-provider support
+
+### Special Thanks
+
 - **Open-source community**: For inspiration and collaboration
-- **Early adopters**: For feedback and validation
+- **Early adopters**: For feedback and validation (235 real users and counting)
 - **Academic researchers**: For theoretical foundations
+- **Google Cloud Platform**: For generous free tier enabling $0/month operations
 
 ---
 
