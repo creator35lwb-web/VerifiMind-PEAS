@@ -123,7 +123,7 @@ All four MCP tools now sanitize inputs:
 - **Resolution**: Default to `gemini-2.5-flash` (stable, FREE tier)
 
 ### Deployment
-- Deployed to GCP Cloud Run: `verifimind-mcp-server-690976799907.us-central1.run.app`
+- Deployed to GCP Cloud Run: `verifimind.ysenseai.org`
 - All v0.3.1 protection features remain active
 
 ### Credits
