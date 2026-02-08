@@ -53,17 +53,17 @@ docker build -t verifimind-mcp-server:v2.0 .
 
 #### Push to GCR (✅ Success)
 ```bash
-docker push gcr.io/ysense-platform-v4-1/verifimind-mcp-server:v2.0
-docker push gcr.io/ysense-platform-v4-1/verifimind-mcp-server:latest
+docker push gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:v2.0
+docker push gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:latest
 ```
 - **Result:** Both tags pushed successfully
-- **Registry:** gcr.io/ysense-platform-v4-1/verifimind-mcp-server
+- **Registry:** gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server
 - **Tags:** v2.0, latest
 
 #### Deploy to Cloud Run (❌ Failed)
 ```bash
 gcloud run deploy verifimind-mcp-server \
-  --image gcr.io/ysense-platform-v4-1/verifimind-mcp-server:latest \
+  --image gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:latest \
   --region us-central1 \
   --set-env-vars "VERIFIMIND_LLM_PROVIDER=gemini"
 ```
@@ -132,15 +132,15 @@ docker build -t verifimind-mcp-server:v2.0.1 .
 
 **Push v2.0.1:**
 ```bash
-docker push gcr.io/ysense-platform-v4-1/verifimind-mcp-server:v2.0.1
-docker push gcr.io/ysense-platform-v4-1/verifimind-mcp-server:latest
+docker push gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:v2.0.1
+docker push gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:latest
 ```
 - **Result:** ✅ Both tags pushed
 
 **Deploy v2.0.1:**
 ```bash
 gcloud run deploy verifimind-mcp-server \
-  --image gcr.io/ysense-platform-v4-1/verifimind-mcp-server:latest \
+  --image gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:latest \
   --region us-central1 \
   --platform managed \
   --allow-unauthenticated \
@@ -150,7 +150,7 @@ gcloud run deploy verifimind-mcp-server \
   --min-instances 0 \
   --max-instances 10 \
   --set-env-vars "VERIFIMIND_LLM_PROVIDER=gemini" \
-  --project ysense-platform-v4-1
+  --project YOUR_GCP_PROJECT_ID
 ```
 - **Result:** ✅ Deployment successful
 - **Revision:** verifimind-mcp-server-00007-wcg
@@ -271,7 +271,7 @@ The MCP server needs these environment variables for full functionality:
 #### Option 1: Google Cloud Console (Recommended)
 
 1. **Navigate to Cloud Run service:**
-   https://console.cloud.google.com/run/detail/us-central1/verifimind-mcp-server/variables-and-secrets?project=ysense-platform-v4-1
+   https://console.cloud.google.com/run/detail/us-central1/verifimind-mcp-server/variables-and-secrets?project=YOUR_GCP_PROJECT_ID
 
 2. **Click "EDIT & DEPLOY NEW REVISION"**
 
@@ -294,7 +294,7 @@ The MCP server needs these environment variables for full functionality:
 gcloud run services update verifimind-mcp-server \
   --region us-central1 \
   --set-env-vars "GEMINI_API_KEY=YOUR_KEY,ANTHROPIC_API_KEY=YOUR_KEY" \
-  --project ysense-platform-v4-1
+  --project YOUR_GCP_PROJECT_ID
 ```
 
 ### Obtaining API Keys
@@ -345,7 +345,7 @@ curl -X POST https://verifimind.ysenseai.org/tools/call \
 - **Concurrency:** Default (80)
 
 ### Image Details
-- **Registry:** gcr.io/ysense-platform-v4-1/verifimind-mcp-server
+- **Registry:** gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server
 - **Tag:** latest (v2.0.1)
 - **Base:** ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 - **Size:** 538MB (compressed: 115MB)
@@ -515,9 +515,9 @@ curl -X POST https://verifimind.ysenseai.org/tools/call \
 1. **This document:** `CLAUDE_CODE_SESSION_DEPLOYMENT_V2.0.md`
 2. **Commit:** `4e1eede` - Deployment fix
 3. **Docker Images:**
-   - gcr.io/ysense-platform-v4-1/verifimind-mcp-server:v2.0
-   - gcr.io/ysense-platform-v4-1/verifimind-mcp-server:v2.0.1
-   - gcr.io/ysense-platform-v4-1/verifimind-mcp-server:latest
+   - gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:v2.0
+   - gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:v2.0.1
+   - gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:latest
 
 ---
 
@@ -543,11 +543,11 @@ curl -X POST https://verifimind.ysenseai.org/tools/call \
 | Resource | URL |
 |----------|-----|
 | **Live Server** | https://verifimind.ysenseai.org |
-| **Cloud Run Service** | https://console.cloud.google.com/run/detail/us-central1/verifimind-mcp-server?project=ysense-platform-v4-1 |
-| **Cloud Run Logs** | https://console.cloud.google.com/logs/query?project=ysense-platform-v4-1&resource=cloud_run_revision |
+| **Cloud Run Service** | https://console.cloud.google.com/run/detail/us-central1/verifimind-mcp-server?project=YOUR_GCP_PROJECT_ID |
+| **Cloud Run Logs** | https://console.cloud.google.com/logs/query?project=YOUR_GCP_PROJECT_ID&resource=cloud_run_revision |
 | **GitHub Repo** | https://github.com/creator35lwb-web/VerifiMind-PEAS |
 | **This Commit** | https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/4e1eede |
-| **Container Registry** | https://console.cloud.google.com/gcr/images/ysense-platform-v4-1/global/verifimind-mcp-server |
+| **Container Registry** | https://console.cloud.google.com/gcr/images/YOUR_GCP_PROJECT_ID/global/verifimind-mcp-server |
 
 ---
 
