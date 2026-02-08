@@ -3,10 +3,10 @@
 ## Deployment Status: SUCCESS ✓
 
 Your MCP server is now live at:
-- **Service URL**: https://verifimind-mcp-server-690976799907.us-central1.run.app
-- **Health**: https://verifimind-mcp-server-690976799907.us-central1.run.app/health
-- **MCP Config**: https://verifimind-mcp-server-690976799907.us-central1.run.app/.well-known/mcp-config
-- **MCP Endpoint**: https://verifimind-mcp-server-690976799907.us-central1.run.app/mcp
+- **Service URL**: https://verifimind.ysenseai.org
+- **Health**: https://verifimind.ysenseai.org/health
+- **MCP Config**: https://verifimind.ysenseai.org/.well-known/mcp-config
+- **MCP Endpoint**: https://verifimind.ysenseai.org/mcp
 
 ## Setting Up Custom Domain: verifimind.ysenseai.org
 
@@ -14,7 +14,7 @@ Your MCP server is now live at:
 
 1. **Navigate to Cloud Run**
    - Go to https://console.cloud.google.com/run
-   - Select your project: `ysense-platform-v4-1`
+   - Select your project: `YOUR_GCP_PROJECT_ID`
    - Click on service: `verifimind-mcp-server`
 
 2. **Add Custom Domain**
@@ -128,7 +128,7 @@ curl https://verifimind.ysenseai.org/
 
 ## Current Configuration
 
-- **Project**: ysense-platform-v4-1
+- **Project**: YOUR_GCP_PROJECT_ID
 - **Service**: verifimind-mcp-server
 - **Region**: us-central1
 - **Memory**: 512Mi
