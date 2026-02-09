@@ -1,180 +1,25 @@
-# VerifiMind Trinity Validation Archive
+# Iteration Archive
 
-## Overview
+Development iteration records, session handoffs, and internal analysis documents
+have been moved to the private development repository as part of the
+Dual-Repo Protocol v2.0 reorganization (February 2026).
 
-This archive contains **57 complete Trinity validation reports** generated using the VerifiMind PEAS (Proactive Ethics & Accountability System) standardization protocol v1.0.
+## What Was Here
 
-**Generation Date:** December 21, 2025  
-**Protocol:** Standardization v1.0 (Gemini + Claude)  
-**Success Rate:** 95% (57/60 validations)  
-**Total Cost:** $0.00 (Gemini free tier)
+This directory previously contained 55+ files including:
+- Session notes and handoff records
+- Claude Code implementation guides
+- Strategic assessments and research findings
+- Multi-agent workflow protocols
+- White paper drafts
 
----
+## Why They Were Moved
 
-## 📁 Archive Structure
+These files contain internal development context that is more appropriate
+for the private command hub repository. The public-facing documentation
+remains in the `docs/` directory.
 
-```
-validation_archive/
-├── README.md (this file)
-├── reports/ (57 complete Trinity validation reports)
-│   ├── 001_ai-powered_fraud_detection_for_banking.txt
-│   ├── 002_blockchain-based_cross-border_payment_platform.txt
-│   └── ... (55 more reports)
-└── metrics/ (performance metrics and summary)
-    └── summary.json
-```
+## For Contributors
 
----
-
-## 🎯 What is Trinity Validation?
-
-Trinity validation is VerifiMind's three-agent analysis framework:
-
-1. **X Agent (Innovation & Strategy)** - Gemini 2.0 Flash
-   - Evaluates innovation potential and strategic value
-   - Identifies opportunities and risks
-   - Provides market and competitive analysis
-
-2. **Z Agent (Ethics & Responsibility)** - Claude 3 Haiku
-   - Assesses ethical implications and social impact
-   - Triggers veto if ethical red lines are crossed
-   - Recommends mitigation measures
-
-3. **CS Agent (Security & Privacy)** - Claude 3 Haiku
-   - Analyzes security vulnerabilities and attack vectors
-   - Evaluates privacy and data protection concerns
-   - Provides security recommendations
-
----
-
-## 📊 Validation Results Summary
-
-**Total Validations:** 60 concepts  
-**Successful:** 57 reports generated  
-**Failed:** 3 (technical issues, not concept quality)
-
-**Score Distribution:**
-- 3.0/10 (REJECT): 55 concepts - Z Agent veto triggered
-- 6.8/10 (PROCEED_WITH_CAUTION): 1 concept
-- 7.0/10 (PROCEED_WITH_CAUTION): 1 concept
-
-**Performance Metrics:**
-- Average duration: 18.61 seconds per validation
-- Average tokens: ~6,000 per validation
-- Total cost: $0.00 (Gemini free tier)
-
----
-
-## 📖 Report Format
-
-Each validation report includes:
-
-### 1. Concept Information
-- Name and description
-- Validation ID and timestamp
-
-### 2. X Agent Analysis (Innovation & Strategy)
-- Innovation score (0-10)
-- Strategic value score (0-10)
-- Reasoning steps with confidence levels
-- Opportunities and risks
-- Final recommendation
-
-### 3. Z Agent Analysis (Ethics & Responsibility)
-- Ethics score (0-10)
-- Z-Protocol compliance status
-- Ethical concerns
-- Mitigation measures
-- Veto status (if triggered)
-
-### 4. CS Agent Analysis (Security & Privacy)
-- Security score (0-10)
-- Vulnerabilities and attack vectors
-- Security recommendations
-- Socratic questions for human consideration
-
-### 5. Trinity Synthesis
-- Overall score (0-10)
-- Final recommendation (proceed/proceed_with_caution/revise/reject)
-- Summary of key findings
-- Strengths, concerns, and recommendations
-
-### 6. Performance Metrics
-- Duration, tokens, and cost per agent
-- Total validation metrics
-
----
-
-## 🔬 Research Value
-
-This archive serves multiple purposes:
-
-1. **Methodology Proof** - Demonstrates VerifiMind's Trinity validation in action
-2. **Reproducibility** - All validations use standardized protocol
-3. **Transparency** - Complete reasoning chains and analysis available
-4. **Research Data** - Performance metrics for LLM behavior analysis
-5. **Public Showcase** - Evidence of systematic AI concept evaluation
-
----
-
-## 📝 Standardization Protocol v1.0
-
-**LLM Configuration:**
-- Temperature: 0.7 (balanced reasoning)
-- Max tokens: 2000 per agent
-- Seed: 42 (reproducibility)
-- Top_p: 0.9
-
-**Model Selection:**
-- X Agent: `gemini-2.0-flash-exp` (creative, free tier)
-- Z Agent: `claude-3-haiku-20240307` (ethical reasoning)
-- CS Agent: `claude-3-haiku-20240307` (security analysis)
-
-**API Reliability:**
-- Exponential backoff: 1s → 2s → 4s
-- Max 3 retries per API call
-- Automatic retry on 429, 500, 502, 503, 529 errors
-
----
-
-## 🚀 How to Use This Archive
-
-### For Researchers
-- Analyze LLM behavior patterns across 57 validations
-- Study ethical veto triggers and patterns
-- Compare innovation vs ethics vs security scores
-- Examine reasoning chain quality
-
-### For Developers
-- Reference complete validation examples
-- Understand Trinity validation format
-- Learn from standardization protocol
-- Study metrics tracking implementation
-
-### For Stakeholders
-- Review concept evaluation methodology
-- Understand ethical considerations
-- Assess security and privacy analysis
-- Validate VerifiMind's systematic approach
-
----
-
-## 📚 Related Documentation
-
-- [Standardization Protocol](../docs/STANDARDIZATION_PROTOCOL.md)
-- [VerifiMind PEAS Overview](../README.md)
-- [MCP Server Documentation](../mcp-server/README.md)
-
----
-
-## 📧 Contact
-
-For questions about this archive or VerifiMind PEAS:
-- GitHub: [VerifiMind-PEAS](https://github.com/creator35lwb-web/VerifiMind-PEAS)
-- Documentation: See `/docs` directory
-
----
-
-**Generated by:** VerifiMind PEAS Standardization Protocol v1.0  
-**Date:** December 21, 2025  
-**License:** See repository root
+If you need access to iteration history for contribution purposes,
+please open an issue or contact the maintainer.

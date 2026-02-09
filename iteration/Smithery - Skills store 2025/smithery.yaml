@@ -1,2 +1,0 @@
-runtime: python
-entrypoint: src/verifimind_mcp/server.py
