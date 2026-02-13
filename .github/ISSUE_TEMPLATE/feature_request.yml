@@ -1,0 +1,75 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for VerifiMind-PEAS
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a feature! Please describe your idea clearly so we can evaluate it.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? Is it related to an existing limitation?
+      placeholder: I'm frustrated when...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like to see.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any alternative solutions or features you've considered.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which component would this feature affect?
+      options:
+        - MCP Server
+        - X Agent (Innovator)
+        - Z Agent (Guardian)
+        - CS Agent (Validator)
+        - Synthesis Engine
+        - Genesis Methodology
+        - Documentation
+        - Infrastructure
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: alignment
+    attributes:
+      label: Genesis Methodology Alignment
+      description: How does this feature align with the Genesis Methodology principles?
+      options:
+        - Accessibility (lowers barriers)
+        - Sustainability (improves efficiency)
+        - Optimization (better model usage)
+        - Flexibility (more configuration options)
+        - Ethics (improves safety/guardrails)
+        - Other
+    validations:
+      required: false
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other context, screenshots, or references.
+    validations:
+      required: false

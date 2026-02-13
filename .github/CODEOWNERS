@@ -1,0 +1,20 @@
+# CODEOWNERS for VerifiMind-PEAS
+# These owners will be automatically requested for review when a PR modifies matching paths.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for all files
+* @creator35lwb-web
+
+# Security-sensitive files require explicit owner review
+SECURITY.md @creator35lwb-web
+.github/workflows/ @creator35lwb-web
+.github/dependabot.yml @creator35lwb-web
+
+# MCP Server code
+mcp-server/ @creator35lwb-web
+
+# Documentation
+docs/ @creator35lwb-web
+README.md @creator35lwb-web
+CONTRIBUTING.md @creator35lwb-web
+GOVERNANCE.md @creator35lwb-web

@@ -10,7 +10,7 @@ VerifiMind-PEAS is a multi-model AI validation framework with the X-Z-CS RefleXi
 
 **Current Version:** v0.3.4
 **Status:** OPERATIONAL
-**Server:** https://verifimind-mcp-server-690976799907.us-central1.run.app
+**Server:** https://verifimind.ysenseai.org
 
 ---
 
@@ -251,7 +251,7 @@ The following custom skills are available for this project:
 
 ```bash
 # Check server health
-curl https://verifimind-mcp-server-690976799907.us-central1.run.app/health
+curl https://verifimind.ysenseai.org/health
 
 # Clone PRIVATE repo (for development)
 gh repo clone creator35lwb-web/verifimind-genesis-mcp
