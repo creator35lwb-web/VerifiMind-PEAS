@@ -38,40 +38,53 @@ VerifiMind PEAS is now **live and accessible** across multiple platforms:
 
 ### Quick Start
 
-**Claude Code** (Copy & Paste to Settings > MCP Servers):
+> **Important**: Use `streamable-http` transport (not `http-sse`) and always include the trailing slash `/mcp/`.  
+> 📖 **[Full Multi-Client Setup & Troubleshooting Guide](docs/MCP_Server_Troubleshooting_Guide.md)**
+
+**Claude Code** (Terminal command — recommended):
+```bash
+claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/
+```
+
+**Claude Desktop** (Edit config file — [macOS](~/Library/Application Support/Claude/claude_desktop_config.json) | [Windows](%APPDATA%\Claude\claude_desktop_config.json)):
 ```json
 {
   "mcpServers": {
-    "verifimind-genesis": {
-      "url": "https://verifimind.ysenseai.org/mcp",
-      "transport": "http-sse"
+    "verifimind": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://verifimind.ysenseai.org/mcp/"]
     }
   }
 }
 ```
 
-**Claude Desktop** (Edit config file):
-- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
-
-**Cursor** (Add to settings.json):
+**Cursor / VS Code Copilot** (`.cursor/mcp.json` or `.vscode/mcp.json`):
 ```json
 {
-  "mcp.servers": {
-    "verifimind-genesis": {
-      "url": "https://verifimind.ysenseai.org/mcp",
-      "transport": "http-sse"
+  "servers": {
+    "verifimind": {
+      "url": "https://verifimind.ysenseai.org/mcp/",
+      "transport": "streamable-http"
     }
   }
 }
 ```
 
-**One-Click Setup Script:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/creator35lwb-web/VerifiMind-PEAS/main/scripts/setup-mcp.sh | bash
+**ChatGPT Codex CLI** (`~/.codex/config.toml`):
+```toml
+[mcp_servers.verifimind]
+url = "https://verifimind.ysenseai.org/mcp/"
+transport = "streamable_http"
+```
+> ⚠️ Codex CLI v0.98.0 has a [known bug](https://github.com/openai/codex/issues/11284) with streamable-http. See [Troubleshooting Guide](docs/MCP_Server_Troubleshooting_Guide.md#-tools-list-empty-codex-cli) for workaround.
+
+**OpenAI Agents SDK** (Python):
+```python
+from agents.mcp import MCPServerStreamableHttp
+server = MCPServerStreamableHttp(name="VerifiMind", params={"url": "https://verifimind.ysenseai.org/mcp/"})
 ```
 
-📖 **[Full Setup Guide](MCP_SETUP_GUIDE.md)** | 🎮 **[Interactive Demo](https://huggingface.co/spaces/YSenseAI/wisdom-canvas)**
+🎮 **[Interactive Demo](https://huggingface.co/spaces/YSenseAI/verifimind-peas)**
 
 ### API Keys
 
