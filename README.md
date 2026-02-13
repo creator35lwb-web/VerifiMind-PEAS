@@ -601,7 +601,7 @@ The reference implementation demonstrates how to automate the X-Z-CS Trinity:
 ### **Case Studies**
 
 - **[YSenseAI™ 87-Day Journey](https://journey.manus.space/)** (Landing Pages): Real-world validation of Genesis Methodology
-- **[VerifiMind-PEAS Development](https://verifimind.manus.space/)** (Landing Pages): Meta-application of methodology to itself
+- **[VerifiMind-PEAS Development](https://verifimind.io/)** (Landing Pages): Meta-application of methodology to itself
 
 ### **Operations & Troubleshooting**
 
@@ -925,7 +925,7 @@ Forks and derivatives may use the open-source code under MIT license, but must u
 **Twitter/X**: [@creator35lwb](https://x.com/creator35lwb)  
 **GitHub Discussions**: [Join discussions](https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions)  
 **MCP Server**: [verifimind.ysenseai.org](https://verifimind.ysenseai.org) (LIVE — v0.4.0)  
-**Landing Page**: [verifimind.manus.space](https://verifimind.manus.space)
+**Landing Page**: [verifimind.io](https://verifimind.io)
 
 ---
 

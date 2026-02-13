@@ -83,7 +83,7 @@ This Genesis Master Prompt v1.5 documents the continued development journey of t
 **Status:** Production-ready codebase (17,282+ lines Python)  
 **Repository:** https://github.com/creator35lwb-web/VerifiMind-PEAS  
 **Defensive Publication:** DOI 10.5281/zenodo.17645665 (v1.0.2, November 19, 2025)  
-**Landing Page:** https://verifimind-peas-landing.manus.space/ (pending deployment)
+**Landing Page:** https://verifimind.io (LIVE)
 
 **Key Innovation:** Productization of Genesis Methodology into systematic validation framework with blockchain attribution.
 
@@ -522,7 +522,7 @@ By documenting the outputs of each step and structuring the inputs for the next,
 
 **Status:** PRODUCTION-READY (November 23, 2025)
 
-**URL:** https://verifimind-peas-landing.manus.space/ (pending deployment)
+**URL:** https://verifimind.io (LIVE)
 
 **Features:**
 - ✅ Hero section with logo and tagline

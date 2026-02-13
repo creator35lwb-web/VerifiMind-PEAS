@@ -280,4 +280,4 @@ curl -s -X POST $SERVICE_URL/mcp/ \
 
 - **Repository Issues:** https://github.com/creator35lwb-web/VerifiMind-PEAS/issues
 - **Documentation:** https://doi.org/10.5281/zenodo.17645665
-- **Landing Page:** https://verifimind.manus.space
+- **Landing Page:** https://verifimind.io
