@@ -12,7 +12,7 @@ from typing import Optional
 
 # Server URLs
 LOCAL_SERVER_URL = "http://localhost:8000"
-PRODUCTION_SERVER_URL = "https://verifimind-mcp-server-690976799907.us-central1.run.app"
+PRODUCTION_SERVER_URL = "https://verifimind.ysenseai.org"
 
 # Determine which server to test
 def get_server_url() -> str:

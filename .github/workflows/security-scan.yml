@@ -1,0 +1,118 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mcp-server/**'
+      - '.github/workflows/security-scan.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'mcp-server/**'
+      - '.github/workflows/security-scan.yml'
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly: Sunday at midnight UTC
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  bandit-sast:
+    name: Bandit SAST Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Bandit
+        run: pip install bandit[toml]
+
+      - name: Run Bandit security scan
+        run: |
+          echo "Running Bandit SAST analysis on mcp-server/src/..."
+          cd mcp-server
+          bandit -r src/ -ll -ii --skip B101 -f json -o ../bandit-report.json || true
+          bandit -r src/ -ll -ii --skip B101 || true
+
+      - name: Upload Bandit report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: bandit-security-report
+          path: bandit-report.json
+          retention-days: 90
+
+      - name: Security scan summary
+        if: always()
+        run: |
+          echo "## Bandit SAST Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f bandit-report.json ]; then
+            ISSUES=$(python -c "import json; d=json.load(open('bandit-report.json')); print(len(d.get('results',[])))" 2>/dev/null || echo "unknown")
+            echo "Issues found: $ISSUES" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No report generated" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  safety-sca:
+    name: Safety Dependency Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Safety
+        run: pip install safety
+
+      - name: Check dependencies for vulnerabilities
+        run: |
+          echo "Running Safety dependency vulnerability check..."
+          cd mcp-server
+          safety check -r requirements.txt --output text || true
+
+      - name: Safety scan summary
+        if: always()
+        run: |
+          echo "## Safety Dependency Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Checked mcp-server/requirements.txt for known vulnerabilities" >> $GITHUB_STEP_SUMMARY
+
+  codeql-analysis:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@f5c2471be782132e47a6e6f9c725e56730d6e9a3  # v3
+        with:
+          languages: python
+          queries: security-and-quality
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@f5c2471be782132e47a6e6f9c725e56730d6e9a3  # v3
+        with:
+          category: "/language:python"
+
+      - name: CodeQL summary
+        if: always()
+        run: |
+          echo "## CodeQL Analysis Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "CodeQL semantic analysis completed for Python code" >> $GITHUB_STEP_SUMMARY
