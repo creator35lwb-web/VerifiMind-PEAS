@@ -12,7 +12,6 @@ Version: 0.4.0
 """
 
 import logging
-import os
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from threading import Lock

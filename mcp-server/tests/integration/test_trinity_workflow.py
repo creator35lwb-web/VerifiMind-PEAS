@@ -1,7 +1,6 @@
 """Integration tests for Trinity workflow (X → Z → CS)."""
 
 import pytest
-from unittest.mock import Mock, patch
 from verifimind_mcp.agents.x_agent import XAgent
 from verifimind_mcp.agents.z_agent import ZAgent
 from verifimind_mcp.agents.cs_agent import CSAgent

@@ -256,7 +256,6 @@ I want to measure success by daily usage.
 
 async def save_generated_app(app: GeneratedApp):
     """Saves generated application to disk"""
-    import os
     from pathlib import Path
 
     base_dir = Path(f"./output/{app.app_name}")

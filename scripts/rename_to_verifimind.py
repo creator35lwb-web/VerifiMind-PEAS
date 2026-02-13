@@ -3,8 +3,6 @@ Batch Rename Script: RefleXion -> VerifiMind
 Updates all occurrences across the entire project
 """
 
-import os
-import re
 from pathlib import Path
 
 

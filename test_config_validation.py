@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent / "mcp-server" / "src"))
 
 from verifimind_mcp.config.standard_config import DEFAULT_CONFIG
 from verifimind_mcp.utils.retry import APIError, retry_with_backoff
-from verifimind_mcp.utils.metrics import AgentMetrics, ValidationMetrics, METRICS_COLLECTOR
+from verifimind_mcp.utils.metrics import AgentMetrics, ValidationMetrics
 import asyncio
 import json
 

@@ -1,7 +1,7 @@
 """Unit tests for X Agent (Innovation) - Corrected for actual code structure."""
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import patch
 from verifimind_mcp.agents.x_agent import XAgent
 from verifimind_mcp.models import Concept, XAgentAnalysis, ReasoningStep
 from verifimind_mcp.llm import MockProvider

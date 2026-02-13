@@ -225,9 +225,6 @@ class ConceptScrutinizer:
         logger.info(f"Starting Socratic Scrutiny for concept: {concept_description[:50]}...")
         self._errors = []  # Reset errors for this run
         
-        # Context building
-        context_str = json.dumps(context) if context else "No additional context."
-
         # Execute 4 Steps Sequentially (The Logic Chain)
         
         # Step 1: Clarification & Definition

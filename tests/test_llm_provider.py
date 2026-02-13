@@ -12,14 +12,12 @@ Tests cover:
 
 import pytest
 from unittest.mock import Mock, patch, AsyncMock
-import asyncio
 
 from src.llm.llm_provider import (
     OpenAIProvider,
     AnthropicProvider,
     LLMMessage,
     LLMResponse,
-    LLMProviderError,
     LLMAPIError,
     LLMAuthenticationError,
     LLMRateLimitError,
@@ -464,7 +462,7 @@ class TestLLMProviderEdgeCases:
                 LLMMessage(role="user", content="Hello!")
             ]
 
-            result = await provider.generate(messages)
+            await provider.generate(messages)
 
             # Should use the last system message
             call_kwargs = mock_client.messages.create.call_args[1]

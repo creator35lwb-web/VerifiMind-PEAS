@@ -89,12 +89,12 @@ async def test_trinity_validation():
         print("\n⚖️ Creating Trinity Synthesis...")
         
         # Create PriorReasoning objects
-        x_prior = PriorReasoning(
+        _x_prior = PriorReasoning(
             agent_id="X",
             reasoning_steps=x_result.reasoning_steps,
             confidence=x_result.confidence
         )
-        z_prior = PriorReasoning(
+        _xz_prior = PriorReasoning(
             agent_id="Z",
             reasoning_steps=z_result.reasoning_steps,
             confidence=z_result.confidence

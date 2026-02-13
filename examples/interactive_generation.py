@@ -300,7 +300,6 @@ async def interactive_app_generation():
 
 async def save_generated_app(app: GeneratedApp):
     """Saves generated application to disk"""
-    import os
     from pathlib import Path
 
     base_dir = Path(f"./output/{app.app_name}")

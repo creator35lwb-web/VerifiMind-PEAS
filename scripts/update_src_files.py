@@ -1,5 +1,4 @@
 """Simple script to update remaining src files"""
-import os
 from pathlib import Path
 
 # Replacements

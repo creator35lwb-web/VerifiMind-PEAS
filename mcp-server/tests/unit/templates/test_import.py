@@ -102,10 +102,12 @@ def test_convert_gist_url():
     gist_url = "https://gist.github.com/testuser/abc123"
     raw_url = _convert_gist_to_raw_url(gist_url)
 
-    assert "gist.githubusercontent.com" in raw_url
-    assert "testuser" in raw_url
-    assert "abc123" in raw_url
-    assert "raw" in raw_url
+    from urllib.parse import urlparse
+    parsed = urlparse(raw_url)
+    assert parsed.hostname == "gist.githubusercontent.com"
+    assert "testuser" in parsed.path
+    assert "abc123" in parsed.path
+    assert "raw" in parsed.path
 
 
 @pytest.mark.unit

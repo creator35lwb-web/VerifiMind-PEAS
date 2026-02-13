@@ -11,7 +11,7 @@ import json
 import sys
 from pathlib import Path
 from datetime import datetime
-from typing import List, Dict
+from typing import Dict
 
 # Add mcp-server to path
 sys.path.insert(0, str(Path(__file__).parent / "mcp-server" / "src"))

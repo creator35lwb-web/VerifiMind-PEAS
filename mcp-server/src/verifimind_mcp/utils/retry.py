@@ -11,7 +11,7 @@ Version: 1.0.0
 
 import asyncio
 import logging
-from typing import Callable, TypeVar, Any
+from typing import Callable, TypeVar
 from functools import wraps
 
 from verifimind_mcp.config.standard_config import DEFAULT_CONFIG

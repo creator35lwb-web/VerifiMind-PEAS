@@ -303,7 +303,7 @@ Perform multi-dimensional strategic scrutiny:
 Provide scores (0-100) for each dimension.
 """
 
-        result = await self._call_llm(llm, prompt, user_message)
+        await self._call_llm(llm, prompt, user_message)
 
         return {
             'innovation_score': 75,
@@ -361,7 +361,7 @@ Provide:
 Format as actionable business recommendations.
 """
 
-        result = await self._call_llm(llm, prompt, user_message)
+        await self._call_llm(llm, prompt, user_message)
 
         return {
             'strategic_options': [

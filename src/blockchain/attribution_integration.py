@@ -3,7 +3,6 @@ Attribution System Integration
 Integrates blockchain attribution into the app generation workflow
 """
 
-import os
 from datetime import datetime
 from typing import Dict, Any, Optional, Tuple
 from pathlib import Path

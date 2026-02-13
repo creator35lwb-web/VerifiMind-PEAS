@@ -7,7 +7,6 @@ This file is automatically loaded by pytest and provides:
 - Reusable test utilities
 """
 
-import pytest
 import sys
 from pathlib import Path
 

@@ -14,7 +14,7 @@ Version: 0.4.0
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional, List, Dict, Any, Union
+from typing import Optional, List, Any
 from pydantic import BaseModel, Field, field_validator
 
 

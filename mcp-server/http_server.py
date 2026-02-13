@@ -14,8 +14,6 @@ v0.4.0 Features:
 - Smart Fallback per-agent provider system
 """
 import os
-import contextlib
-from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from starlette.applications import Starlette
 from starlette.routing import Mount, Route
