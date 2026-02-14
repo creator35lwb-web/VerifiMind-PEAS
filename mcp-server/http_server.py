@@ -17,6 +17,7 @@ v0.4.1 Features:
 import os
 from fastapi.responses import JSONResponse
 from starlette.applications import Starlette
+from starlette.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
 from starlette.routing import Mount, Route
 from starlette.middleware.cors import CORSMiddleware
 from verifimind_mcp.server import create_http_server
@@ -251,56 +252,89 @@ async def mcp_config_handler(request):
         }
     })
 
+ROOT_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VerifiMind-PEAS MCP Server</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+         max-width: 680px; margin: 40px auto; padding: 0 20px; color: #1a1a2e;
+         background: #f8f9fa; line-height: 1.6; }
+  h1 { color: #16213e; border-bottom: 3px solid #0f3460; padding-bottom: 8px; }
+  code { background: #e8eaf6; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+  pre { background: #1a1a2e; color: #e0e0e0; padding: 16px; border-radius: 8px;
+        overflow-x: auto; font-size: 0.85em; }
+  .badge { display: inline-block; background: #0f3460; color: #fff; padding: 2px 10px;
+           border-radius: 12px; font-size: 0.8em; }
+  a { color: #0f3460; }
+  .card { background: #fff; border: 1px solid #dee2e6; border-radius: 8px;
+          padding: 16px; margin: 12px 0; }
+</style>
+</head>
+<body>
+<h1>VerifiMind-PEAS MCP Server <span class="badge">v""" + SERVER_VERSION + """</span></h1>
+<p>This is an <strong>MCP (Model Context Protocol) server</strong>, not a website.
+Connect using an MCP client such as Claude Desktop, Claude Code, or Cursor.</p>
+
+<div class="card">
+<h3>Quick Start &mdash; Claude Code</h3>
+<pre>claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/</pre>
+</div>
+
+<div class="card">
+<h3>Quick Start &mdash; Claude Desktop</h3>
+<p>Add to your <code>claude_desktop_config.json</code>:</p>
+<pre>{
+  "mcpServers": {
+    "verifimind": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://verifimind.ysenseai.org/mcp/"]
+    }
+  }
+}</pre>
+</div>
+
+<h3>Links</h3>
+<ul>
+  <li><a href="https://verifimind.io">Landing Page</a></li>
+  <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS">GitHub Repository</a></li>
+  <li><a href="/health">Health Check</a></li>
+  <li><a href="/.well-known/mcp-config">Full MCP Configuration</a></li>
+  <li><a href="/setup">Setup Guide (JSON)</a></li>
+</ul>
+<p><small>10 tools &middot; 4 resources &middot; X-Z-CS RefleXion Trinity &middot;
+<a href="https://doi.org/10.5281/zenodo.17972751">DOI 10.5281/zenodo.17972751</a></small></p>
+</body>
+</html>"""
+
+
 async def root_handler(request):
-    """Root endpoint with server info and quick start guide"""
+    """Root endpoint — HTML for browsers, JSON for API clients."""
+    accept = request.headers.get("accept", "")
+    if "text/html" in accept:
+        return HTMLResponse(ROOT_HTML)
     return JSONResponse({
         "name": "VerifiMind PEAS MCP Server",
         "version": SERVER_VERSION,
-        "description": "Model Context Protocol server for VerifiMind-PEAS Genesis Methodology - Multi-Model AI Validation System",
-        "author": "Alton Lee",
-        "repository": "https://github.com/creator35lwb-web/VerifiMind-PEAS",
-        "documentation": "https://doi.org/10.5281/zenodo.17645665",
-        "landing_page": "https://verifimind.manus.space",
-        "status": "online",
+        "mcp_endpoint": "/mcp/",
+        "documentation": "https://github.com/creator35lwb-web/VerifiMind-PEAS",
+        "landing_page": "https://verifimind.io",
+        "message": "Connect to /mcp/ using an MCP client (Claude Desktop, Cursor, VS Code)",
         "endpoints": {
             "mcp": "/mcp/",
             "config": "/.well-known/mcp-config",
             "health": "/health",
             "setup": "/setup"
         },
-        "quick_start": {
-            "claude_code": "Run: claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/",
-            "verify": "Run: claude mcp list",
-            "docs": "Visit: /.well-known/mcp-config for full setup instructions"
-        },
-        "tools": [
-            "consult_agent_x - Innovation & Strategy",
-            "consult_agent_z - Ethics & Safety (has VETO power)",
-            "consult_agent_cs - Security & Feasibility",
-            "run_full_trinity - Complete X → Z → CS validation"
-        ],
-        "resources": 4,
-        "agents": {
-            "X": "Innovation & Strategy (Gemini 1.5 Flash - FREE)",
-            "Z": "Ethics & Safety (Claude if BYOK, else Gemini FREE)",
-            "CS": "Security & Feasibility (Claude if BYOK, else Gemini FREE)"
-        },
-        "smart_fallback": {
-            "description": "v0.3.1 - Per-agent provider selection with FREE tier default",
-            "default": "Gemini 1.5 Flash (FREE) for all agents",
-            "upgrade": "Z and CS auto-upgrade to Claude if ANTHROPIC_API_KEY is set"
-        },
-        "byok": {
-            "description": "Bring Your Own Key - provide your API keys via session config",
-            "supported_providers": ["openai", "anthropic", "gemini", "groq", "mistral", "ollama", "mock"],
-            "default_provider": "gemini (FREE)"
-        },
-        "rate_limiting": {
-            "enabled": True,
-            "per_ip": "10 req/min",
-            "description": "EDoS protection enabled"
-        }
+        "quick_start": "claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/"
     })
+
+
+async def root_post_redirect(request):
+    """POST / redirects to /mcp/ — catches misconfigured Claude Desktop clients."""
+    return RedirectResponse(url="/mcp/", status_code=307)
 
 
 async def setup_handler(request):
@@ -431,16 +465,82 @@ async def setup_handler(request):
         }
     })
 
+ROBOTS_TXT = """\
+User-agent: *
+Disallow: /mcp/
+Allow: /health
+Allow: /.well-known/
+
+# VerifiMind-PEAS MCP Server
+# Landing page: https://verifimind.io
+# GitHub: https://github.com/creator35lwb-web/VerifiMind-PEAS
+"""
+
+# 1x1 transparent GIF (43 bytes) — suppresses browser 404s for favicon
+FAVICON_BYTES = (
+    b"\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00"
+    b"\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x00\x00\x00\x00"
+    b"\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02"
+    b"\x44\x01\x00\x3b"
+)
+
+HELP_URL = "https://github.com/creator35lwb-web/VerifiMind-PEAS#-common-mistakes-read-this-first"
+
+
+async def robots_handler(request):
+    """Serve robots.txt to suppress crawler 404s."""
+    return PlainTextResponse(ROBOTS_TXT)
+
+
+async def favicon_handler(request):
+    """Serve a minimal favicon to suppress browser 404s."""
+    return Response(content=FAVICON_BYTES, media_type="image/gif")
+
+
+async def http_exception_handler(request, exc):
+    """Return actionable error messages for common HTTP errors."""
+    status = exc.status_code
+    if status == 405:
+        return JSONResponse({
+            "error": "Method Not Allowed",
+            "message": "The MCP endpoint is at /mcp/ — you may have the wrong URL path.",
+            "mcp_endpoint": "/mcp/",
+            "help": HELP_URL,
+        }, status_code=405)
+    if status == 400:
+        return JSONResponse({
+            "error": "Bad Request",
+            "message": "Invalid MCP request. Ensure you are using POST with Content-Type: application/json.",
+            "help": HELP_URL,
+        }, status_code=400)
+    if status == 406:
+        return JSONResponse({
+            "error": "Not Acceptable",
+            "message": "This is an MCP server API, not a website. Use an MCP client to connect.",
+            "landing_page": "https://verifimind.io",
+            "help": HELP_URL,
+        }, status_code=406)
+    # Default for other errors
+    return JSONResponse({
+        "error": exc.detail if hasattr(exc, 'detail') else str(exc),
+        "help": HELP_URL,
+    }, status_code=status)
+
+
 # Create Starlette app with proper lifespan from MCP app
 app = Starlette(
     routes=[
         Route("/health", health_handler),
-        Route("/", root_handler),
-        Route("/setup", setup_handler),  # User-friendly setup guide
-        Route("/.well-known/mcp-config", mcp_config_handler),  # MCP config endpoint
-        Mount("/mcp", app=mcp_app),  # Mount MCP app at /mcp - routes will be /mcp/ (from /)
+        Route("/", root_handler, methods=["GET", "HEAD"]),
+        Route("/", root_post_redirect, methods=["POST"]),
+        Route("/robots.txt", robots_handler),
+        Route("/favicon.ico", favicon_handler),
+        Route("/setup", setup_handler),
+        Route("/.well-known/mcp-config", mcp_config_handler),
+        Mount("/mcp", app=mcp_app),
     ],
-    lifespan=mcp_app.lifespan  # CRITICAL: Pass lifespan for session initialization
+    lifespan=mcp_app.lifespan,  # CRITICAL: Pass lifespan for session initialization
+    exception_handlers={400: http_exception_handler, 405: http_exception_handler, 406: http_exception_handler},
 )
 
 # IMPORTANT: Add middleware in correct order
