@@ -3,7 +3,7 @@ VerifiMind Complete System v2.0.1 - Idea to App in One Command
 Corrected Version - December 2025
 
 Full end-to-end orchestration:
-X, Z, CS agents -> Socratic Validation -> PDF Report -> Iterative Generation
+X, Z, CS agents -> Socratic Validation -> Markdown Report -> Iterative Generation
 
 Fixes Applied:
 - All helper methods implemented (_build_app_spec, _detect_category, etc.)
@@ -38,7 +38,7 @@ from src.generation import (
     IterativeCodeGenerationEngine,
     AppSpecification,
 )
-from src.core.pdf_generator import ValidationReportGenerator
+from src.core.markdown_reporter import ValidationReportGenerator
 from src.llm.llm_provider import LLMProviderFactory
 
 logger = get_logger(__name__)
@@ -149,7 +149,7 @@ class VerifiMindComplete:
     
     v2.0.1 Features:
     - Integrates 'Concept Scrutinizer' Socratic Engine
-    - Generates PDF Validation Report
+    - Generates Markdown Validation Report
     - Graceful error handling throughout
     - Complete helper method implementations
     """
@@ -200,9 +200,9 @@ class VerifiMindComplete:
             quality_threshold=self.config.get('quality_threshold', 85)
         )
         
-        # Initialize PDF Reporter
+        # Initialize Report Generator (Markdown-first, v0.4.1)
         output_dir = self.config.get('output_dir', 'output')
-        self.pdf_reporter = ValidationReportGenerator(output_dir=output_dir)
+        self.reporter = ValidationReportGenerator(output_dir=output_dir)
 
     async def create_app_from_idea(
         self,
@@ -213,17 +213,17 @@ class VerifiMindComplete:
         skip_generation: bool = False
     ) -> Tuple[Optional[Any], Optional[GenerationHistory], Optional[str]]:
         """
-        Complete flow: Idea -> Socratic Validation -> PDF Report -> App Generation
-        
+        Complete flow: Idea -> Socratic Validation -> Markdown Report -> App Generation
+
         Args:
             idea_description: The startup/app idea to validate and build
             app_name: Optional custom app name (auto-generated if not provided)
             category: Optional category (auto-detected if not provided)
             output_dir: Directory for output files
             skip_generation: If True, only run validation (no code generation)
-            
+
         Returns:
-            Tuple of (generated_app, generation_history, pdf_path)
+            Tuple of (generated_app, generation_history, report_path)
         """
         logger.info(f"Starting app generation from idea: {idea_description[:100]}...")
 
@@ -275,11 +275,11 @@ class VerifiMindComplete:
         # Extract deep Socratic data from CS agent response (FIX: handle dict properly)
         socratic_data = self._extract_socratic_data(agent_results.get('CS'))
         
-        # Generate PDF with error handling (FIX: don't kill pipeline on failure)
-        pdf_path = await self._generate_pdf_safe(app_spec, agent_results, socratic_data)
-        
-        if pdf_path:
-            ConsoleOutput.success(f"REPORT GENERATED: {pdf_path}")
+        # Generate report with error handling (FIX: don't kill pipeline on failure)
+        report_path = await self._generate_report_safe(app_spec, agent_results, socratic_data)
+
+        if report_path:
+            ConsoleOutput.success(f"REPORT GENERATED: {report_path}")
             ConsoleOutput.bullet("Includes: Socratic Challenges, Strategic Roadmap, IP Proof")
         else:
             ConsoleOutput.warning("Report generation failed (continuing without report)")
@@ -287,7 +287,7 @@ class VerifiMindComplete:
         # Check if we should skip code generation
         if skip_generation:
             ConsoleOutput.info("Skipping code generation (validation only mode)")
-            return None, None, pdf_path
+            return None, None, report_path
 
         # --- PHASE 2: APPLICATION SPECIFICATION ---
         ConsoleOutput.header("PHASE 2: BUILDING APPLICATION SPECIFICATION")
@@ -310,14 +310,14 @@ class VerifiMindComplete:
         except Exception as e:
             logger.error(f"Code generation failed: {e}", exc_info=True)
             ConsoleOutput.error(f"Code generation failed: {e}")
-            return None, None, pdf_path
+            return None, None, report_path
 
         # --- PHASE 4: FINAL OUTPUT ---
         ConsoleOutput.header("GENESIS CYCLE COMPLETE!")
-        
-        self._print_final_output(generated_app, history, app_spec.app_name, output_dir, pdf_path)
 
-        return generated_app, history, pdf_path
+        self._print_final_output(generated_app, history, app_spec.app_name, output_dir, report_path)
+
+        return generated_app, history, report_path
 
     # =========================================================================
     # Helper Methods (Previously Missing - Now Implemented)
@@ -538,26 +538,25 @@ class VerifiMindComplete:
             # Object with attribute
             return getattr(cs_result, 'socratic_analysis', {})
 
-    async def _generate_pdf_safe(
+    async def _generate_report_safe(
         self,
         app_spec: AppSpecification,
         agent_results: Dict[str, Any],
         socratic_data: Dict[str, Any]
     ) -> Optional[str]:
         """
-        Generate PDF report with error handling.
+        Generate validation report with error handling.
         Returns None if generation fails instead of raising exception.
-        (FIX: don't kill pipeline on PDF failure)
         """
         try:
-            pdf_path = self.pdf_reporter.generate(
-                app_spec, 
-                agent_results, 
+            report_path = self.reporter.generate(
+                app_spec,
+                agent_results,
                 socratic_data
             )
-            return pdf_path
+            return report_path
         except Exception as e:
-            logger.error(f"PDF generation failed: {e}", exc_info=True)
+            logger.error(f"Report generation failed: {e}", exc_info=True)
             return None
 
     def _safe_get(self, obj: Any, attr: str, default: Any = None) -> Any:
@@ -599,24 +598,24 @@ class VerifiMindComplete:
         history: GenerationHistory,
         app_name: str,
         output_dir: str,
-        pdf_path: Optional[str]
+        report_path: Optional[str]
     ):
         """Print final output information including Report."""
         ConsoleOutput.success("APPLICATION GENERATED SUCCESSFULLY!")
-        
+
         print(f"\n📦 Deliverables:")
         ConsoleOutput.bullet(f"Codebase: {output_dir}/{app_name}/")
-        if pdf_path:
-            ConsoleOutput.bullet(f"Report: {pdf_path}")
-        
+        if report_path:
+            ConsoleOutput.bullet(f"Report: {report_path}")
+
         print(f"\n📊 Quality Metrics:")
         ConsoleOutput.bullet(f"Final Score: {history.final_score:.1f}/100")
         ConsoleOutput.bullet(f"Improvement: +{history.improvement_percentage:.1f}%")
         ConsoleOutput.bullet(f"Total Iterations: {history.total_iterations}")
 
         print(f"\n🚀 Next Steps:")
-        if pdf_path:
-            ConsoleOutput.bullet(f"Review {os.path.basename(pdf_path)} for strategic insights", indent=3)
+        if report_path:
+            ConsoleOutput.bullet(f"Review {os.path.basename(report_path)} for strategic insights", indent=3)
         ConsoleOutput.bullet(f"cd {output_dir}/{app_name} && npm install", indent=3)
         ConsoleOutput.bullet("npm run dev (for development)", indent=3)
         ConsoleOutput.bullet("npm run deploy (for production)", indent=3)
@@ -724,7 +723,7 @@ async def main():
     try:
         verifimind = VerifiMindComplete(config)
         
-        generated_app, history, pdf_path = await verifimind.create_app_from_idea(
+        generated_app, history, report_path = await verifimind.create_app_from_idea(
             idea_description=args.idea,
             app_name=args.name,
             category=args.category,

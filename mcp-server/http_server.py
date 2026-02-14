@@ -3,7 +3,8 @@ HTTP Server Entry Point for VerifiMind MCP Server
 Designed for Smithery deployment with HTTP transport
 Properly handles FastMCP lifespan context for session management
 
-v0.4.0 Features:
+v0.4.1 Features:
+- Markdown-first report generation (Accept: text/markdown)
 - Unified Prompt Templates (6 new MCP tools)
 - Input sanitization for prompt injection protection
 - CORS middleware for browser-based clients (Smithery)
@@ -29,7 +30,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.4.0"
+SERVER_VERSION = "0.4.1"
 
 # Custom route handlers
 async def health_handler(request):
@@ -95,7 +96,7 @@ async def mcp_config_handler(request):
                     "rate_limiting": True
                 },
                 "headers": {
-                    "Accept": "application/json, text/event-stream"
+                    "Accept": "application/json, text/event-stream, text/markdown"
                 }
             }
         },
