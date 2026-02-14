@@ -7,7 +7,7 @@
 
   Transform your vision into validated, ethical, secure applications through systematic multi-model AI orchestration — from concept to deployment, with human-centered wisdom validation.
 
-  [![Version](https://img.shields.io/badge/version-v0.4.0-blue.svg)](CHANGELOG.md)
+  [![Version](https://img.shields.io/badge/version-v0.4.1-blue.svg)](CHANGELOG.md)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Status](https://img.shields.io/badge/status-Operational-success.svg)](SERVER_STATUS.md)
   [![Genesis v2.0 DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17972751.svg)](https://doi.org/10.5281/zenodo.17972751)
@@ -15,7 +15,8 @@
   
   [![API](https://img.shields.io/badge/API-verifimind.ysenseai.org-success)](https://verifimind.ysenseai.org)
   [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Listed-purple)](https://registry.modelcontextprotocol.io/?q=verifimind)
-  [![Smithery](https://img.shields.io/badge/Smithery-Available-blue)](https://smithery.ai/server/creator35lwb-web/verifimind-genesis)
+  [![Smithery](https://img.shields.io/badge/Smithery-Sunset%20March%201-lightgrey)](https://smithery.ai/server/creator35lwb-web/verifimind-genesis)
+  [![Landing Page](https://img.shields.io/badge/Landing%20Page-verifimind.io-cyan)](https://verifimind.io)
   [![HuggingFace](https://img.shields.io/badge/🤗%20HuggingFace-Demo-yellow)](https://huggingface.co/spaces/YSenseAI/verifimind-peas)
 [![Roadmap](https://img.shields.io/badge/Roadmap-2026-orange)](ROADMAP.md)
 
@@ -25,7 +26,7 @@
 
 ## MCP Server: Production Deployed
 
-> **v0.4.0 Live** — Unified Prompt Templates with 19 pre-built templates, 10 MCP tools, input sanitization, and CI/CD pipeline. Trinity validation fully operational with Gemini 2.5-flash. [Health Check](https://verifimind.ysenseai.org/health)
+> **v0.4.1 Live** — Markdown-first output with content negotiation, Unified Prompt Templates with 19 pre-built templates, 10 MCP tools, input sanitization, and CI/CD pipeline. Trinity validation fully operational with Gemini 2.5-flash. [Health Check](https://verifimind.ysenseai.org/health)
 
 VerifiMind PEAS is now **live and accessible** across multiple platforms:
 
@@ -33,7 +34,8 @@ VerifiMind PEAS is now **live and accessible** across multiple platforms:
 |----------|------|--------|--------|
 | **GCP Cloud Run** | Production API | [verifimind.ysenseai.org](https://verifimind.ysenseai.org) | ✅ LIVE |
 | **Official MCP Registry** | Registry Listing | [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/?q=verifimind) | ✅ LISTED |
-| **Smithery.ai** | Native MCP | [Install for Claude Desktop](https://smithery.ai/server/creator35lwb-web/verifimind-genesis) | ✅ LIVE |
+| **Smithery.ai** | Native MCP | [Install for Claude Desktop](https://smithery.ai/server/creator35lwb-web/verifimind-genesis) | ⚠️ SUNSET March 1, 2026 |
+| **Landing Page** | Showcase | [verifimind.io](https://verifimind.io) | ✅ LIVE |
 | **Hugging Face** | Interactive Demo | [YSenseAI/verifimind-peas](https://huggingface.co/spaces/YSenseAI/verifimind-peas) | ✅ LIVE |
 
 ### Quick Start
@@ -85,6 +87,22 @@ server = MCPServerStreamableHttp(name="VerifiMind", params={"url": "https://veri
 ```
 
 🎮 **[Interactive Demo](https://huggingface.co/spaces/YSenseAI/verifimind-peas)**
+
+### Common Mistakes
+
+Based on production log analysis (February 2026), these are the most frequent connection errors new users encounter:
+
+| Mistake | What Happens | Fix |
+|---------|-------------|-----|
+| **Visiting the URL in a browser** | You see a `406 Not Acceptable` error | This is an API, not a website. Use an MCP client (Claude Desktop, Cursor, etc.) |
+| **Missing trailing slash** `/mcp` | `405 Method Not Allowed` | Always use `/mcp/` with the trailing slash |
+| **Using GET instead of POST** | `400 Bad Request` | MCP protocol requires POST requests with JSON-RPC body |
+| **Using `http-sse` transport** | Connection fails | Use `streamable-http` transport (not `http-sse`) |
+| **Connecting to Smithery proxy** | May stop working March 1, 2026 | Use the direct URL: `https://verifimind.ysenseai.org/mcp/` |
+
+> 💡 **Quick test**: Run `curl https://verifimind.ysenseai.org/health` — if you see `"status": "healthy"`, the server is up. Then configure your MCP client using the Quick Start instructions above.
+
+> ⚠️ **Smithery.ai Sunset Notice**: Smithery.ai's legacy architecture will be sunset on **March 1, 2026**. If you are currently connecting via `server.smithery.ai`, please switch to the direct URL `https://verifimind.ysenseai.org/mcp/` before that date. All Quick Start instructions above already use the direct URL.
 
 ### API Keys
 
@@ -197,6 +215,10 @@ We provide a systematic approach to **multi-model AI validation** that ensures y
 
 ## 🎯 Latest Achievements
 
+### v0.4.1 — Markdown-First Output & Smithery Sunset (February 14, 2026)
+
+The v0.4.1 release introduces **Markdown-first output** with content negotiation — clients can now request `Accept: text/markdown` to receive validation reports in Markdown format (80% token reduction vs JSON). This aligns with the broader industry shift toward Markdown as the agent-native communication format (see [Cloudflare: Markdown for Agents](https://blog.cloudflare.com/markdown-for-agents/)). All 13 Smithery proxy URL references were removed from server endpoints in preparation for the Smithery.ai legacy architecture sunset on March 1, 2026. The `pdf_generator.py` is deprecated — retained only for Zenodo DOI and enterprise compliance. Server version bumped with 155 total tests passing at 54.27% coverage.
+
 ### v0.4.0 — Unified Prompt Templates (January 30, 2026)
 
 The v0.4.0 release introduced the **Unified Prompt Template** system, adding 6 new MCP tools (10 total) and 19 pre-built YAML templates organized across 6 libraries. Templates are aligned to Genesis Methodology phases, support custom variables with type validation, and can be exported to Markdown or JSON. Users can import templates from GitHub Gists or raw URLs, and register custom templates at runtime. This release also includes the MACP v2.0 specification (DOI: [10.5281/zenodo.18504478](https://doi.org/10.5281/zenodo.18504478)) and the L (GODEL) Ethical Operating Framework v1.1.
@@ -225,6 +247,7 @@ The standardization phase generated **57 complete Trinity validation reports** a
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| **v0.4.1** | Feb 14, 2026 | Markdown-first output, Smithery URL removal, PDF deprecated |
 | **v0.4.0** | Jan 30, 2026 | Unified Prompt Templates, 6 new tools, MACP v2.0 |
 | **v0.3.5** | Jan 30, 2026 | Input sanitization, CI/CD pipeline |
 | **v0.3.2** | Jan 29, 2026 | Gemini 2.5-flash model update |
@@ -623,14 +646,64 @@ The reference implementation demonstrates how to automate the X-Z-CS Trinity:
 
 ## 🔧 Troubleshooting
 
-If you encounter issues connecting to the VerifiMind MCP server, consult the table below for common HTTP status codes and their resolutions.
+### ⚠️ Common Mistakes (Read This First!)
+
+Based on real production logs, **83.7% of all errors** come from three configuration mistakes. If you are having trouble connecting, check these first:
+
+#### Mistake #1: Wrong URL Path (405 Method Not Allowed)
+
+**Symptom**: You get a `405 Method Not Allowed` error.
+
+**Cause**: You are sending requests to `https://verifimind.ysenseai.org/` instead of `https://verifimind.ysenseai.org/mcp/`.
+
+**Fix**: Always include `/mcp/` in the URL:
+```json
+{
+  "mcpServers": {
+    "verifimind-peas": {
+      "url": "https://verifimind.ysenseai.org/mcp/"
+    }
+  }
+}
+```
+
+#### Mistake #2: Using GET Instead of POST (400 Bad Request)
+
+**Symptom**: You get a `400 Bad Request` error.
+
+**Cause**: Your client is sending a GET request. The MCP protocol requires POST for method calls.
+
+**Fix**: Ensure your MCP client configuration uses `streamable-http` transport (not `http-sse`):
+```json
+{
+  "mcpServers": {
+    "verifimind-peas": {
+      "url": "https://verifimind.ysenseai.org/mcp/",
+      "transport": "streamable-http"
+    }
+  }
+}
+```
+
+#### Mistake #3: Opening the URL in a Browser (406 Not Acceptable)
+
+**Symptom**: You get a `406 Not Acceptable` or see an error page in your browser.
+
+**Cause**: `verifimind.ysenseai.org` is an **MCP server API**, not a website. It is designed to be accessed by MCP clients (Claude Desktop, Cursor, VS Code, etc.), not web browsers.
+
+**Fix**: Use an MCP client to connect. If you want to browse the project, visit:
+- **Landing Page**: [verifimind.io](https://verifimind.io)
+- **GitHub**: [github.com/creator35lwb-web/VerifiMind-PEAS](https://github.com/creator35lwb-web/VerifiMind-PEAS)
+
+### HTTP Status Code Reference
 
 | Status Code | Meaning | Solution |
 |:-----------:|---------|----------|
 | **302/307** | Redirect (normal) | Use `https://verifimind.ysenseai.org/mcp/` with trailing slash |
+| **400** | Bad Request | Verify JSON syntax, use POST (not GET), include `Content-Type: application/json` |
 | **404** | Not Found | Check URL for typos; use the correct `/mcp/` endpoint |
-| **405** | Method Not Allowed | Use GET for discovery, POST for MCP method calls |
-| **400** | Bad Request | Verify JSON syntax, headers include `Content-Type: application/json` |
+| **405** | Method Not Allowed | You are hitting `/` instead of `/mcp/` — add the `/mcp/` path |
+| **406** | Not Acceptable | You are visiting the API URL in a browser — use an MCP client instead |
 
 **Quick connectivity test:**
 ```bash
@@ -645,12 +718,14 @@ Traffic analysis from GCP Cloud Run logs (2-week sample, February 2026) provides
 
 | Metric | Value | Notes |
 |--------|-------|-------|
-| **Total Requests** | 6,298 | Excluding health checks |
-| **Unique IPs** | 330 | Based on unique IP addresses |
-| **Real Users** | 235 | Excluding owner, bots, health checks |
+| **Total Requests** | 8,578 | 14-day sample, excluding health checks |
+| **All-Time Users** | 444 | Cumulative unique users |
+| **Active Users (Week)** | 118 | Weekly active users |
+| **Retention Rate** | 11.3% | Improving (up from 7.4%) |
 | **Top Client** | Node.js MCP (67.7%) | Primary integration method |
 | **Cursor IDE** | 12.5% | Growing IDE adoption |
-| **Health Check Traffic** | 96.8% of raw logs | GCP Global Uptime Checks (filtered) |
+| **Server Errors (5xx)** | 0 | Zero server errors in production |
+| **Average Latency** | 4.30ms | Exceptional response time |
 | **Monthly Cost** | $0 | Within GCP free tier |
 
 The server runs on GCP Cloud Run with zero minimum instances (cold start architecture) to maintain a **$0/month operating cost**. GCP Global Uptime Checks monitor the `/health` endpoint every 5 minutes with email alerts to the project maintainer. All monitoring features operate within GCP’s free tier.
@@ -712,16 +787,20 @@ We welcome contributions from the community!
 
 ## 🗺️ Roadmap
 
-**Current Phase**: Phase 6 — Feature Enhancement & Hardening (Q1 2026)
+**Current Phase**: Phase 6 — Feature Enhancement & Strategic Pivot (Q1 2026)
 
-**Status**: Phases 1–5 COMPLETE ✅ | v0.4.0 DEPLOYED 🎉 | v0.5.0 IN PLANNING
+**Status**: Phases 1–5 COMPLETE ✅ | v0.4.1 DEPLOYED 🎉 | v0.5.0 IN PLANNING
+
+**North Star**: Position VerifiMind-PEAS as the **trust and verification layer for the emerging Agentic Web**.
 
 ### **Phase 1–4: Foundation** ✅ COMPLETE
 
 Phases 1 through 4 established the methodology framework, MCP server implementation, production deployment on GCP Cloud Run, and multi-platform distribution across Smithery.ai, Hugging Face, and the Official MCP Registry.
 
 ### **Phase 5: Hardening & Standardization** ✅ COMPLETE
+
 **Completed** (January 2026):
+
 - ✅ **v0.3.0–v0.3.5**: BYOK multi-provider (7 providers), smart fallback, rate limiting, input sanitization
 - ✅ **v0.4.0**: Unified Prompt Templates (19 templates, 6 libraries, 6 new tools)
 - ✅ **CI/CD pipeline**: GitHub Actions with unit tests, security scanning (Bandit, Safety)
@@ -729,16 +808,31 @@ Phases 1 through 4 established the methodology framework, MCP server implementat
 - ✅ **L (GODEL) Ethical Operating Framework v1.1**: Fairness, bias mitigation, update mechanism
 - ✅ **GCP Monitoring**: Uptime checks, alerting, log analysis pipeline
 
-### **Phase 6: Feature Enhancement** 🚧 CURRENT
+### **Phase 6: Feature Enhancement & Strategic Pivot** 🚧 CURRENT
+
+**Completed** (February 2026):
+
+- ✅ **v0.4.1**: Markdown-first output with content negotiation (80% token reduction)
+- ✅ **Smithery URL removal**: All 13 proxy references replaced with direct URL
+- ✅ **PDF deprecated**: Retained only for Zenodo DOI and enterprise compliance
+- ✅ **Branch protection**: Main branch ruleset with required PR reviews and CI checks
+- ✅ **CodeQL remediation**: All 102 security alerts resolved across 4 waves
+- ✅ **Strategic pivot**: "Trust Layer for the Agentic Web" vision formalized
+- ✅ **Genesis Master Prompt v4.0**: Ecosystem-level prompt iterated
+
 **In Progress** (February–March 2026):
+
 - ⏳ **v0.5.0 Agent Skills**: `/.well-known/agent-skills.json` for automated discovery
 - ⏳ **MACP v2.0 as MCP Skills**: Expose collaboration protocols as discoverable skills
-- ⏳ **Documentation updates**: README, troubleshooting guides, operational insights
-- ⏳ **Community engagement**: GitHub Discussions, feedback collection
+- ⏳ **Landing page**: [verifimind.io](https://verifimind.io) with anti-lock-in narrative
+- ⏳ **Dynamic UI proof-of-concept**: MCP + A2A convergence research
+- ⏳ **Community engagement**: GitHub Discussions, VS Code Live engagement
 
 ### **Future Phases** 📋 PLANNED
-- **Phase 7**: Enterprise Features (Q2 2026) — Team collaboration, audit logging
-- **Phase 8**: Ecosystem Expansion (Q3 2026) — IDE extensions, API marketplace
+
+- **Phase 7**: Local Model Support & A2A Integration (Q2 2026) — Ollama-first, A2A protocol research
+- **Phase 8**: Enterprise Features (Q2–Q3 2026) — Team collaboration, audit logging
+- **Phase 9**: Ecosystem Expansion (Q3 2026) — IDE extensions, "Verified by Z-Protocol" GenUI Safety Standard
 
 **Key Metrics**:
 | Metric | Value | Significance |
@@ -746,8 +840,9 @@ Phases 1 through 4 established the methodology framework, MCP server implementat
 | **MCP Tools** | 10 | 4 core + 6 template management |
 | **Templates** | 19 | Pre-built across 6 libraries |
 | **Validation Reports** | 57+ | Proof of methodology at scale |
-| **Platforms Live** | 4 | GCP, Smithery, HuggingFace, MCP Registry |
+| **Platforms Live** | 4 | GCP, MCP Registry, HuggingFace, verifimind.io |
 | **LLM Providers** | 7 | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama, Perplexity |
+| **All-Time Users** | 444 | Cumulative unique users |
 | **Cost per Validation** | ~$0.003 | Sustainable for all developers |
 
 **See Examples**: [/validation_archive/](/validation_archive/) | [Examples](/examples/)
@@ -783,13 +878,13 @@ Phases 1 through 4 established the methodology framework, MCP server implementat
 
 ## 📚 How to Cite
 
-### **Citing VerifiMind-PEAS v0.4.0 (MCP Server)**
+### **Citing VerifiMind-PEAS v0.4.1 (MCP Server)**
 
 If you use the VerifiMind-PEAS MCP server in your research or project, please cite:
 
 **APA Style**:
 ```
-Lee, A., Manus AI, & Claude Code. (2026). VerifiMind-PEAS: Prompt Engineering Attribution System (Version 0.4.0) [Computer software]. GitHub. https://github.com/creator35lwb-web/VerifiMind-PEAS
+Lee, A., Manus AI, & Claude Code. (2026). VerifiMind-PEAS: Prompt Engineering Attribution System (Version 0.4.1) [Computer software]. GitHub. https://github.com/creator35lwb-web/VerifiMind-PEAS
 ```
 
 **BibTeX**:
@@ -798,7 +893,7 @@ Lee, A., Manus AI, & Claude Code. (2026). VerifiMind-PEAS: Prompt Engineering At
   author = {Lee, Alton and {Manus AI} and {Claude Code}},
   title = {VerifiMind-PEAS: Prompt Engineering Attribution System},
   year = {2026},
-  version = {0.4.0},
+  version = {0.4.1},
   url = {https://github.com/creator35lwb-web/VerifiMind-PEAS},
   doi = {10.5281/zenodo.17980791},
   note = {MCP server for multi-model AI validation with Unified Prompt Templates}
@@ -807,7 +902,7 @@ Lee, A., Manus AI, & Claude Code. (2026). VerifiMind-PEAS: Prompt Engineering At
 
 **IEEE Style**:
 ```
-A. Lee, Manus AI, and Claude Code, "VerifiMind-PEAS: Prompt Engineering Attribution System," Version 0.4.0, GitHub, 2026. [Online]. Available: https://github.com/creator35lwb-web/VerifiMind-PEAS
+A. Lee, Manus AI, and Claude Code, "VerifiMind-PEAS: Prompt Engineering Attribution System," Version 0.4.1, GitHub, 2026. [Online]. Available: https://github.com/creator35lwb-web/VerifiMind-PEAS
 ```
 
 ### **Citing Genesis Methodology v2.0 (Methodology)**
@@ -853,9 +948,9 @@ GitHub provides automatic citation support. Click the **"Cite this repository"**
 
 ### **Release Information**
 
-**VerifiMind-PEAS MCP Server v0.4.0** (Current):
-- **Release Date**: January 30, 2026
-- **Highlights**: Unified Prompt Templates, 10 MCP tools, MACP v2.0
+**VerifiMind-PEAS MCP Server v0.4.1** (Current):
+- **Release Date**: February 14, 2026
+- **Highlights**: Markdown-first output, Smithery URL removal, PDF deprecated
 - **Changelog**: [CHANGELOG.md](CHANGELOG.md)
 - **Status**: Production deployed on GCP Cloud Run
 
@@ -941,6 +1036,7 @@ VerifiMind-PEAS is developed through the **FLYWHEEL TEAM** multi-agent collabora
 | **Manus AI** (T/CTO) | Strategic Architecture | Documentation, roadmap, ecosystem alignment |
 | **Claude Code** | Implementation | Code, testing, deployment, CI/CD |
 | **Gemini** (Antigravity) | GCP Operations | Log analysis, monitoring, troubleshooting |
+| **Perplexity** | Real-Time Research | Market intelligence, competitive analysis |
 
 ### LLM Providers
 
@@ -955,7 +1051,7 @@ VerifiMind-PEAS is developed through the **FLYWHEEL TEAM** multi-agent collabora
 ### Special Thanks
 
 - **Open-source community**: For inspiration and collaboration
-- **Early adopters**: For feedback and validation (235 real users and counting)
+- **Early adopters**: For feedback and validation (444 users and counting)
 - **Academic researchers**: For theoretical foundations
 - **Google Cloud Platform**: For generous free tier enabling $0/month operations
 
