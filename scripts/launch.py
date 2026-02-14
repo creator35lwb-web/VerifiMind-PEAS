@@ -15,7 +15,7 @@ if sys.platform == 'win32':
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
         sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
     except Exception:
-        pass
+        pass  # Encoding fix is best-effort; fall back to default encoding
 
 
 class VerifiMindLauncher:
@@ -409,7 +409,7 @@ class VerifiMindLauncher:
                 try:
                     os.unlink(temp_file)
                 except OSError:
-                    pass
+                    pass  # Temp file cleanup is best-effort
 
         input("\nPress Enter to continue...")
 

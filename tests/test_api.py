@@ -26,7 +26,7 @@ async def test_openai():
         print("   Or use: setx OPENAI_API_KEY \"sk-your-key-here\"")
         return False
 
-    print(f"✓ API Key found: ...{'*' * 4}{api_key[-4:]}")
+    print("✓ API Key found (redacted)")
 
     try:
         # Create provider
@@ -83,7 +83,7 @@ async def test_anthropic():
         print("   Or use: setx ANTHROPIC_API_KEY \"sk-ant-your-key-here\"")
         return False
 
-    print(f"✓ API Key found: ...{'*' * 4}{api_key[-4:]}")
+    print("✓ API Key found (redacted)")
 
     try:
         # Create provider
