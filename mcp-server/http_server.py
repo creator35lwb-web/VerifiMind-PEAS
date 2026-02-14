@@ -1,13 +1,13 @@
 """
 HTTP Server Entry Point for VerifiMind MCP Server
-Designed for Smithery deployment with HTTP transport
+Designed for GCP Cloud Run deployment with HTTP transport
 Properly handles FastMCP lifespan context for session management
 
 v0.4.1 Features:
 - Markdown-first report generation (Accept: text/markdown)
 - Unified Prompt Templates (6 new MCP tools)
 - Input sanitization for prompt injection protection
-- CORS middleware for browser-based clients (Smithery)
+- CORS middleware for browser-based MCP clients
 - Rate limiting for EDoS protection (Economic Denial of Sustainability)
 - Health check endpoint with rate limit stats
 - MCP configuration endpoint
@@ -22,7 +22,7 @@ from starlette.middleware.cors import CORSMiddleware
 from verifimind_mcp.server import create_http_server
 from verifimind_mcp.middleware import RateLimitMiddleware, get_rate_limit_stats
 
-# Create MCP server instance (raw FastMCP, not SmitheryFastMCP wrapper)
+# Create MCP server instance
 mcp_server = create_http_server()
 
 # Get ASGI app from FastMCP - use path='/' so the route is at root of mounted app
@@ -62,7 +62,7 @@ async def health_handler(request):
             "global": f"{rate_stats['global_limit']} req/{rate_stats['window_seconds']}s",
             "current_load": f"{rate_stats['global_requests_in_window']}/{rate_stats['global_limit']}"
         },
-        "quick_start": "Run: claude mcp add -s user verifimind -- npx -y mcp-remote https://server.smithery.ai/creator35lwb-web/verifimind-genesis/mcp"
+        "quick_start": "Run: claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/"
     })
 
 async def mcp_config_handler(request):
@@ -104,8 +104,8 @@ async def mcp_config_handler(request):
         "quickstart": {
             "claude_code": {
                 "description": "Run this command in your terminal to add the server",
-                "command": "claude mcp add -s user verifimind -- npx -y mcp-remote https://server.smithery.ai/creator35lwb-web/verifimind-genesis/mcp",
-                "project_scope": "claude mcp add -s project verifimind -- npx -y mcp-remote https://server.smithery.ai/creator35lwb-web/verifimind-genesis/mcp"
+                "command": "claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/",
+                "project_scope": "claude mcp add -s project verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/"
             },
             "claude_desktop": {
                 "description": "Add this to your claude_desktop_config.json",
@@ -113,7 +113,7 @@ async def mcp_config_handler(request):
                     "mcpServers": {
                         "verifimind": {
                             "command": "npx",
-                            "args": ["-y", "mcp-remote", "https://server.smithery.ai/creator35lwb-web/verifimind-genesis/mcp"]
+                            "args": ["-y", "mcp-remote", "https://verifimind.ysenseai.org/mcp/"]
                         }
                     }
                 },
@@ -231,7 +231,7 @@ async def mcp_config_handler(request):
                         "mcpServers": {
                             "verifimind": {
                                 "command": "npx",
-                                "args": ["-y", "mcp-remote", "https://server.smithery.ai/creator35lwb-web/verifimind-genesis/mcp"],
+                                "args": ["-y", "mcp-remote", "https://verifimind.ysenseai.org/mcp/"],
                                 "env": {
                                     "LLM_PROVIDER": "gemini",
                                     "GEMINI_API_KEY": "your-api-key"
@@ -269,7 +269,7 @@ async def root_handler(request):
             "setup": "/setup"
         },
         "quick_start": {
-            "claude_code": "Run: claude mcp add -s user verifimind -- npx -y mcp-remote https://server.smithery.ai/creator35lwb-web/verifimind-genesis/mcp",
+            "claude_code": "Run: claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/",
             "verify": "Run: claude mcp list",
             "docs": "Visit: /.well-known/mcp-config for full setup instructions"
         },
@@ -325,7 +325,7 @@ async def setup_handler(request):
                 {
                     "step": 1,
                     "action": "Open terminal and run",
-                    "command": "claude mcp add -s user verifimind -- npx -y mcp-remote https://server.smithery.ai/creator35lwb-web/verifimind-genesis/mcp",
+                    "command": "claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/",
                     "note": "Use '-s project' instead of '-s user' for project-specific setup"
                 },
                 {
@@ -366,7 +366,7 @@ async def setup_handler(request):
                         "mcpServers": {
                             "verifimind": {
                                 "command": "npx",
-                                "args": ["-y", "mcp-remote", "https://server.smithery.ai/creator35lwb-web/verifimind-genesis/mcp"]
+                                "args": ["-y", "mcp-remote", "https://verifimind.ysenseai.org/mcp/"]
                             }
                         }
                     }
@@ -451,7 +451,7 @@ app = Starlette(
 # Prevents auto-scale cost attacks and API abuse
 app.add_middleware(RateLimitMiddleware)
 
-# CORS middleware for Smithery browser-based clients
+# CORS middleware for browser-based MCP clients
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allow all origins for MCP clients
@@ -493,7 +493,7 @@ print("Agents: X (Innovation) | Z (Ethics) | CS (Security)")
 print("-" * 70)
 print("Quick Start (Claude Code):")
 print("  claude mcp add -s user verifimind -- npx -y mcp-remote \\")
-print("    https://server.smithery.ai/creator35lwb-web/verifimind-genesis/mcp")
+print("    https://verifimind.ysenseai.org/mcp/")
 print("=" * 70)
 print("Server ready for connections...")
 print("=" * 70)
