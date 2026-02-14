@@ -17,8 +17,7 @@ Version: 0.4.0
 import json
 import logging
 import re
-from datetime import datetime
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Tuple
 from urllib.parse import urlparse
 
 import yaml

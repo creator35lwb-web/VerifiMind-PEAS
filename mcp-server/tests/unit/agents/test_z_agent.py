@@ -1,7 +1,7 @@
 """Unit tests for Z Agent (Ethics Guardian) - Corrected for actual code structure."""
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import patch
 from verifimind_mcp.agents.z_agent import ZAgent
 from verifimind_mcp.models import Concept, ZAgentAnalysis, ReasoningStep
 from verifimind_mcp.llm import MockProvider

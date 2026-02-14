@@ -18,7 +18,6 @@ from verifimind_mcp.utils.sanitization import (
     is_safe_input,
     remove_dangerous_chars,
     normalize_whitespace,
-    SanitizationResult,
     MAX_CONCEPT_NAME_LENGTH,
     MAX_DESCRIPTION_LENGTH
 )

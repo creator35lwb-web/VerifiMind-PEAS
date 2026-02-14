@@ -22,7 +22,6 @@ Version: 0.4.0 (Unified Prompt Templates)
 """
 
 import json
-import os
 import logging
 from pathlib import Path
 from typing import Any, Optional
@@ -301,7 +300,6 @@ def _create_mcp_instance():
         try:
             from .models import Concept
             from .agents import XAgent
-            from .llm import get_provider
             from .utils import sanitize_concept_input
 
             # Sanitize inputs for security (v0.3.5)
@@ -386,7 +384,6 @@ def _create_mcp_instance():
         try:
             from .models import Concept, PriorReasoning, ChainOfThought, ReasoningStep
             from .agents import ZAgent
-            from .llm import get_provider
             from .utils import sanitize_concept_input
 
             # Sanitize inputs for security (v0.3.5)
@@ -483,7 +480,6 @@ def _create_mcp_instance():
         try:
             from .models import Concept, PriorReasoning, ChainOfThought, ReasoningStep
             from .agents import CSAgent
-            from .llm import get_provider
             from .utils import sanitize_concept_input
 
             # Sanitize inputs for security (v0.3.5)
@@ -581,7 +577,6 @@ def _create_mcp_instance():
         try:
             from .models import Concept, PriorReasoning
             from .agents import XAgent, ZAgent, CSAgent
-            from .llm import get_provider
             from .utils import create_trinity_result, sanitize_concept_input
 
             # Sanitize inputs for security (v0.3.5)
@@ -1088,7 +1083,6 @@ def create_server():
 # Entry point for direct execution
 if __name__ == "__main__":
     # For local testing
-    import asyncio
     
     print("=" * 60)
     print("Genesis Context Server - Phase 2 (Core Tools)")

@@ -7,15 +7,14 @@ multiple agent analyses into a unified Trinity result.
 
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 from ..models import (
     XAgentAnalysis,
     ZAgentAnalysis,
     CSAgentAnalysis,
     TrinitySynthesis,
-    TrinityResult,
-    ChainOfThought
+    TrinityResult
 )
 
 

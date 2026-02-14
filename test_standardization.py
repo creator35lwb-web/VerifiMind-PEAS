@@ -15,7 +15,6 @@ Version: 1.0.0
 
 import asyncio
 import sys
-import os
 from pathlib import Path
 
 # Add mcp-server to path
@@ -25,7 +24,6 @@ from verifimind_mcp.models import Concept, PriorReasoning
 from verifimind_mcp.agents.base_agent import AgentRegistry
 from verifimind_mcp.utils.synthesis import create_trinity_result
 from verifimind_mcp.utils.metrics import ValidationMetrics, AgentMetrics, METRICS_COLLECTOR
-from verifimind_mcp.config.standard_config import DEFAULT_CONFIG
 
 import logging
 

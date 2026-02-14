@@ -232,7 +232,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         # Add informational headers
-        stats = _rate_limit_store.get_stats()
+        _rate_limit_store.get_stats()
         response.headers["X-RateLimit-Limit"] = str(RATE_LIMIT_PER_IP)
         response.headers["X-RateLimit-Window"] = str(RATE_LIMIT_WINDOW)
 

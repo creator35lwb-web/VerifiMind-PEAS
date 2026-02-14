@@ -8,7 +8,6 @@ from datetime import datetime
 from dataclasses import dataclass
 from .base_agent import BaseAgent, AgentResponse, ConceptInput
 import re
-import json
 
 
 @dataclass

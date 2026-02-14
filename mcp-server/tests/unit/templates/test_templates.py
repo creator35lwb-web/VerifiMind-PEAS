@@ -11,7 +11,6 @@ Tests for:
 
 import pytest
 import json
-from datetime import datetime
 
 from verifimind_mcp.templates.models import (
     TemplateVariable,
@@ -271,7 +270,7 @@ def test_registry_register_custom_template(registry, sample_template):
 @pytest.mark.unit
 def test_registry_get_template(registry):
     """Test getting a template by ID."""
-    template = registry.register_custom_template(
+    registry.register_custom_template(
         name="Test Get",
         agent_id="Z",
         content="Test content",

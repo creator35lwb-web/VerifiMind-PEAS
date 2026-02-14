@@ -28,7 +28,6 @@ Environment Variables:
 import os
 import json
 import logging
-import time
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Type, List
 from dataclasses import dataclass
@@ -473,7 +472,7 @@ class GeminiProvider(LLMProvider):
                         parsed_content = json.loads(json_match.group())
                     else:
                         parsed_content = {"raw_response": content, "parse_error": str(e)}
-                except:
+                except Exception:
                     parsed_content = {"raw_response": content, "parse_error": str(e)}
 
             # Return both content and usage

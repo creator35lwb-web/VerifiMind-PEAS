@@ -234,6 +234,7 @@ Generated: {generated_at}
             json.dump(self.generate_json_certificate(), f, indent=2)
 
         # Save QR code
+        qr_path = None
         if include_qr:
             qr_path = output_path / f"{self.certificate_id}_qrcode.png"
             self.generate_qr_code(str(qr_path))

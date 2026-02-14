@@ -1,7 +1,7 @@
 """Unit tests for CS Agent (Security) - Corrected for actual code structure."""
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import patch
 from verifimind_mcp.agents.cs_agent import CSAgent
 from verifimind_mcp.models import Concept, CSAgentAnalysis, ReasoningStep
 from verifimind_mcp.llm import MockProvider

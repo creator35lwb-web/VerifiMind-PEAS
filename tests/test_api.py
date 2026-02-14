@@ -5,7 +5,6 @@ Test your OpenAI/Anthropic API keys with VerifiMind
 
 import asyncio
 import os
-import sys
 from src.llm.llm_provider import LLMProviderFactory, LLMMessage
 
 
@@ -27,7 +26,7 @@ async def test_openai():
         print("   Or use: setx OPENAI_API_KEY \"sk-your-key-here\"")
         return False
 
-    print(f"✓ API Key found: ...{api_key[-8:]}")
+    print("✓ API Key found (redacted)")
 
     try:
         # Create provider
@@ -84,7 +83,7 @@ async def test_anthropic():
         print("   Or use: setx ANTHROPIC_API_KEY \"sk-ant-your-key-here\"")
         return False
 
-    print(f"✓ API Key found: ...{api_key[-8:]}")
+    print("✓ API Key found (redacted)")
 
     try:
         # Create provider

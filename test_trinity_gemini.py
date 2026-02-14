@@ -22,7 +22,6 @@ from verifimind_mcp.agents.cs_agent import CSAgent
 from verifimind_mcp.models.concepts import Concept
 from verifimind_mcp.utils.metrics import AgentMetrics, ValidationMetrics
 from verifimind_mcp.utils.synthesis import create_trinity_result
-from verifimind_mcp.models.reasoning import PriorReasoning
 from verifimind_mcp.config.standard_config import DEFAULT_CONFIG
 
 
@@ -87,18 +86,6 @@ async def test_trinity_validation():
         
         # Create Trinity synthesis
         print("\n⚖️ Creating Trinity Synthesis...")
-        
-        # Create PriorReasoning objects
-        x_prior = PriorReasoning(
-            agent_id="X",
-            reasoning_steps=x_result.reasoning_steps,
-            confidence=x_result.confidence
-        )
-        z_prior = PriorReasoning(
-            agent_id="Z",
-            reasoning_steps=z_result.reasoning_steps,
-            confidence=z_result.confidence
-        )
         
         synthesis = create_trinity_result(
             concept_name=concept.name,

@@ -5,7 +5,6 @@ Allows users to describe their own app idea and generate it with full attributio
 
 import asyncio
 import json
-import os
 from pathlib import Path
 from src.generation.core_generator import (
     CodeGenerationEngine,
@@ -378,7 +377,6 @@ async def interactive_app_generation_with_attribution():
 
 async def save_generated_app(app: GeneratedApp):
     """Saves generated application to disk"""
-    import os
     from pathlib import Path
 
     base_dir = Path(f"./output/{app.app_name}")

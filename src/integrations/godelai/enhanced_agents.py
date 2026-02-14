@@ -21,8 +21,7 @@ Usage:
         pass
 """
 
-from typing import Dict, List, Optional, Any
-from datetime import datetime
+from typing import Dict, Optional, Any
 from abc import ABC
 import logging
 

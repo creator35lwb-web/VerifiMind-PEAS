@@ -4,7 +4,6 @@ Implements the RefleXion pattern - generate, reflect, improve, iterate
 """
 
 from typing import Dict, List, Any, Optional
-from datetime import datetime
 import asyncio
 import sys
 import os
@@ -110,7 +109,7 @@ class IterativeCodeGenerationEngine:
             )
 
             # STEP 3: Record this version
-            version_meta = self.version_tracker.record_version(
+            self.version_tracker.record_version(
                 app_id=spec.app_id,
                 version=reflection_report.version,
                 iteration=iteration,
@@ -192,7 +191,7 @@ class IterativeCodeGenerationEngine:
 
         # Save improvement history
         if output_dir:
-            history_path = self.version_tracker.save_history(
+            self.version_tracker.save_history(
                 spec.app_id,
                 f"{output_dir}/{spec.app_name}/verifimind_history.json"
             )

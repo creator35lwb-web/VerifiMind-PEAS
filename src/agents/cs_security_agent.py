@@ -15,15 +15,13 @@ Fixes Applied:
 
 import json
 import asyncio
-from typing import Dict, Any, List, Optional, Union
-from dataclasses import asdict
+from typing import Dict, Any, List, Union
 from datetime import datetime
 
 from src.agents.base_agent import BaseAgent
 from src.core.concept_scrutinizer import (
     ConceptScrutinizer, 
     ScrutinyResult, 
-    FeasibilityAnalysis,
     ScrutinyError
 )
 from src.llm.llm_provider import LLMMessage

@@ -8,7 +8,6 @@ These tests can run against local or production server.
 import pytest
 import os
 import httpx
-from typing import Optional
 
 # Server URLs
 LOCAL_SERVER_URL = "http://localhost:8000"

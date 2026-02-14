@@ -710,7 +710,7 @@ async def main():
     
     # Setup logging
     log_level = 'DEBUG' if args.verbose else 'INFO'
-    setup_logging(level=log_level)
+    setup_logging(log_level=log_level)
     
     # Build config
     config = {

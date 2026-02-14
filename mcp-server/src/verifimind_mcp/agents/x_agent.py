@@ -11,7 +11,6 @@ from ..models import (
     Concept,
     AgentConfig,
     XAgentAnalysis,
-    PriorReasoning,
     X_AGENT_CONFIG
 )
 from ..llm import LLMProvider

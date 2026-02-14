@@ -15,8 +15,7 @@ Fixes Applied:
 
 import os
 from datetime import datetime
-from typing import Dict, Any, List, Optional, Union
-from pathlib import Path
+from typing import Dict, Any, Optional
 
 # PDF library
 from fpdf import FPDF
@@ -135,10 +134,10 @@ class VerifiMindPDF(FPDF):
             '®': '(R)',
             '—': '-',
             '–': '-',
-            '"': '"',
-            '"': '"',
-            ''': "'",
-            ''': "'",
+            '\u201c': '"',  # LEFT DOUBLE QUOTATION MARK
+            '\u201d': '"',  # RIGHT DOUBLE QUOTATION MARK
+            '\u2018': "'",  # LEFT SINGLE QUOTATION MARK
+            '\u2019': "'",  # RIGHT SINGLE QUOTATION MARK
             '…': '...',
             '•': '*',
             '→': '->',
