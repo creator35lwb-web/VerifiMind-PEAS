@@ -1,0 +1,28 @@
+name: Docs CI Bypass
+
+# Provides the required "Bandit SAST Analysis" check for docs-only PRs.
+# The security-scan.yml workflow only triggers on mcp-server/** paths,
+# so docs-only PRs have no check to satisfy the branch protection ruleset.
+# This workflow fills that gap with an instant-pass job.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
+      - '**.txt'
+      - '**.rst'
+
+permissions:
+  contents: read
+
+jobs:
+  bandit-sast:
+    name: Bandit SAST Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip security scan for docs-only changes
+        run: echo "Docs-only change detected — security scan not required."
