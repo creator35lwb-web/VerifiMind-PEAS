@@ -574,6 +574,13 @@ def _create_mcp_instance():
         Returns:
             Complete Trinity validation result with all agent analyses and synthesis
         """
+        # Check Accept header for markdown content negotiation
+        output_format = "json"
+        if ctx and hasattr(ctx, 'request_context'):
+            req_ctx = ctx.request_context or {}
+            accept = req_ctx.get('accept', '')
+            if 'text/markdown' in accept:
+                output_format = "markdown"
         try:
             from .models import Concept, PriorReasoning
             from .agents import XAgent, ZAgent, CSAgent
@@ -640,7 +647,16 @@ def _create_mcp_instance():
                 history["metadata"]["last_updated"] = str(trinity_result.completed_at)
                 save_validation_history(history)
 
-            # Return result
+            # Return result — Markdown-first if requested (v0.4.1)
+            if output_format == "markdown":
+                from .reporting import generate_markdown_report
+                return {
+                    "format": "markdown",
+                    "content": generate_markdown_report(trinity_result),
+                    "validation_id": trinity_result.validation_id,
+                    "saved_to_history": save_to_history
+                }
+
             return {
                 "validation_id": trinity_result.validation_id,
                 "concept_name": concept_name,

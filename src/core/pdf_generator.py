@@ -1,16 +1,20 @@
 """
+DEPRECATED: Use markdown_reporter.py instead.
+
 VerifiMind PEAS - PDF Report Generator v2.0.1
 Corrected Version - December 2025
 
+DEPRECATION NOTICE (February 2026):
+    This module is deprecated as of the Markdown-first strategic pivot.
+    Markdown is now the canonical output format for all VerifiMind reports.
+    PDF export is retained only for academic/compliance use cases where
+    PDF is explicitly required (e.g., Zenodo submissions).
+
+    Primary reporter: src.core.markdown_reporter.ValidationReportGenerator
+    To use PDF explicitly: pass --format pdf to verifimind_complete.py
+
 Generates publication-ready PDF reports synthesizing
 Agent insights and Socratic Scrutiny results.
-
-Fixes Applied:
-- Unicode font support (DejaVu) for international characters
-- Null safety on all agent result access
-- Type-safe attribute access with fallbacks
-- Robust error handling throughout
-- Improved visual formatting
 """
 
 import os
