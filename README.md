@@ -26,7 +26,7 @@
 
 ## MCP Server: Production Deployed
 
-> **v0.4.1 Live** — Markdown-first output with content negotiation, Unified Prompt Templates with 19 pre-built templates, 10 MCP tools, input sanitization, and CI/CD pipeline. Trinity validation fully operational with Gemini 2.5-flash. [Health Check](https://verifimind.ysenseai.org/health)
+> **v0.4.1 Live** — 400+ consultation hours/week | 85%+ MCP integration rate | Markdown-first output with content negotiation, Unified Prompt Templates with 19 pre-built templates, 10 MCP tools, input sanitization, and CI/CD pipeline. Trinity validation fully operational with Gemini 2.5-flash. [Health Check](https://verifimind.ysenseai.org/health)
 
 VerifiMind PEAS is now **live and accessible** across multiple platforms:
 
@@ -172,6 +172,33 @@ Automated testing and security scanning runs on every push to `main` via GitHub 
 - Unit tests and integration tests (Python 3.11)
 - Security scanning with Bandit (static analysis) and Safety (dependency audit)
 - Coverage reporting with configurable thresholds
+
+---
+
+## 📊 Validated Metrics (Week of Feb 9-16, 2026)
+
+> Cross-validated by FLYWHEEL TEAM (CSO R — Manus AI) against raw GCP Cloud Run logs.
+
+| Metric | Value | Methodology |
+|--------|-------|-------------|
+| **Consultation Hours** | 400+ hours/week | Session duration: first-to-last request per user per day |
+| **MCP Integration Rate** | 85%+ | Programmatic (Node.js + Python) vs. browser traffic |
+| **Week-over-Week Growth** | +26.5% | Conservative: active users this week vs. last week |
+| **Geographic Reach** | 208+ network segments | 24-hour global usage pattern, no single timezone dominates |
+
+### Client Type Transparency
+
+| Client | Share | Description |
+|--------|-------|-------------|
+| Node.js | 65.3% | MCP clients via Claude Code, VS Code, Cursor |
+| Python SDK | 20.3% | Python-based MCP integrations |
+| Browser | 8.5% | Direct web visitors (HuggingFace Space, landing page) |
+| Claude/Anthropic | 4.5% | Claude Desktop / Claude Code native clients |
+| Other | 1.4% | Miscellaneous clients |
+
+> **Key Insight:** Over 85% of all traffic is machine-to-machine API integration, confirming VerifiMind PEAS is used as an integrated MCP tool in developer workflows — not merely visited as a web demo. This traffic is invisible to traditional web analytics platforms.
+
+> **Data Source:** GCP Cloud Run HTTP Load Balancer logs. Owner traffic excluded. Bot traffic filtered. Full methodology documented in internal Report 011.
 
 ---
 
