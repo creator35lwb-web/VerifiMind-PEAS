@@ -26,7 +26,7 @@
 
 ## MCP Server: Production Deployed
 
-> **v0.4.1 Live** — 400+ consultation hours/week | 85%+ MCP integration rate | Markdown-first output with content negotiation, Unified Prompt Templates with 19 pre-built templates, 10 MCP tools, input sanitization, and CI/CD pipeline. Trinity validation fully operational with Gemini 2.5-flash. [Health Check](https://verifimind.ysenseai.org/health)
+> **v0.4.1 Live** — 1,190+ verified consultation hours delivered | 85%+ MCP integration rate | Markdown-first output with content negotiation, Unified Prompt Templates with 19 pre-built templates, 10 MCP tools, input sanitization, and CI/CD pipeline. Trinity validation fully operational with Gemini 2.5-flash. [Health Check](https://verifimind.ysenseai.org/health)
 
 VerifiMind PEAS is now **live and accessible** across multiple platforms:
 
@@ -175,30 +175,52 @@ Automated testing and security scanning runs on every push to `main` via GitHub 
 
 ---
 
-## 📊 Validated Metrics (Week of Feb 9-16, 2026)
+## 📊 Verified Service Metrics
 
-> Cross-validated by FLYWHEEL TEAM (CSO R — Manus AI) against raw GCP Cloud Run logs.
+> Cross-validated by FLYWHEEL TEAM (CSO R — Manus AI, COO AY — Antigravity) against raw GCP Cloud Run logs. Scrapers excluded. Conservative rounding applied.
 
 | Metric | Value | Methodology |
 |--------|-------|-------------|
-| **Consultation Hours** | 400+ hours/week | Session duration: first-to-last request per user per day |
-| **MCP Integration Rate** | 85%+ | Programmatic (Node.js + Python) vs. browser traffic |
-| **Week-over-Week Growth** | +26.5% | Conservative: active users this week vs. last week |
-| **Geographic Reach** | 208+ network segments | 24-hour global usage pattern, no single timezone dominates |
+| **Verified Consultation Hours** | **1,190+** (all-time) | Session duration: first-to-last request per user per day. Scrapers excluded via User-Agent audit classification. |
+| **MCP Integration Rate** | **85%+** | Programmatic (Node.js + Python) vs. browser traffic by User-Agent header |
+| **MCP Tools Available** | **10** (4 core + 6 template) | Core: consult_agent_x, consult_agent_z, consult_agent_cs, run_full_trinity |
+| **LLM Providers** | **7** | Gemini, Claude, Perplexity, OpenAI, Mistral, Grok, DeepSeek |
 
-### Client Type Transparency
+### Adoption Trajectory (Flying Hours ✈️)
+
+| Week | Period | Weekly Hours | Cumulative Hours | Users |
+|------|--------|-------------|-----------------|-------|
+| W02 | Jan 06–12 | 38.0h | 38h | 21 |
+| W03 | Jan 13–19 | 115.3h | 153h | 55 |
+| W04 | Jan 20–26 | 262.4h | 416h | 96 |
+| W05 | Jan 27–Feb 02 | 309.6h | 725h | 105 |
+| W06 | Feb 03–09 | 425.4h | 1,151h | 117 |
+| W07 | Feb 10–16 | 409.0h | 1,198h | 172 |
+
+### Traffic Classification Breakdown
+
+| Category | Share | Hours | Description |
+|----------|-------|-------|-------------|
+| **MCP Client** | 84.5% | 1,047h | Tool users via Node.js/Python MCP clients |
+| **Human Browser** | 6.2% | 77h | Direct web visitors (HuggingFace, landing page) |
+| **API Integration** | 6.0% | 74h | Programmatic API consumers |
+| **Scraper** | 3.4% | 42h | Excluded from verified total |
+
+> **Verified Total** = MCP + Browser + API. Scrapers excluded. Owner/Bot excluded.
+
+### Client Integration by User-Agent
 
 | Client | Share | Description |
 |--------|-------|-------------|
 | Node.js | 65.3% | MCP clients via Claude Code, VS Code, Cursor |
 | Python SDK | 20.3% | Python-based MCP integrations |
-| Browser | 8.5% | Direct web visitors (HuggingFace Space, landing page) |
+| Browser | 8.5% | Direct web visitors |
 | Claude/Anthropic | 4.5% | Claude Desktop / Claude Code native clients |
 | Other | 1.4% | Miscellaneous clients |
 
-> **Key Insight:** Over 85% of all traffic is machine-to-machine API integration, confirming VerifiMind PEAS is used as an integrated MCP tool in developer workflows — not merely visited as a web demo. This traffic is invisible to traditional web analytics platforms.
+> **Key Insight:** Over 85% of all traffic is machine-to-machine MCP integration, confirming VerifiMind PEAS is used as an integrated tool in developer workflows — not merely visited as a web demo. This traffic is invisible to traditional web analytics platforms like SimilarWeb.
 
-> **Data Source:** GCP Cloud Run HTTP Load Balancer logs. Owner traffic excluded. Bot traffic filtered. Full methodology documented in internal Report 011.
+> **Data Source:** GCP Cloud Run HTTP Load Balancer logs. Audit classification via User-Agent analysis. Owner traffic excluded. Scraper traffic excluded via conservative classification. Full methodology documented in internal reports (Report 016). Last updated: 2026-02-17.
 
 ---
 
