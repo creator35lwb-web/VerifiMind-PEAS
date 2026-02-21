@@ -264,6 +264,10 @@ We provide a systematic approach to **multi-model AI validation** that ensures y
 
 ## 🎯 Latest Achievements
 
+### Genesis v3.1 — CS Agent Multi-Stage Verification Protocol (February 2026)
+
+Genesis v3.1 introduces a **4-Stage Security Verification Protocol** for the CS Agent: Detection → Self-Examination (MANDATORY) → Severity Rating → Human Review. Self-examination is mandatory — every finding must be proven AND disproven before escalation. No auto-fixes. Human oversight is always the final stage. This is a workflow enhancement only — zero code changes to the server foundation. Inspired by [Claude Code Security](https://docs.anthropic.com/en/docs/claude-code/security) principles. Full protocol documentation: [`docs/security/`](docs/security/).
+
 ### v0.4.1 — Markdown-First Output & Smithery Sunset (February 14, 2026)
 
 The v0.4.1 release introduces **Markdown-first output** with content negotiation — clients can now request `Accept: text/markdown` to receive validation reports in Markdown format (80% token reduction vs JSON). This aligns with the broader industry shift toward Markdown as the agent-native communication format (see [Cloudflare: Markdown for Agents](https://blog.cloudflare.com/markdown-for-agents/)). All 13 Smithery proxy URL references were removed from server endpoints in preparation for the Smithery.ai legacy architecture sunset on March 1, 2026. The `pdf_generator.py` is deprecated — retained only for Zenodo DOI and enterprise compliance. Server version bumped with 155 total tests passing at 54.27% coverage.
@@ -296,6 +300,7 @@ The standardization phase generated **57 complete Trinity validation reports** a
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| **Genesis v3.1** | Feb 2026 | CS Agent 4-Stage Verification Protocol, zero code changes |
 | **v0.4.1** | Feb 14, 2026 | Markdown-first output, Smithery URL removal, PDF deprecated |
 | **v0.4.0** | Jan 30, 2026 | Unified Prompt Templates, 6 new tools, MACP v2.0 |
 | **v0.3.5** | Jan 30, 2026 | Input sanitization, CI/CD pipeline |
@@ -471,6 +476,7 @@ VerifiMind-PEAS implements a **multi-model orchestration** architecture where:
 - **Role**: Cybersecurity protection layer
 - **Focus**: Vulnerability assessment, threat modeling, security best practices
 - **Models**: GPT-4, Claude (security-focused)
+- **Genesis v3.1**: 4-Stage Verification Protocol — Detection → Self-Examination → Severity Rating → Human Review ([docs](docs/security/CS_Agent_Multi_Stage_Verification_Protocol.md))
 
 **This architecture synergizes diverse AI perspectives under human direction for objective, validated results.**
 
@@ -768,7 +774,7 @@ Traffic analysis from GCP Cloud Run logs (2-week sample, February 2026) provides
 | Metric | Value | Notes |
 |--------|-------|-------|
 | **Total Requests** | 8,578 | 14-day sample, excluding health checks |
-| **All-Time Users** | 444 | Cumulative unique users |
+| **All-Time Users** | 530+ | Cumulative unique users |
 | **Active Users (Week)** | 118 | Weekly active users |
 | **Retention Rate** | 11.3% | Improving (up from 7.4%) |
 | **Top Client** | Node.js MCP (67.7%) | Primary integration method |
@@ -868,6 +874,8 @@ Phases 1 through 4 established the methodology framework, MCP server implementat
 - ✅ **CodeQL remediation**: All 102 security alerts resolved across 4 waves
 - ✅ **Strategic pivot**: "Trust Layer for the Agentic Web" vision formalized
 - ✅ **Genesis Master Prompt v4.0**: Ecosystem-level prompt iterated
+- ✅ **Genesis v3.1**: CS Agent Multi-Stage Verification Protocol — 4-stage workflow (Detection → Self-Examination → Severity Rating → Human Review), zero code changes
+- ✅ **Security docs published**: [`docs/security/`](docs/security/) — Protocol spec and Severity Rating Framework synced to public repo
 
 **In Progress** (February–March 2026):
 
@@ -891,7 +899,7 @@ Phases 1 through 4 established the methodology framework, MCP server implementat
 | **Validation Reports** | 57+ | Proof of methodology at scale |
 | **Platforms Live** | 4 | GCP, MCP Registry, HuggingFace, verifimind.io |
 | **LLM Providers** | 7 | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama, Perplexity |
-| **All-Time Users** | 444 | Cumulative unique users |
+| **All-Time Users** | 530+ | Cumulative unique users |
 | **Cost per Validation** | ~$0.003 | Sustainable for all developers |
 
 **See Examples**: [/validation_archive/](/validation_archive/) | [Examples](/examples/)
