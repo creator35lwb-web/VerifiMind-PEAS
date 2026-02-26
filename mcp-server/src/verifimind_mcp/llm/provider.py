@@ -411,12 +411,27 @@ class GeminiProvider(LLMProvider):
         Convert a JSON Schema (from Pydantic) to Gemini's response_schema format.
 
         Gemini structured output requires a subset of OpenAPI 3.0 schema.
-        We strip unsupported fields (title, default, $defs, allOf, etc.)
-        and return a clean schema suitable for the API.
+        We strip unsupported fields (title, default, etc.), resolve $ref/$defs
+        references inline, and return a clean schema suitable for the API.
         """
+        # Extract $defs for $ref resolution
+        defs = output_schema.get("$defs", {})
+
+        def _resolve_ref(ref_str: str) -> dict:
+            """Resolve a $ref like '#/$defs/ReasoningStep' to the actual definition."""
+            parts = ref_str.lstrip("#/").split("/")
+            node = output_schema
+            for part in parts:
+                node = node.get(part, {})
+            return node
+
         def _clean(node):
             if not isinstance(node, dict):
                 return node
+            # Resolve $ref first
+            if "$ref" in node:
+                resolved = _resolve_ref(node["$ref"])
+                return _clean(resolved)
             cleaned = {}
             # Fields supported by Gemini response_schema
             for key in ("type", "properties", "required", "items", "enum", "description"):
