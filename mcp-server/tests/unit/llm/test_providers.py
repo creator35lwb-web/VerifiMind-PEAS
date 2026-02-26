@@ -203,6 +203,126 @@ class TestProviderClasses:
         provider = OllamaProvider()
         assert provider.get_model_name() == "ollama/llama3.2"
 
+    def test_groq_default_model(self):
+        """Test GroqProvider uses llama-3.3-70b-versatile by default."""
+        from verifimind_mcp.llm.provider import GroqProvider
+        with patch.dict(os.environ, {'GROQ_API_KEY': 'test-key'}):
+            try:
+                provider = GroqProvider()
+                assert provider.model == "llama-3.3-70b-versatile"
+                assert provider.get_model_name() == "groq/llama-3.3-70b-versatile"
+            except ImportError:
+                pytest.skip("groq package not installed")
+
+
+class TestJsonExtraction:
+    """Test JSON extraction and schema defaults methods (v0.4.3.1+)."""
+
+    def test_extract_best_json_single_object(self):
+        """Test extracting a single well-formed JSON object."""
+        from verifimind_mcp.llm.provider import GeminiProvider
+        text = '{"innovation_score": 8.5, "confidence": 0.9}'
+        result = GeminiProvider._extract_best_json(text, ["innovation_score", "confidence"])
+        assert result is not None
+        assert result["innovation_score"] == 8.5
+        assert result["confidence"] == 0.9
+
+    def test_extract_best_json_multiple_objects(self):
+        """Test extracting best match from multiple JSON objects."""
+        from verifimind_mcp.llm.provider import GeminiProvider
+        text = '{"step_number": 1, "thought": "test"} {"innovation_score": 8.5, "confidence": 0.9, "recommendation": "go"}'
+        result = GeminiProvider._extract_best_json(text, ["innovation_score", "confidence", "recommendation"])
+        assert result is not None
+        assert result["innovation_score"] == 8.5
+        assert "recommendation" in result
+
+    def test_extract_best_json_no_match(self):
+        """Test extraction returns None when no JSON found."""
+        from verifimind_mcp.llm.provider import GeminiProvider
+        result = GeminiProvider._extract_best_json("no json here", ["field1"])
+        assert result is None
+
+    def test_merge_json_objects_with_reasoning_steps(self):
+        """Test merging scattered reasoning steps into one object."""
+        from verifimind_mcp.llm.provider import GeminiProvider
+        text = '{"step_number": 1, "thought": "first"} {"step_number": 2, "thought": "second"} {"recommendation": "proceed"}'
+        result = GeminiProvider._merge_json_objects(text, ["reasoning_steps", "recommendation"])
+        assert result is not None
+        assert "reasoning_steps" in result
+        assert len(result["reasoning_steps"]) == 2
+        assert result["recommendation"] == "proceed"
+
+    def test_fill_schema_defaults_number_fields(self):
+        """Test filling missing number fields with midpoint defaults."""
+        from verifimind_mcp.llm.provider import GeminiProvider
+        schema = {
+            "required": ["score", "confidence"],
+            "properties": {
+                "score": {"type": "number", "minimum": 0, "maximum": 10},
+                "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+            }
+        }
+        data = {}
+        result = GeminiProvider._fill_schema_defaults(data, schema)
+        assert result["score"] == 5.0
+        assert result["confidence"] == 0.5
+
+    def test_fill_schema_defaults_preserves_existing(self):
+        """Test that existing fields are not overwritten."""
+        from verifimind_mcp.llm.provider import GeminiProvider
+        schema = {
+            "required": ["score", "name"],
+            "properties": {
+                "score": {"type": "number", "minimum": 0, "maximum": 10},
+                "name": {"type": "string"},
+            }
+        }
+        data = {"score": 8.5}
+        result = GeminiProvider._fill_schema_defaults(data, schema)
+        assert result["score"] == 8.5  # preserved
+        assert "name" in result  # filled
+
+    def test_fill_schema_defaults_boolean_and_array(self):
+        """Test filling boolean and array defaults."""
+        from verifimind_mcp.llm.provider import GeminiProvider
+        schema = {
+            "required": ["active", "items", "reasoning_steps"],
+            "properties": {
+                "active": {"type": "boolean"},
+                "items": {"type": "array"},
+                "reasoning_steps": {"type": "array"},
+            }
+        }
+        data = {}
+        result = GeminiProvider._fill_schema_defaults(data, schema)
+        assert result["active"] is False
+        assert isinstance(result["items"], list)
+        assert isinstance(result["reasoning_steps"], list)
+        assert len(result["reasoning_steps"]) == 1
+        assert result["reasoning_steps"][0]["step_number"] == 1
+
+
+class TestStripMarkdownCodeFences:
+    """Test markdown code fence stripping."""
+
+    def test_strip_json_fence(self):
+        """Test stripping ```json fences."""
+        from verifimind_mcp.llm.provider import strip_markdown_code_fences
+        text = '```json\n{"key": "value"}\n```'
+        assert strip_markdown_code_fences(text) == '{"key": "value"}'
+
+    def test_strip_fence_with_preamble(self):
+        """Test stripping fences with text before them."""
+        from verifimind_mcp.llm.provider import strip_markdown_code_fences
+        text = 'Here is the analysis:\n```json\n{"key": "value"}\n```'
+        assert strip_markdown_code_fences(text) == '{"key": "value"}'
+
+    def test_no_fence(self):
+        """Test text without fences is returned as-is."""
+        from verifimind_mcp.llm.provider import strip_markdown_code_fences
+        text = '{"key": "value"}'
+        assert strip_markdown_code_fences(text) == '{"key": "value"}'
+
 
 # Integration tests (skipped if no API keys)
 class TestIntegration:

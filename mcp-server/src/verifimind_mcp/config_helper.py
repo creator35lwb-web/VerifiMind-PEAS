@@ -44,7 +44,7 @@ AGENT_PROVIDER_DEFAULTS = {
     },
     "Z": {
         "default": "gemini",           # FREE tier
-        "recommended": "anthropic",    # Claude excels at ethics/reasoning
+        "recommended": "groq",         # v0.4.4: Groq/Llama for structured ethics output
         "fallback": "gemini"
     },
     "CS": {
@@ -113,6 +113,14 @@ def get_agent_provider(agent_id: str, ctx: Any = None):
             return AnthropicProvider()
         except Exception as e:
             logger.warning(f"Agent {agent_id}: Anthropic failed: {e}")
+
+    if recommended == "groq" and os.getenv("GROQ_API_KEY"):
+        logger.info(f"Agent {agent_id}: Using recommended provider 'groq' (API key found)")
+        try:
+            from .llm import GroqProvider
+            return GroqProvider()
+        except Exception as e:
+            logger.warning(f"Agent {agent_id}: Groq failed: {e}")
 
     # 4. Fall back to Gemini (FREE tier)
     if os.getenv("GEMINI_API_KEY"):

@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.4.3"
+SERVER_VERSION = "0.4.4"
 
 
 def wrap_response(response: dict) -> dict:
@@ -180,7 +180,7 @@ def get_project_info() -> dict[str, Any]:
         "methodology": "Genesis Methodology",
         "version": "2.0.1",
         "architecture": "RefleXion Trinity (X-Z-CS)",
-        "mcp_server_version": "0.4.3",
+        "mcp_server_version": "0.4.4",
         "agents": {
             "X": {
                 "name": "X Intelligent",
