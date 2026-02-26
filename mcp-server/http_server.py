@@ -31,7 +31,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.4.3"
+SERVER_VERSION = "0.4.4"
 
 # Custom route handlers
 async def health_handler(request):
@@ -54,6 +54,8 @@ async def health_handler(request):
         "features": {
             "smart_fallback": True,
             "per_agent_providers": True,
+            "multi_model_routing": True,
+            "quality_markers": True,
             "rate_limiting": True,
             "free_tier_default": True,
             "input_sanitization": True
@@ -258,6 +260,7 @@ ROOT_HTML = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VerifiMind-PEAS MCP Server</title>
+<link rel="icon" type="image/png" href="/favicon.ico">
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
          max-width: 680px; margin: 40px auto; padding: 0 20px; color: #1a1a2e;
@@ -476,13 +479,60 @@ Allow: /.well-known/
 # GitHub: https://github.com/creator35lwb-web/VerifiMind-PEAS
 """
 
-# 1x1 transparent GIF (43 bytes) — suppresses browser 404s for favicon
-FAVICON_BYTES = (
-    b"\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00"
-    b"\xff\xff\xff\x00\x00\x00\x21\xf9\x04\x00\x00\x00\x00"
-    b"\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02"
-    b"\x44\x01\x00\x3b"
+# VerifiMind PEAS favicon (32x32 PNG, ~2.7KB)
+# Generated from docs/assets/branding/VerifiMind-PEAS-Icon.png
+import base64 as _b64
+_FAVICON_B64 = (
+    "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"
 )
+FAVICON_BYTES = _b64.b64decode(_FAVICON_B64)
 
 HELP_URL = "https://github.com/creator35lwb-web/VerifiMind-PEAS#-common-mistakes-read-this-first"
 
@@ -493,8 +543,8 @@ async def robots_handler(request):
 
 
 async def favicon_handler(request):
-    """Serve a minimal favicon to suppress browser 404s."""
-    return Response(content=FAVICON_BYTES, media_type="image/gif")
+    """Serve the VerifiMind PEAS favicon (32x32 PNG)."""
+    return Response(content=FAVICON_BYTES, media_type="image/png")
 
 
 async def http_exception_handler(request, exc):
