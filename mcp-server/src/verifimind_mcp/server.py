@@ -18,11 +18,12 @@ Tools Exposed:
 - run_full_trinity - Run complete X → Z → CS validation
 
 Author: Alton Lee
-Version: 0.4.2 (Gemini 2.5-flash, Trinity fix, transparent mock)
+Version: 0.4.3 (Structured output, system notice, Trinity parsing fix)
 """
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Any, Optional
 
@@ -32,6 +33,18 @@ from pydantic import BaseModel, Field
 
 # Initialize logger for security events
 logger = logging.getLogger(__name__)
+
+# v0.4.3 — System Notice: broadcast messages to all MCP users via env var
+SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
+SERVER_VERSION = "0.4.3"
+
+
+def wrap_response(response: dict) -> dict:
+    """Add system notice and version metadata to every tool response."""
+    if SYSTEM_NOTICE:
+        response["_system_notice"] = SYSTEM_NOTICE
+    response["_server_version"] = SERVER_VERSION
+    return response
 
 
 class VerifiMindConfig(BaseModel):
@@ -167,7 +180,7 @@ def get_project_info() -> dict[str, Any]:
         "methodology": "Genesis Methodology",
         "version": "2.0.1",
         "architecture": "RefleXion Trinity (X-Z-CS)",
-        "mcp_server_version": "0.4.2",
+        "mcp_server_version": "0.4.3",
         "agents": {
             "X": {
                 "name": "X Intelligent",
@@ -327,7 +340,7 @@ def _create_mcp_instance():
             agent = XAgent(llm_provider=provider)
             result = await agent.analyze(concept)
 
-            return {
+            return wrap_response({
                 "agent": "X Intelligent",
                 "concept": concept_name,
                 "reasoning_steps": [
@@ -340,15 +353,15 @@ def _create_mcp_instance():
                 "risks": result.risks,
                 "recommendation": result.recommendation,
                 "confidence": result.confidence
-            }
+            })
 
         except Exception as e:
-            return {
+            return wrap_response({
                 "agent": "X Intelligent",
                 "status": "error",
                 "error": str(e),
                 "concept": concept_name
-            }
+            })
 
 
     @app.tool()
@@ -425,7 +438,7 @@ def _create_mcp_instance():
             agent = ZAgent(llm_provider=provider)
             result = await agent.analyze(concept, prior)
 
-            return {
+            return wrap_response({
                 "agent": "Z Guardian",
                 "concept": concept_name,
                 "reasoning_steps": [
@@ -439,15 +452,15 @@ def _create_mcp_instance():
                 "recommendation": result.recommendation,
                 "veto_triggered": result.veto_triggered,
                 "confidence": result.confidence
-            }
+            })
 
         except Exception as e:
-            return {
+            return wrap_response({
                 "agent": "Z Guardian",
                 "status": "error",
                 "error": str(e),
                 "concept": concept_name
-            }
+            })
 
 
     @app.tool()
@@ -520,7 +533,7 @@ def _create_mcp_instance():
             agent = CSAgent(llm_provider=provider)
             result = await agent.analyze(concept, prior)
 
-            return {
+            return wrap_response({
                 "agent": "CS Security",
                 "concept": concept_name,
                 "reasoning_steps": [
@@ -534,15 +547,15 @@ def _create_mcp_instance():
                 "socratic_questions": result.socratic_questions,
                 "recommendation": result.recommendation,
                 "confidence": result.confidence
-            }
+            })
 
         except Exception as e:
-            return {
+            return wrap_response({
                 "agent": "CS Security",
                 "status": "error",
                 "error": str(e),
                 "concept": concept_name
-            }
+            })
 
 
     @app.tool()
@@ -656,14 +669,14 @@ def _create_mcp_instance():
             # Return result — Markdown-first if requested (v0.4.1)
             if output_format == "markdown":
                 from .reporting import generate_markdown_report
-                return {
+                return wrap_response({
                     "format": "markdown",
                     "content": generate_markdown_report(trinity_result),
                     "validation_id": trinity_result.validation_id,
                     "saved_to_history": save_to_history
-                }
+                })
 
-            return {
+            return wrap_response({
                 "validation_id": trinity_result.validation_id,
                 "concept_name": concept_name,
                 "x_analysis": {
@@ -695,14 +708,14 @@ def _create_mcp_instance():
                 },
                 "human_decision_required": True,
                 "saved_to_history": save_to_history
-            }
+            })
 
         except Exception as e:
-            return {
+            return wrap_response({
                 "status": "error",
                 "error": str(e),
                 "concept": concept_name
-            }
+            })
 
     # ===== v0.4.0 TEMPLATE TOOLS =====
 
@@ -742,7 +755,7 @@ def _create_mcp_instance():
                 tags=tag_list
             )
 
-            return {
+            return wrap_response({
                 "count": len(templates),
                 "filters": {
                     "agent_id": agent_id,
@@ -762,13 +775,13 @@ def _create_mcp_instance():
                     }
                     for t in templates
                 ]
-            }
+            })
 
         except Exception as e:
-            return {
+            return wrap_response({
                 "status": "error",
                 "error": str(e)
-            }
+            })
 
     @app.tool()
     async def get_prompt_template(
@@ -795,11 +808,11 @@ def _create_mcp_instance():
             template = registry.get_template(template_id)
 
             if not template:
-                return {
+                return wrap_response({
                     "status": "not_found",
                     "error": f"Template not found: {template_id}",
                     "available_templates": len(registry.list_templates())
-                }
+                })
 
             result = {
                 "template_id": template.template_id,
@@ -828,13 +841,13 @@ def _create_mcp_instance():
             if include_content:
                 result["content"] = template.content
 
-            return result
+            return wrap_response(result)
 
         except Exception as e:
-            return {
+            return wrap_response({
                 "status": "error",
                 "error": str(e)
-            }
+            })
 
     @app.tool()
     async def export_prompt_template(
@@ -865,10 +878,10 @@ def _create_mcp_instance():
             template = registry.get_template(template_id)
 
             if not template:
-                return {
+                return wrap_response({
                     "status": "not_found",
                     "error": f"Template not found: {template_id}"
-                }
+                })
 
             format_lower = format.lower()
             if format_lower == "markdown" or format_lower == "md":
@@ -878,25 +891,25 @@ def _create_mcp_instance():
                 exported = export_template_json(template)
                 content_type = "application/json"
             else:
-                return {
+                return wrap_response({
                     "status": "error",
                     "error": f"Unsupported format: {format}. Use 'markdown' or 'json'"
-                }
+                })
 
-            return {
+            return wrap_response({
                 "template_id": template_id,
                 "format": format_lower,
                 "content_type": content_type,
                 "exported_content": exported,
                 "template_name": template.name,
                 "template_version": template.version
-            }
+            })
 
         except Exception as e:
-            return {
+            return wrap_response({
                 "status": "error",
                 "error": str(e)
-            }
+            })
 
     @app.tool()
     async def register_custom_template(
@@ -943,7 +956,7 @@ def _create_mcp_instance():
                 tags=tag_list
             )
 
-            return {
+            return wrap_response({
                 "status": "success",
                 "message": f"Template registered successfully",
                 "template_id": template.template_id,
@@ -951,18 +964,18 @@ def _create_mcp_instance():
                 "agent_id": template.agent_id,
                 "category": template.category,
                 "tags": template.tags
-            }
+            })
 
         except ValueError as e:
-            return {
+            return wrap_response({
                 "status": "error",
                 "error": str(e)
-            }
+            })
         except Exception as e:
-            return {
+            return wrap_response({
                 "status": "error",
                 "error": str(e)
-            }
+            })
 
     @app.tool()
     async def import_template_from_url(
@@ -1006,18 +1019,18 @@ def _create_mcp_instance():
             result = await do_import(url, validate=validate)
 
             if not result.success:
-                return {
+                return wrap_response({
                     "status": "error",
                     "error": result.error,
                     "warnings": result.warnings
-                }
+                })
 
             # Register the imported template
             registry = TemplateRegistry()
             if result.template:
                 registry._custom_templates[result.template.template_id] = result.template
 
-            return {
+            return wrap_response({
                 "status": "success",
                 "message": "Template imported and registered",
                 "source_url": url,
@@ -1025,13 +1038,13 @@ def _create_mcp_instance():
                 "template_id": result.template.template_id if result.template else None,
                 "template_name": result.template.name if result.template else None,
                 "warnings": result.warnings
-            }
+            })
 
         except Exception as e:
-            return {
+            return wrap_response({
                 "status": "error",
                 "error": str(e)
-            }
+            })
 
     @app.tool()
     async def get_template_statistics(
@@ -1054,7 +1067,7 @@ def _create_mcp_instance():
             # Add library info
             libraries = registry.list_libraries()
 
-            return {
+            return wrap_response({
                 "status": "success",
                 **stats,
                 "libraries": [
@@ -1066,13 +1079,13 @@ def _create_mcp_instance():
                     }
                     for lib in libraries
                 ]
-            }
+            })
 
         except Exception as e:
-            return {
+            return wrap_response({
                 "status": "error",
                 "error": str(e)
-            }
+            })
 
     return app
 

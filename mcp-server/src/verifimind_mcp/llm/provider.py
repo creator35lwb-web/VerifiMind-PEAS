@@ -406,6 +406,43 @@ class GeminiProvider(LLMProvider):
         except ImportError:
             raise ImportError("google-generativeai package not installed. Run: pip install google-generativeai")
     
+    def _build_response_schema(self, output_schema: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Convert a JSON Schema (from Pydantic) to Gemini's response_schema format.
+
+        Gemini structured output requires a subset of OpenAPI 3.0 schema.
+        We strip unsupported fields (title, default, $defs, allOf, etc.)
+        and return a clean schema suitable for the API.
+        """
+        def _clean(node):
+            if not isinstance(node, dict):
+                return node
+            cleaned = {}
+            # Fields supported by Gemini response_schema
+            for key in ("type", "properties", "required", "items", "enum", "description"):
+                if key in node:
+                    val = node[key]
+                    if key == "properties" and isinstance(val, dict):
+                        cleaned[key] = {k: _clean(v) for k, v in val.items()}
+                    elif key == "items" and isinstance(val, dict):
+                        cleaned[key] = _clean(val)
+                    else:
+                        cleaned[key] = val
+            # Handle anyOf with null (Optional fields) — pick the non-null type
+            if "anyOf" in node:
+                non_null = [s for s in node["anyOf"] if s.get("type") != "null"]
+                if non_null:
+                    cleaned.update(_clean(non_null[0]))
+                elif node["anyOf"]:
+                    cleaned.update(_clean(node["anyOf"][0]))
+            return cleaned
+
+        try:
+            return _clean(output_schema)
+        except Exception as e:
+            logger.warning(f"Failed to build Gemini response schema: {e}")
+            return None
+
     async def generate(
         self,
         prompt: str,
@@ -413,34 +450,46 @@ class GeminiProvider(LLMProvider):
         temperature: float = 0.7,
         max_tokens: int = 4096
     ) -> Dict[str, Any]:
-        """Generate response using Gemini API."""
-        
-        # Add JSON instruction if schema provided
-        if output_schema:
-            prompt += f"\n\nRespond with valid JSON only, matching this schema:\n{json.dumps(output_schema, indent=2)}\n\nJSON Response:"
-        
+        """Generate response using Gemini API with structured output when schema provided."""
+
         try:
+            # Build generation config
+            gen_config = {
+                "temperature": temperature,
+                "max_output_tokens": max_tokens,
+            }
+
+            # Use Gemini structured output when schema is provided (v0.4.3)
+            gemini_schema = None
+            if output_schema:
+                gemini_schema = self._build_response_schema(output_schema)
+
+            if gemini_schema:
+                gen_config["response_mime_type"] = "application/json"
+                gen_config["response_schema"] = gemini_schema
+                logger.debug("Using Gemini structured output mode")
+            elif output_schema:
+                # Fallback: append schema to prompt if structured output build failed
+                prompt += f"\n\nRespond with valid JSON only, matching this schema:\n{json.dumps(output_schema, indent=2)}\n\nJSON Response:"
+
             # Create model instance
             model = self.genai.GenerativeModel(self.model)
-            
-            # Generate response (synchronous call)
+
+            # Generate response
             response = model.generate_content(
                 prompt,
-                generation_config={
-                    "temperature": temperature,
-                    "max_output_tokens": max_tokens,
-                }
+                generation_config=gen_config
             )
-            
+
             content = response.text
-            
+
             # Extract token usage
             usage = {
                 "input_tokens": response.usage_metadata.prompt_token_count if hasattr(response, 'usage_metadata') else 0,
                 "output_tokens": response.usage_metadata.candidates_token_count if hasattr(response, 'usage_metadata') else 0,
                 "total_tokens": response.usage_metadata.total_token_count if hasattr(response, 'usage_metadata') else 0
             }
-            
+
             # Parse JSON response
             try:
                 # Strip markdown code fences first (common with Gemini)
@@ -466,7 +515,6 @@ class GeminiProvider(LLMProvider):
                 # Try one more time with aggressive cleanup
                 try:
                     import re
-                    # Extract just the JSON object
                     json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', clean_content)
                     if json_match:
                         parsed_content = json.loads(json_match.group())
