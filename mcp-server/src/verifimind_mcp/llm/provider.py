@@ -549,13 +549,20 @@ class GeminiProvider(LLMProvider):
             clean_content = strip_markdown_code_fences(content)
             logger.debug(f"Cleaned content (first 300): {clean_content[:300]}...")
 
-            # v0.4.3: Use robust best-match extraction when we know the expected fields.
-            # This prevents grabbing a sub-object (e.g., single reasoning step) when
-            # the full model is also present in the response.
+            # v0.4.3.1 C-S-P Compression: Use robust best-match extraction.
+            # raw_decode() finds all valid JSON objects and scores by field overlap
+            # to pick the full model object, not a sub-object (reasoning step).
+            inference_quality = "real"
             if expected_fields:
                 parsed_content = self._extract_best_json(clean_content, expected_fields)
-                if parsed_content is None:
+                if parsed_content is not None:
+                    overlap = sum(1 for f in expected_fields if f in parsed_content)
+                    if overlap < len(expected_fields) * 0.5:
+                        inference_quality = "partial"
+                        logger.warning(f"Low field overlap: {overlap}/{len(expected_fields)}")
+                else:
                     logger.warning("Best-match extraction found nothing; falling back to simple parse")
+                    inference_quality = "fallback"
                     try:
                         parsed_content = json.loads(clean_content)
                     except json.JSONDecodeError:
@@ -572,14 +579,17 @@ class GeminiProvider(LLMProvider):
                             parsed_content = json.loads(json_match.group())
                         else:
                             parsed_content = {"raw_response": content}
+                            inference_quality = "fallback"
                 except json.JSONDecodeError as e:
                     logger.error(f"Failed to parse JSON: {e}")
                     parsed_content = {"raw_response": content, "parse_error": str(e)}
+                    inference_quality = "fallback"
 
-            # Return both content and usage
+            # Return content, usage, and inference quality marker
             return {
                 "content": parsed_content,
-                "usage": usage
+                "usage": usage,
+                "_inference_quality": inference_quality
             }
 
         except Exception as e:

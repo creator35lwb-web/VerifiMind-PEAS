@@ -352,7 +352,8 @@ def _create_mcp_instance():
                 "opportunities": result.opportunities,
                 "risks": result.risks,
                 "recommendation": result.recommendation,
-                "confidence": result.confidence
+                "confidence": result.confidence,
+                "_inference_quality": getattr(result, '_inference_quality', 'unknown')
             })
 
         except Exception as e:
@@ -451,7 +452,8 @@ def _create_mcp_instance():
                 "mitigation_measures": result.mitigation_measures,
                 "recommendation": result.recommendation,
                 "veto_triggered": result.veto_triggered,
-                "confidence": result.confidence
+                "confidence": result.confidence,
+                "_inference_quality": getattr(result, '_inference_quality', 'unknown')
             })
 
         except Exception as e:
@@ -546,7 +548,8 @@ def _create_mcp_instance():
                 "security_recommendations": result.security_recommendations,
                 "socratic_questions": result.socratic_questions,
                 "recommendation": result.recommendation,
-                "confidence": result.confidence
+                "confidence": result.confidence,
+                "_inference_quality": getattr(result, '_inference_quality', 'unknown')
             })
 
         except Exception as e:
@@ -633,14 +636,23 @@ def _create_mcp_instance():
             z_agent = ZAgent(llm_provider=providers["Z"])
             cs_agent = CSAgent(llm_provider=providers["CS"])
 
+            # v0.4.3.1 C-S-P State: Track inference quality across chain
+            chain_status = {}
+
             # Step 1: X Agent analysis (no prior reasoning)
             x_result = await x_agent.analyze(concept)
+            x_quality = getattr(x_result, '_inference_quality', 'unknown')
+            chain_status["x_agent"] = x_quality
+            logger.info(f"Trinity X stage: quality={x_quality}")
             x_cot = x_result.to_chain_of_thought(concept_name)
 
             # Step 2: Z Agent analysis (sees X's reasoning)
             z_prior = PriorReasoning()
             z_prior.add(x_cot)
             z_result = await z_agent.analyze(concept, z_prior)
+            z_quality = getattr(z_result, '_inference_quality', 'unknown')
+            chain_status["z_agent"] = z_quality
+            logger.info(f"Trinity Z stage: quality={z_quality}")
             z_cot = z_result.to_chain_of_thought(concept_name)
 
             # Step 3: CS Agent analysis (sees X and Z reasoning)
@@ -648,6 +660,19 @@ def _create_mcp_instance():
             cs_prior.add(x_cot)
             cs_prior.add(z_cot)
             cs_result = await cs_agent.analyze(concept, cs_prior)
+            cs_quality = getattr(cs_result, '_inference_quality', 'unknown')
+            chain_status["cs_agent"] = cs_quality
+            logger.info(f"Trinity CS stage: quality={cs_quality}")
+
+            # v0.4.3.1 C-S-P Propagation: Compute overall quality
+            quality_values = list(chain_status.values())
+            if all(v == "real" for v in quality_values):
+                overall_quality = "full"
+            elif any(v == "fallback" for v in quality_values):
+                overall_quality = "degraded"
+            else:
+                overall_quality = "partial"
+            logger.info(f"Trinity chain complete: {chain_status} → {overall_quality}")
 
             # Step 4: Create Trinity result
             trinity_result = create_trinity_result(
@@ -673,7 +698,9 @@ def _create_mcp_instance():
                     "format": "markdown",
                     "content": generate_markdown_report(trinity_result),
                     "validation_id": trinity_result.validation_id,
-                    "saved_to_history": save_to_history
+                    "saved_to_history": save_to_history,
+                    "_agent_chain_status": chain_status,
+                    "_overall_quality": overall_quality
                 })
 
             return wrap_response({
@@ -707,7 +734,9 @@ def _create_mcp_instance():
                     "confidence": trinity_result.synthesis.confidence
                 },
                 "human_decision_required": True,
-                "saved_to_history": save_to_history
+                "saved_to_history": save_to_history,
+                "_agent_chain_status": chain_status,
+                "_overall_quality": overall_quality
             })
 
         except Exception as e:
