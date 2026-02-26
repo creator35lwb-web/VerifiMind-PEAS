@@ -64,7 +64,7 @@ async def interactive_app_generation():
 
     if not user_idea.strip():
         print("\n[ERROR] No app idea provided. Exiting.")
-        return
+        return None
 
     print()
     print("[Received] Your app idea:")
@@ -178,7 +178,7 @@ async def interactive_app_generation():
     if decision['decision'] == 'REJECT':
         print("\n[ERROR] Your app idea was rejected by the validation agents.")
         print("Please review the recommendations and try again.")
-        return
+        return None
 
     print()
 

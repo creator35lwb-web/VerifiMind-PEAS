@@ -2,7 +2,6 @@
 Unit tests for Markdown report generation.
 """
 
-import pytest
 from datetime import datetime, timezone
 
 from verifimind_mcp.models.reasoning import (

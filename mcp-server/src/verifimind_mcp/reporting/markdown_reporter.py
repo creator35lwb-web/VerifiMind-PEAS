@@ -8,8 +8,8 @@ and agent-native communication standards (Cloudflare, A2A, MCP).
 v0.4.1 — February 2026
 """
 
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import timezone
+from typing import List
 
 from ..models.results import TrinityResult, TrinitySynthesis
 from ..models.reasoning import (

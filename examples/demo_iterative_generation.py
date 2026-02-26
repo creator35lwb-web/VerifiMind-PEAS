@@ -231,7 +231,7 @@ Press Enter to start...
 
     # Run iterative generation
     try:
-        generated_app, history = await generator.generate_with_iterations(
+        _generated_app, _history = await generator.generate_with_iterations(
             spec=app_spec,
             output_dir="output"
         )

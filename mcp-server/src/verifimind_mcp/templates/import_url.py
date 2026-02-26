@@ -176,14 +176,14 @@ def _parse_template_content(
     try:
         data = json.loads(content)
     except json.JSONDecodeError:
-        pass
+        pass  # Not JSON — fall through to try YAML
 
     # Try YAML if JSON failed
     if data is None:
         try:
             data = yaml.safe_load(content)
         except yaml.YAMLError:
-            pass
+            pass  # Not YAML either — will return error below
 
     if data is None:
         return None, warnings, "Content is not valid JSON or YAML"

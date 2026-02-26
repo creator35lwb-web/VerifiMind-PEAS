@@ -183,7 +183,7 @@ def _get_provider_from_session_config(ctx: Any, agent_id: str):
                 return provider_class(api_key=api_key)
 
     except (AttributeError, TypeError):
-        pass
+        pass  # Session config doesn't have expected attributes — fall through
 
     return None
 
