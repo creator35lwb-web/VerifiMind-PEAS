@@ -136,18 +136,23 @@ class BaseAgent(ABC):
                 max_tokens=self.config.max_tokens
             )
             
-            # Extract content and usage from response
+            # Extract content, usage, and inference quality from response
             if isinstance(response, dict) and "content" in response:
                 content = response["content"]
                 usage = response.get("usage", {})
+                inference_quality = response.get("_inference_quality", "unknown")
             else:
                 # Backward compatibility: response is content directly
                 content = response
                 usage = {}
-            
+                inference_quality = "unknown"
+
             # Parse response into model
             result = self.OUTPUT_MODEL.model_validate(content)
-            
+
+            # v0.4.3.1 C-S-P State: attach inference quality marker to result
+            result._inference_quality = inference_quality
+
             # Update metrics if provided
             if metrics:
                 if usage:
@@ -157,9 +162,9 @@ class BaseAgent(ABC):
                     metrics.calculate_cost()
                 metrics.success = True
                 metrics.finish()
-            
-            logger.info(f"{self.config.name} completed analysis with confidence: {result.confidence}")
-            
+
+            logger.info(f"{self.config.name} completed analysis with confidence: {result.confidence} (quality: {inference_quality})")
+
             return result
             
         except Exception as e:
