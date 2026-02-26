@@ -545,12 +545,6 @@ class GeminiProvider(LLMProvider):
             # Create model instance
             model = self.genai.GenerativeModel(self.model)
 
-            # v0.4.3.1: Force JSON output mode (no schema constraints).
-            # response_mime_type alone constrains Gemini to output valid JSON
-            # without the $ref/$defs issues that response_schema causes.
-            if output_schema:
-                gen_config["response_mime_type"] = "application/json"
-
             # Generate response
             response = model.generate_content(
                 prompt,
