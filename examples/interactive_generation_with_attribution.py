@@ -54,14 +54,14 @@ async def interactive_app_generation_with_attribution():
         if not creator:
             print(f"\n[ERROR] No creator found with email: {email}")
             print("Please register as a new creator.")
-            return
+            return None
 
         # Find private key file
         key_file = Path(f"./data/attribution/keys/{creator.creator_id}_private.key")
         if not key_file.exists():
             print(f"\n[ERROR] Private key file not found.")
             print(f"Expected: {key_file}")
-            return
+            return None
 
         with open(key_file, 'r', encoding='utf-8') as f:
             lines = f.readlines()
@@ -73,7 +73,7 @@ async def interactive_app_generation_with_attribution():
             print(f"\n[SUCCESS] Welcome back, {session.creator.name}!")
         except Exception as e:
             print(f"\n[ERROR] Login failed: {e}")
-            return
+            return None
     else:
         # Register new creator
         print("Let's register you as a new creator!")
@@ -116,7 +116,7 @@ async def interactive_app_generation_with_attribution():
 
     if not user_idea.strip():
         print("\n[ERROR] No app idea provided. Exiting.")
-        return
+        return None
 
     print()
     print("[Received] Your app idea:")
@@ -231,7 +231,7 @@ async def interactive_app_generation_with_attribution():
     if decision['decision'] == 'REJECT':
         print("\n[ERROR] Your app idea was rejected by the validation agents.")
         print("Please review the recommendations and try again.")
-        return
+        return None
 
     print()
 

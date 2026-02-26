@@ -13,7 +13,7 @@ drop-in replacement in verifimind_complete.py.
 import os
 import re
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 from src.core.logging_config import get_logger
 

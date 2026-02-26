@@ -515,8 +515,8 @@ CRITICAL: Return ONLY valid JSON (no markdown, no explanation):
             if isinstance(result, list):
                 return [str(c).strip() for c in result if c and len(str(c).strip()) > 10]
         except (json.JSONDecodeError, TypeError):
-            pass
-        
+            pass  # Not a valid JSON array — fall through to line-based extraction
+
         # Fallback: Extract from various list formats
         lines = content.split('\n')
         challenges = []

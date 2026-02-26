@@ -307,7 +307,7 @@ async def test_enhanced_features():
 
     # Test 1: LLM fallback system
     print_subsection("1. Intelligent Fallback System")
-    provider = LLMProviderFactory.create_provider("openai", model="gpt-4")
+    _provider = LLMProviderFactory.create_provider("openai", model="gpt-4")
     print("[OK] Provider supports graceful fallback to mock data")
 
     # Test 2: Compliance framework coverage
