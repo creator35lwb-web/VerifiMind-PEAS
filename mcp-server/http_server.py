@@ -31,7 +31,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.4.1"
+SERVER_VERSION = "0.4.2"
 
 # Custom route handlers
 async def health_handler(request):

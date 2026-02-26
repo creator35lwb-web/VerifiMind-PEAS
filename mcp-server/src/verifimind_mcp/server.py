@@ -18,7 +18,7 @@ Tools Exposed:
 - run_full_trinity - Run complete X → Z → CS validation
 
 Author: Alton Lee
-Version: 0.4.0 (Unified Prompt Templates)
+Version: 0.4.2 (Gemini 2.5-flash, Trinity fix, transparent mock)
 """
 
 import json
@@ -167,7 +167,7 @@ def get_project_info() -> dict[str, Any]:
         "methodology": "Genesis Methodology",
         "version": "2.0.1",
         "architecture": "RefleXion Trinity (X-Z-CS)",
-        "mcp_server_version": "0.4.0",
+        "mcp_server_version": "0.4.2",
         "agents": {
             "X": {
                 "name": "X Intelligent",
@@ -577,9 +577,15 @@ def _create_mcp_instance():
         # Check Accept header for markdown content negotiation
         output_format = "json"
         if ctx and hasattr(ctx, 'request_context'):
-            req_ctx = ctx.request_context or {}
-            accept = req_ctx.get('accept', '')
-            if 'text/markdown' in accept:
+            req_ctx = ctx.request_context
+            # RequestContext may be a dict or object — handle both safely
+            if isinstance(req_ctx, dict):
+                accept = req_ctx.get('accept', '')
+            elif hasattr(req_ctx, 'get'):
+                accept = req_ctx.get('accept', '')
+            else:
+                accept = getattr(req_ctx, 'accept', '')
+            if 'text/markdown' in str(accept):
                 output_format = "markdown"
         try:
             from .models import Concept, PriorReasoning
