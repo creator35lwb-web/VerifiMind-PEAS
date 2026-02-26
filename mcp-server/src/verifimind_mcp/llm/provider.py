@@ -745,28 +745,36 @@ class GeminiProvider(LLMProvider):
 class GroqProvider(LLMProvider):
     """
     Groq provider implementation.
-    
-    Supports Llama 3.1, Mixtral, and other models.
+
+    v0.4.4: Primary provider for Z Agent (ethics/reasoning).
+    Supports Llama 3.3, Mixtral, and other models.
     FREE tier available with generous rate limits!
+
+    Uses the same robust JSON extraction pipeline as GeminiProvider:
+    - strip_markdown_code_fences()
+    - _extract_best_json() with raw_decode()
+    - _merge_json_objects() for scattered reasoning steps
+    - _fill_schema_defaults() for missing required fields
+    - _inference_quality markers (real/partial/fallback)
     """
-    
+
     def __init__(
         self,
-        model: str = "llama-3.1-70b-versatile",
+        model: str = "llama-3.3-70b-versatile",
         api_key: Optional[str] = None
     ):
         self.model = model
         self.api_key = api_key or os.getenv("GROQ_API_KEY")
-        
+
         if not self.api_key:
             raise ValueError("Groq API key not provided. Set GROQ_API_KEY environment variable.")
-        
+
         try:
             from groq import AsyncGroq
             self.client = AsyncGroq(api_key=self.api_key)
         except ImportError:
             raise ImportError("groq package not installed. Run: pip install groq")
-    
+
     async def generate(
         self,
         prompt: str,
@@ -774,14 +782,34 @@ class GroqProvider(LLMProvider):
         temperature: float = 0.7,
         max_tokens: int = 4096
     ) -> Dict[str, Any]:
-        """Generate response using Groq API."""
-        
+        """Generate response using Groq API with robust JSON extraction."""
+
         messages = [{"role": "user", "content": prompt}]
-        
-        # Add JSON instruction if schema provided
+
+        # v0.4.4: Same structured output guidance as GeminiProvider
         if output_schema:
-            messages[0]["content"] += f"\n\nRespond with valid JSON only, matching this schema:\n{json.dumps(output_schema, indent=2)}\n\nJSON Response:"
-        
+            required = output_schema.get("required", [])
+            properties = output_schema.get("properties", {})
+            field_hints = []
+            for field_name in required:
+                prop = properties.get(field_name, {})
+                field_type = prop.get("type", "any")
+                if "items" in prop:
+                    field_type = f"array of {prop['items'].get('type', 'objects')}"
+                elif "$ref" in prop or "allOf" in prop:
+                    field_type = "object"
+                field_hints.append(f'  "{field_name}": <{field_type}>')
+            schema_example = "{\n" + ",\n".join(field_hints) + "\n}"
+            messages[0]["content"] += (
+                f"\n\nIMPORTANT: You MUST respond with EXACTLY ONE JSON object. "
+                f"The JSON object must have ALL of these top-level fields:\n"
+                f"{schema_example}\n\n"
+                f"Do NOT output multiple separate JSON objects. "
+                f"Do NOT output reasoning steps as individual JSON objects. "
+                f"Include reasoning_steps as an ARRAY inside the single JSON object.\n"
+                f"Respond ONLY with the JSON object, no other text.\n\nJSON:"
+            )
+
         try:
             response = await self.client.chat.completions.create(
                 model=self.model,
@@ -789,40 +817,83 @@ class GroqProvider(LLMProvider):
                 temperature=temperature,
                 max_tokens=max_tokens
             )
-            
+
             content = response.choices[0].message.content
-            
+
             # Extract token usage
             usage = {
                 "input_tokens": response.usage.prompt_tokens if hasattr(response, 'usage') else 0,
                 "output_tokens": response.usage.completion_tokens if hasattr(response, 'usage') else 0,
                 "total_tokens": response.usage.total_tokens if hasattr(response, 'usage') else 0
             }
-            
-            # Parse JSON response
-            try:
-                if content.strip().startswith("{"):
-                    parsed_content = json.loads(content)
+
+            # v0.4.4: Same robust extraction pipeline as GeminiProvider
+            expected_fields = []
+            if output_schema and "required" in output_schema:
+                expected_fields = output_schema["required"]
+            elif output_schema and "properties" in output_schema:
+                expected_fields = list(output_schema["properties"].keys())
+
+            clean_content = strip_markdown_code_fences(content)
+            logger.debug(f"Groq cleaned content (first 300): {clean_content[:300]}...")
+
+            inference_quality = "real"
+            if expected_fields:
+                parsed_content = GeminiProvider._extract_best_json(clean_content, expected_fields)
+                if parsed_content is not None:
+                    overlap = sum(1 for f in expected_fields if f in parsed_content)
+                    if overlap < len(expected_fields) * 0.5:
+                        logger.warning(f"Groq: Low field overlap: {overlap}/{len(expected_fields)}, attempting merge")
+                        merged = GeminiProvider._merge_json_objects(clean_content, expected_fields)
+                        if merged:
+                            merged_overlap = sum(1 for f in expected_fields if f in merged)
+                            if merged_overlap > overlap:
+                                parsed_content = merged
+                                overlap = merged_overlap
+                        inference_quality = "partial" if overlap >= 2 else "fallback"
                 else:
-                    import re
-                    json_match = re.search(r'\{[\s\S]*\}', content)
-                    if json_match:
-                        parsed_content = json.loads(json_match.group())
+                    inference_quality = "fallback"
+                    try:
+                        parsed_content = json.loads(clean_content)
+                    except json.JSONDecodeError:
+                        parsed_content = {}
+
+                # Fill missing required fields with schema-aware defaults
+                if output_schema and isinstance(parsed_content, dict):
+                    pre_fill_keys = set(parsed_content.keys())
+                    parsed_content = GeminiProvider._fill_schema_defaults(parsed_content, output_schema)
+                    filled_keys = set(parsed_content.keys()) - pre_fill_keys
+                    if filled_keys:
+                        logger.warning(f"Groq: Filled {len(filled_keys)} missing fields: {filled_keys}")
+                        if inference_quality == "real":
+                            inference_quality = "partial"
+            else:
+                try:
+                    if clean_content.strip().startswith("{"):
+                        parsed_content = json.loads(clean_content)
                     else:
-                        parsed_content = {"raw_response": content}
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse JSON response: {e}")
-                parsed_content = {"raw_response": content, "parse_error": str(e)}
-            
+                        import re
+                        json_match = re.search(r'\{[\s\S]*\}', clean_content)
+                        if json_match:
+                            parsed_content = json.loads(json_match.group())
+                        else:
+                            parsed_content = {"raw_response": content}
+                            inference_quality = "fallback"
+                except json.JSONDecodeError as e:
+                    logger.error(f"Groq: Failed to parse JSON: {e}")
+                    parsed_content = {"raw_response": content, "parse_error": str(e)}
+                    inference_quality = "fallback"
+
             return {
                 "content": parsed_content,
-                "usage": usage
+                "usage": usage,
+                "_inference_quality": inference_quality
             }
-                
+
         except Exception as e:
             logger.error(f"Groq API error: {e}")
             raise
-    
+
     def get_model_name(self) -> str:
         return f"groq/{self.model}"
 
