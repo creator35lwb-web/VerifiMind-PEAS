@@ -45,28 +45,32 @@ def strip_markdown_code_fences(text: str) -> str:
     ```
 
     This function removes those fences to get clean JSON.
+    Handles cases where text appears before/after the code fence.
     """
     import re
     text = text.strip()
 
-    # Method 1: Full fence pattern (strict match)
+    # Method 1: Extract content from ANY code fence in the text (not just at start)
+    # This handles "Here is the analysis:\n```json\n{...}\n```"
+    fence_pattern = r'```(?:json|JSON)?\s*\n([\s\S]*?)\n```'
+    fence_match = re.search(fence_pattern, text)
+    if fence_match:
+        return fence_match.group(1).strip()
+
+    # Method 2: Full fence pattern (strict match — text IS the fence)
     pattern = r'^```(?:json|JSON)?\s*\n?([\s\S]*?)\n?```\s*$'
-    match = re.match(pattern, text, re.MULTILINE)
+    match = re.match(pattern, text)
     if match:
         return match.group(1).strip()
 
-    # Method 2: Remove leading fence and trailing fence separately
-    # Handle cases where the fence doesn't match strictly
+    # Method 3: Remove leading fence and trailing fence separately
     if text.startswith('```'):
-        # Find end of first line (the opening fence)
         first_newline = text.find('\n')
         if first_newline != -1:
             text = text[first_newline + 1:]
         else:
-            # No newline, remove ```json or ``` prefix
             text = re.sub(r'^```(?:json|JSON)?\s*', '', text)
 
-    # Remove trailing fence
     if text.rstrip().endswith('```'):
         text = re.sub(r'\n?```\s*$', '', text)
 
@@ -578,12 +582,16 @@ class GeminiProvider(LLMProvider):
                         inference_quality = "partial"
                         logger.warning(f"Low field overlap: {overlap}/{len(expected_fields)}")
                 else:
-                    logger.warning("Best-match extraction found nothing; falling back to simple parse")
+                    logger.warning(
+                        f"Best-match extraction found nothing; "
+                        f"content_len={len(clean_content)}, "
+                        f"first_200={clean_content[:200]!r}"
+                    )
                     inference_quality = "fallback"
                     try:
                         parsed_content = json.loads(clean_content)
                     except json.JSONDecodeError:
-                        parsed_content = {"raw_response": content, "parse_error": "No valid JSON found"}
+                        parsed_content = {"raw_response": content[:500], "parse_error": "No valid JSON found"}
             else:
                 # No schema — simple parse (backward compatible)
                 try:
