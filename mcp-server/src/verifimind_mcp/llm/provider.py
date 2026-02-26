@@ -458,6 +458,44 @@ class GeminiProvider(LLMProvider):
             logger.warning(f"Failed to build Gemini response schema: {e}")
             return None
 
+    @staticmethod
+    def _extract_best_json(text: str, expected_fields: list) -> Optional[dict]:
+        """Extract the JSON object that best matches expected schema fields.
+
+        Scans all JSON objects in the text, scores each by field overlap
+        with the expected schema, and returns the best match.
+        """
+        import re
+        candidates = []
+        # Find all JSON-like blocks using a balanced-brace approach
+        depth = 0
+        start = None
+        for i, ch in enumerate(text):
+            if ch == '{':
+                if depth == 0:
+                    start = i
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0 and start is not None:
+                    try:
+                        obj = json.loads(text[start:i + 1])
+                        if isinstance(obj, dict):
+                            score = sum(1 for f in expected_fields if f in obj)
+                            candidates.append((score, obj))
+                    except json.JSONDecodeError:
+                        pass  # skip malformed fragments
+                    start = None
+        if candidates:
+            candidates.sort(key=lambda x: x[0], reverse=True)
+            best_score, best_obj = candidates[0]
+            if best_score >= len(expected_fields) * 0.5:
+                logger.info(f"extract_best_json: found match with {best_score}/{len(expected_fields)} fields")
+                return best_obj
+            logger.warning(f"extract_best_json: best match only has {best_score}/{len(expected_fields)} fields")
+            return best_obj if best_score > 0 else None
+        return None
+
     async def generate(
         self,
         prompt: str,
@@ -474,18 +512,19 @@ class GeminiProvider(LLMProvider):
                 "max_output_tokens": max_tokens,
             }
 
-            # Use Gemini structured output when schema is provided (v0.4.3)
-            gemini_schema = None
+            # v0.4.3: Append schema to prompt for guidance.
+            # Note: Gemini response_mime_type + response_schema was tested but
+            # produces single sub-objects (e.g., one reasoning step) instead of
+            # the full model. Robust extraction below handles this reliably.
             if output_schema:
-                gemini_schema = self._build_response_schema(output_schema)
-
-            if gemini_schema:
-                gen_config["response_mime_type"] = "application/json"
-                gen_config["response_schema"] = gemini_schema
-                logger.debug("Using Gemini structured output mode")
-            elif output_schema:
-                # Fallback: append schema to prompt if structured output build failed
-                prompt += f"\n\nRespond with valid JSON only, matching this schema:\n{json.dumps(output_schema, indent=2)}\n\nJSON Response:"
+                # Build a compact field list for the prompt
+                required = output_schema.get("required", [])
+                prompt += (
+                    f"\n\nYou MUST respond with a single JSON object containing ALL of these "
+                    f"top-level fields: {', '.join(required)}.\n"
+                    f"Do NOT return individual reasoning steps as separate objects.\n"
+                    f"Return the complete analysis as ONE JSON object.\n\nJSON Response:"
+                )
 
             # Create model instance
             model = self.genai.GenerativeModel(self.model)
@@ -506,36 +545,40 @@ class GeminiProvider(LLMProvider):
             }
 
             # Parse JSON response
-            try:
-                # Strip markdown code fences first (common with Gemini)
-                clean_content = strip_markdown_code_fences(content)
-                logger.debug(f"Cleaned content: {clean_content[:200]}...")
+            expected_fields = []
+            if output_schema and "required" in output_schema:
+                expected_fields = output_schema["required"]
+            elif output_schema and "properties" in output_schema:
+                expected_fields = list(output_schema["properties"].keys())
 
-                # Try to extract JSON from response
-                if clean_content.strip().startswith("{"):
-                    parsed_content = json.loads(clean_content)
-                else:
-                    # Try to find JSON object in response
-                    import re
-                    # Match the outermost JSON object
-                    json_match = re.search(r'\{[\s\S]*\}', clean_content)
-                    if json_match:
-                        parsed_content = json.loads(json_match.group())
-                    else:
-                        logger.warning(f"No JSON object found in response")
-                        parsed_content = {"raw_response": content}
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse JSON response: {e}")
-                logger.error(f"Content was: {clean_content[:500]}...")
-                # Try one more time with aggressive cleanup
+            clean_content = strip_markdown_code_fences(content)
+            logger.debug(f"Cleaned content (first 300): {clean_content[:300]}...")
+
+            # v0.4.3: Use robust best-match extraction when we know the expected fields.
+            # This prevents grabbing a sub-object (e.g., single reasoning step) when
+            # the full model is also present in the response.
+            if expected_fields:
+                parsed_content = self._extract_best_json(clean_content, expected_fields)
+                if parsed_content is None:
+                    logger.warning("Best-match extraction found nothing; falling back to simple parse")
+                    try:
+                        parsed_content = json.loads(clean_content)
+                    except json.JSONDecodeError:
+                        parsed_content = {"raw_response": content, "parse_error": "No valid JSON found"}
+            else:
+                # No schema — simple parse (backward compatible)
                 try:
-                    import re
-                    json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', clean_content)
-                    if json_match:
-                        parsed_content = json.loads(json_match.group())
+                    if clean_content.strip().startswith("{"):
+                        parsed_content = json.loads(clean_content)
                     else:
-                        parsed_content = {"raw_response": content, "parse_error": str(e)}
-                except Exception:
+                        import re
+                        json_match = re.search(r'\{[\s\S]*\}', clean_content)
+                        if json_match:
+                            parsed_content = json.loads(json_match.group())
+                        else:
+                            parsed_content = {"raw_response": content}
+                except json.JSONDecodeError as e:
+                    logger.error(f"Failed to parse JSON: {e}")
                     parsed_content = {"raw_response": content, "parse_error": str(e)}
 
             # Return both content and usage
