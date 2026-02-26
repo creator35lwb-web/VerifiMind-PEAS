@@ -49,7 +49,7 @@ AGENT_PROVIDER_DEFAULTS = {
     },
     "CS": {
         "default": "gemini",           # FREE tier
-        "recommended": "anthropic",    # Claude excels at code/security
+        "recommended": "groq",         # v0.4.4: Groq/Llama for reliable structured security output
         "fallback": "gemini"
     }
 }
