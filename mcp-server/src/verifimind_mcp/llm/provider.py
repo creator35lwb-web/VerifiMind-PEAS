@@ -486,7 +486,11 @@ class GeminiProvider(LLMProvider):
         if candidates:
             candidates.sort(key=lambda x: x[0], reverse=True)
             best_score, best_obj = candidates[0]
-            logger.info(f"extract_best_json: best match has {best_score}/{len(expected_fields)} fields")
+            logger.info(
+                f"extract_best_json: {len(candidates)} candidates, "
+                f"best has {best_score}/{len(expected_fields)} fields, "
+                f"keys={list(best_obj.keys())[:5]}"
+            )
             return best_obj if best_score > 0 else None
         logger.warning("extract_best_json: no JSON objects found in text")
         return None
@@ -507,18 +511,31 @@ class GeminiProvider(LLMProvider):
                 "max_output_tokens": max_tokens,
             }
 
-            # v0.4.3: Append schema to prompt for guidance.
-            # Note: Gemini response_mime_type + response_schema was tested but
-            # produces single sub-objects (e.g., one reasoning step) instead of
-            # the full model. Robust extraction below handles this reliably.
+            # v0.4.3.1: Stronger prompt guidance for structured output.
+            # Gemini's native structured output mode was tested but produces
+            # single sub-objects. Instead we guide via prompt + extract best JSON.
             if output_schema:
-                # Build a compact field list for the prompt
                 required = output_schema.get("required", [])
+                properties = output_schema.get("properties", {})
+                # Build compact schema hint showing field names and types
+                field_hints = []
+                for field_name in required:
+                    prop = properties.get(field_name, {})
+                    field_type = prop.get("type", "any")
+                    if "items" in prop:
+                        field_type = f"array of {prop['items'].get('type', 'objects')}"
+                    elif "$ref" in prop or "allOf" in prop:
+                        field_type = "object"
+                    field_hints.append(f'  "{field_name}": <{field_type}>')
+                schema_example = "{\n" + ",\n".join(field_hints) + "\n}"
                 prompt += (
-                    f"\n\nYou MUST respond with a single JSON object containing ALL of these "
-                    f"top-level fields: {', '.join(required)}.\n"
-                    f"Do NOT return individual reasoning steps as separate objects.\n"
-                    f"Return the complete analysis as ONE JSON object.\n\nJSON Response:"
+                    f"\n\nIMPORTANT: You MUST respond with EXACTLY ONE JSON object. "
+                    f"The JSON object must have ALL of these top-level fields:\n"
+                    f"{schema_example}\n\n"
+                    f"Do NOT output multiple separate JSON objects. "
+                    f"Do NOT output reasoning steps as individual JSON objects. "
+                    f"Include reasoning_steps as an ARRAY inside the single JSON object.\n"
+                    f"Respond ONLY with the JSON object, no other text.\n\nJSON:"
                 )
 
             # Create model instance
