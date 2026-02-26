@@ -79,7 +79,7 @@ class AgentMetrics:
                 },
             },
             "gemini": {
-                "gemini-2.0-flash-exp": {
+                "gemini-2.5-flash": {
                     "input": 0.0,  # FREE (within limits)
                     "output": 0.0,  # FREE (within limits)
                 },
