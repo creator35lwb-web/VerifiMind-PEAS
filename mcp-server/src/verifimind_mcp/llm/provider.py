@@ -499,6 +499,50 @@ class GeminiProvider(LLMProvider):
         logger.warning("extract_best_json: no JSON objects found in text")
         return None
 
+    @staticmethod
+    def _merge_json_objects(text: str, expected_fields: list) -> Optional[dict]:
+        """Merge all JSON objects from text into one composite dict.
+
+        When Gemini returns individual reasoning steps as separate objects,
+        this collects all objects and merges their keys. Objects that look
+        like reasoning steps (have step_number) are collected into a
+        reasoning_steps array.
+        """
+        decoder = json.JSONDecoder()
+        all_objects = []
+        idx = 0
+        while idx < len(text):
+            brace_pos = text.find('{', idx)
+            if brace_pos == -1:
+                break
+            try:
+                obj, end_idx = decoder.raw_decode(text, brace_pos)
+                if isinstance(obj, dict):
+                    all_objects.append(obj)
+                idx = end_idx
+            except json.JSONDecodeError:
+                idx = brace_pos + 1
+
+        if not all_objects:
+            return None
+
+        # Separate reasoning steps from model-level fields
+        reasoning_steps = []
+        merged = {}
+        for obj in all_objects:
+            if "step_number" in obj or ("thought" in obj and "step_number" in obj):
+                reasoning_steps.append(obj)
+            else:
+                # Merge model-level fields (later objects override earlier)
+                merged.update(obj)
+
+        if reasoning_steps and "reasoning_steps" in expected_fields:
+            merged["reasoning_steps"] = reasoning_steps
+
+        overlap = sum(1 for f in expected_fields if f in merged)
+        logger.info(f"merge_json_objects: {len(all_objects)} objects → {overlap}/{len(expected_fields)} fields")
+        return merged if overlap >= 2 else None
+
     async def generate(
         self,
         prompt: str,
@@ -579,8 +623,16 @@ class GeminiProvider(LLMProvider):
                 if parsed_content is not None:
                     overlap = sum(1 for f in expected_fields if f in parsed_content)
                     if overlap < len(expected_fields) * 0.5:
-                        inference_quality = "partial"
-                        logger.warning(f"Low field overlap: {overlap}/{len(expected_fields)}")
+                        # Low overlap — best object is likely a reasoning step, not the full model.
+                        # Try to merge ALL found objects into one composite.
+                        logger.warning(f"Low field overlap: {overlap}/{len(expected_fields)}, attempting merge")
+                        merged = self._merge_json_objects(clean_content, expected_fields)
+                        if merged:
+                            merged_overlap = sum(1 for f in expected_fields if f in merged)
+                            if merged_overlap > overlap:
+                                parsed_content = merged
+                                overlap = merged_overlap
+                        inference_quality = "partial" if overlap >= 2 else "fallback"
                 else:
                     logger.warning(
                         f"Best-match extraction found nothing; "
