@@ -462,38 +462,33 @@ class GeminiProvider(LLMProvider):
     def _extract_best_json(text: str, expected_fields: list) -> Optional[dict]:
         """Extract the JSON object that best matches expected schema fields.
 
-        Scans all JSON objects in the text, scores each by field overlap
-        with the expected schema, and returns the best match.
+        Uses json.JSONDecoder.raw_decode() to find all valid JSON objects
+        in the text (handles nested braces in strings correctly), scores
+        each by field overlap, and returns the best match.
         """
-        import re
+        decoder = json.JSONDecoder()
         candidates = []
-        # Find all JSON-like blocks using a balanced-brace approach
-        depth = 0
-        start = None
-        for i, ch in enumerate(text):
-            if ch == '{':
-                if depth == 0:
-                    start = i
-                depth += 1
-            elif ch == '}':
-                depth -= 1
-                if depth == 0 and start is not None:
-                    try:
-                        obj = json.loads(text[start:i + 1])
-                        if isinstance(obj, dict):
-                            score = sum(1 for f in expected_fields if f in obj)
-                            candidates.append((score, obj))
-                    except json.JSONDecodeError:
-                        pass  # skip malformed fragments
-                    start = None
+        idx = 0
+        while idx < len(text):
+            # Find next '{' character
+            brace_pos = text.find('{', idx)
+            if brace_pos == -1:
+                break
+            try:
+                obj, end_idx = decoder.raw_decode(text, brace_pos)
+                if isinstance(obj, dict):
+                    score = sum(1 for f in expected_fields if f in obj)
+                    candidates.append((score, obj))
+                idx = end_idx
+            except json.JSONDecodeError:
+                idx = brace_pos + 1
+
         if candidates:
             candidates.sort(key=lambda x: x[0], reverse=True)
             best_score, best_obj = candidates[0]
-            if best_score >= len(expected_fields) * 0.5:
-                logger.info(f"extract_best_json: found match with {best_score}/{len(expected_fields)} fields")
-                return best_obj
-            logger.warning(f"extract_best_json: best match only has {best_score}/{len(expected_fields)} fields")
+            logger.info(f"extract_best_json: best match has {best_score}/{len(expected_fields)} fields")
             return best_obj if best_score > 0 else None
+        logger.warning("extract_best_json: no JSON objects found in text")
         return None
 
     async def generate(
