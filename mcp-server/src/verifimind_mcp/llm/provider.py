@@ -524,12 +524,13 @@ class GeminiProvider(LLMProvider):
 
             if field_type == "number" or field_type == "integer":
                 # Score fields (0-10) get neutral 5.0, confidence (0-1) gets 0.5
-                ge = prop.get("ge", 0)
-                le = prop.get("le", 10)
-                if le <= 1.0:
+                # JSON Schema uses "minimum"/"maximum" (Pydantic ge/le map to these)
+                lo = prop.get("minimum", prop.get("exclusiveMinimum", 0))
+                hi = prop.get("maximum", prop.get("exclusiveMaximum", 10))
+                if hi <= 1.0:
                     data[field] = 0.5
                 else:
-                    data[field] = round((ge + le) / 2, 1)
+                    data[field] = round((lo + hi) / 2, 1)
             elif field_type == "boolean":
                 # Conservative default
                 data[field] = False
