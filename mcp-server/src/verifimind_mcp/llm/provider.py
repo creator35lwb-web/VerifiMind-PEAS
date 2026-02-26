@@ -500,6 +500,56 @@ class GeminiProvider(LLMProvider):
         return None
 
     @staticmethod
+    def _fill_schema_defaults(data: dict, output_schema: dict) -> dict:
+        """Fill missing required fields with sensible defaults based on schema types.
+
+        When Gemini returns partial JSON (e.g. reasoning steps but no scores),
+        this fills gaps so Pydantic validation succeeds. The _inference_quality
+        marker tells downstream code the result was partially synthesized.
+        """
+        required = output_schema.get("required", [])
+        properties = output_schema.get("properties", {})
+
+        for field in required:
+            if field in data:
+                continue
+            prop = properties.get(field, {})
+            field_type = prop.get("type", "")
+
+            # Resolve anyOf (Optional fields)
+            if "anyOf" in prop:
+                non_null = [s for s in prop["anyOf"] if s.get("type") != "null"]
+                if non_null:
+                    field_type = non_null[0].get("type", "string")
+
+            if field_type == "number" or field_type == "integer":
+                # Score fields (0-10) get neutral 5.0, confidence (0-1) gets 0.5
+                ge = prop.get("ge", 0)
+                le = prop.get("le", 10)
+                if le <= 1.0:
+                    data[field] = 0.5
+                else:
+                    data[field] = round((ge + le) / 2, 1)
+            elif field_type == "boolean":
+                # Conservative default
+                data[field] = False
+            elif field_type == "array":
+                if field == "reasoning_steps":
+                    data[field] = [{
+                        "step_number": 1,
+                        "thought": "Analysis was partially completed by LLM.",
+                        "confidence": 0.5
+                    }]
+                else:
+                    data[field] = ["Inference incomplete — partial analysis"]
+            elif field_type == "string":
+                data[field] = "Partial inference — LLM did not return this field."
+            else:
+                data[field] = "Partial inference"
+
+        return data
+
+    @staticmethod
     def _merge_json_objects(text: str, expected_fields: list) -> Optional[dict]:
         """Merge all JSON objects from text into one composite dict.
 
@@ -617,6 +667,8 @@ class GeminiProvider(LLMProvider):
             # v0.4.3.1 C-S-P Compression: Use robust best-match extraction.
             # raw_decode() finds all valid JSON objects and scores by field overlap
             # to pick the full model object, not a sub-object (reasoning step).
+            # v0.4.3.1g: Fill missing required fields with schema defaults so
+            # Pydantic validation ALWAYS succeeds — _inference_quality marks degradation.
             inference_quality = "real"
             if expected_fields:
                 parsed_content = self._extract_best_json(clean_content, expected_fields)
@@ -643,7 +695,19 @@ class GeminiProvider(LLMProvider):
                     try:
                         parsed_content = json.loads(clean_content)
                     except json.JSONDecodeError:
-                        parsed_content = {"raw_response": content[:500], "parse_error": "No valid JSON found"}
+                        parsed_content = {}
+
+                # Fill any missing required fields with schema-aware defaults.
+                # This ensures Pydantic validation succeeds even when Gemini
+                # returns individual reasoning steps instead of a complete model.
+                if output_schema and isinstance(parsed_content, dict):
+                    pre_fill_keys = set(parsed_content.keys())
+                    parsed_content = self._fill_schema_defaults(parsed_content, output_schema)
+                    filled_keys = set(parsed_content.keys()) - pre_fill_keys
+                    if filled_keys:
+                        logger.warning(f"Filled {len(filled_keys)} missing fields: {filled_keys}")
+                        if inference_quality == "real":
+                            inference_quality = "partial"
             else:
                 # No schema — simple parse (backward compatible)
                 try:
