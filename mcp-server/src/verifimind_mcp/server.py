@@ -18,7 +18,7 @@ Tools Exposed:
 - run_full_trinity - Run complete X → Z → CS validation
 
 Author: Alton Lee
-Version: 0.4.3 (Structured output, system notice, Trinity parsing fix)
+Version: 0.4.5 (BYOK Live — Per-Tool-Call Provider Override)
 """
 
 import json
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.4.4"
+SERVER_VERSION = "0.4.5"
 
 
 def wrap_response(response: dict) -> dict:
@@ -180,7 +180,7 @@ def get_project_info() -> dict[str, Any]:
         "methodology": "Genesis Methodology",
         "version": "2.0.1",
         "architecture": "RefleXion Trinity (X-Z-CS)",
-        "mcp_server_version": "0.4.4",
+        "mcp_server_version": "0.4.5",
         "agents": {
             "X": {
                 "name": "X Intelligent",
@@ -290,6 +290,8 @@ def _create_mcp_instance():
         concept_name: str,
         concept_description: str,
         context: Optional[str] = None,
+        llm_provider: Optional[str] = None,
+        api_key: Optional[str] = None,
         ctx: Context = None
     ) -> dict:
         """
@@ -302,10 +304,16 @@ def _create_mcp_instance():
         - Competitive positioning
         - Growth potential evaluation
 
+        BYOK (v0.4.5): Pass llm_provider and api_key to use your own LLM.
+        If only api_key is provided, the provider is auto-detected from the key prefix.
+        Keys are ephemeral (never stored) and garbage collected after the call.
+
         Args:
             concept_name: Short name or title of the concept
             concept_description: Detailed description of the concept
             context: Optional additional context or background
+            llm_provider: Optional LLM provider override ('groq', 'anthropic', 'openai', 'gemini', 'mistral', 'ollama', 'mock')
+            api_key: Optional API key for the provider (ephemeral, never stored)
 
         Returns:
             Structured analysis with reasoning chain, scores, and recommendations
@@ -331,10 +339,14 @@ def _create_mcp_instance():
                 context=sanitized['context']
             )
 
-            # Get LLM provider optimized for X Agent (innovation/strategy)
-            # v0.3.1: Smart fallback - Gemini recommended for creative analysis
-            from .config_helper import get_agent_provider
-            provider = get_agent_provider("X", ctx)
+            # v0.4.5 BYOK: Try ephemeral provider first, fall back to server default
+            from .config_helper import get_agent_provider, create_ephemeral_provider
+            byok_used = False
+            provider = create_ephemeral_provider(llm_provider, api_key, "X")
+            if provider is not None:
+                byok_used = True
+            else:
+                provider = get_agent_provider("X", ctx)
 
             # Create agent and analyze
             agent = XAgent(llm_provider=provider)
@@ -353,7 +365,9 @@ def _create_mcp_instance():
                 "risks": result.risks,
                 "recommendation": result.recommendation,
                 "confidence": result.confidence,
-                "_inference_quality": getattr(result, '_inference_quality', 'unknown')
+                "_inference_quality": getattr(result, '_inference_quality', 'unknown'),
+                "_provider_used": provider.get_model_name(),
+                "_byok": byok_used
             })
 
         except Exception as e:
@@ -371,6 +385,8 @@ def _create_mcp_instance():
         concept_description: str,
         context: Optional[str] = None,
         prior_reasoning: Optional[str] = None,
+        llm_provider: Optional[str] = None,
+        api_key: Optional[str] = None,
         ctx: Context = None
     ) -> dict:
         """
@@ -386,11 +402,17 @@ def _create_mcp_instance():
         Z Guardian has VETO POWER. If veto_triggered is True, the concept
         should not proceed as it crosses ethical red lines.
 
+        BYOK (v0.4.5): Pass llm_provider and api_key to use your own LLM.
+        If only api_key is provided, the provider is auto-detected from the key prefix.
+        Keys are ephemeral (never stored) and garbage collected after the call.
+
         Args:
             concept_name: Short name or title of the concept
             concept_description: Detailed description of the concept
             context: Optional additional context or background
             prior_reasoning: Optional reasoning from X agent to consider
+            llm_provider: Optional LLM provider override ('groq', 'anthropic', 'openai', 'gemini', 'mistral', 'ollama', 'mock')
+            api_key: Optional API key for the provider (ephemeral, never stored)
 
         Returns:
             Structured analysis with reasoning chain, ethics score, and veto status
@@ -430,10 +452,14 @@ def _create_mcp_instance():
                     overall_confidence=0.8
                 ))
 
-            # Get LLM provider optimized for Z Agent (ethics/reasoning)
-            # v0.3.1: Smart fallback - Anthropic Claude recommended for ethical analysis
-            from .config_helper import get_agent_provider
-            provider = get_agent_provider("Z", ctx)
+            # v0.4.5 BYOK: Try ephemeral provider first, fall back to server default
+            from .config_helper import get_agent_provider, create_ephemeral_provider
+            byok_used = False
+            provider = create_ephemeral_provider(llm_provider, api_key, "Z")
+            if provider is not None:
+                byok_used = True
+            else:
+                provider = get_agent_provider("Z", ctx)
 
             # Create agent and analyze
             agent = ZAgent(llm_provider=provider)
@@ -453,7 +479,9 @@ def _create_mcp_instance():
                 "recommendation": result.recommendation,
                 "veto_triggered": result.veto_triggered,
                 "confidence": result.confidence,
-                "_inference_quality": getattr(result, '_inference_quality', 'unknown')
+                "_inference_quality": getattr(result, '_inference_quality', 'unknown'),
+                "_provider_used": provider.get_model_name(),
+                "_byok": byok_used
             })
 
         except Exception as e:
@@ -471,6 +499,8 @@ def _create_mcp_instance():
         concept_description: str,
         context: Optional[str] = None,
         prior_reasoning: Optional[str] = None,
+        llm_provider: Optional[str] = None,
+        api_key: Optional[str] = None,
         ctx: Context = None
     ) -> dict:
         """
@@ -483,11 +513,17 @@ def _create_mcp_instance():
         - System integrity analysis
         - Socratic questioning (challenging assumptions)
 
+        BYOK (v0.4.5): Pass llm_provider and api_key to use your own LLM.
+        If only api_key is provided, the provider is auto-detected from the key prefix.
+        Keys are ephemeral (never stored) and garbage collected after the call.
+
         Args:
             concept_name: Short name or title of the concept
             concept_description: Detailed description of the concept
             context: Optional additional context or background
             prior_reasoning: Optional reasoning from X and Z agents to consider
+            llm_provider: Optional LLM provider override ('groq', 'anthropic', 'openai', 'gemini', 'mistral', 'ollama', 'mock')
+            api_key: Optional API key for the provider (ephemeral, never stored)
 
         Returns:
             Structured analysis with security score, vulnerabilities, and Socratic questions
@@ -526,10 +562,14 @@ def _create_mcp_instance():
                     overall_confidence=0.8
                 ))
 
-            # Get LLM provider optimized for CS Agent (security/code analysis)
-            # v0.3.1: Smart fallback - Anthropic Claude recommended for security validation
-            from .config_helper import get_agent_provider
-            provider = get_agent_provider("CS", ctx)
+            # v0.4.5 BYOK: Try ephemeral provider first, fall back to server default
+            from .config_helper import get_agent_provider, create_ephemeral_provider
+            byok_used = False
+            provider = create_ephemeral_provider(llm_provider, api_key, "CS")
+            if provider is not None:
+                byok_used = True
+            else:
+                provider = get_agent_provider("CS", ctx)
 
             # Create agent and analyze
             agent = CSAgent(llm_provider=provider)
@@ -549,7 +589,9 @@ def _create_mcp_instance():
                 "socratic_questions": result.socratic_questions,
                 "recommendation": result.recommendation,
                 "confidence": result.confidence,
-                "_inference_quality": getattr(result, '_inference_quality', 'unknown')
+                "_inference_quality": getattr(result, '_inference_quality', 'unknown'),
+                "_provider_used": provider.get_model_name(),
+                "_byok": byok_used
             })
 
         except Exception as e:
@@ -567,6 +609,14 @@ def _create_mcp_instance():
         concept_description: str,
         context: Optional[str] = None,
         save_to_history: bool = True,
+        llm_provider: Optional[str] = None,
+        api_key: Optional[str] = None,
+        x_provider: Optional[str] = None,
+        x_api_key: Optional[str] = None,
+        z_provider: Optional[str] = None,
+        z_api_key: Optional[str] = None,
+        cs_provider: Optional[str] = None,
+        cs_api_key: Optional[str] = None,
         ctx: Context = None
     ) -> dict:
         """
@@ -581,11 +631,24 @@ def _create_mcp_instance():
         Each agent sees the reasoning of previous agents, enabling
         true collaborative analysis with full transparency.
 
+        BYOK (v0.4.5): Pass llm_provider/api_key for all agents, or use
+        per-agent overrides (x_provider/x_api_key, z_provider/z_api_key,
+        cs_provider/cs_api_key). Per-agent params take priority over global.
+        Keys are ephemeral (never stored) and garbage collected after the call.
+
         Args:
             concept_name: Short name or title of the concept
             concept_description: Detailed description of the concept
             context: Optional additional context or background
             save_to_history: Whether to save result to validation history (default: True)
+            llm_provider: Optional global LLM provider for all agents
+            api_key: Optional global API key for all agents (ephemeral, never stored)
+            x_provider: Optional provider override for X agent only
+            x_api_key: Optional API key override for X agent only
+            z_provider: Optional provider override for Z agent only
+            z_api_key: Optional API key override for Z agent only
+            cs_provider: Optional provider override for CS agent only
+            cs_api_key: Optional API key override for CS agent only
 
         Returns:
             Complete Trinity validation result with all agent analyses and synthesis
@@ -624,17 +687,35 @@ def _create_mcp_instance():
                 context=sanitized['context']
             )
 
-            # Get optimized providers for each agent (v0.3.1 Smart Fallback)
-            # X Agent: Gemini (creative/innovative thinking)
-            # Z Agent: Anthropic Claude if available (ethical reasoning)
-            # CS Agent: Anthropic Claude if available (code/security analysis)
-            from .config_helper import get_trinity_providers
-            providers = get_trinity_providers(ctx)
+            # v0.4.5 BYOK: Resolve per-agent providers with fallback to global BYOK, then server default
+            from .config_helper import get_trinity_providers, create_ephemeral_provider
+            byok_status = {}
 
-            # Initialize agents with their optimized providers
-            x_agent = XAgent(llm_provider=providers["X"])
-            z_agent = ZAgent(llm_provider=providers["Z"])
-            cs_agent = CSAgent(llm_provider=providers["CS"])
+            agent_byok_params = {
+                "X": (x_provider or llm_provider, x_api_key or api_key),
+                "Z": (z_provider or llm_provider, z_api_key or api_key),
+                "CS": (cs_provider or llm_provider, cs_api_key or api_key),
+            }
+
+            resolved_providers = {}
+            for agent_id, (prov, key) in agent_byok_params.items():
+                ephemeral = create_ephemeral_provider(prov, key, agent_id)
+                if ephemeral is not None:
+                    resolved_providers[agent_id] = ephemeral
+                    byok_status[agent_id] = True
+                else:
+                    byok_status[agent_id] = False
+
+            # Fill in any agents that didn't get BYOK providers
+            server_providers = get_trinity_providers(ctx)
+            for agent_id in ("X", "Z", "CS"):
+                if agent_id not in resolved_providers:
+                    resolved_providers[agent_id] = server_providers[agent_id]
+
+            # Initialize agents with their resolved providers
+            x_agent = XAgent(llm_provider=resolved_providers["X"])
+            z_agent = ZAgent(llm_provider=resolved_providers["Z"])
+            cs_agent = CSAgent(llm_provider=resolved_providers["CS"])
 
             # v0.4.3.1 C-S-P State: Track inference quality across chain
             chain_status = {}
@@ -691,6 +772,16 @@ def _create_mcp_instance():
                 history["metadata"]["last_updated"] = str(trinity_result.completed_at)
                 save_validation_history(history)
 
+            # BYOK metadata for response
+            _byok_meta = {
+                "_byok": any(byok_status.values()),
+                "_byok_agents": byok_status,
+                "_providers_used": {
+                    aid: resolved_providers[aid].get_model_name()
+                    for aid in ("X", "Z", "CS")
+                },
+            }
+
             # Return result — Markdown-first if requested (v0.4.1)
             if output_format == "markdown":
                 from .reporting import generate_markdown_report
@@ -700,7 +791,8 @@ def _create_mcp_instance():
                     "validation_id": trinity_result.validation_id,
                     "saved_to_history": save_to_history,
                     "_agent_chain_status": chain_status,
-                    "_overall_quality": overall_quality
+                    "_overall_quality": overall_quality,
+                    **_byok_meta
                 })
 
             return wrap_response({
@@ -736,7 +828,8 @@ def _create_mcp_instance():
                 "human_decision_required": True,
                 "saved_to_history": save_to_history,
                 "_agent_chain_status": chain_status,
-                "_overall_quality": overall_quality
+                "_overall_quality": overall_quality,
+                **_byok_meta
             })
 
         except Exception as e:
