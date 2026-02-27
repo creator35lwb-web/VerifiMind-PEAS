@@ -31,7 +31,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.4.4"
+SERVER_VERSION = "0.4.5"
 
 # Custom route handlers
 async def health_handler(request):
@@ -58,7 +58,8 @@ async def health_handler(request):
             "quality_markers": True,
             "rate_limiting": True,
             "free_tier_default": True,
-            "input_sanitization": True
+            "input_sanitization": True,
+            "byok_live": True
         },
         "rate_limits": {
             "per_ip": f"{rate_stats['ip_limit']} req/{rate_stats['window_seconds']}s",

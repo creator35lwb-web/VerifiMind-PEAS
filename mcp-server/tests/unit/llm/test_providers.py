@@ -345,3 +345,66 @@ class TestIntegration:
         response = await provider.generate("Say hello in one word")
         assert response["content"]
         assert "usage" in response
+
+
+class TestEphemeralProvider:
+    """Test BYOK v0.4.5 ephemeral provider creation."""
+
+    def test_no_params_returns_none(self):
+        """No BYOK params → returns None (use server default)."""
+        from verifimind_mcp.config_helper import create_ephemeral_provider
+        result = create_ephemeral_provider()
+        assert result is None
+
+    def test_groq_key_auto_detected(self):
+        """gsk_... key → auto-detects Groq provider."""
+        from verifimind_mcp.config_helper import create_ephemeral_provider
+        provider = create_ephemeral_provider(api_key="gsk_test_key_1234567890abcdef")
+        assert provider is not None
+        assert "groq" in provider.get_model_name()
+
+    def test_anthropic_key_not_openai(self):
+        """sk-ant-... key → detects Anthropic, NOT OpenAI."""
+        from verifimind_mcp.config_helper import create_ephemeral_provider
+        provider = create_ephemeral_provider(api_key="sk-ant-test_key_1234567890")
+        assert provider is not None
+        assert "claude" in provider.get_model_name().lower() or "anthropic" in provider.get_model_name().lower()
+
+    def test_openai_key_detected(self):
+        """sk-... key (no ant) → detects OpenAI."""
+        from verifimind_mcp.config_helper import create_ephemeral_provider
+        provider = create_ephemeral_provider(api_key="sk-test_key_1234567890abcdef")
+        assert provider is not None
+        assert "gpt" in provider.get_model_name().lower() or "openai" in provider.get_model_name().lower()
+
+    def test_explicit_provider_and_key(self):
+        """Explicit provider + key works."""
+        from verifimind_mcp.config_helper import create_ephemeral_provider
+        provider = create_ephemeral_provider(llm_provider="groq", api_key="gsk_test_key_1234567890")
+        assert provider is not None
+        assert "groq" in provider.get_model_name()
+
+    def test_unknown_key_format_raises(self):
+        """Unknown key format → ValueError."""
+        from verifimind_mcp.config_helper import create_ephemeral_provider
+        with pytest.raises(ValueError, match="Cannot auto-detect"):
+            create_ephemeral_provider(api_key="xyz_unknown_prefix_key")
+
+    def test_invalid_provider_name_raises(self):
+        """Invalid provider name → ValueError."""
+        from verifimind_mcp.config_helper import create_ephemeral_provider
+        with pytest.raises(ValueError, match="Invalid provider"):
+            create_ephemeral_provider(llm_provider="nonexistent", api_key="some-key")
+
+    def test_mock_provider_needs_no_key(self):
+        """Mock provider works without API key."""
+        from verifimind_mcp.config_helper import create_ephemeral_provider
+        provider = create_ephemeral_provider(llm_provider="mock")
+        assert provider is not None
+        assert "mock" in provider.get_model_name()
+
+    def test_provider_name_no_key_returns_none(self):
+        """Provider name but no key → falls back to server default (returns None)."""
+        from verifimind_mcp.config_helper import create_ephemeral_provider
+        result = create_ephemeral_provider(llm_provider="groq")
+        assert result is None

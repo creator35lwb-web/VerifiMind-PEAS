@@ -54,6 +54,104 @@ AGENT_PROVIDER_DEFAULTS = {
     }
 }
 
+# ============================================================================
+# BYOK v0.4.5 — Per-Tool-Call Ephemeral Provider
+# ============================================================================
+
+# Key prefix → provider name (order matters: sk-ant- before sk-)
+KEY_FORMAT_PATTERNS = [
+    ("sk-ant-", "anthropic"),
+    ("sk-", "openai"),
+    ("gsk_", "groq"),
+    ("AIza", "gemini"),
+]
+
+VALID_BYOK_PROVIDERS = {"openai", "anthropic", "gemini", "groq", "mistral", "ollama", "mock"}
+
+
+def create_ephemeral_provider(
+    llm_provider: str = None,
+    api_key: str = None,
+    agent_id: str = "X",
+):
+    """
+    Create an ephemeral LLM provider for a single tool call (BYOK v0.4.5).
+
+    The provider instance is never stored in server state — it is created
+    per-call and garbage collected after the response is returned.
+    User keys are never logged or persisted.
+
+    Args:
+        llm_provider: Provider name (e.g. 'groq', 'anthropic'). Auto-detected from key if omitted.
+        api_key: User's API key. Not required for 'mock' or 'ollama'.
+        agent_id: Agent identifier for logging (default: "X").
+
+    Returns:
+        LLMProvider instance, or None if no BYOK params provided (use server default).
+
+    Raises:
+        ValueError: If provider name is invalid or key format is unrecognized.
+    """
+    # No BYOK params → caller should use server default
+    if not llm_provider and not api_key:
+        return None
+
+    from .llm import (
+        MockProvider,
+        OpenAIProvider,
+        AnthropicProvider,
+        GeminiProvider,
+        GroqProvider,
+        MistralProvider,
+        OllamaProvider,
+    )
+
+    # Provider specified but no key → fall back to server default
+    # (key may already be set as env var on server side)
+    if llm_provider and not api_key:
+        if llm_provider.lower() not in ("mock", "ollama"):
+            logger.info(f"BYOK {agent_id}: provider '{llm_provider}' without key, falling back to server default")
+            return None
+
+    # Auto-detect provider from key prefix
+    if api_key and not llm_provider:
+        for prefix, detected in KEY_FORMAT_PATTERNS:
+            if api_key.startswith(prefix):
+                llm_provider = detected
+                logger.info(f"BYOK {agent_id}: auto-detected provider '{detected}' from key prefix")
+                break
+        if not llm_provider:
+            raise ValueError(
+                f"Cannot auto-detect provider from key prefix. "
+                f"Please specify llm_provider explicitly. "
+                f"Supported prefixes: {', '.join(p for p, _ in KEY_FORMAT_PATTERNS)}"
+            )
+
+    llm_provider = llm_provider.lower()
+    if llm_provider not in VALID_BYOK_PROVIDERS:
+        raise ValueError(
+            f"Invalid provider '{llm_provider}'. "
+            f"Supported: {', '.join(sorted(VALID_BYOK_PROVIDERS))}"
+        )
+
+    provider_map = {
+        "openai": OpenAIProvider,
+        "anthropic": AnthropicProvider,
+        "gemini": GeminiProvider,
+        "groq": GroqProvider,
+        "mistral": MistralProvider,
+        "ollama": OllamaProvider,
+        "mock": MockProvider,
+    }
+
+    provider_class = provider_map[llm_provider]
+
+    if llm_provider in ("mock", "ollama"):
+        return provider_class()
+
+    # Keys are NEVER logged
+    return provider_class(api_key=api_key)
+
 
 def get_agent_provider(agent_id: str, ctx: Any = None):
     """
