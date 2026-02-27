@@ -7,7 +7,7 @@
 
   Transform your vision into validated, ethical, secure applications through systematic multi-model AI orchestration — from concept to deployment, with human-centered wisdom validation.
 
-  [![Version](https://img.shields.io/badge/version-v0.4.4-blue.svg)](CHANGELOG.md)
+  [![Version](https://img.shields.io/badge/version-v0.4.5-blue.svg)](CHANGELOG.md)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Status](https://img.shields.io/badge/status-Operational-success.svg)](SERVER_STATUS.md)
   [![Genesis v2.0 DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17972751.svg)](https://doi.org/10.5281/zenodo.17972751)
@@ -26,7 +26,7 @@
 
 ## MCP Server: Production Deployed
 
-> **v0.4.4 Live** — 1,750+ verified consultation hours delivered | 662 users | 80%+ MCP integration rate | **Multi-Model Trinity: X=Gemini, Z=Groq/Llama, CS=Groq/Llama** | `_overall_quality: "full"` — all agents returning real inference | C-S-P methodology pipeline | 10 MCP tools, 19 templates, input sanitization, and CI/CD pipeline. [Health Check](https://verifimind.ysenseai.org/health)
+> **v0.4.5 Live** — 1,750+ verified consultation hours delivered | 662 users | 80%+ MCP integration rate | **BYOK Live: per-tool-call provider override** | **Multi-Model Trinity: X=Gemini, Z=Groq/Llama, CS=Groq/Llama** | `_overall_quality: "full"` — all agents returning real inference | C-S-P methodology pipeline | 10 MCP tools, 19 templates, input sanitization, and CI/CD pipeline. [Health Check](https://verifimind.ysenseai.org/health)
 
 VerifiMind PEAS is now **live and accessible** across multiple platforms:
 
@@ -104,29 +104,18 @@ Based on production log analysis (February 2026), these are the most frequent co
 
 > ⚠️ **Smithery.ai Sunset Notice**: Smithery.ai's legacy architecture will be sunset on **March 1, 2026**. If you are currently connecting via `server.smithery.ai`, please switch to the direct URL `https://verifimind.ysenseai.org/mcp/` before that date. All Quick Start instructions above already use the direct URL.
 
-### API Keys
+### API Keys & BYOK (v0.4.5+)
 
 | Platform | API Key Required | Notes |
 |----------|------------------|-------|
-| **GCP Server** / **MCP Registry** | ❌ No | Server-side configured, ready to use |
+| **GCP Server** / **MCP Registry** | ❌ No (default) | Server-side configured, ready to use |
+| **GCP Server** (BYOK) | ✅ Optional | Pass `api_key` + `llm_provider` per tool call to use your own key |
 | **HuggingFace Demo** | ❌ No | Server-side configured |
-| **Smithery** | ✅ Yes (BYOK) | Bring Your Own Key |
+| **Smithery** | ✅ Yes (BYOK) | Bring Your Own Key (sunset March 1, 2026) |
 
-**For Smithery users**: Configure your own LLM API key (Gemini FREE or Groq FREE recommended):
+**v0.4.5 BYOK Live** — You can now override the default provider on any individual tool call by passing `api_key` and `llm_provider` parameters. The server auto-detects key format (e.g., `gsk_` → Groq, `sk-ant-` → Anthropic, `sk-` → OpenAI). If no key is provided, the server uses its default Gemini/Groq configuration. Triple-validated by Manus AI (6/6), Claude Code (6/6), and CI (175 tests). [PR #55](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/55)
 
-```json
-{
-  "mcpServers": {
-    "verifimind-genesis": {
-      "url": "https://smithery.ai/server/creator35lwb-web/verifimind-genesis",
-      "config": {
-        "llm_provider": "gemini",
-        "gemini_api_key": "YOUR_API_KEY_HERE"
-      }
-    }
-  }
-}
-```
+**Supported BYOK Providers**: Gemini, Groq, OpenAI, Anthropic, Mistral, Ollama, Perplexity
 
 **Get FREE API Keys**: [Google AI Studio](https://aistudio.google.com/apikey) | [Groq Console](https://console.groq.com/keys)
 
@@ -186,6 +175,7 @@ Automated testing and security scanning runs on every push to `main` via GitHub 
 | **MCP Integration Rate** | **80%+** | Programmatic (Node.js + Python) vs. browser traffic by User-Agent header |
 | **MCP Tools Available** | **10** (4 core + 6 template) | Core: consult_agent_x, consult_agent_z, consult_agent_cs, run_full_trinity |
 | **Multi-Model Providers** | **X=Gemini, Z=Groq, CS=Groq** | Per-agent provider routing for optimal structured output |
+| **BYOK Live** | **Per-tool-call override** | Users can pass own API key + provider on any call (v0.4.5+) |
 | **Trinity Quality** | **`_overall_quality: "full"`** | All 3 agents returning real inference (v0.4.4+) |
 
 ### Adoption Trajectory (Flying Hours ✈️)
@@ -268,6 +258,10 @@ We provide a systematic approach to **multi-model AI validation** that ensures y
 
 ## 🎯 Latest Achievements
 
+### v0.4.5 — BYOK Live: Per-Tool-Call Provider Override (February 28, 2026)
+
+The v0.4.5 release introduces **Bring Your Own Key (BYOK) Live** — users can now pass their own `api_key` and `llm_provider` on any individual tool call to override the server's default provider. The server auto-detects key format from prefix patterns (`gsk_` → Groq, `sk-ant-` → Anthropic, `sk-` → OpenAI, `AIza` → Gemini) and creates ephemeral provider instances per request. Keys are never stored — used once and discarded. When no BYOK key is provided, the server falls back to its default Gemini/Groq configuration seamlessly. Response metadata includes `_byok: true/false` for full transparency. Triple-validated by Manus AI (6/6 pass), Claude Code (6/6 pass), and CI pipeline (175 tests). [PR #55](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/55)
+
 ### v0.4.4 — Multi-Model Trinity: Full Quality (February 27, 2026)
 
 The v0.4.4 release achieves **`_overall_quality: "full"`** — all three Trinity agents now return real AI inference with zero fallback defaults. Agent X (Innovator) runs on Gemini 2.5 Flash for creative analysis, while Agent Z (Guardian) and Agent CS (Validator) are routed to Groq/Llama-3.3-70b for reliable structured JSON output. The GroqProvider was upgraded with the full C-S-P extraction pipeline: `strip_markdown_code_fences()`, `_extract_best_json()` with field-overlap scoring, `_merge_json_objects()`, and `_fill_schema_defaults()`. Quality markers (`_inference_quality`, `_agent_chain_status`, `_overall_quality`) are embedded in every response for full transparency. 16 PRs merged (#33–#48), all CI passed. 12 new unit tests added.
@@ -319,6 +313,7 @@ The standardization phase generated **57 complete Trinity validation reports** a
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| **v0.4.5** | Feb 28, 2026 | **BYOK Live**: per-tool-call provider override, auto-detect key format, triple-validated |
 | **v0.4.4** | Feb 27, 2026 | Multi-Model Trinity (`_overall_quality: "full"`), X=Gemini, Z/CS=Groq |
 | **v0.4.3** | Feb 27, 2026 | C-S-P pipeline, system notice, robust JSON extraction |
 | **v0.4.2** | Feb 26, 2026 | Mock mode resolved, transparent disclosure, CodeQL 13→0 |
