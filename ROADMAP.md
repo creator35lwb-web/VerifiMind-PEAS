@@ -4,10 +4,10 @@
 
 **Building the Future of Ethical AI Validation**
 
-*Last Updated: January 29, 2026*
+*Last Updated: March 1, 2026*
 
-[![Version](https://img.shields.io/badge/Current-v0.3.4-blue.svg)](CHANGELOG.md)
-[![Next](https://img.shields.io/badge/Next-v0.4.0-orange.svg)](#v040-unified-prompt-templates)
+[![Version](https://img.shields.io/badge/Current-v0.4.5-blue.svg)](CHANGELOG.md)
+[![Next](https://img.shields.io/badge/Next-v0.5.0_Foundation-orange.svg)](#v050-foundation)
 [![Status](https://img.shields.io/badge/Status-Active%20Development-brightgreen.svg)](#current-status)
 
 </div>
@@ -18,6 +18,7 @@
 
 - [Vision & Philosophy](#-vision--philosophy)
 - [Current Status](#-current-status)
+- [Completed Milestones](#-completed-milestones)
 - [Roadmap Timeline](#-roadmap-timeline)
 - [Version Details](#-version-details)
 - [Multi-Standard Strategy](#-multi-standard-strategy)
@@ -43,35 +44,43 @@ VerifiMind-PEAS is committed to keeping the Genesis Prompt Engineering Methodolo
 | MCP Server Code | ✅ Free | Full source code on GitHub |
 | Documentation | ✅ Free | All guides, tutorials, and white papers |
 | Self-Hosting | ✅ Free | Deploy on your own infrastructure |
-| BYOK Support | ✅ Free | Use your own API keys |
+| BYOK Support | ✅ Free | Use your own API keys (v0.4.5+) |
 | Community Support | ✅ Free | GitHub Discussions & Issues |
 
 ### What May Be Paid (Future)
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| Hosted Infrastructure | 🔮 Future | Pre-configured cloud deployment |
+| Hosted Orchestration | 🔮 Future | Managed multi-agent routing & synthesis |
 | Priority Support | 🔮 Future | Dedicated response times |
 | Custom Integrations | 🔮 Future | Enterprise-specific features |
 | Training & Workshops | 🔮 Future | Team onboarding sessions |
+
+> *"Education is free, but consultation and management is personalized charges."*
 
 ---
 
 ## 📊 Current Status
 
-### v0.3.4 (Current Release)
+### v0.4.5 BYOK Live (Current Release)
 
-**Released:** January 2026
+**Released:** February 28, 2026 | **PR:** [#55](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/55)
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| MCP Server (HTTP-SSE) | ✅ Live | verifimind.ysenseai.org |
+| MCP Server (Streamable-HTTP) | ✅ Live | verifimind.ysenseai.org |
 | Official MCP Registry | ✅ Listed | registry.modelcontextprotocol.io |
 | HuggingFace Demo | ✅ Live | Wisdom Canvas (YSenseAI/wisdom-canvas) |
 | 4 Core Tools | ✅ Available | validate_concept, analyze_security, check_ethics, synthesize_insights |
-| BYOK Multi-Provider | ✅ Working | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama |
+| **BYOK Per-Tool-Call** | ✅ **LIVE** | Ephemeral provider override on every tool call |
+| Auto-Detect Key Format | ✅ Working | `gsk_` → Groq, `sk-ant-` → Anthropic, `sk-` → OpenAI, etc. |
+| Multi-Provider Support | ✅ Working | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama |
 | Rate Limiting | ✅ Active | 10 req/min per IP, 100 req/min global |
 | Smart Fallback | ✅ Working | Per-agent provider support |
+| Input Sanitization | ✅ Active | Prompt injection detection (v0.3.5+) |
+| CI/CD Pipeline | ✅ Active | Bandit SAST + 175 automated tests |
+
+**BYOK Validation:** Triple-validated by Manus AI (6/6), Claude Code (6/6), and CI pipeline (175 tests).
 
 ### Platform Listings
 
@@ -81,6 +90,7 @@ VerifiMind-PEAS is committed to keeping the Genesis Prompt Engineering Methodolo
 | GitHub | ✅ Active | [creator35lwb-web/VerifiMind-PEAS](https://github.com/creator35lwb-web/VerifiMind-PEAS) |
 | HuggingFace Spaces | ✅ Live | [YSenseAI/wisdom-canvas](https://huggingface.co/spaces/YSenseAI/wisdom-canvas) |
 | Zenodo (DOI) | ✅ Published | [10.5281/zenodo.17645665](https://doi.org/10.5281/zenodo.17645665) |
+| Landing Page | ✅ Live | [verifimind.ysenseai.org](https://verifimind.ysenseai.org) |
 
 ### Active Users
 
@@ -95,63 +105,107 @@ Based on our server logs (7-day analysis):
 
 ---
 
+## ✅ Completed Milestones
+
+### v0.4.x Series (February 2026)
+
+| Version | Release Date | Key Achievement |
+|---------|-------------|-----------------|
+| v0.4.5 | Feb 28, 2026 | **BYOK Live** — Per-tool-call provider override with auto-detect |
+| v0.4.4 | Feb 27, 2026 | Version bump, 48x48 favicon with dark background |
+| v0.4.3 | Feb 26, 2026 | Streamable-HTTP transport upgrade |
+| v0.4.2 | Feb 25, 2026 | Multi-Model Trinity (Gemini + Anthropic + Perplexity) |
+| v0.4.1 | Feb 24, 2026 | Agent model labels, enhanced health endpoint |
+| v0.4.0 | Feb 23, 2026 | Unified prompt templates, MCP Registry listing |
+
+### v0.3.x Series (January 2026)
+
+| Version | Release Date | Key Achievement |
+|---------|-------------|-----------------|
+| v0.3.5 | Jan 30, 2026 | Input sanitization, prompt injection detection |
+| v0.3.4 | Jan 29, 2026 | Rate limiting, smart fallback |
+| v0.3.0 | Jan 15, 2026 | Initial GCP Cloud Run deployment |
+
+### Pre-Release (December 2025 – January 2026)
+
+| Milestone | Date | Achievement |
+|-----------|------|-------------|
+| Zenodo DOI | Jan 2026 | [10.5281/zenodo.17645665](https://doi.org/10.5281/zenodo.17645665) |
+| White Paper | Dec 2025 | Genesis Prompt Engineering Methodology published |
+| First Commit | Dec 2025 | Project inception |
+
+---
+
 ## 🗓️ Roadmap Timeline
 
 ```
-2026 Q1                    2026 Q2                    2026 Q3
+2026 Q1 (DONE)              2026 Q1-Q2                  2026 Q2
+   │                            │                          │
+   ▼                            ▼                          ▼
+┌──────────┐              ┌──────────┐              ┌──────────┐
+│  v0.4.5  │              │  v0.5.0  │              │  v0.5.x  │
+│  BYOK    │──────────────│ Founda-  │──────────────│ Stabi-   │
+│  Live ✅  │              │  tion    │              │  lity    │
+└──────────┘              └──────────┘              └──────────┘
+   Feb 2026                Mar-Apr 2026              Apr-May 2026
+
+2026 Q2-Q3                  2026 Q3                    2026 Q3+
    │                          │                          │
    ▼                          ▼                          ▼
 ┌──────────┐              ┌──────────┐              ┌──────────┐
-│  v0.4.0  │              │  v0.5.0  │              │  v0.6.0  │
-│ Unified  │──────────────│  Agent   │──────────────│   MCP    │
-│ Prompts  │              │  Skills  │              │   App    │
+│  v0.6.0  │              │  v0.7.0  │              │  v0.8.0+ │
+│  Agent   │──────────────│  MCP     │──────────────│  Quad    │
+│  Skills  │              │  App     │              │  CLI     │
 └──────────┘              └──────────┘              └──────────┘
-   Feb 2026                  Mar 2026                Apr-May 2026
-
-                           2026 Q3-Q4
-                              │
-                              ▼
-                         ┌──────────┐
-                         │  v0.7.0  │
-                         │  Local   │
-                         │  Models  │
-                         └──────────┘
-                           Jun 2026
+  May-Jun 2026              Jun-Jul 2026             Q3+ 2026
+                                                   (Discussion)
 ```
 
 ---
 
 ## 📦 Version Details
 
-### v0.4.0: Unified Prompt Templates
-**Target:** February 2026 | **Priority:** HIGH
+### v0.5.0: Foundation
+**Target:** March–April 2026 | **Priority:** CRITICAL
 
-Exportable Genesis prompts that work with ANY LLM, not just through MCP.
+The most important release — building the solid foundation everything else depends on.
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| Prompt Export | Download prompts as markdown/JSON | 🔲 Planned |
-| Template Library | 6+ pre-built prompts for common use cases | 🔲 Planned |
-| Import from URL | Load templates from external sources | 🔲 Planned |
-| Genesis Phase Tags | Tag templates by methodology phase | 🔲 Planned |
-| Compatibility Matrix | Show which models work best with each template | 🔲 Planned |
-| Custom Variables | User-defined placeholders | 🔲 Planned |
-| Version Control | Track prompt iterations | 🔲 Planned |
+| Smithery Sunset Migration | Ensure all users migrate to direct MCP config | 🔲 Planned |
+| Streamable-HTTP Primary | Complete transition from SSE to streamable-HTTP | 🔲 Planned |
+| Security Specification | Formal security model document (Z-Protocol spec) | 🔲 Planned |
+| Comprehensive Test Suite | Target: 200+ tests (currently 175) | 🔲 Planned |
+| Documentation Overhaul | Updated guides for v0.4.5+ features | 🔲 Planned |
+| Error Handling v2 | Structured error responses with recovery hints | 🔲 Planned |
+| Health Endpoint v2 | Enhanced diagnostics, uptime tracking | 🔲 Planned |
+| BYOK Hardening | Edge case handling, provider timeout management | 🔲 Planned |
 
-**Use Case:** Copy prompts directly into ChatGPT, Claude.ai, or any LLM interface.
+**Why Foundation First?**
 
-**Pre-Built Templates (Planned):**
-1. **Concept Validation** - Full Genesis 5-step process
-2. **Security Analysis** - Z-Protocol focused
-3. **Ethics Check** - Guardian agent perspective
-4. **Quick Synthesis** - Rapid multi-perspective summary
-5. **Research Validation** - Academic rigor template
-6. **Business Strategy** - Innovation + risk assessment
+> Every feature we build after v0.5.0 depends on the foundation being rock-solid. BYOK, Agent Skills, MCP App — all of these are only as reliable as the core engine underneath. v0.5.0 is about making that engine unbreakable.
+
+**Smithery Sunset Note:** March 1, 2026 marks the Smithery platform sunset. Users who discovered VerifiMind-PEAS through Smithery need clear migration guidance to direct MCP configuration.
 
 ---
 
-### v0.5.0: Agent Skills Support
-**Target:** March 2026 | **Priority:** HIGH
+### v0.5.x: Stability
+**Target:** April–May 2026 | **Priority:** HIGH
+
+Production hardening and reliability improvements.
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| Production Hardening | Memory optimization, connection pooling | 🔲 Planned |
+| Performance Optimization | Response time improvements, caching | 🔲 Planned |
+| Monitoring & Alerting | Structured logging, uptime monitoring | 🔲 Planned |
+| BYOK Analytics | Anonymous usage patterns for provider optimization | 🔲 Planned |
+| Migration Guide | Smithery → direct MCP config documentation | 🔲 Planned |
+
+---
+
+### v0.6.0: Agent Skills Support
+**Target:** May–June 2026 | **Priority:** HIGH
 
 Vendor-neutral Agent Skills standard support for multi-platform compatibility.
 
@@ -161,6 +215,7 @@ Vendor-neutral Agent Skills standard support for multi-platform compatibility.
 | /skills/ Endpoints | OpenAPI-like skill definitions | 🔲 Planned |
 | Multi-Vendor Support | Works with non-Anthropic agents | 🔲 Planned |
 | Skill Versioning | Track skill evolution | 🔲 Planned |
+| Core Extraction | Shared validation engine module | 🔲 Planned |
 
 **Why Agent Skills?**
 
@@ -188,8 +243,8 @@ verifimind.ysenseai.org/
 
 ---
 
-### v0.6.0: MCP App Development
-**Target:** April-May 2026 | **Priority:** MEDIUM
+### v0.7.0: MCP App Development
+**Target:** June–July 2026 | **Priority:** MEDIUM
 
 Transform VerifiMind-PEAS from an MCP Server into an **MCP App** with rich UI.
 
@@ -199,8 +254,9 @@ Transform VerifiMind-PEAS from an MCP Server into an **MCP App** with rich UI.
 | Persistent History | Store validation sessions | 🔲 Planned |
 | One-Click Install | MCP App Store distribution | 🔲 Planned |
 | Rich UI | Interactive validation interface | 🔲 Planned |
+| Local Model Support | Ollama, LM Studio integration | 🔲 Planned |
 
-**Background:** Anthropic announced MCP Apps (January 2026) - evolving MCP from tools to full applications.
+**Background:** Anthropic announced MCP Apps (January 2026) — evolving MCP from tools to full applications.
 
 | Aspect | MCP Tools (Current) | MCP Apps (New) |
 |--------|---------------------|----------------|
@@ -211,17 +267,29 @@ Transform VerifiMind-PEAS from an MCP Server into an **MCP App** with rich UI.
 
 ---
 
-### v0.7.0: Local Model Support
-**Target:** June 2026 | **Priority:** LOW
+### v0.8.0+: Quad Validation CLI (Discussion Phase)
+**Target:** Q3+ 2026 | **Priority:** FUTURE | **Status:** Discussion Only
 
-Support for locally-hosted models for complete privacy and offline use.
+> ⚠️ **This feature is in discussion phase only.** It will NOT be implemented until the foundation (v0.5.0–v0.7.0) is robust and proven. The separate repository `verifimind-quad-cli` will be created only when the commercialization readiness gate is met.
+
+A standalone CLI tool for simultaneous 4-agent validation orchestration.
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| Ollama Integration | Connect to local Ollama instance | 🔲 Planned |
-| LM Studio Support | Use LM Studio models | 🔲 Planned |
-| Custom Endpoints | Any OpenAI-compatible API | 🔲 Planned |
-| Offline Mode | Full functionality without internet | 🔲 Planned |
+| 4-Agent Orchestration | Run Y, X, Z, CS simultaneously | 💬 Discussion |
+| G-Agent (Grok) | Fifth agent for additional perspective | 💬 Discussion |
+| Shared Core | Imports from extracted VerifiMind core engine | 💬 Discussion |
+| CLI Interface | Click/Typer-based command line tool | 💬 Discussion |
+| Separate Repository | verifimind-quad-cli (when ready) | 💬 Discussion |
+
+**Commercialization Readiness Gate:**
+1. ✅ v0.5.0 Foundation complete and stable
+2. 🔲 Proven BYOK adoption (>20 active BYOK users)
+3. 🔲 Community demand for CLI interface validated
+4. 🔲 Core engine extracted as shared module (v0.6.0)
+5. 🔲 Security specification inherited from v0.5.0
+
+**Architecture Decision:** The quad-cli will be a **separate repository** that imports from a shared core engine. This follows the industry pattern (Terraform, Kubernetes, Docker) of keeping a monorepo until the core is stable, then splitting interfaces when there's proven demand.
 
 ---
 
@@ -241,7 +309,7 @@ VerifiMind-PEAS aims to be the **reference implementation** for ethical multi-mo
             │                       │                       │
     ┌───────▼───────┐      ┌───────▼───────┐      ┌───────▼───────┐
     │   MCP Server  │      │  Agent Skills │      │   MCP App     │
-    │   (Current)   │      │    (v0.5.0)   │      │   (v0.6.0)    │
+    │  (v0.4.5 ✅)  │      │    (v0.6.0)   │      │   (v0.7.0)    │
     └───────────────┘      └───────────────┘      └───────────────┘
             │                       │                       │
             └───────────────────────┼───────────────────────┘
@@ -250,6 +318,11 @@ VerifiMind-PEAS aims to be the **reference implementation** for ethical multi-mo
                     │      VerifiMind-PEAS Core     │
                     │   Genesis Methodology Engine  │
                     └───────────────────────────────┘
+                                    │
+                         ┌──────────▼──────────┐
+                         │   Quad CLI (v0.8.0+)│
+                         │   (Discussion Only) │
+                         └─────────────────────┘
 ```
 
 ### Academic Validation
@@ -291,10 +364,23 @@ As an open-source project with real infrastructure costs, we face the classic su
 │  • Domain (~RM5/mo)                • Their token usage     │
 │  • GitHub (Free)                   • Optional donations    │
 │                                                             │
-│  Result: Costs stay fixed regardless of user growth!       │
+│  Result: Costs stay fixed regardless of user growth         │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### Commercialization Path (Future)
+
+| Layer | Free/Paid | Rationale |
+|-------|-----------|-----------|
+| Genesis Methodology | FREE forever | Education is free |
+| MCP Server (self-host) | FREE forever | Open-source commitment |
+| MCP Server (hosted, BYOK) | FREE | Users pay their own API costs |
+| Quad-CLI (open-source) | FREE (future) | Code is always free |
+| Hosted Orchestration | PAID (future) | Managed routing & synthesis |
+| Enterprise Dashboard | PAID (future) | Analytics & management |
+
+> *"Education is free, but consultation and management is personalized charges."*
 
 ### Transparency
 
@@ -302,16 +388,16 @@ As an open-source project with real infrastructure costs, we face the classic su
 |--------|---------|--------|
 | Monthly Infrastructure Cost | ~RM 87-97 | < RM 100 |
 | Budget Allocation | RM 100/month | 1-year experiment |
-| Revenue | RM 0 | Not primary goal |
+| Revenue | RM 0 | Not primary goal (yet) |
 | Funding Source | Personal | Community (future) |
 
 ### How You Can Help
 
-1. **Use BYOK** - Bring your own API keys to reduce server costs
-2. **Star the repo** - Visibility helps attract contributors
-3. **Report issues** - Help us improve without hiring QA
-4. **Contribute code** - PRs welcome!
-5. **Spread the word** - Tell others about ethical AI validation
+1. **Use BYOK** — Bring your own API keys to reduce server costs
+2. **Star the repo** — Visibility helps attract contributors
+3. **Report issues** — Help us improve without hiring QA
+4. **Contribute code** — PRs welcome!
+5. **Spread the word** — Tell others about ethical AI validation
 
 ---
 
@@ -324,6 +410,7 @@ As an open-source project with real infrastructure costs, we face the classic su
 | GitHub Discussions | Questions, ideas, feedback | [Discussions](https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions) |
 | GitHub Issues | Bug reports, feature requests | [Issues](https://github.com/creator35lwb-web/VerifiMind-PEAS/issues) |
 | X (Twitter) | Updates & announcements | [@YSenseAI](https://x.com/YSenseAI) |
+| Landing Page | Project overview & demos | [verifimind.ysenseai.org](https://verifimind.ysenseai.org) |
 
 ### Contribution Areas
 
@@ -357,6 +444,7 @@ As an open-source project with real infrastructure costs, we face the classic su
 | Monthly MCP Connections | ~50 | 100 | 200 | 500 |
 | BYOK Users | ~5 | 20 | 50 | 100 |
 | Contributors | 1 | 3 | 5 | 10 |
+| Automated Tests | 175 | 200 | 250 | 300 |
 
 ### Success Indicators
 
@@ -365,11 +453,14 @@ As an open-source project with real infrastructure costs, we face the classic su
 - ✅ Real user activity detected (19K+ log entries)
 - ✅ HuggingFace demo live (Wisdom Canvas)
 - ✅ DOI-cited publication (Zenodo)
-- ✅ BYOK multi-provider support
+- ✅ BYOK multi-provider support (v0.4.5)
+- ✅ Triple-validated BYOK (Manus AI + Claude Code + CI)
+- ✅ Landing page live (verifimind.ysenseai.org)
 - 🔲 First external contributor
 - 🔲 100 GitHub stars
-- 🔲 Agent Skills support
+- 🔲 Agent Skills support (v0.6.0)
 - 🔲 Featured in AI newsletter/blog
+- 🔲 v0.5.0 Foundation release
 
 ---
 
