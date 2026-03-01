@@ -15,6 +15,8 @@ v0.4.1 Features:
 - Smart Fallback per-agent provider system
 """
 import os
+import time
+from datetime import datetime, timezone
 from fastapi.responses import JSONResponse
 from starlette.applications import Starlette
 from starlette.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
@@ -31,18 +33,26 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.4.5"
+SERVER_VERSION = "0.5.0"
+
+# Track server start time for uptime reporting (v0.5.0 health v2)
+_SERVER_START_TIME = time.time()
+_SERVER_START_ISO = datetime.now(timezone.utc).isoformat()
 
 # Custom route handlers
 async def health_handler(request):
-    """Health check endpoint with rate limit stats"""
+    """Health check endpoint — v2 with uptime and session tracing (v0.5.0)."""
     rate_stats = get_rate_limit_stats()
+    uptime_seconds = int(time.time() - _SERVER_START_TIME)
 
     return JSONResponse({
         "status": "healthy",
         "server": "verifimind-genesis",
         "version": SERVER_VERSION,
+        "health_version": 2,
         "transport": "streamable-http",
+        "uptime_seconds": uptime_seconds,
+        "server_started": _SERVER_START_ISO,
         "endpoints": {
             "mcp": "/mcp",
             "config": "/.well-known/mcp-config",
@@ -59,7 +69,8 @@ async def health_handler(request):
             "rate_limiting": True,
             "free_tier_default": True,
             "input_sanitization": True,
-            "byok_live": True
+            "byok_live": True,
+            "session_id_tracing": True,
         },
         "rate_limits": {
             "per_ip": f"{rate_stats['ip_limit']} req/{rate_stats['window_seconds']}s",
