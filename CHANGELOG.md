@@ -4,6 +4,95 @@ All notable changes to the VerifiMind PEAS project will be documented in this fi
 
 ---
 
+## v0.5.0 - Foundation (March 1, 2026)
+
+The architectural hardening release. Z-Protocol Approved (9.2/10). PR #60.
+
+### SessionContext Tracing
+- 8-character `_session_id` correlation token per Trinity run
+- Ephemeral, never stored — debugging only
+- Enables per-run tracing across all agents
+
+### Error Handling v2
+- `build_error_response()` — structured, consistent errors across all 10 tools
+- Error responses include tool name, error type, and actionable guidance
+
+### Health Endpoint v2
+- `health_version: 2` with richer diagnostics
+- Session tracking status and BYOK availability
+- Provider health checks
+
+### Smithery Removal
+- Fully self-hosted on GCP Cloud Run
+- Zero external dependencies
+- MIGRATION.md added for Smithery users
+
+### BYOK Hardening
+- Retry logic for provider calls
+- Graceful degradation for invalid keys
+- Provider health checks integrated into health endpoint
+
+### Documentation
+- `docs/BYOK_GUIDE.md` — comprehensive BYOK usage guide
+- `docs/SECURITY_SPEC.md` — Z-Protocol security specification
+- `MIGRATION.md` — Smithery → direct connection migration guide
+
+### Testing
+- 205 automated tests (up from 175)
+- 55.1% coverage (up from 53.6%)
+- All 10 acceptance criteria met
+
+### Credits
+- Implementation: CTO RNA (Claude Code)
+- Strategy & Public Materials: CSO R (Manus AI)
+- Metrics Validation: COO AY (Antigravity)
+- Human Orchestrator: L
+
+---
+
+## v0.4.5 - BYOK Live (February 28, 2026)
+
+Per-tool-call BYOK with ephemeral provider factory. PR #55.
+
+### New Features
+- Per-tool-call BYOK: `api_key` and `llm_provider` parameters on every tool
+- Ephemeral provider factory — keys never stored
+- Auto-detect key format (gsk_ → Groq, sk-ant- → Anthropic, sk- → OpenAI)
+- 7+ provider support: Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama, xAI
+
+### Testing
+- Triple-validated: Manus AI 6/6, Claude Code 6/6, CI 175 tests
+
+### Credits
+- Implementation: CTO RNA (Claude Code)
+- Validation: CSO R (Manus AI)
+
+---
+
+## v0.4.4 - Version Bump + Favicon Fix (February 27, 2026)
+
+### Bug Fixes
+- Version bump alignment across all endpoints
+- Favicon 48x48 with base64 Content-Security-Policy fix
+
+### Credits
+- Implementation: CTO RNA (Claude Code)
+
+---
+
+## v0.4.3 - Multi-Model Trinity + Y-Agent (February 26, 2026)
+
+### New Features
+- Y-Agent (Innovator) added to the council
+- Multi-model trinity: Y (Innovator) + X (Analyst) + Z (Guardian) + CS (Validator)
+- 4-agent architecture established
+
+### Credits
+- Implementation: CTO RNA (Claude Code)
+- Architecture: CSO R (Manus AI)
+
+---
+
 ## v0.4.0 - Unified Prompt Templates (January 30, 2026)
 
 ### New MCP Tools (6 new tools, 10 total)
@@ -349,5 +438,5 @@ LLM_MAX_TOKENS=4096
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: November 19, 2025
+**Document Version**: 2.0
+**Last Updated**: March 1, 2026
