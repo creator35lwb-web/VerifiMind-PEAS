@@ -7,7 +7,7 @@
 
   Transform your vision into validated, ethical, secure applications through systematic multi-model AI orchestration — from concept to deployment, with human-centered wisdom validation.
 
-  [![Version](https://img.shields.io/badge/version-v0.4.5-blue.svg)](CHANGELOG.md)
+  [![Version](https://img.shields.io/badge/version-v0.5.0-blue.svg)](CHANGELOG.md)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Status](https://img.shields.io/badge/status-Operational-success.svg)](SERVER_STATUS.md)
   [![Genesis v2.0 DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17972751.svg)](https://doi.org/10.5281/zenodo.17972751)
@@ -15,7 +15,7 @@
   
   [![API](https://img.shields.io/badge/API-verifimind.ysenseai.org-success)](https://verifimind.ysenseai.org)
   [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Listed-purple)](https://registry.modelcontextprotocol.io/?q=verifimind)
-  [![Smithery](https://img.shields.io/badge/Smithery-Sunset%20March%201-lightgrey)](https://smithery.ai/server/creator35lwb-web/verifimind-genesis)
+  [![Smithery](https://img.shields.io/badge/Smithery-Sunset%20(No%20Impact)-lightgrey)](https://smithery.ai/server/creator35lwb-web/verifimind-genesis)
   [![Landing Page](https://img.shields.io/badge/Landing%20Page-verifimind.io-cyan)](https://verifimind.io)
   [![HuggingFace](https://img.shields.io/badge/🤗%20HuggingFace-Demo-yellow)](https://huggingface.co/spaces/YSenseAI/verifimind-peas)
 [![Roadmap](https://img.shields.io/badge/Roadmap-2026-orange)](ROADMAP.md)
@@ -26,7 +26,7 @@
 
 ## MCP Server: Production Deployed
 
-> **v0.4.5 Live** — 1,750+ verified consultation hours delivered | 662 users | 80%+ MCP integration rate | **BYOK Live: per-tool-call provider override** | **Multi-Model Trinity: X=Gemini, Z=Groq/Llama, CS=Groq/Llama** | `_overall_quality: "full"` — all agents returning real inference | C-S-P methodology pipeline | 10 MCP tools, 19 templates, input sanitization, and CI/CD pipeline. [Health Check](https://verifimind.ysenseai.org/health)
+> **v0.5.0 Foundation** — 1,729.5 verified engagement hours | 754 users | 94.6% Value Confirmation Rate | 77.6% MCP integration | **BYOK Live + hardened** | **SessionContext tracing** | **Error handling v2** | **Health endpoint v2** | Smithery removed (self-hosted on GCP) | 205 tests, 55.1% coverage | Z-Protocol approved (9.2/10). [Health Check](https://verifimind.ysenseai.org/health)
 
 VerifiMind PEAS is now **live and accessible** across multiple platforms:
 
@@ -34,7 +34,7 @@ VerifiMind PEAS is now **live and accessible** across multiple platforms:
 |----------|------|--------|--------|
 | **GCP Cloud Run** | Production API | [verifimind.ysenseai.org](https://verifimind.ysenseai.org) | ✅ LIVE |
 | **Official MCP Registry** | Registry Listing | [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/?q=verifimind) | ✅ LISTED |
-| **Smithery.ai** | Native MCP | [Install for Claude Desktop](https://smithery.ai/server/creator35lwb-web/verifimind-genesis) | ⚠️ SUNSET March 1, 2026 |
+| **Smithery.ai** | Native MCP | [Install for Claude Desktop](https://smithery.ai/server/creator35lwb-web/verifimind-genesis) | ⚠️ SUNSET (zero impact — self-hosted) |
 | **Landing Page** | Showcase | [verifimind.io](https://verifimind.io) | ✅ LIVE |
 | **Hugging Face** | Interactive Demo | [YSenseAI/verifimind-peas](https://huggingface.co/spaces/YSenseAI/verifimind-peas) | ✅ LIVE |
 
@@ -170,13 +170,16 @@ Automated testing and security scanning runs on every push to `main` via GitHub 
 
 | Metric | Value | Methodology |
 |--------|-------|-------------|
-| **Verified Consultation Hours** | **1,750+** (all-time) | Session duration: first-to-last request per user per day. Scrapers excluded via User-Agent audit classification. |
-| **Total Users** | **662** | Unique users across all platforms |
-| **MCP Integration Rate** | **80%+** | Programmatic (Node.js + Python) vs. browser traffic by User-Agent header |
+| **Verified Engagement Hours** | **1,729.5** (all-time) | Session duration: first-to-last request per user per day. Scrapers excluded via User-Agent audit classification. |
+| **Value Confirmation Rate** | **94.6%** | Sessions where user sends follow-up prompt (proof of value received) |
+| **Total Users** | **754** | Unique users across all platforms |
+| **MCP Integration Rate** | **77.6%** | Programmatic (Node.js + Python) vs. browser traffic by User-Agent header |
 | **MCP Tools Available** | **10** (4 core + 6 template) | Core: consult_agent_x, consult_agent_z, consult_agent_cs, run_full_trinity |
 | **Multi-Model Providers** | **X=Gemini, Z=Groq, CS=Groq** | Per-agent provider routing for optimal structured output |
 | **BYOK Live** | **Per-tool-call override** | Users can pass own API key + provider on any call (v0.4.5+) |
 | **Trinity Quality** | **`_overall_quality: "full"`** | All 3 agents returning real inference (v0.4.4+) |
+| **SessionContext** | **`_session_id` tracing** | 8-char correlation ID per Trinity run (v0.5.0+) |
+| **Test Coverage** | **205 tests, 55.1%** | Comprehensive test suite with CI/CD pipeline |
 
 ### Adoption Trajectory (Flying Hours ✈️)
 
@@ -258,6 +261,10 @@ We provide a systematic approach to **multi-model AI validation** that ensures y
 
 ## 🎯 Latest Achievements
 
+### v0.5.0 — Foundation: Unbreakable Engine (March 1, 2026)
+
+The v0.5.0 Foundation release makes everything after it possible. **SessionContext tracing** adds an 8-character `_session_id` correlation token to every Trinity run for debugging (NOT user tracking — ephemeral, not stored). **Error handling v2** introduces `build_error_response()` for structured, consistent error responses across all tools. **Health endpoint v2** (`health_version: 2`) provides richer diagnostics including session tracking status and BYOK availability. **Smithery removal** completes the migration to fully self-hosted GCP Cloud Run (zero external dependencies). BYOK hardened with retry logic, graceful degradation for invalid keys, and provider health checks. 205 tests at 55.1% coverage. Z-Protocol security review: **APPROVED (9.2/10)**. [PR #60](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/60)
+
 ### v0.4.5 — BYOK Live: Per-Tool-Call Provider Override (February 28, 2026)
 
 The v0.4.5 release introduces **Bring Your Own Key (BYOK) Live** — users can now pass their own `api_key` and `llm_provider` on any individual tool call to override the server's default provider. The server auto-detects key format from prefix patterns (`gsk_` → Groq, `sk-ant-` → Anthropic, `sk-` → OpenAI, `AIza` → Gemini) and creates ephemeral provider instances per request. Keys are never stored — used once and discarded. When no BYOK key is provided, the server falls back to its default Gemini/Groq configuration seamlessly. Response metadata includes `_byok: true/false` for full transparency. Triple-validated by Manus AI (6/6 pass), Claude Code (6/6 pass), and CI pipeline (175 tests). [PR #55](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/55)
@@ -307,12 +314,13 @@ The standardization phase generated **57 complete Trinity validation reports** a
 | **LLM Providers** | 7 | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama, Perplexity |
 | **Multi-Model Routing** | X=Gemini, Z=Groq, CS=Groq | Per-agent provider optimization |
 | **Trinity Quality** | `_overall_quality: "full"` | All agents returning real inference (v0.4.4+) |
-| **Total Users** | 662 | Unique users across all platforms |
+| **Total Users** | 754 | Unique users across all platforms |
 
 ### **Version History**
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| **v0.5.0** | Mar 1, 2026 | **Foundation**: SessionContext tracing, error handling v2, health v2, Smithery removal, 205 tests |
 | **v0.4.5** | Feb 28, 2026 | **BYOK Live**: per-tool-call provider override, auto-detect key format, triple-validated |
 | **v0.4.4** | Feb 27, 2026 | Multi-Model Trinity (`_overall_quality: "full"`), X=Gemini, Z/CS=Groq |
 | **v0.4.3** | Feb 27, 2026 | C-S-P pipeline, system notice, robust JSON extraction |
