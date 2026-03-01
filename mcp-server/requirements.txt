@@ -24,8 +24,6 @@ python-dotenv>=1.0.0
 fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
 
-# Smithery Integration
-smithery>=0.4.4
 
 # Testing (dev dependencies)
 pytest>=7.0.0

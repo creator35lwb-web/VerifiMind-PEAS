@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from fastmcp import FastMCP, Context
-from smithery.decorators import smithery
+
 from pydantic import BaseModel, Field
 
 # Initialize logger for security events
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.4.5"
+SERVER_VERSION = "0.5.0"
 
 
 def wrap_response(response: dict) -> dict:
@@ -45,6 +45,38 @@ def wrap_response(response: dict) -> dict:
         response["_system_notice"] = SYSTEM_NOTICE
     response["_server_version"] = SERVER_VERSION
     return response
+
+
+def build_error_response(
+    error_code: str,
+    message: str,
+    recovery_hint: str,
+    agent: Optional[str] = None,
+    original_error: Optional[Exception] = None,
+) -> dict:
+    """Build a structured error response (v0.5.0 Error Handling v2).
+
+    Args:
+        error_code: Machine-readable error code (e.g. "BYOK_AUTH_FAILED")
+        message: Human-readable error description
+        recovery_hint: Actionable suggestion for the user
+        agent: Which agent raised the error (X, Z, CS, or None for orchestrator)
+        original_error: Original exception for debug logging
+
+    Returns:
+        Structured error dict ready for wrap_response()
+    """
+    import datetime as _dt
+    if original_error:
+        logger.error(f"[{error_code}] agent={agent} — {original_error}")
+    return {
+        "status": "error",
+        "error_code": error_code,
+        "error": message,
+        "recovery_hint": recovery_hint,
+        "agent": agent,
+        "timestamp": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+    }
 
 
 class VerifiMindConfig(BaseModel):
@@ -717,6 +749,10 @@ def _create_mcp_instance():
             z_agent = ZAgent(llm_provider=resolved_providers["Z"])
             cs_agent = CSAgent(llm_provider=resolved_providers["CS"])
 
+            # v0.5.0 SessionContext: unique ID for run traceability and log correlation
+            from .models.session import SessionContext
+            session = SessionContext(concept_name=concept_name)
+
             # v0.4.3.1 C-S-P State: Track inference quality across chain
             chain_status = {}
 
@@ -724,7 +760,11 @@ def _create_mcp_instance():
             x_result = await x_agent.analyze(concept)
             x_quality = getattr(x_result, '_inference_quality', 'unknown')
             chain_status["x_agent"] = x_quality
-            logger.info(f"Trinity X stage: quality={x_quality}")
+            logger.info(f"Trinity X stage: quality={x_quality} session={session.session_id}")
+            session.write("X", {
+                "score": x_result.innovation_score,
+                "provider": resolved_providers["X"].get_model_name(),
+            })
             x_cot = x_result.to_chain_of_thought(concept_name)
 
             # Step 2: Z Agent analysis (sees X's reasoning)
@@ -733,7 +773,12 @@ def _create_mcp_instance():
             z_result = await z_agent.analyze(concept, z_prior)
             z_quality = getattr(z_result, '_inference_quality', 'unknown')
             chain_status["z_agent"] = z_quality
-            logger.info(f"Trinity Z stage: quality={z_quality}")
+            logger.info(f"Trinity Z stage: quality={z_quality} session={session.session_id}")
+            session.write("Z", {
+                "score": z_result.ethics_score,
+                "veto": z_result.veto_triggered,
+                "provider": resolved_providers["Z"].get_model_name(),
+            })
             z_cot = z_result.to_chain_of_thought(concept_name)
 
             # Step 3: CS Agent analysis (sees X and Z reasoning)
@@ -743,7 +788,11 @@ def _create_mcp_instance():
             cs_result = await cs_agent.analyze(concept, cs_prior)
             cs_quality = getattr(cs_result, '_inference_quality', 'unknown')
             chain_status["cs_agent"] = cs_quality
-            logger.info(f"Trinity CS stage: quality={cs_quality}")
+            logger.info(f"Trinity CS stage: quality={cs_quality} session={session.session_id}")
+            session.write("CS", {
+                "score": cs_result.security_score,
+                "provider": resolved_providers["CS"].get_model_name(),
+            })
 
             # v0.4.3.1 C-S-P Propagation: Compute overall quality
             quality_values = list(chain_status.values())
@@ -792,7 +841,8 @@ def _create_mcp_instance():
                     "saved_to_history": save_to_history,
                     "_agent_chain_status": chain_status,
                     "_overall_quality": overall_quality,
-                    **_byok_meta
+                    **_byok_meta,
+                    **session.to_metadata(),
                 })
 
             return wrap_response({
@@ -829,15 +879,43 @@ def _create_mcp_instance():
                 "saved_to_history": save_to_history,
                 "_agent_chain_status": chain_status,
                 "_overall_quality": overall_quality,
-                **_byok_meta
+                **_byok_meta,
+                **session.to_metadata(),
             })
 
         except Exception as e:
-            return wrap_response({
-                "status": "error",
-                "error": str(e),
-                "concept": concept_name
-            })
+            err_str = str(e).lower()
+            # Detect BYOK authentication failures for targeted recovery hints
+            if "401" in err_str or "invalid api key" in err_str or "authentication" in err_str:
+                return wrap_response(build_error_response(
+                    error_code="BYOK_AUTH_FAILED",
+                    message=f"API key authentication failed: {e}",
+                    recovery_hint=(
+                        "Check your api_key is valid and matches the llm_provider. "
+                        "Get a free Groq key at console.groq.com or omit api_key to use server defaults."
+                    ),
+                    agent="Trinity",
+                    original_error=e,
+                ))
+            elif "timeout" in err_str or "timed out" in err_str:
+                return wrap_response(build_error_response(
+                    error_code="PROVIDER_TIMEOUT",
+                    message=f"LLM provider timed out: {e}",
+                    recovery_hint=(
+                        "The LLM provider took too long. Try again, or switch to a faster provider "
+                        "(e.g. llm_provider='groq' for low-latency inference)."
+                    ),
+                    agent="Trinity",
+                    original_error=e,
+                ))
+            else:
+                return wrap_response(build_error_response(
+                    error_code="TRINITY_ERROR",
+                    message=str(e),
+                    recovery_hint="Try again. If the issue persists, omit BYOK params to use server defaults.",
+                    agent="Trinity",
+                    original_error=e,
+                ))
 
     # ===== v0.4.0 TEMPLATE TOOLS =====
 
@@ -1224,15 +1302,15 @@ def create_http_server():
     return _create_mcp_instance()
 
 
-@smithery.server(config_schema=VerifiMindConfig)
 def create_server():
-    """Create MCP server for Smithery playground/CLI.
+    """Create MCP server instance.
 
-    This is wrapped with @smithery.server decorator for session configuration.
-    Returns SmitheryFastMCP instance for Smithery's playground mode.
+    Smithery free hosting ended March 1, 2026. GCP Cloud Run via streamable-HTTP
+    is the primary deployment target. This function is kept for backward compatibility
+    with any tooling that calls create_server() directly.
 
     Returns:
-        SmitheryFastMCP: Wrapped server instance for Smithery.
+        FastMCP: Server instance.
     """
     return _create_mcp_instance()
 
