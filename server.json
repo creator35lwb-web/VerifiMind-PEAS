@@ -3,7 +3,7 @@
   "name": "io.github.creator35lwb-web/verifimind-genesis",
   "title": "VerifiMind PEAS - RefleXion Trinity",
   "description": "Multi-Agent AI Validation with X-Z-CS RefleXion Trinity for ethical and secure app development",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "repository": {
     "url": "https://github.com/creator35lwb-web/VerifiMind-PEAS",
     "source": "github"
@@ -18,7 +18,13 @@
     "io.modelcontextprotocol.registry/publisher-provided": {
       "homepage": "https://verifimind.ysenseai.org",
       "license": "MIT",
-      "keywords": ["ai-validation", "multi-agent", "ethics", "security", "mcp"],
+      "keywords": [
+        "ai-validation",
+        "multi-agent",
+        "ethics",
+        "security",
+        "mcp"
+      ],
       "tools": [
         {
           "name": "consult_agent_x",

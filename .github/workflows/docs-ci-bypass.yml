@@ -1,10 +1,9 @@
 name: Docs CI Bypass
-
-# Provides the required "Bandit SAST Analysis" check for docs-only PRs.
+# Provides the required "Bandit SAST Analysis" check for non-mcp-server PRs.
 # The security-scan.yml workflow only triggers on mcp-server/** paths,
-# so docs-only PRs have no check to satisfy the branch protection ruleset.
-# This workflow fills that gap with an instant-pass job.
-
+# so PRs that only touch docs, config, or registry files have no check
+# to satisfy the branch protection ruleset. This workflow fills that gap
+# with an instant-pass job.
 on:
   pull_request:
     branches: [main]
@@ -15,14 +14,15 @@ on:
       - '.gitignore'
       - '**.txt'
       - '**.rst'
-
+      - 'server.json'
+      - '.github/workflows/publish-mcp-registry.yml'
+      - '.github/workflows/docs-ci-bypass.yml'
 permissions:
   contents: read
-
 jobs:
   bandit-sast:
     name: Bandit SAST Analysis
     runs-on: ubuntu-latest
     steps:
-      - name: Skip security scan for docs-only changes
-        run: echo "Docs-only change detected — security scan not required."
+      - name: Skip security scan for non-mcp-server changes
+        run: echo "Non-mcp-server change detected — security scan not required."
