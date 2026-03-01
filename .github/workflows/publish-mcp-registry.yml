@@ -97,7 +97,7 @@ jobs:
           echo "## MCP Registry Publication" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Server**: io.github.creator35lwb-web/verifimind-genesis" >> $GITHUB_STEP_SUMMARY
-          echo "**Version**: 2.0.0" >> $GITHUB_STEP_SUMMARY
+          VERSION=$(jq -r ".version" server.json) && echo "**Version**: $VERSION" >> $GITHUB_STEP_SUMMARY
           echo "**Endpoint**: https://verifimind.ysenseai.org/mcp" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
