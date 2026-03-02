@@ -363,6 +363,27 @@ MarketPulse is an open-source n8n workflow that delivers comprehensive daily mar
 
 📖 **[Read the Full MarketPulse Case Study →](docs/case-studies/MarketPulse_Case_Study.md)**
 
+### A/B Test: Human Intuition vs. Validation-First Design
+
+**The Power of Methodological Rigor — A Real-World Comparison**
+
+| Attribute | Value |
+|-----------|-------|
+| **Subject** | MarketPulse GCP Deployment Architecture |
+| **Case A** | Intuition-First Design (Manus AI) |
+| **Case B** | Validation-First (X-Z-CS Trinity) |
+| **Validation Date** | March 2026 |
+| **Status** | ❌ REJECTED by Trinity (Architecture redesigned) |
+
+A real-world A/B test that occurred during MarketPulse development. A sophisticated GCP deployment architecture was designed using best practices and domain expertise (Case A), then systematically validated by the X-Z-CS Trinity (Case B). The Trinity unanimously rejected the design, exposing hidden costs and critical resource constraints that the intuition-first approach missed entirely.
+
+**Trinity Validation Results:**
+- **X-Agent (Gemini):** ⚠️ RECONSIDER - Feasibility 65/100. Hidden costs in VPC connector invalidate zero-cost claim.
+- **Z-Agent (Anthropic):** ❌ REJECTED - Risk 85/100. "Financially deceptive" and "technically impossible" on 1GB RAM.
+- **CS-Agent (Anthropic):** ❌ IMPRACTICAL - Practicality 15/100. "Building a fortress to protect a sandwich."
+
+📖 **[Read the Full A/B Test Case Study →](docs/case-studies/AB_Test_Intuition_vs_Validation.md)**
+
 ---
 
 ## 💡 Why VerifiMind-PEAS?
@@ -705,6 +726,8 @@ The reference implementation demonstrates how to automate the X-Z-CS Trinity:
 
 - **[YSenseAI™ 87-Day Journey](https://journey.manus.space/)** (Landing Pages): Real-world validation of Genesis Methodology
 - **[VerifiMind-PEAS Development](https://verifimind.io/)** (Landing Pages): Meta-application of methodology to itself
+- **[MarketPulse v5.0 Case Study](docs/case-studies/MarketPulse_Case_Study.md)**: From concept to production with Trinity validation
+- **[A/B Test: Intuition vs. Validation](docs/case-studies/AB_Test_Intuition_vs_Validation.md)**: Real-world proof of validation-first methodology
 
 ### **Operations & Troubleshooting**
 
