@@ -3,7 +3,19 @@ HTTP Server Entry Point for VerifiMind MCP Server
 Designed for GCP Cloud Run deployment with HTTP transport
 Properly handles FastMCP lifespan context for session management
 
-v0.4.1 Features:
+v0.5.1 Features (Sentinel — Genesis Master Prompt v4.1):
+- Z-Protocol v1.1: 21 regulatory frameworks across 4 jurisdictional tiers (International, EU/EEA, US, ASEAN)
+- Z Guardian enhanced: jurisdiction detection, content marking validation, multi-agent governance, compliance timeline
+- Z Guardian scoring: 5-dimension weighted framework (Ethical 25%, Regulatory 25%, Transparency 20%, Data 15%, Multi-Agent 15%)
+- Z Guardian 6th red line veto: undisclosed AI-generated content in regulated contexts
+- CS Agent v1.1: 6-stage, 12-dimension security verification (expanded from 4-stage, 6-dimension)
+- CS Agent Stage 2: OWASP Agentic Top 10 (ASI01-ASI10) full mapping
+- CS Agent Stage 5: Reasoning-Layer Audit (tool poisoning, shadowing, rugpull)
+- CS Agent Stage 3: prove/disprove methodology with per-finding confidence scores
+- CS Agent Socratic Framework: 5 minimum questions across 4 categories
+- X Agent: 7th analysis dimension — competitive positioning vs LangChain/CrewAI/AutoGen
+
+Carried forward from v0.4.1/v0.5.0:
 - Markdown-first report generation (Accept: text/markdown)
 - Unified Prompt Templates (6 new MCP tools)
 - Input sanitization for prompt injection protection
@@ -33,7 +45,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.0"
+SERVER_VERSION = "0.5.1"
 
 # Track server start time for uptime reporting (v0.5.0 health v2)
 _SERVER_START_TIME = time.time()

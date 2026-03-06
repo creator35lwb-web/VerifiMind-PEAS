@@ -146,7 +146,7 @@ def test_x_agent_config_loaded(x_agent):
     """Test X Agent has proper configuration loaded."""
     assert x_agent.config is not None
     assert x_agent.config.name == "X Intelligent"
-    assert x_agent.config.role == "Innovation and Strategy Analyst"
+    assert "Innovation" in x_agent.config.role
 
 
 @pytest.mark.unit

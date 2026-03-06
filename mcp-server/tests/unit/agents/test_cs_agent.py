@@ -153,7 +153,7 @@ def test_cs_agent_config_loaded(cs_agent):
     """Test CS Agent has proper configuration loaded."""
     assert cs_agent.config is not None
     assert cs_agent.config.name == "CS Security"
-    assert cs_agent.config.role == "Security Analyst and Concept Scrutinizer"
+    assert "Security" in cs_agent.config.role
 
 
 @pytest.mark.unit

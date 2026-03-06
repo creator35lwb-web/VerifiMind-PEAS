@@ -94,7 +94,7 @@ class ChainOfThought(BaseModel):
 
 class XAgentAnalysis(BaseModel):
     """
-    Complete analysis output from X Intelligent agent.
+    Complete analysis output from X Intelligent agent — v4.1 with competitive intelligence.
     """
     agent: str = Field(default="X Intelligent")
     reasoning_steps: List[ReasoningStep]
@@ -104,6 +104,8 @@ class XAgentAnalysis(BaseModel):
     risks: List[str] = Field(..., description="Identified risks")
     recommendation: str = Field(..., description="Final recommendation")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Overall confidence")
+    # v4.1 addition
+    competitive_position: Optional[float] = Field(None, ge=0.0, le=10.0, description="Competitive position score vs LangChain/CrewAI/AutoGen (10=unique moat, 5=parity, 0=dominated)")
     
     def to_chain_of_thought(self, concept_name: str) -> ChainOfThought:
         """Convert to ChainOfThought for passing to next agent."""
@@ -119,12 +121,12 @@ class XAgentAnalysis(BaseModel):
 
 class ZAgentAnalysis(BaseModel):
     """
-    Complete analysis output from Z Guardian agent.
+    Complete analysis output from Z Guardian agent — Z-Protocol v1.1 "Sentinel".
     """
     agent: str = Field(default="Z Guardian")
     reasoning_steps: List[ReasoningStep]
-    ethics_score: float = Field(..., ge=0.0, le=10.0, description="Ethics compliance score")
-    z_protocol_compliance: bool = Field(..., description="Whether Z-Protocol is satisfied")
+    ethics_score: float = Field(..., ge=0.0, le=10.0, description="Ethics compliance score (weighted 5-dimension composite)")
+    z_protocol_compliance: bool = Field(..., description="Whether Z-Protocol v1.1 is satisfied")
     ethical_concerns: List[str] = Field(..., description="Identified ethical concerns")
     mitigation_measures: List[str] = Field(..., description="Recommended mitigations")
     recommendation: str = Field(..., description="Final recommendation")
@@ -133,6 +135,10 @@ class ZAgentAnalysis(BaseModel):
         description="True if ethical red line crossed - concept should not proceed"
     )
     confidence: float = Field(..., ge=0.0, le=1.0, description="Overall confidence")
+    # v4.1 Sentinel additions
+    veto_reason: Optional[str] = Field(None, description="Which red line triggered the veto, if any")
+    jurisdiction_detected: Optional[List[str]] = Field(None, description="Target markets detected (EU, US, ASEAN, Global)")
+    compliance_timeline: Optional[List[str]] = Field(None, description="Upcoming compliance deadlines relevant to this concept")
     
     def to_chain_of_thought(self, concept_name: str) -> ChainOfThought:
         """Convert to ChainOfThought for passing to next agent."""
@@ -152,20 +158,24 @@ class ZAgentAnalysis(BaseModel):
 
 class CSAgentAnalysis(BaseModel):
     """
-    Complete analysis output from CS Security agent.
+    Complete analysis output from CS Security agent — v1.1 "Sentinel" (6-stage, 12-dimension).
     """
     agent: str = Field(default="CS Security")
     reasoning_steps: List[ReasoningStep]
     security_score: float = Field(..., ge=0.0, le=10.0, description="Security assessment score")
-    vulnerabilities: List[str] = Field(..., description="Identified vulnerabilities")
+    vulnerabilities: List[str] = Field(..., description="Traditional web security vulnerabilities (Stage 1, dimensions 1-6)")
     attack_vectors: List[str] = Field(..., description="Potential attack vectors")
     security_recommendations: List[str] = Field(..., description="Security recommendations")
     socratic_questions: List[str] = Field(
         ...,
-        description="Socratic questions for human consideration"
+        description="Socratic questions — minimum 5, across 4 categories: Assumption Challenge, Boundary Probe, Cascade Scenario, Human Override"
     )
     recommendation: str = Field(..., description="Final recommendation")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Overall confidence")
+    # v4.1 Sentinel additions
+    threat_level: Optional[str] = Field(None, description="Overall threat level: Low Risk / Medium Risk / High Risk / Critical Threat")
+    agentic_threats: Optional[List[str]] = Field(None, description="Agentic-specific threats from Stage 2 OWASP ASI01-ASI10 assessment")
+    reasoning_layer_findings: Optional[List[str]] = Field(None, description="Tool poisoning/shadowing/rugpull findings from Stage 5 Reasoning-Layer Audit")
     
     def to_chain_of_thought(self, concept_name: str) -> ChainOfThought:
         """Convert to ChainOfThought for passing to next agent."""
