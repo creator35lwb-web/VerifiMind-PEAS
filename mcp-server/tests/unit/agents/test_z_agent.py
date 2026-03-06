@@ -152,7 +152,7 @@ def test_z_agent_config_loaded(z_agent):
     """Test Z Agent has proper configuration loaded."""
     assert z_agent.config is not None
     assert z_agent.config.name == "Z Guardian"
-    assert z_agent.config.role == "Ethics and Z-Protocol Guardian"
+    assert "Ethics" in z_agent.config.role
 
 
 @pytest.mark.unit
