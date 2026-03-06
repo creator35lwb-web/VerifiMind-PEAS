@@ -44,7 +44,7 @@ def test_cs_agent_has_security_categories(cs_agent):
     categories = cs_agent.get_security_categories()
     
     assert isinstance(categories, list)
-    assert len(categories) == 7  # Authentication, Authorization, Data Protection, Input Validation, Error Handling, Logging, Third-Party
+    assert len(categories) == 12  # 6 Traditional Web Security + 6 Agentic Security (v1.1 Sentinel)
     
     # Verify all categories have required fields
     for category in categories:
@@ -96,7 +96,12 @@ def test_cs_agent_security_categories_include_critical_areas(cs_agent):
     categories = cs_agent.get_security_categories()
     category_names = [c["category"] for c in categories]
     
-    critical_areas = ["Authentication", "Authorization", "Data Protection", "Input Validation"]
+    critical_areas = [
+        "Input Validation",              # traditional
+        "Authentication & Authorization",  # traditional
+        "Agent Identity Verification",    # agentic (v1.1 Sentinel)
+        "Tool Integrity Validation",      # agentic (v1.1 Sentinel)
+    ]
     
     for area in critical_areas:
         assert area in category_names, f"Missing critical security area: {area}"

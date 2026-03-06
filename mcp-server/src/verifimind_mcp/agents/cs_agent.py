@@ -78,43 +78,74 @@ class CSAgent(BaseAgent):
         }
     
     def get_security_categories(self) -> list:
-        """Return the security categories assessed."""
+        """Return the 12-dimension security categories assessed (v1.1 Sentinel).
+
+        Organized as 6 Traditional Web Security + 6 Agentic Security dimensions,
+        matching the Stage 1 framework in Genesis Master Prompt v4.1.
+        """
         return [
+            # Traditional Web Security (6 dimensions)
             {
-                "category": "Authentication",
-                "description": "Identity verification and access control",
-                "weight": 0.20
+                "category": "Prompt Injection & Jailbreak",
+                "description": "Prompt injection and jailbreak attempts targeting LLM reasoning",
+                "weight": 0.09
             },
             {
-                "category": "Authorization",
-                "description": "Permission management and privilege escalation",
-                "weight": 0.15
+                "category": "Code Injection",
+                "description": "SQL, NoSQL, and command injection attacks",
+                "weight": 0.09
             },
             {
-                "category": "Data Protection",
-                "description": "Encryption, storage, and transmission security",
-                "weight": 0.20
+                "category": "XSS & SSRF",
+                "description": "Cross-site scripting and server-side request forgery",
+                "weight": 0.07
             },
             {
                 "category": "Input Validation",
-                "description": "Protection against injection and malformed input",
-                "weight": 0.15
+                "description": "File and command injection protection",
+                "weight": 0.07
             },
             {
-                "category": "Error Handling",
-                "description": "Secure error handling and information disclosure",
+                "category": "Authentication & Authorization",
+                "description": "API security: authentication, authorization, and rate limiting",
                 "weight": 0.10
             },
             {
-                "category": "Logging & Monitoring",
-                "description": "Audit trails and anomaly detection",
+                "category": "Dependency Vulnerabilities",
+                "description": "Third-party library and dependency security",
+                "weight": 0.08
+            },
+            # Agentic Security (6 dimensions — AI/multi-agent specific)
+            {
+                "category": "Agent Identity Verification",
+                "description": "Verifiable agent identity via NIST NCCoE SPIFFE/SPIRE standard",
                 "weight": 0.10
             },
             {
-                "category": "Third-Party Risk",
-                "description": "Dependencies, APIs, and supply chain security",
-                "weight": 0.10
-            }
+                "category": "Tool Integrity Validation",
+                "description": "Signed and version-pinned tool definitions (CrowdStrike research)",
+                "weight": 0.09
+            },
+            {
+                "category": "Inter-Agent Communication",
+                "description": "Encrypted, authenticated, replay-protected messages (OWASP ASI07)",
+                "weight": 0.08
+            },
+            {
+                "category": "Memory & Context Integrity",
+                "description": "Agent memory and RAG data tamper resistance (OWASP ASI06)",
+                "weight": 0.08
+            },
+            {
+                "category": "Resource Boundary Enforcement",
+                "description": "Agent operating within authorized scope (CoSAI T10)",
+                "weight": 0.07
+            },
+            {
+                "category": "Supply Chain Verification",
+                "description": "MCP server provenance and verified sources (OWASP ASI04, CoSAI T11)",
+                "weight": 0.08
+            },
         ]
     
     def get_socratic_question_types(self) -> list:
