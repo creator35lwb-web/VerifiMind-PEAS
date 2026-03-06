@@ -1,22 +1,25 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** February 8, 2026
+**Last Updated:** March 7, 2026
 
 ---
 
 ## Current Status: Operational
 
-**v0.4.0 deployed successfully on January 30, 2026**
+**v0.5.1 "Sentinel" deployed successfully on March 7, 2026**
 
 The VerifiMind MCP server is fully operational with the following capabilities:
 
 - 10 MCP tools (4 core validation + 6 template management)
 - 19 pre-built prompt templates across 6 libraries
-- Input sanitization active on all tools (v0.3.5+)
+- **Z-Protocol v1.1**: 21 regulatory frameworks across 4 jurisdictional tiers (International, EU/EEA, US, ASEAN)
+- **CS Agent v1.1**: 6-stage, 12-dimension security verification with OWASP Agentic Top 10
+- **X Agent v4.1**: Competitive analysis vs LangChain/CrewAI/AutoGen
+- Input sanitization active on all tools
 - Gemini 2.5-flash as default FREE provider
 - Rate limiting and EDoS protection active
-- GCP Global Uptime Check monitoring `/health` every 5 minutes
-- CI/CD pipeline passing (GitHub Actions)
+- GCP Cloud Run revision `verifimind-mcp-server-00244-sb2`
+- CI/CD pipeline passing (GitHub Actions — all 8 checks pass)
 
 ---
 
@@ -26,7 +29,7 @@ The VerifiMind MCP server is fully operational with the following capabilities:
 |----------|-------|
 | **Endpoint** | `https://verifimind.ysenseai.org/mcp` |
 | **Health Check** | `https://verifimind.ysenseai.org/health` |
-| **Server Version** | 0.4.0 (deployed) |
+| **Server Version** | 0.5.1 "Sentinel" (deployed March 7, 2026) |
 | **Transport** | Streamable HTTP (SSE) |
 | **Default Provider** | Gemini 2.5-flash (FREE) |
 | **BYOK Providers** | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama, Perplexity |
