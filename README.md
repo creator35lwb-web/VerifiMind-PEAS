@@ -37,6 +37,7 @@ VerifiMind PEAS is now **live and accessible** across multiple platforms:
 | **Smithery.ai** | Native MCP | [Install for Claude Desktop](https://smithery.ai/server/creator35lwb-web/verifimind-genesis) | ⚠️ SUNSET (zero impact — self-hosted) |
 | **Landing Page** | Showcase | [verifimind.io](https://verifimind.io) | ✅ LIVE |
 | **Hugging Face** | Interactive Demo | [YSenseAI/verifimind-peas](https://huggingface.co/spaces/YSenseAI/verifimind-peas) | ✅ LIVE |
+| **MACP Research Assistant** | Showcase App | [macpresearch.ysenseai.org](https://macpresearch.ysenseai.org) | ✅ LIVE |
 
 ### Quick Start
 
@@ -183,6 +184,8 @@ Automated testing and security scanning runs on every push to `main` via GitHub 
 
 ### Adoption Trajectory (Flying Hours ✈️)
 
+> **Data through W09 (March 1, 2026).** W10+ data collection in progress for v0.7.0 pricing decisions.
+
 | Week | Period | Weekly Hours | Cumulative Hours | Users |
 |------|--------|-------------|-----------------|-------|
 | W02 | Jan 06–12 | 38.0h | 38h | 21 |
@@ -314,7 +317,7 @@ The standardization phase generated **57 complete Trinity validation reports** a
 | **LLM Providers** | 7 | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama, Perplexity |
 | **Multi-Model Routing** | X=Gemini, Z=Groq, CS=Groq | Per-agent provider optimization |
 | **Trinity Quality** | `_overall_quality: "full"` | All agents returning real inference (v0.4.4+) |
-| **Total Users** | 754 | Unique users across all platforms |
+| **Total Users** | 885+ | Unique users across all platforms |
 
 ### **Version History**
 
@@ -890,9 +893,9 @@ We welcome contributions from the community!
 
 ## 🗺️ Roadmap
 
-**Current Phase**: Phase 6 — Feature Enhancement & Strategic Pivot (Q1 2026)
+**Current Phase**: Phase 6 — Protocol-First & Ecosystem Alignment (Q1 2026)
 
-**Status**: Phases 1–5 COMPLETE ✅ | v0.4.1 DEPLOYED 🎉 | v0.5.0 IN PLANNING
+**Status**: Phases 1–5 COMPLETE ✅ | v0.5.0 DEPLOYED 🎉 | v0.6.0 IN DEVELOPMENT
 
 **North Star**: Position VerifiMind-PEAS as the **trust and verification layer for the emerging Agentic Web**.
 
@@ -911,33 +914,39 @@ Phases 1 through 4 established the methodology framework, MCP server implementat
 - ✅ **L (GODEL) Ethical Operating Framework v1.1**: Fairness, bias mitigation, update mechanism
 - ✅ **GCP Monitoring**: Uptime checks, alerting, log analysis pipeline
 
-### **Phase 6: Feature Enhancement & Strategic Pivot** 🚧 CURRENT
+### **Phase 6: Protocol-First & Ecosystem Alignment** 🚧 CURRENT
 
-**Completed** (February 2026):
+**Completed** (February–March 2026):
 
-- ✅ **v0.4.1**: Markdown-first output with content negotiation (80% token reduction)
-- ✅ **Smithery URL removal**: All 13 proxy references replaced with direct URL
-- ✅ **PDF deprecated**: Retained only for Zenodo DOI and enterprise compliance
+- ✅ **v0.5.0 Foundation**: SessionContext tracing, error handling v2, health v2, Smithery removal, 205 tests
+- ✅ **v0.4.1–v0.4.5**: Markdown-first output, BYOK Live, Multi-Model Trinity (full quality)
 - ✅ **Branch protection**: Main branch ruleset with required PR reviews and CI checks
 - ✅ **CodeQL remediation**: All 102 security alerts resolved across 4 waves
-- ✅ **Strategic pivot**: "Trust Layer for the Agentic Web" vision formalized
-- ✅ **Genesis Master Prompt v4.0**: Ecosystem-level prompt iterated
-- ✅ **Genesis v3.1**: CS Agent Multi-Stage Verification Protocol — 4-stage workflow (Detection → Self-Examination → Severity Rating → Human Review), zero code changes
-- ✅ **Security docs published**: [`docs/security/`](docs/security/) — Protocol spec and Severity Rating Framework synced to public repo
+- ✅ **Strategic pivot**: MACP v2.0 repositioned as **free protocol for adoption** (not paid product)
+- ✅ **Genesis Master Prompt v4.0 "Protocol"**: Updated for 7-skill ecosystem and protocol-first strategy
+- ✅ **Genesis v3.1**: CS Agent Multi-Stage Verification Protocol — 4-stage workflow
+- ✅ **Landing page**: [verifimind.io](https://verifimind.io) LIVE with protocol-first messaging
+- ✅ **MACP Research Assistant**: [macpresearch.ysenseai.org](https://macpresearch.ysenseai.org) — showcase proving MACP v2.0 works
+- ✅ **7-Skill Composition Stack**: Complete Manus AI skill ecosystem deployed
+- ✅ **GitHub Profile README**: Full brand refresh with YSenseAI™ ecosystem showcase
+- ✅ **48 PRs merged**: Healthiest repo state (5 open issues from 17)
 
-**In Progress** (February–March 2026):
+**In Progress** (March 2026):
 
-- ⏳ **v0.5.0 Agent Skills**: `/.well-known/agent-skills.json` for automated discovery
-- ⏳ **MACP v2.0 as MCP Skills**: Expose collaboration protocols as discoverable skills
-- ⏳ **Landing page**: [verifimind.io](https://verifimind.io) with anti-lock-in narrative
-- ⏳ **Dynamic UI proof-of-concept**: MCP + A2A convergence research
-- ⏳ **Community engagement**: GitHub Discussions, VS Code Live engagement
+- ⏳ **v0.6.0 "Protocol"**: Protocol-first announcement release
+- ⏳ **Knowledge Graph (Phase 4)**: Structured data layer for MACP Research Assistant
+- ⏳ **Retention data collection**: Building data-driven foundation for v0.7.0 pricing decisions
+- ⏳ **Skill development**: Completing `macp-protocol-v2` and `macp-research-assistant` skills
 
 ### **Future Phases** 📋 PLANNED
 
-- **Phase 7**: Local Model Support & A2A Integration (Q2 2026) — Ollama-first, A2A protocol research
-- **Phase 8**: Enterprise Features (Q2–Q3 2026) — Team collaboration, audit logging
-- **Phase 9**: Ecosystem Expansion (Q3 2026) — IDE extensions, "Verified by Z-Protocol" GenUI Safety Standard
+| Version | Codename | Theme | Timeline |
+|---------|----------|-------|----------|
+| **v0.6.x** | "Hardening" | Foundation testing + retention data | Mar–Apr 2026 |
+| **v0.7.0** | "Commerce" | First paid tier (data-driven pricing) | May–Jun 2026 |
+| **v0.8.0** | "Scale" | Enterprise + LegacyEvolve integration | Q3 2026 |
+| **v0.9.0** | "Community" | Ecosystem + skill marketplace | Q4 2026 |
+| **v1.0.0** | "Genesis" | Self-sustaining platform | Q1 2027 |
 
 **Key Metrics**:
 | Metric | Value | Significance |
@@ -948,6 +957,7 @@ Phases 1 through 4 established the methodology framework, MCP server implementat
 | **Platforms Live** | 4 | GCP, MCP Registry, HuggingFace, verifimind.io |
 | **LLM Providers** | 7 | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama, Perplexity |
 | **All-Time Users** | 530+ | Cumulative unique users |
+| **Manus AI Skills** | 7 | Complete skill composition stack |
 | **Cost per Validation** | ~$0.003 | Sustainable for all developers |
 
 **See Examples**: [/validation_archive/](/validation_archive/) | [Examples](/examples/)
@@ -955,6 +965,35 @@ Phases 1 through 4 established the methodology framework, MCP server implementat
 **Read more**: [Roadmap](ROADMAP.md) | [v0.5.0 Agent Skills Specification](iteration/v0.5.0_Agent_Skills_Specification.md)
 
 ---
+
+---
+
+## 🧩 7-Skill Composition Stack (Manus AI Ecosystem)
+
+VerifiMind-PEAS is supported by a **7-skill composition stack** — a layered ecosystem of Manus AI skills that work together to enable multi-agent collaboration, protocol-driven communication, and self-recursive validation.
+
+| Layer | Skill | Role | Status |
+|-------|-------|------|--------|
+| 5 | `ysenseai-flywheel-team` | Ecosystem orchestration & AI Council validation | ✅ Active |
+| 4 | `macp-protocol-v2` | **Primary differentiator** — free protocol driving adoption | ✅ Active |
+| 3 | `multi-agent-handoff-bridge` | Artifact delivery between sandbox and local agents | ✅ Active |
+| 2 | `internet-skill-finder` + `github-gem-seeker` | Discovery layer for skills and solutions | ✅ Active |
+| 1 | `macp-research-assistant` | **Showcase** — proves MACP v2.0 works in production | ✅ Active |
+| 0 | `skill-creator` | Foundation — creates and updates all other skills | ✅ Active |
+
+### Protocol Landscape Positioning
+
+The multi-agent protocol landscape now has 4 major protocols. MACP v2.0 occupies a **unique gap none of them address**:
+
+| Protocol | Maintainer | Focus | MACP v2.0 Relationship |
+|----------|-----------|-------|----------------------|
+| **MCP** | Anthropic / Linux Foundation | Vertical: AI ↔ Tools | MACP uses MCP as transport layer |
+| **A2A** | Google | Horizontal: Agent ↔ Agent (autonomous) | Complementary — A2A lacks human orchestration |
+| **ACP** | IBM | Enterprise agent communication | Different scope — enterprise vs. individual |
+| **ANP** | Community | Agent identity & trust | Complementary — ANP handles identity, MACP handles workflow |
+| **MACP v2.0** | YSenseAI™ | **Human-orchestrated multi-agent coordination** | **Unique: Git-based, human-at-center, platform-agnostic** |
+
+> **MACP v2.0 is free forever.** The protocol drives adoption. Revenue comes from hosted orchestration services (v0.7.0+), following the HTTP/AWS, Git/GitHub model.
 
 ## 📖 Defensive Publication
 
@@ -983,13 +1022,13 @@ Phases 1 through 4 established the methodology framework, MCP server implementat
 
 ## 📚 How to Cite
 
-### **Citing VerifiMind-PEAS v0.4.1 (MCP Server)**
+### **Citing VerifiMind-PEAS v0.5.0 (MCP Server)**
 
 If you use the VerifiMind-PEAS MCP server in your research or project, please cite:
 
 **APA Style**:
 ```
-Lee, A., Manus AI, & Claude Code. (2026). VerifiMind-PEAS: Prompt Engineering Attribution System (Version 0.4.1) [Computer software]. GitHub. https://github.com/creator35lwb-web/VerifiMind-PEAS
+Lee, A., Manus AI, & Claude Code. (2026). VerifiMind-PEAS: Prompt Engineering Attribution System (Version 0.5.0) [Computer software]. GitHub. https://github.com/creator35lwb-web/VerifiMind-PEAS
 ```
 
 **BibTeX**:
@@ -998,7 +1037,7 @@ Lee, A., Manus AI, & Claude Code. (2026). VerifiMind-PEAS: Prompt Engineering At
   author = {Lee, Alton and {Manus AI} and {Claude Code}},
   title = {VerifiMind-PEAS: Prompt Engineering Attribution System},
   year = {2026},
-  version = {0.4.1},
+  version = {0.5.0},
   url = {https://github.com/creator35lwb-web/VerifiMind-PEAS},
   doi = {10.5281/zenodo.17980791},
   note = {MCP server for multi-model AI validation with Unified Prompt Templates}
@@ -1007,7 +1046,7 @@ Lee, A., Manus AI, & Claude Code. (2026). VerifiMind-PEAS: Prompt Engineering At
 
 **IEEE Style**:
 ```
-A. Lee, Manus AI, and Claude Code, "VerifiMind-PEAS: Prompt Engineering Attribution System," Version 0.4.1, GitHub, 2026. [Online]. Available: https://github.com/creator35lwb-web/VerifiMind-PEAS
+A. Lee, Manus AI, and Claude Code, "VerifiMind-PEAS: Prompt Engineering Attribution System," Version 0.5.0, GitHub, 2026. [Online]. Available: https://github.com/creator35lwb-web/VerifiMind-PEAS
 ```
 
 ### **Citing Genesis Methodology v2.0 (Methodology)**
@@ -1124,7 +1163,7 @@ Forks and derivatives may use the open-source code under MIT license, but must u
 **General Inquiries**: creator35lwb@gmail.com  
 **Twitter/X**: [@creator35lwb](https://x.com/creator35lwb)  
 **GitHub Discussions**: [Join discussions](https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions)  
-**MCP Server**: [verifimind.ysenseai.org](https://verifimind.ysenseai.org) (LIVE — v0.4.0)  
+**MCP Server**: [verifimind.ysenseai.org](https://verifimind.ysenseai.org) (LIVE — v0.5.0)  
 **Landing Page**: [verifimind.io](https://verifimind.io)
 
 ---
@@ -1138,8 +1177,8 @@ VerifiMind-PEAS is developed through the **FLYWHEEL TEAM** multi-agent collabora
 | Agent | Role | Contribution |
 |-------|------|--------------|
 | **Alton Lee** (L/GODEL) | Human Orchestrator & Founder | Vision, strategy, final decisions |
-| **Manus AI** (T/CTO) | Strategic Architecture | Documentation, roadmap, ecosystem alignment |
-| **Claude Code** | Implementation | Code, testing, deployment, CI/CD |
+| **Manus AI** (T/CTO) | Strategic Architecture | Documentation, roadmap, ecosystem alignment, skill development, landing page |
+| **Claude Code** (RNA) | Implementation Lead | Code, testing, deployment, CI/CD, MACP Research Assistant |
 | **Gemini** (Antigravity) | GCP Operations | Log analysis, monitoring, troubleshooting |
 | **Perplexity** | Real-Time Research | Market intelligence, competitive analysis |
 
@@ -1156,7 +1195,7 @@ VerifiMind-PEAS is developed through the **FLYWHEEL TEAM** multi-agent collabora
 ### Special Thanks
 
 - **Open-source community**: For inspiration and collaboration
-- **Early adopters**: For feedback and validation (444 users and counting)
+- **Early adopters**: For feedback and validation (885+ users and counting)
 - **Academic researchers**: For theoretical foundations
 - **Google Cloud Platform**: For generous free tier enabling $0/month operations
 
