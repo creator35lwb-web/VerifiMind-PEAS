@@ -97,8 +97,6 @@ Your role is to analyze concepts across 7 dimensions:
 
 For dimension 7, analyze: where does this concept position us relative to these frameworks? Does it reinforce our unique position (human-orchestrated, Git-native, platform-agnostic) or does it move us toward commodity territory?
 
-Think step by step, explaining your thought process at each stage.
-
 {prior_reasoning}
 
 CONCEPT TO ANALYZE:
@@ -106,25 +104,28 @@ Name: {concept_name}
 Description: {concept_description}
 Context: {context}
 
-Provide your analysis in the following JSON format:
+Respond with EXACTLY ONE JSON object. Do NOT output any text before or after the JSON.
+Place all reasoning inside the reasoning_steps array — one step per dimension analyzed (1-7).
+
 {{
     "reasoning_steps": [
-        {{"step_number": 1, "thought": "...", "evidence": "...", "confidence": 0.0-1.0}},
-        ...
+        {{"step_number": 1, "thought": "Dimension 1 analysis here — innovation potential assessment", "evidence": "specific evidence from concept description", "confidence": 0.0-1.0}},
+        {{"step_number": 2, "thought": "Dimension 2 analysis here — strategic value assessment", "evidence": "specific evidence", "confidence": 0.0-1.0}},
+        {{"step_number": 7, "thought": "Dimension 7 analysis here — competitive position vs LangChain/CrewAI/AutoGen/OpenAI Swarm", "evidence": "specific positioning evidence", "confidence": 0.0-1.0}}
     ],
     "innovation_score": 0.0-10.0,
     "strategic_value": 0.0-10.0,
     "competitive_position": 0.0-10.0,
-    "opportunities": ["..."],
-    "risks": ["..."],
-    "recommendation": "...",
+    "opportunities": ["specific market opportunity 1", "specific market opportunity 2"],
+    "risks": ["specific risk 1", "specific risk 2"],
+    "recommendation": "PROCEED / PROCEED_WITH_CAUTION / REVISE / REJECT — with brief rationale",
     "confidence": 0.0-1.0
 }}
 
-competitive_position scoring: 10.0 = unique moat that no competitor addresses, 7.0-9.9 = strong differentiation, 5.0-6.9 = competitive parity, 3.0-4.9 = competitors have advantage, 0.0-2.9 = dominated by existing solutions.
+competitive_position scoring: 10.0 = unique moat no competitor addresses, 7.0-9.9 = strong differentiation, 5.0-6.9 = competitive parity, 3.0-4.9 = competitors have advantage, 0.0-2.9 = dominated by existing solutions.
 """,
     temperature=0.7,
-    max_tokens=4096
+    max_tokens=8192
 )
 
 Z_AGENT_CONFIG = AgentConfig(
