@@ -106,6 +106,8 @@ class XAgentAnalysis(BaseModel):
     confidence: float = Field(..., ge=0.0, le=1.0, description="Overall confidence")
     # v4.1 addition
     competitive_position: Optional[float] = Field(None, ge=0.0, le=10.0, description="Competitive position score vs LangChain/CrewAI/AutoGen (10=unique moat, 5=parity, 0=dominated)")
+    # v4.2 Sentinel-Verified addition
+    competitive_analysis: Optional[dict] = Field(None, description="Explicit competitive positioning vs LangChain/CrewAI/AutoGen/OpenAI Swarm with unique moat")
     
     def to_chain_of_thought(self, concept_name: str) -> ChainOfThought:
         """Convert to ChainOfThought for passing to next agent."""
@@ -139,6 +141,10 @@ class ZAgentAnalysis(BaseModel):
     veto_reason: Optional[str] = Field(None, description="Which red line triggered the veto, if any")
     jurisdiction_detected: Optional[List[str]] = Field(None, description="Target markets detected (EU, US, ASEAN, Global)")
     compliance_timeline: Optional[List[str]] = Field(None, description="Upcoming compliance deadlines relevant to this concept")
+    # v4.2 Sentinel-Verified additions
+    scoring_breakdown: Optional[dict] = Field(None, description="Per-dimension scores: ethical_alignment, regulatory_compliance, transparency_disclosure, data_governance, multi_agent_safety — each with score, weight, frameworks")
+    applicable_frameworks: Optional[dict] = Field(None, description="Applicable frameworks by tier: tier_1_international, tier_2_eu, tier_3_us, tier_4_asean")
+    total_frameworks_evaluated: Optional[int] = Field(None, description="Count of unique frameworks evaluated across all applicable tiers")
     
     def to_chain_of_thought(self, concept_name: str) -> ChainOfThought:
         """Convert to ChainOfThought for passing to next agent."""
@@ -176,6 +182,11 @@ class CSAgentAnalysis(BaseModel):
     threat_level: Optional[str] = Field(None, description="Overall threat level: Low Risk / Medium Risk / High Risk / Critical Threat")
     agentic_threats: Optional[List[str]] = Field(None, description="Agentic-specific threats from Stage 2 OWASP ASI01-ASI10 assessment")
     reasoning_layer_findings: Optional[List[str]] = Field(None, description="Tool poisoning/shadowing/rugpull findings from Stage 5 Reasoning-Layer Audit")
+    # v4.2 Sentinel-Verified additions
+    stages_completed: Optional[List[dict]] = Field(None, description="All 6 stages completed with name and findings count")
+    dimensions_evaluated: Optional[dict] = Field(None, description="All 12 dimensions: 6 traditional + 6 agentic, each with findings or 'Not applicable'")
+    macp_security_assessment: Optional[dict] = Field(None, description="6 MACP v2.0 security properties: git_audit_trail, human_gated_execution, platform_isolation, credential_separation, artifact_integrity, transport_security")
+    standards_referenced: Optional[List[str]] = Field(None, description="All security standards actually evaluated in this analysis")
     
     def to_chain_of_thought(self, concept_name: str) -> ChainOfThought:
         """Convert to ChainOfThought for passing to next agent."""
