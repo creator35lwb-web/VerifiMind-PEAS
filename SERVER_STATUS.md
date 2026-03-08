@@ -30,7 +30,7 @@ The VerifiMind MCP server is fully operational with the following capabilities:
 |----------|-------|
 | **Endpoint** | `https://verifimind.ysenseai.org/mcp` |
 | **Health Check** | `https://verifimind.ysenseai.org/health` |
-| **Server Version** | 0.5.1 "Sentinel" (deployed March 7, 2026) |
+| **Server Version** | 0.5.2 "Sentinel-Verified" (deployed March 9, 2026) |
 | **Transport** | Streamable HTTP (SSE) |
 | **Default Provider** | Gemini 2.5-flash (FREE) |
 | **BYOK Providers** | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama, Perplexity |
@@ -76,10 +76,30 @@ If you experience connectivity issues:
 
 ---
 
+## Release Gate Status
+
+| Version | Blind Tests | Gate | Released |
+|---------|-------------|------|---------|
+| **v0.5.2 "Sentinel-Verified"** | 11/11 correct outcomes (L, March 9, 2026) | ✅ **PASSED** | March 9, 2026 |
+| v0.5.1 "Sentinel" | Blind #1: partial citations | ⚠️ Gate open | March 7, 2026 |
+
+**v0.5.2 Release Gate Evidence (L — March 9, 2026):**
+- 11 Trinity runs across 8 distinct concepts — zero misclassifications
+- Z Guardian veto triggers correctly on ethical red lines
+- CS Security: 6-stage pipeline confirmed, "10 agentic-specific threats" (OWASP), reasoning-layer audit active
+- Framework citation strategy: compressed codes + selective citation working as token-efficiency anchors
+- 45.8% token headroom below 8,192 ceiling (Strategy 1+2 confirmed)
+- Pending v0.5.3: Token Ceiling Monitor (Strategy 3) — non-blocking
+
+---
+
 ## Maintenance History
 
 | Date | Action | Version | Status |
 |------|--------|---------|--------|
+| Mar 9, 2026 | Genesis v4.2 + v0.5.2 deployed — Release Gate PASSED | v0.5.2 | Complete |
+| Mar 7, 2026 | Z-Protocol v1.1 Sentinel + CS Agent v1.1 deployed | v0.5.1 | Complete |
+| Mar 1, 2026 | BYOK v2 (per-agent keys) + SessionContext deployed | v0.5.0 | Complete |
 | Jan 30, 2026 | Unified Prompt Templates deployed | v0.4.0 | Complete |
 | Jan 30, 2026 | Input sanitization deployed | v0.3.5 | Complete |
 | Jan 29, 2026 | Gemini 2.5-flash model update | v0.3.2 | Complete |
