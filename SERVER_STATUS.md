@@ -1,24 +1,25 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** March 7, 2026
+**Last Updated:** March 9, 2026
 
 ---
 
 ## Current Status: Operational
 
-**v0.5.1 "Sentinel" deployed successfully on March 7, 2026**
+**v0.5.2 "Sentinel-Verified" deployed successfully on March 9, 2026**
 
 The VerifiMind MCP server is fully operational with the following capabilities:
 
 - 10 MCP tools (4 core validation + 6 template management)
 - 19 pre-built prompt templates across 6 libraries
-- **Z-Protocol v1.1**: 21 regulatory frameworks across 4 jurisdictional tiers (International, EU/EEA, US, ASEAN)
-- **CS Agent v1.1**: 6-stage, 12-dimension security verification with OWASP Agentic Top 10
-- **X Agent v4.1**: Competitive analysis vs LangChain/CrewAI/AutoGen
+- **Genesis v4.2 "Sentinel-Verified"**: Forced citation patterns — Z Guardian and CS Security now cite specific framework names in every reasoning step output
+- **Z-Protocol v1.1**: 21 frameworks, 4 tiers + `frameworks_cited[]` per step, `scoring_breakdown`, `applicable_frameworks` by tier
+- **CS Agent v1.1**: 6-stage, 12-dimension + `stage` + `standards_cited[]` per step, `stages_completed`, `dimensions_evaluated`, `macp_security_assessment`
+- **X Agent v4.2**: `competitive_analysis` object (explicit LangChain/CrewAI/AutoGen/OpenAI Swarm + unique moat)
 - Input sanitization active on all tools
 - Gemini 2.5-flash as default FREE provider
 - Rate limiting and EDoS protection active
-- GCP Cloud Run revision `verifimind-mcp-server-00244-sb2`
+- GCP Cloud Run revision `verifimind-mcp-server-00253-dvh`
 - CI/CD pipeline passing (GitHub Actions — all 8 checks pass)
 
 ---
