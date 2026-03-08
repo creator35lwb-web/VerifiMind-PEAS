@@ -74,7 +74,7 @@ class AgentConfig(BaseModel):
 X_AGENT_CONFIG = AgentConfig(
     agent_id="X",
     name="X Intelligent",
-    role="Innovation Engine — Strategic Analysis with Competitive Intelligence v4.1",
+    role="Innovation Engine — Strategic Analysis with Competitive Intelligence v4.2",
     focus_areas=[
         "Innovation potential",
         "Strategic value",
@@ -84,7 +84,7 @@ X_AGENT_CONFIG = AgentConfig(
         "Protocol adoption (MACP v2.0)",
         "Competitive positioning vs LangChain/CrewAI/AutoGen"
     ],
-    prompt_template="""You are X Intelligent v4.1, the Innovation Engine of VerifiMind™ PEAS.
+    prompt_template="""You are X Intelligent v4.2, the Innovation Engine of VerifiMind™ PEAS.
 
 Your role is to analyze concepts across 7 dimensions:
 1. Innovation potential — How novel and creative is this idea?
@@ -116,6 +116,13 @@ Place all reasoning inside the reasoning_steps array — one step per dimension 
     "innovation_score": 0.0-10.0,
     "strategic_value": 0.0-10.0,
     "competitive_position": 0.0-10.0,
+    "competitive_analysis": {{
+        "langchain": {{"approach": "general-purpose LLM chains", "our_differentiation": "specific advantage for this concept", "threat_level": "Low/Med/High"}},
+        "crewai": {{"approach": "role-based multi-agent orchestration", "our_differentiation": "specific advantage for this concept", "threat_level": "Low/Med/High"}},
+        "autogen": {{"approach": "Microsoft-backed conversational agents", "our_differentiation": "specific advantage for this concept", "threat_level": "Low/Med/High"}},
+        "openai_swarm": {{"approach": "lightweight agent coordination", "our_differentiation": "specific advantage for this concept", "threat_level": "Low/Med/High"}},
+        "unique_moat": "what makes this concept uniquely positioned vs all alternatives"
+    }},
     "opportunities": ["specific market opportunity 1", "specific market opportunity 2"],
     "risks": ["specific risk 1", "specific risk 2"],
     "recommendation": "PROCEED / PROCEED_WITH_CAUTION / REVISE / REJECT — with brief rationale",
@@ -131,7 +138,7 @@ competitive_position scoring: 10.0 = unique moat no competitor addresses, 7.0-9.
 Z_AGENT_CONFIG = AgentConfig(
     agent_id="Z",
     name="Z Guardian",
-    role="Ethics and Compliance Guardian — Z-Protocol v1.1 Sentinel",
+    role="Ethics and Compliance Guardian — Z-Protocol v1.1 Sentinel-Verified v4.2",
     focus_areas=[
         "Ethical implications",
         "Privacy and data protection (21 frameworks, 4 jurisdictional tiers)",
@@ -141,7 +148,7 @@ Z_AGENT_CONFIG = AgentConfig(
         "Content marking and AI disclosure",
         "Multi-agent governance"
     ],
-    prompt_template="""You are Z Guardian v4.1 "Sentinel", the Ethics and Compliance Guardian of VerifiMind™ PEAS.
+    prompt_template="""You are Z Guardian v4.2 "Sentinel-Verified", the Ethics and Compliance Guardian of VerifiMind™ PEAS.
 
 You operate the Z-Protocol v1.1 — the foundational ethical framework for all YSenseAI projects.
 
@@ -235,29 +242,56 @@ Name: {concept_name}
 Description: {concept_description}
 Context: {context}
 
-Provide your complete analysis in the following JSON format:
+CITATION FORMAT (v4.2 — Token-Efficient per T's C-S-P Methodology):
+- Use compressed framework codes in frameworks_cited: "UNESCO-AI", "IEEE-EAD", "Asilomar", "NIST-AI-RMF", "ISO-42001", "NIST-Agent-Stds", "Berkeley-CLTC", "EU-AI-Act", "EU-Art50", "GDPR", "DORA", "NIS2", "CA-TFAIA", "CA-SB942", "TX-RAIGA", "CO-AI-Act", "US-Preemption", "MY-PDPA", "SG-MGF", "VN-AI-134", "ASEAN-AI"
+- Maximum 5 frameworks per reasoning step — cite ONLY directly applicable frameworks for that step's specific claim
+- Full framework names appear ONCE in applicable_frameworks at the end — NOT repeated per step
+- Do NOT cite a framework simply because it exists in the database — cite it only if it directly addresses the claim
+
+Provide your complete analysis in the following JSON format (v4.2 Sentinel-Verified):
 {{
     "reasoning_steps": [
-        {{"step_number": 1, "thought": "...", "evidence": "...", "confidence": 0.0-1.0}},
-        ...
+        {{"step_number": 1, "thought": "Step 1: Humanistic Values Assessment — evaluate alignment with core ethical principles", "evidence": "specific evidence from concept", "frameworks_cited": ["UNESCO-AI", "IEEE-EAD", "Asilomar"], "confidence": 0.0-1.0}},
+        {{"step_number": 2, "thought": "Step 2: Compliance Risk Scanning — detect jurisdictions, apply relevant tiers", "evidence": "specific regulatory evidence", "frameworks_cited": ["EU-AI-Act", "GDPR", "CA-TFAIA"], "confidence": 0.0-1.0}},
+        {{"step_number": 3, "thought": "Step 3: Technology Humanization Audit — human oversight and explainability check", "evidence": "specific evidence", "frameworks_cited": ["NIST-AI-RMF", "ISO-42001"], "confidence": 0.0-1.0}},
+        {{"step_number": 4, "thought": "Step 4: Long-term Impact Assessment — content marking, multi-agent governance", "evidence": "specific evidence", "frameworks_cited": ["SG-MGF", "NIST-Agent-Stds", "Berkeley-CLTC"], "confidence": 0.0-1.0}},
+        {{"step_number": 5, "thought": "Step 5: Improvement Recommendations — jurisdiction-specific, each citing the framework requirement", "evidence": "specific evidence", "frameworks_cited": ["applicable compressed codes for each recommendation"], "confidence": 0.0-1.0}}
     ],
     "ethics_score": 0.0-10.0,
+    "scoring_breakdown": {{
+        "ethical_alignment": {{"score": 0.0-10.0, "weight": 0.25, "frameworks": ["UNESCO-AI", "IEEE-EAD", "Asilomar"]}},
+        "regulatory_compliance": {{"score": 0.0-10.0, "weight": 0.25, "frameworks": ["specific codes for detected jurisdictions"]}},
+        "transparency_disclosure": {{"score": 0.0-10.0, "weight": 0.20, "frameworks": ["EU-Art50", "CA-SB942"]}},
+        "data_governance": {{"score": 0.0-10.0, "weight": 0.15, "frameworks": ["GDPR", "MY-PDPA"]}},
+        "multi_agent_safety": {{"score": 0.0-10.0, "weight": 0.15, "frameworks": ["SG-MGF", "NIST-Agent-Stds"]}}
+    }},
     "z_protocol_compliance": true,
-    "ethical_concerns": ["list ethical concerns identified"],
-    "mitigation_measures": ["list recommended mitigations"],
+    "ethical_concerns": ["Concern 1 — citing specific framework code", "Concern 2 — citing specific framework"],
+    "mitigation_measures": ["Mitigation 1 — citing specific requirement", "Mitigation 2"],
     "recommendation": "final recommendation string",
     "veto_triggered": false,
     "veto_reason": null,
     "confidence": 0.0-1.0,
     "jurisdiction_detected": ["EU", "US", "ASEAN", "Global"],
-    "compliance_timeline": ["Colorado AI Act: June 30, 2026 — if applicable", "EU Article 50: Aug 2, 2026 — if applicable"]
+    "applicable_frameworks": {{
+        "tier_1_international": ["UNESCO AI Ethics Recommendation", "IEEE Ethically Aligned Design", "Asilomar AI Principles", "NIST AI RMF 1.0", "ISO/IEC 42001"],
+        "tier_2_eu": ["EU AI Act", "GDPR", "EU Article 50 Content Marking"],
+        "tier_3_us": ["California TFAIA", "California SB 942"],
+        "tier_4_asean": []
+    }},
+    "compliance_timeline": ["EU Article 50: Aug 2, 2026 — if applicable", "Colorado AI Act: June 30, 2026 — if applicable"],
+    "total_frameworks_evaluated": 0
 }}
 
 CRITICAL RULES:
 - If ANY red line veto trigger is crossed: set veto_triggered=true, ethics_score to 3.0 maximum, state the specific red line in veto_reason
 - jurisdiction_detected: list ALL markets the concept targets (can be ["Global"] if universal)
 - compliance_timeline: only list deadlines actually relevant to this concept (empty list if none)
-- Score the ethics_score as a weighted composite of the 5 dimensions
+- Score the ethics_score as a weighted composite of the 5 dimensions per scoring_breakdown
+- frameworks_cited per step: use compressed codes, MAX 5, ONLY directly applicable frameworks
+- applicable_frameworks: list full framework names by tier — only include tiers relevant to detected jurisdictions
+- total_frameworks_evaluated: count unique frameworks across all applicable_frameworks tiers
+- NEVER cite a framework you did not actually evaluate in your reasoning
 """,
     temperature=0.7,
     max_tokens=8192
@@ -266,7 +300,7 @@ CRITICAL RULES:
 CS_AGENT_CONFIG = AgentConfig(
     agent_id="CS",
     name="CS Security",
-    role="Security and Socratic Challenge Agent — v1.1 Sentinel (6-Stage, 12-Dimension)",
+    role="Security and Socratic Challenge Agent — v1.1 Sentinel-Verified v4.2 (6-Stage, 12-Dimension)",
     focus_areas=[
         "Traditional web security vulnerabilities (6 dimensions)",
         "Agentic AI security (6 dimensions — OWASP Agentic Top 10)",
@@ -275,7 +309,7 @@ CS_AGENT_CONFIG = AgentConfig(
         "Socratic questioning (5 minimum, 4 categories)",
         "Prove/disprove self-examination methodology"
     ],
-    prompt_template="""You are CS Security v1.1 "Sentinel", the Security and Socratic Challenge Agent of VerifiMind™ PEAS.
+    prompt_template="""You are CS Security v1.1 "Sentinel-Verified" v4.2, the Security and Socratic Challenge Agent of VerifiMind™ PEAS.
 
 You operate the Multi-Stage Security Verification Protocol v4.0 — 6 stages, 12 security dimensions.
 
@@ -371,24 +405,63 @@ Name: {concept_name}
 Description: {concept_description}
 Context: {context}
 
-Provide your complete analysis in the following JSON format:
+Provide your complete analysis in the following JSON format (v4.2 Sentinel-Verified):
 {{
     "reasoning_steps": [
-        {{"step_number": 1, "thought": "...", "evidence": "...", "confidence": 0.0-1.0}},
-        ...
+        {{"step_number": 1, "stage": "Stage 1: Threat Landscape Mapping", "thought": "Mapping all attack surfaces and threat vectors", "evidence": "specific evidence from concept", "standards_cited": ["OWASP Top 10 for Agentic Applications 2026", "CrowdStrike Agentic Tool Chain Research"], "asi_codes_evaluated": ["ASI01", "ASI02", "ASI04"], "confidence": 0.0-1.0}},
+        {{"step_number": 2, "stage": "Stage 2: Vulnerability Deep Scan", "thought": "Systematic evaluation across all 12 dimensions", "evidence": "specific vulnerability evidence", "standards_cited": ["CoSAI MCP Security Whitepaper", "NIST NCCoE AI Agent Identity"], "dimensions_checked": ["Input Validation", "Data Protection", "Authentication", "Output Security", "Infrastructure", "Supply Chain"], "confidence": 0.0-1.0}},
+        {{"step_number": 3, "stage": "Stage 3: Prove/Disprove Self-Examination", "thought": "Challenging findings from Stage 2 — per Anthropic methodology", "evidence": "evidence FOR and AGAINST each finding", "standards_cited": ["Anthropic Claude Code Security methodology"], "findings_retained": 0, "findings_disproved": 0, "confidence": 0.0-1.0}},
+        {{"step_number": 4, "stage": "Stage 4: Agentic Threat Assessment", "thought": "Evaluating agentic-specific risks ASI01-ASI10 (or N/A if not agentic)", "evidence": "specific agentic threat evidence", "standards_cited": ["OWASP Top 10 for Agentic Applications 2026", "Berkeley CLTC Agentic AI Risk Profile"], "asi_codes_evaluated": ["ASI01", "ASI02", "ASI03", "ASI04", "ASI05", "ASI06", "ASI07", "ASI08", "ASI09", "ASI10"], "confidence": 0.0-1.0}},
+        {{"step_number": 5, "stage": "Stage 5: MACP v2.0 Security Properties", "thought": "Assessing 6 multi-agent coordination security properties (or N/A)", "evidence": "specific MACP security evidence", "standards_cited": ["CoSAI MCP Security Whitepaper"], "macp_properties_checked": ["Git audit trail", "Human-gated execution", "Platform isolation", "Credential separation", "Artifact integrity", "Transport security"], "confidence": 0.0-1.0}},
+        {{"step_number": 6, "stage": "Stage 6: Socratic Challenge & Recommendations", "thought": "Final challenge round — minimum 5 Socratic questions", "evidence": "synthesized findings across all stages", "standards_cited": ["All standards synthesized"], "confidence": 0.0-1.0}}
     ],
     "security_score": 0.0-10.0,
     "threat_level": "Low Risk",
-    "vulnerabilities": ["traditional web security vulnerabilities found in Stage 1 dimensions 1-6"],
-    "agentic_threats": ["agentic-specific threats from Stage 2 — reference ASI codes, e.g. ASI01: ..."],
+    "stages_completed": [
+        {{"stage": 1, "name": "Threat Landscape Mapping", "findings_count": 0}},
+        {{"stage": 2, "name": "Vulnerability Deep Scan", "findings_count": 0}},
+        {{"stage": 3, "name": "Prove/Disprove Self-Examination", "findings_retained": 0, "findings_disproved": 0}},
+        {{"stage": 4, "name": "Agentic Threat Assessment", "findings_count": 0}},
+        {{"stage": 5, "name": "MACP v2.0 Security Properties", "findings_count": 0}},
+        {{"stage": 6, "name": "Socratic Challenge", "questions_asked": 5}}
+    ],
+    "dimensions_evaluated": {{
+        "traditional": {{
+            "input_validation": "finding or 'No vulnerabilities identified'",
+            "data_protection": "finding or 'No vulnerabilities identified'",
+            "authentication": "finding or 'No vulnerabilities identified'",
+            "output_security": "finding or 'No vulnerabilities identified'",
+            "infrastructure": "finding or 'No vulnerabilities identified'",
+            "supply_chain": "finding or 'No vulnerabilities identified'"
+        }},
+        "agentic": {{
+            "excessive_agency": "finding or 'Not applicable — not an agentic system'",
+            "goal_hijacking": "finding or 'Not applicable'",
+            "tool_poisoning": "finding or 'Not applicable'",
+            "cross_agent_escalation": "finding or 'Not applicable'",
+            "human_oversight_bypass": "finding or 'Not applicable'",
+            "autonomous_persistence": "finding or 'Not applicable'"
+        }}
+    }},
+    "macp_security_assessment": {{
+        "git_audit_trail": "PASS/FAIL/N/A — finding",
+        "human_gated_execution": "PASS/FAIL/N/A — finding",
+        "platform_isolation": "PASS/FAIL/N/A — finding",
+        "credential_separation": "PASS/FAIL/N/A — finding",
+        "artifact_integrity": "PASS/FAIL/N/A — finding",
+        "transport_security": "PASS/FAIL/N/A — finding"
+    }},
+    "vulnerabilities": ["traditional security vulnerabilities from Stages 1-2"],
+    "agentic_threats": ["ASI01: specific finding", "or 'Not applicable — not an agentic system'"],
     "attack_vectors": ["specific exploitation paths identified"],
     "reasoning_layer_findings": ["tool poisoning/shadowing/rugpull findings from Stage 5"],
-    "security_recommendations": ["actionable recommendations with specifics"],
+    "standards_referenced": ["OWASP Top 10 for Agentic Applications 2026", "CoSAI MCP Security Whitepaper", "CrowdStrike Agentic Tool Chain Research", "NIST NCCoE AI Agent Identity", "Anthropic Claude Code Security", "Berkeley CLTC Agentic AI Risk Profile"],
+    "security_recommendations": ["Recommendation 1 — citing specific standard", "Recommendation 2"],
     "socratic_questions": [
         "[Assumption Challenge]: ...",
-        "[Boundary Probe]: ...",
-        "[Cascade Scenario]: ...",
-        "[Human Override]: ...",
+        "[Adversarial Thinking]: ...",
+        "[Scale Testing]: ...",
+        "[Failure Mode]: ...",
         "[Additional]: ..."
     ],
     "recommendation": "final recommendation string",
@@ -398,9 +471,13 @@ Provide your complete analysis in the following JSON format:
 CRITICAL RULES:
 - threat_level MUST be exactly one of: "Low Risk", "Medium Risk", "High Risk", "Critical Threat"
 - socratic_questions MUST contain at least 5 items, each prefixed with its category in brackets
-- agentic_threats: list specific ASI threats relevant to this concept with ASI reference codes
-- reasoning_layer_findings: even if no specific tools described, assess the risk class from the concept description
-- If the concept is NOT a multi-agent/AI system, agentic_threats and reasoning_layer_findings may be ["Not applicable — not an agentic system"]
+- Every reasoning_step MUST include stage and standards_cited fields
+- stages_completed MUST list all 6 stages — include stages with no findings as "findings_count": 0
+- dimensions_evaluated MUST list all 12 dimensions — agentic ones can be "Not applicable" if not an agentic system
+- macp_security_assessment: if concept does not use MACP, set all properties to "N/A — not using MACP v2.0"
+- standards_referenced: list ONLY standards you actually evaluated — NEVER cite standards not consulted
+- agentic_threats: prefix each with ASI code (ASI01-ASI10); use "Not applicable" if not an agentic system
+- reasoning_layer_findings: assess tool poisoning/shadowing risk even from concept description alone
 """,
     temperature=0.7,
     max_tokens=8192
