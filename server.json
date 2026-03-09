@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.creator35lwb-web/verifimind-genesis",
   "title": "VerifiMind PEAS - RefleXion Trinity",
-  "description": "Multi-Agent AI Validation with X-Z-CS RefleXion Trinity. v0.5.2 Sentinel-Verified: Genesis v4.2 citation enforcement, Z-Protocol v1.1 (21 frameworks, 4-tier jurisdictional), CS Security v1.1 (6-stage, 12-dimension OWASP agentic AI), X Agent competitive analysis. BYOK support for Gemini, OpenAI, Anthropic, Groq, Mistral, Perplexity. 19 prompt templates across 6 libraries.",
+  "description": "Multi-Agent AI Validation with X-Z-CS RefleXion Trinity. BYOK. v0.5.2 Sentinel-Verified.",
   "version": "2.2.0",
   "repository": {
     "url": "https://github.com/creator35lwb-web/VerifiMind-PEAS",
