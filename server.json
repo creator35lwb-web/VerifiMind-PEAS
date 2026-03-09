@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.creator35lwb-web/verifimind-genesis",
   "title": "VerifiMind PEAS - RefleXion Trinity",
-  "description": "Multi-Agent AI Validation with X-Z-CS RefleXion Trinity for ethical and secure app development",
-  "version": "2.1.0",
+  "description": "Multi-Agent AI Validation with X-Z-CS RefleXion Trinity. v0.5.2 Sentinel-Verified: Genesis v4.2 citation enforcement, Z-Protocol v1.1 (21 frameworks, 4-tier jurisdictional), CS Security v1.1 (6-stage, 12-dimension OWASP agentic AI), X Agent competitive analysis. BYOK support for Gemini, OpenAI, Anthropic, Groq, Mistral, Perplexity. 19 prompt templates across 6 libraries.",
+  "version": "2.2.0",
   "repository": {
     "url": "https://github.com/creator35lwb-web/VerifiMind-PEAS",
     "source": "github"
@@ -23,24 +23,53 @@
         "multi-agent",
         "ethics",
         "security",
-        "mcp"
+        "mcp",
+        "genesis",
+        "sentinel",
+        "compliance",
+        "gdpr",
+        "owasp"
       ],
       "tools": [
         {
           "name": "consult_agent_x",
-          "description": "Innovation & Strategy Analysis using Gemini 2.0 Flash"
+          "description": "Innovation & Strategy Analysis — X Agent v4.2 with competitive positioning vs LangChain, CrewAI, AutoGen, OpenAI Swarm"
         },
         {
           "name": "consult_agent_z",
-          "description": "Ethics & Safety Review using Claude 3 Haiku"
+          "description": "Ethics & Compliance Review — Z Guardian v4.2 Sentinel-Verified with 21-framework, 4-tier jurisdictional coverage (International / EU / US / ASEAN)"
         },
         {
           "name": "consult_agent_cs",
-          "description": "Security & Feasibility Validation using Claude 3 Haiku"
+          "description": "Security Validation — CS Security v1.1 Sentinel-Verified: 6-stage pipeline, 12 dimensions, OWASP Agentic AI Top 10, reasoning-layer audit"
         },
         {
           "name": "run_full_trinity",
-          "description": "Complete X → Z → CS validation sequence with unified report"
+          "description": "Complete X → Z → CS Trinity validation with Chain of Thought. Each agent sees prior reasoning. Returns unified assessment with scores."
+        },
+        {
+          "name": "list_prompt_templates",
+          "description": "List available prompt templates with optional filtering by agent, category, or tags"
+        },
+        {
+          "name": "get_prompt_template",
+          "description": "Get a specific prompt template by ID including full content and variables"
+        },
+        {
+          "name": "export_prompt_template",
+          "description": "Export a prompt template to Markdown or JSON format"
+        },
+        {
+          "name": "register_custom_template",
+          "description": "Register a new custom prompt template for X, Z, or CS agent"
+        },
+        {
+          "name": "import_template_from_url",
+          "description": "Import a prompt template from a URL (GitHub Gist, raw file, etc.)"
+        },
+        {
+          "name": "get_template_statistics",
+          "description": "Get statistics about the template registry including counts by agent, phase, and type"
         }
       ]
     }
