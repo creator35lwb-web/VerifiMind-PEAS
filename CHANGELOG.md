@@ -4,6 +4,104 @@ All notable changes to the VerifiMind PEAS project will be documented in this fi
 
 ---
 
+## v0.5.2 - Sentinel-Verified (March 9, 2026)
+
+Genesis v4.2 citation enforcement. Release gate PASSED (11/11 blind tests). PRs #77–78.
+
+### Genesis v4.2 "Sentinel-Verified" — Forced Citation Architecture
+
+T's C-S-P methodology (Compression, Selection, Precision) applied to all 3 agents:
+
+**Z Guardian v4.2:**
+- `frameworks_cited[]` per reasoning step — compressed codes (e.g., `"GDPR"`, `"EU-AI-Act"`, `"SG-MGF"`), max 5 per step
+- `scoring_breakdown` — per-dimension scores with framework attribution (5 dimensions × score + weight + frameworks)
+- `applicable_frameworks` — full framework names organized by tier, output once at end (not repeated per step)
+- `total_frameworks_evaluated` — count of unique frameworks across all applicable tiers
+- **Token efficiency:** Z Agent ~7,500 → ~4,450 tokens (45.8% headroom below 8,192 ceiling)
+
+**CS Security v1.1 Sentinel-Verified:**
+- `stage` field per reasoning step (6-stage pipeline now explicit in output)
+- `standards_cited[]` per reasoning step
+- `stages_completed[]` — all 6 stages reported in every response
+- `dimensions_evaluated` — all 12 dimensions (6 traditional + 6 agentic) with findings
+- `macp_security_assessment` — 6 MACP v2.0 security properties evaluated
+- `standards_referenced` — all standards actually cited in the analysis
+
+**X Agent v4.2:**
+- `competitive_analysis` object — explicit positioning vs LangChain, CrewAI, AutoGen, OpenAI Swarm + `unique_moat`
+
+### Pydantic Schema (reasoning.py)
+8 new Optional fields — all backward-compatible, zero regressions:
+- `XAgentAnalysis.competitive_analysis`
+- `ZAgentAnalysis.scoring_breakdown`, `applicable_frameworks`, `total_frameworks_evaluated`
+- `CSAgentAnalysis.stages_completed`, `dimensions_evaluated`, `macp_security_assessment`, `standards_referenced`
+
+### Release Gate
+- Blind Test #3 PASSED — L (GODEL), March 9, 2026
+- 11 Trinity runs across 8 concepts — zero misclassifications
+- Citation strategy confirmed: compressed codes are token-efficiency anchors
+- CTO sign-off: Issue #34 closed
+
+### MCP Registry
+- `server.json` v2.2.0 — 10 tools listed, updated keywords and description
+- Registry: `io.github.creator35lwb-web/verifimind-genesis`
+
+### Testing
+- 198/198 tests passing (unchanged from v0.5.1)
+
+### Credits
+- Implementation: RNA (Claude Code, CSO)
+- Citation mitigation strategy: T (Manus AI, CTO) — C-S-P methodology
+- Blind testing: L (GODEL)
+- Sign-off: T (Manus AI, CTO)
+
+---
+
+## v0.5.1 - Sentinel (March 7, 2026)
+
+Sentinel architecture deployed. Z-Protocol v1.1 + CS Security v1.1. PRs #71–75.
+
+### Z-Protocol v1.1 "Sentinel" — 21 Frameworks, 4-Tier Jurisdictional
+
+Upgraded from 12 flat frameworks to 21 frameworks in a 4-tier jurisdictional architecture:
+
+| Tier | Jurisdiction | Frameworks |
+|------|-------------|-----------|
+| Tier 1 | International (always applied) | NIST AI RMF, NIST Agent Standards, UNESCO, OECD, ISO/IEC 42001, Berkeley CLTC |
+| Tier 2 | EU/EEA | EU AI Act (Digital Omnibus), Article 50 watermarking, GDPR, EU Cybersecurity Act |
+| Tier 3 | US | CCPA, CA TFAIA, CA SB 942, TX RAIGA, Colorado AI Act |
+| Tier 4 | ASEAN | Malaysia PDPA 2025, Singapore Agentic AI MGF, Vietnam AI Law 134/2025 |
+
+**New 6th red line veto trigger:** Undisclosed AI-generated content in regulated contexts
+
+### CS Security Agent v1.1 "Sentinel" — 6-Stage, 12-Dimension
+
+Upgraded from 4-stage/6-dimension to 6-stage/12-dimension:
+
+**2 new stages:**
+- Stage 2: Agentic Threat Analysis (OWASP Top 10 for Agentic AI Applications)
+- Stage 5: Reasoning-Layer Audit (tool poisoning, tool shadowing, rugpull detection)
+
+**6 new agentic dimensions:**
+Agent Identity Verification, Reasoning Integrity, Tool Call Validation, Memory/State Integrity, Cross-Agent Trust, Human Override Effectiveness
+
+**MACP v2.0 security properties assessed per run:**
+Git audit trail, Human-gated execution, Platform isolation, Credential separation, Artifact integrity, Transport security
+
+### Socratic Questions
+- Minimum 5 (up from 3)
+- 4 categories: Adversarial Thinking, Scale Testing, Failure Mode, Human Override
+
+### Testing
+- 198/198 tests passing
+
+### Credits
+- Specifications: T (Manus AI, CTO)
+- Implementation: RNA (Claude Code, CSO)
+- Validation: L (GODEL)
+
+---
+
 ## v0.5.0 - Foundation (March 1, 2026)
 
 The architectural hardening release. Z-Protocol Approved (9.2/10). PR #60.
@@ -438,5 +536,5 @@ LLM_MAX_TOKENS=4096
 
 ---
 
-**Document Version**: 2.0
-**Last Updated**: March 1, 2026
+**Document Version**: 2.1
+**Last Updated**: March 9, 2026
