@@ -304,3 +304,62 @@ class TestSecurityBoundaries:
         """RateLimitMiddleware must remain importable after refactor."""
         from verifimind_mcp.middleware import RateLimitMiddleware
         assert RateLimitMiddleware is not None
+
+
+# ---------------------------------------------------------------------------
+# 6. TrinitySynthesis Schema (v0.5.4 regression guard)
+# ---------------------------------------------------------------------------
+
+class TestTrinitySynthesisSchema:
+    """Ensure TrinitySynthesis model accepts founder_summary without crashing."""
+
+    def test_founder_summary_field_exists(self):
+        """TrinitySynthesis must declare founder_summary as an Optional field."""
+        from verifimind_mcp.models.results import TrinitySynthesis
+        fields = TrinitySynthesis.model_fields
+        assert "founder_summary" in fields, (
+            "TrinitySynthesis missing founder_summary field — Trinity will crash on synthesis"
+        )
+
+    def test_trinity_synthesis_accepts_founder_summary(self):
+        """TrinitySynthesis must instantiate with founder_summary without ValidationError."""
+        from verifimind_mcp.models.results import TrinitySynthesis
+        s = TrinitySynthesis(
+            summary="Test",
+            innovation_score=7.0,
+            ethics_score=8.0,
+            security_score=8.0,
+            overall_score=7.7,
+            strengths=["strength"],
+            concerns=["concern"],
+            recommendations=["recommendation"],
+            recommendation="proceed",
+            confidence=0.8,
+            founder_summary={
+                "verdict": "Go build it.",
+                "score_plain": "7.7/10",
+                "what_works": ["strong market"],
+                "things_to_address": ["execution risk"],
+                "next_steps": ["validate with 10 customers"],
+                "research_continuation": None,
+            },
+        )
+        assert s.founder_summary is not None
+        assert s.founder_summary["score_plain"] == "7.7/10"
+
+    def test_trinity_synthesis_founder_summary_optional(self):
+        """TrinitySynthesis must work without founder_summary (backwards compat)."""
+        from verifimind_mcp.models.results import TrinitySynthesis
+        s = TrinitySynthesis(
+            summary="Test",
+            innovation_score=5.0,
+            ethics_score=5.0,
+            security_score=5.0,
+            overall_score=5.0,
+            strengths=[],
+            concerns=[],
+            recommendations=[],
+            recommendation="revise",
+            confidence=0.5,
+        )
+        assert s.founder_summary is None
