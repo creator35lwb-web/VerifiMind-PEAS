@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.5.2"
+SERVER_VERSION = "0.5.3"
 
 
 def wrap_response(response: dict) -> dict:
@@ -774,6 +774,17 @@ def _create_mcp_instance():
             z_quality = getattr(z_result, '_inference_quality', 'unknown')
             chain_status["z_agent"] = z_quality
             logger.info(f"Trinity Z stage: quality={z_quality} session={session.session_id}")
+
+            # v0.5.3 Token Ceiling Monitor — Strategy 3
+            from .utils import check_z_agent_response
+            z_output_tokens = getattr(z_result, '_output_tokens', 0)
+            z_token_monitor = check_z_agent_response(z_output_tokens)
+            if z_token_monitor["risk_level"] in ("HIGH", "CRITICAL"):
+                logger.warning(
+                    f"Z Agent token ceiling risk: {z_token_monitor['utilization']} "
+                    f"({z_token_monitor['token_count']}/{z_token_monitor['ceiling']}) "
+                    f"risk={z_token_monitor['risk_level']}"
+                )
             session.write("Z", {
                 "score": z_result.ethics_score,
                 "veto": z_result.veto_triggered,
@@ -841,6 +852,7 @@ def _create_mcp_instance():
                     "saved_to_history": save_to_history,
                     "_agent_chain_status": chain_status,
                     "_overall_quality": overall_quality,
+                    "_z_token_monitor": z_token_monitor,
                     **_byok_meta,
                     **session.to_metadata(),
                 })
@@ -879,6 +891,7 @@ def _create_mcp_instance():
                 "saved_to_history": save_to_history,
                 "_agent_chain_status": chain_status,
                 "_overall_quality": overall_quality,
+                "_z_token_monitor": z_token_monitor,
                 **_byok_meta,
                 **session.to_metadata(),
             })

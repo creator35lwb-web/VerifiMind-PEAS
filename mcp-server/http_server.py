@@ -45,7 +45,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.2"
+SERVER_VERSION = "0.5.3"
 
 # Track server start time for uptime reporting (v0.5.0 health v2)
 _SERVER_START_TIME = time.time()
@@ -610,6 +610,18 @@ async def favicon_handler(request):
 async def http_exception_handler(request, exc):
     """Return actionable error messages for common HTTP errors."""
     status = exc.status_code
+    if status == 404:
+        return JSONResponse({
+            "error": "Endpoint Not Found",
+            "message": (
+                "It looks like your MCP client may be misconfigured. "
+                "The correct MCP endpoint is /mcp/ — ensure your setup URL is exact. "
+                f"Visit {HELP_URL} for troubleshooting."
+            ),
+            "mcp_endpoint": "/mcp/",
+            "quick_start": "claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/",
+            "help": HELP_URL,
+        }, status_code=404)
     if status == 405:
         return JSONResponse({
             "error": "Method Not Allowed",
@@ -650,7 +662,7 @@ app = Starlette(
         Mount("/mcp", app=mcp_app),
     ],
     lifespan=mcp_app.lifespan,  # CRITICAL: Pass lifespan for session initialization
-    exception_handlers={400: http_exception_handler, 405: http_exception_handler, 406: http_exception_handler},
+    exception_handlers={404: http_exception_handler, 400: http_exception_handler, 405: http_exception_handler, 406: http_exception_handler},
 )
 
 # IMPORTANT: Add middleware in correct order

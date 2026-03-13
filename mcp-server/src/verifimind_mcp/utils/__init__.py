@@ -14,6 +14,12 @@ from .synthesis import (
     create_trinity_result
 )
 
+from .token_monitor import (
+    check_z_agent_response,
+    is_z_response_safe,
+    Z_AGENT_CEILING,
+)
+
 from .sanitization import (
     sanitize_concept_name,
     sanitize_description,
@@ -27,6 +33,10 @@ from .sanitization import (
 )
 
 __all__ = [
+    # Token monitor
+    "check_z_agent_response",
+    "is_z_response_safe",
+    "Z_AGENT_CEILING",
     # Synthesis functions
     "calculate_overall_score",
     "determine_recommendation",
