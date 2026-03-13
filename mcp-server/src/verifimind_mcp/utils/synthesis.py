@@ -165,6 +165,63 @@ def synthesize_recommendations(
     return recommendations[:7]  # Limit to top 7
 
 
+def build_founder_summary(
+    overall_score: float,
+    recommendation: str,
+    x_result: XAgentAnalysis,
+    z_result: ZAgentAnalysis,
+    cs_result: CSAgentAnalysis
+) -> dict:
+    """
+    Build a plain-language founder summary — no jargon, actionable guidance.
+
+    Translates Trinity scores and findings into language a non-technical
+    founder or first-time entrepreneur can read and act on immediately.
+    """
+    # Verdict line
+    verdict_map = {
+        "proceed": "Your idea looks solid. The main risk is execution — go build it.",
+        "proceed_with_caution": "Your idea has real potential, but there are a few things to address before you go all in.",
+        "revise": "The core idea has merit, but in its current form there are significant issues to work through first.",
+        "reject": "As described, this concept has critical problems that would need to be fundamentally rethought.",
+    }
+    if z_result.veto_triggered:
+        verdict_line = f"STOPPED: {z_result.ethical_concerns[0] if z_result.ethical_concerns else 'This concept crosses an ethical red line and cannot proceed as described.'}"
+    else:
+        verdict_line = verdict_map.get(recommendation, "See full analysis for details.")
+
+    # What's working (plain language)
+    whats_working = []
+    for opp in x_result.opportunities[:2]:
+        whats_working.append(opp)
+    if z_result.ethics_score >= 7.0:
+        whats_working.append("No major ethical or legal concerns for this concept.")
+    if cs_result.security_score >= 7.0:
+        whats_working.append("No significant security risks identified.")
+
+    # Things to think about (plain language, merged from all agents)
+    things_to_address = []
+    for risk in x_result.risks[:2]:
+        things_to_address.append(risk)
+    for concern in z_result.ethical_concerns[:1]:
+        things_to_address.append(concern)
+    for vuln in cs_result.vulnerabilities[:1]:
+        things_to_address.append(vuln)
+
+    # Next steps (from X if available, else synthesized)
+    next_steps = getattr(x_result, 'next_steps', None) or []
+    if not next_steps:
+        next_steps = [r for r in x_result.risks[:2]]  # fallback
+
+    return {
+        "verdict": verdict_line,
+        "score_plain": f"{overall_score}/10",
+        "what_works": whats_working[:3],
+        "things_to_address": things_to_address[:3],
+        "next_steps": next_steps[:3],
+    }
+
+
 def create_synthesis(
     x_result: XAgentAnalysis,
     z_result: ZAgentAnalysis,
@@ -172,36 +229,36 @@ def create_synthesis(
 ) -> TrinitySynthesis:
     """
     Create a complete synthesis from all three agent analyses.
-    
+
     This is the core synthesis function that combines all perspectives
     into a unified assessment.
     """
     overall_score = calculate_overall_score(x_result, z_result, cs_result)
     recommendation = determine_recommendation(overall_score, z_result, cs_result)
-    
+
     # Build summary
     summary_parts = []
-    
+
     if z_result.veto_triggered:
         summary_parts.append("VETO TRIGGERED by Z Guardian.")
         summary_parts.append(f"Reason: {z_result.ethical_concerns[0] if z_result.ethical_concerns else 'Ethical red line crossed'}")
     else:
         summary_parts.append(f"Overall assessment: {recommendation.upper()}")
-    
+
     summary_parts.append(f"Innovation: {x_result.innovation_score}/10")
     summary_parts.append(f"Ethics: {z_result.ethics_score}/10")
     summary_parts.append(f"Security: {cs_result.security_score}/10")
-    
+
     summary = " | ".join(summary_parts)
-    
+
     # Calculate average confidence
     avg_confidence = (
         x_result.confidence +
         z_result.confidence +
         cs_result.confidence
     ) / 3
-    
-    return TrinitySynthesis(
+
+    synthesis = TrinitySynthesis(
         summary=summary,
         innovation_score=x_result.innovation_score,
         ethics_score=z_result.ethics_score,
@@ -215,6 +272,13 @@ def create_synthesis(
         veto_triggered=z_result.veto_triggered,
         veto_reason=z_result.ethical_concerns[0] if z_result.veto_triggered and z_result.ethical_concerns else None
     )
+
+    # Attach founder summary as extra attribute (non-breaking)
+    synthesis.founder_summary = build_founder_summary(
+        overall_score, recommendation, x_result, z_result, cs_result
+    )
+
+    return synthesis
 
 
 def create_trinity_result(
