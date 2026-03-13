@@ -1,17 +1,19 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** March 9, 2026
+**Last Updated:** March 13, 2026
 
 ---
 
 ## Current Status: Operational
 
-**v0.5.2 "Sentinel-Verified" deployed successfully on March 9, 2026**
+**v0.5.3 "Token Ceiling Monitor" deployed successfully on March 13, 2026**
 
 The VerifiMind MCP server is fully operational with the following capabilities:
 
 - 10 MCP tools (4 core validation + 6 template management)
 - 19 pre-built prompt templates across 6 libraries
+- **Token Ceiling Monitor (v0.5.3)**: Z Agent response token tracking — `_z_token_monitor` field in every `run_full_trinity` response with `risk_level` (LOW/MEDIUM/HIGH/CRITICAL), `utilization %`, and `truncated` flag. Server-side WARNING logs on HIGH/CRITICAL.
+- **404 Retention Fix (AY COO Report 041)**: Catch-all 404 handler returns actionable JSON with correct MCP endpoint + troubleshooting link — targets 70% drop-off from misconfigured MCP clients.
 - **Genesis v4.2 "Sentinel-Verified"**: Forced citation patterns — Z Guardian and CS Security now cite specific framework names in every reasoning step output
 - **Z-Protocol v1.1**: 21 frameworks, 4 tiers + `frameworks_cited[]` per step, `scoring_breakdown`, `applicable_frameworks` by tier
 - **CS Agent v1.1**: 6-stage, 12-dimension + `stage` + `standards_cited[]` per step, `stages_completed`, `dimensions_evaluated`, `macp_security_assessment`
@@ -19,8 +21,8 @@ The VerifiMind MCP server is fully operational with the following capabilities:
 - Input sanitization active on all tools
 - Gemini 2.5-flash as default FREE provider
 - Rate limiting and EDoS protection active
-- GCP Cloud Run revision `verifimind-mcp-server-00253-dvh`
-- CI/CD pipeline passing (GitHub Actions — all 8 checks pass)
+- GCP Cloud Run revision `verifimind-mcp-server-00260-xbq`
+- CI/CD pipeline passing (GitHub Actions — all 7 checks pass)
 
 ---
 
