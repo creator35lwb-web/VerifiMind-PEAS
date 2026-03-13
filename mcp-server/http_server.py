@@ -607,6 +607,169 @@ async def favicon_handler(request):
     return Response(content=FAVICON_BYTES, media_type="image/png")
 
 
+async def smithery_server_card_handler(request):
+    """Smithery server-card.json — skips auto-scan during publish.
+
+    Advertised at /.well-known/mcp/server-card.json per Smithery publish spec:
+    https://smithery.ai/docs/build/publish#troubleshooting
+    """
+    return JSONResponse({
+        "displayName": "VerifiMind-PEAS",
+        "description": (
+            "Multi-model AI validation framework. Validate concepts end-to-end across "
+            "innovation (X Agent), ethics & compliance (Z Agent), and security (CS Agent) "
+            "using the X-Z-CS RefleXion Trinity. Genesis v4.2 Sentinel-Verified — forced "
+            "citation patterns, Z-Protocol v1.1 (21 frameworks, 4 tiers), CS Security v1.1 "
+            "(6-stage, 12-dimension, OWASP Agentic AI). Free tier powered by Gemini 2.5 Flash."
+        ),
+        "version": SERVER_VERSION,
+        "iconUrl": "https://verifimind.ysenseai.org/favicon.ico",
+        "connections": [
+            {
+                "type": "http",
+                "deploymentUrl": "https://verifimind.ysenseai.org/mcp/",
+                "configSchema": {
+                    "type": "object",
+                    "properties": {},
+                    "description": "No configuration required. Free tier uses developer-hosted Gemini 2.5 Flash. Optional: set LLM_PROVIDER + API key headers for BYOK (groq, anthropic, openai, gemini)."
+                }
+            }
+        ],
+        "tools": [
+            {
+                "name": "run_full_trinity",
+                "description": "Complete X → Z → CS Trinity validation. X (Innovation/Strategy) → Z (Ethics/Compliance, VETO power) → CS (Security/Feasibility) → Synthesis with overall score and PROCEED/REFINE/HALT verdict.",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["concept_name", "concept_description"],
+                    "properties": {
+                        "concept_name": {"type": "string"},
+                        "concept_description": {"type": "string"},
+                        "context": {"type": "string"},
+                        "save_to_history": {"type": "boolean", "default": True}
+                    }
+                }
+            },
+            {
+                "name": "consult_agent_x",
+                "description": "X Agent — Innovation & Strategy analysis. Market opportunity, competitive positioning (vs LangChain/CrewAI/AutoGen), innovation score.",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["concept_name", "concept_description"],
+                    "properties": {
+                        "concept_name": {"type": "string"},
+                        "concept_description": {"type": "string"},
+                        "context": {"type": "string"}
+                    }
+                }
+            },
+            {
+                "name": "consult_agent_z",
+                "description": "Z Agent — Ethics & Compliance review with VETO POWER. Z-Protocol v1.1: 21 frameworks across 4 jurisdictional tiers (International, EU/EEA, US, ASEAN). Triggers veto on ethical red lines.",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["concept_name", "concept_description"],
+                    "properties": {
+                        "concept_name": {"type": "string"},
+                        "concept_description": {"type": "string"},
+                        "context": {"type": "string"},
+                        "prior_reasoning": {"type": "string"}
+                    }
+                }
+            },
+            {
+                "name": "consult_agent_cs",
+                "description": "CS Agent — Security & Feasibility validation. CS Security v1.1: 6-stage, 12-dimension, OWASP Agentic AI (ASI01-ASI10), Socratic interrogation framework.",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["concept_name", "concept_description"],
+                    "properties": {
+                        "concept_name": {"type": "string"},
+                        "concept_description": {"type": "string"},
+                        "context": {"type": "string"},
+                        "prior_reasoning": {"type": "string"}
+                    }
+                }
+            },
+            {
+                "name": "list_prompt_templates",
+                "description": "List available Genesis prompt templates with optional filtering by agent, category, or tags.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "agent_id": {"type": "string"},
+                        "category": {"type": "string"},
+                        "tags": {"type": "array", "items": {"type": "string"}}
+                    }
+                }
+            },
+            {
+                "name": "get_prompt_template",
+                "description": "Get a specific Genesis prompt template by ID.",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["template_id"],
+                    "properties": {
+                        "template_id": {"type": "string"},
+                        "include_content": {"type": "boolean", "default": True}
+                    }
+                }
+            },
+            {
+                "name": "export_prompt_template",
+                "description": "Export a Genesis prompt template to Markdown or JSON format.",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["template_id", "format"],
+                    "properties": {
+                        "template_id": {"type": "string"},
+                        "format": {"type": "string", "enum": ["markdown", "json"]}
+                    }
+                }
+            },
+            {
+                "name": "register_custom_template",
+                "description": "Register a new custom Genesis prompt template.",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["name", "agent_id", "content", "category", "description"],
+                    "properties": {
+                        "name": {"type": "string"},
+                        "agent_id": {"type": "string"},
+                        "content": {"type": "string"},
+                        "category": {"type": "string"},
+                        "description": {"type": "string"},
+                        "tags": {"type": "array", "items": {"type": "string"}}
+                    }
+                }
+            },
+            {
+                "name": "import_template_from_url",
+                "description": "Import a Genesis prompt template from a URL (GitHub Gist, raw file).",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["url"],
+                    "properties": {
+                        "url": {"type": "string"},
+                        "validate": {"type": "boolean", "default": True}
+                    }
+                }
+            },
+            {
+                "name": "get_template_statistics",
+                "description": "Get Genesis prompt template registry statistics.",
+                "inputSchema": {"type": "object", "properties": {}}
+            }
+        ],
+        "resources": [
+            {"uri": "genesis://config/master_prompt", "name": "Genesis Master Prompt v4.2", "description": "Complete Genesis Master Prompt defining X/Z/CS agent roles and citation architecture."},
+            {"uri": "genesis://history/latest", "name": "Latest Validation", "description": "Most recent Trinity validation result."},
+            {"uri": "genesis://history/all", "name": "Validation History", "description": "Complete validation history with statistics."},
+            {"uri": "genesis://state/project_info", "name": "Project Info", "description": "Project metadata, agent info, and version details."}
+        ]
+    })
+
+
 async def http_exception_handler(request, exc):
     """Return actionable error messages for common HTTP errors."""
     status = exc.status_code
@@ -659,6 +822,7 @@ app = Starlette(
         Route("/favicon.ico", favicon_handler),
         Route("/setup", setup_handler),
         Route("/.well-known/mcp-config", mcp_config_handler),
+        Route("/.well-known/mcp/server-card.json", smithery_server_card_handler),
         Mount("/mcp", app=mcp_app),
     ],
     lifespan=mcp_app.lifespan,  # CRITICAL: Pass lifespan for session initialization
