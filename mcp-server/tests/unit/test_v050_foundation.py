@@ -68,8 +68,8 @@ class TestSmitheryRemoval:
     def test_server_version_is_053(self):
         """SERVER_VERSION must be bumped to 0.5.3."""
         from verifimind_mcp.server import SERVER_VERSION
-        assert SERVER_VERSION == "0.5.3", (
-            f"Expected 0.5.3, got {SERVER_VERSION}"
+        assert SERVER_VERSION == "0.5.4", (
+            f"Expected 0.5.4, got {SERVER_VERSION}"
         )
 
 

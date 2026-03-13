@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.5.3"
+SERVER_VERSION = "0.5.4"
 
 
 def wrap_response(response: dict) -> dict:
@@ -864,7 +864,8 @@ def _create_mcp_instance():
                     "innovation_score": x_result.innovation_score,
                     "strategic_value": x_result.strategic_value,
                     "recommendation": x_result.recommendation,
-                    "confidence": x_result.confidence
+                    "confidence": x_result.confidence,
+                    "research_prompts": getattr(x_result, 'research_prompts', None),
                 },
                 "z_analysis": {
                     "ethics_score": z_result.ethics_score,
@@ -885,7 +886,8 @@ def _create_mcp_instance():
                     "veto_triggered": trinity_result.synthesis.veto_triggered,
                     "strengths": trinity_result.synthesis.strengths[:3],
                     "concerns": trinity_result.synthesis.concerns[:3],
-                    "confidence": trinity_result.synthesis.confidence
+                    "confidence": trinity_result.synthesis.confidence,
+                    "founder_summary": getattr(trinity_result.synthesis, 'founder_summary', None),
                 },
                 "human_decision_required": True,
                 "saved_to_history": save_to_history,

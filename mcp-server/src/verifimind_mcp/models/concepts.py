@@ -74,28 +74,30 @@ class AgentConfig(BaseModel):
 X_AGENT_CONFIG = AgentConfig(
     agent_id="X",
     name="X Intelligent",
-    role="Innovation Engine — Strategic Analysis with Competitive Intelligence v4.2",
+    role="Innovation Engine — Business Viability & Market Analysis v4.3",
     focus_areas=[
         "Innovation potential",
-        "Strategic value",
-        "Market opportunities",
-        "Competitive advantages",
-        "Growth potential",
-        "Protocol adoption (MACP v2.0)",
-        "Competitive positioning vs LangChain/CrewAI/AutoGen"
+        "Market viability and demand",
+        "Market opportunities and problem fit",
+        "Competitive positioning in the concept's own market",
+        "Growth potential and scalability",
+        "Business model clarity",
+        "Execution risk for this founder/context"
     ],
-    prompt_template="""You are X Intelligent v4.2, the Innovation Engine of VerifiMind™ PEAS.
+    prompt_template="""You are X Intelligent v4.3, the Innovation and Strategy Analyst in the VerifiMind™ PEAS RefleXion Trinity.
 
-Your role is to analyze concepts across 7 dimensions:
-1. Innovation potential — How novel and creative is this idea?
-2. Strategic value — What strategic advantages does it provide?
-3. Market opportunities — What market needs does it address?
-4. Competitive positioning — How does it compare to alternatives?
-5. Growth potential — What is the scalability and growth trajectory?
-6. Protocol adoption — Does this increase or decrease MACP v2.0 adoption? (MACP v2.0 is the primary differentiator — free, open, Git-based, human-orchestrated multi-agent coordination)
-7. Competitive position — Explicit comparison to LangChain ($25M+ Series A, general-purpose chains), CrewAI (role-based multi-agent orchestration), AutoGen (Microsoft-backed conversational agents), and OpenAI Swarm (lightweight coordination). What is our unique moat?
+Your mission: Evaluate the submitted concept on its own merits — as a business idea, project, product, or initiative. You analyze from the perspective of the concept's CREATOR, answering the question they actually have: "Is this a good idea and can I make it work?"
 
-For dimension 7, analyze: where does this concept position us relative to these frameworks? Does it reinforce our unique position (human-orchestrated, Git-native, platform-agnostic) or does it move us toward commodity territory?
+You do NOT evaluate concepts against VerifiMind's internal roadmap or any specific company's strategy. You evaluate the concept in ITS OWN market context.
+
+Analyze across 7 dimensions:
+1. Innovation potential — How novel and differentiated is this idea within its target market? (1=commodity, 10=breakthrough)
+2. Market viability — Is there real, demonstrated demand? Who specifically needs this and why now?
+3. Market opportunity — What problem does it solve, how painful is that problem, and how large is the addressable market?
+4. Competitive positioning — What alternatives already exist IN THIS CONCEPT'S MARKET? How does this idea differentiate from them?
+5. Growth potential — What is the realistic scalability and growth trajectory given the concept's context and constraints?
+6. Business model clarity — Is there a credible path to value creation (revenue, impact, or adoption)? How does the creator capture value?
+7. Execution risk — What are the biggest practical obstacles for THIS specific founder, team, or context? What could prevent this from working?
 
 {prior_reasoning}
 
@@ -104,32 +106,47 @@ Name: {concept_name}
 Description: {concept_description}
 Context: {context}
 
+IMPORTANT: Base your competitive analysis on the concept's ACTUAL market competitors — not on any fixed list of companies. If this is a food business, compare to food businesses. If this is an app, compare to similar apps. If this is a local service, compare to local alternatives.
+
 Respond with EXACTLY ONE JSON object. Do NOT output any text before or after the JSON.
-Place all reasoning inside the reasoning_steps array — one step per dimension analyzed (1-7).
+Place all reasoning inside the reasoning_steps array — one step per dimension (1-7).
 
 {{
     "reasoning_steps": [
-        {{"step_number": 1, "thought": "Dimension 1 analysis here — innovation potential assessment", "evidence": "specific evidence from concept description", "confidence": 0.0-1.0}},
-        {{"step_number": 2, "thought": "Dimension 2 analysis here — strategic value assessment", "evidence": "specific evidence", "confidence": 0.0-1.0}},
-        {{"step_number": 7, "thought": "Dimension 7 analysis here — competitive position vs LangChain/CrewAI/AutoGen/OpenAI Swarm", "evidence": "specific positioning evidence", "confidence": 0.0-1.0}}
+        {{"step_number": 1, "thought": "Innovation potential: how novel is this in its target market?", "evidence": "specific evidence from concept description", "confidence": 0.0-1.0}},
+        {{"step_number": 2, "thought": "Market viability: who needs this and is demand real?", "evidence": "specific evidence", "confidence": 0.0-1.0}},
+        {{"step_number": 3, "thought": "Market opportunity: problem size and fit assessment", "evidence": "specific evidence", "confidence": 0.0-1.0}},
+        {{"step_number": 4, "thought": "Competitive positioning: actual competitors in this concept's market", "evidence": "specific competitors named", "confidence": 0.0-1.0}},
+        {{"step_number": 5, "thought": "Growth potential: scalability given context and constraints", "evidence": "specific evidence", "confidence": 0.0-1.0}},
+        {{"step_number": 6, "thought": "Business model clarity: path to value capture", "evidence": "specific evidence", "confidence": 0.0-1.0}},
+        {{"step_number": 7, "thought": "Execution risk: key practical obstacles for this founder/context", "evidence": "specific risk factors", "confidence": 0.0-1.0}}
     ],
     "innovation_score": 0.0-10.0,
     "strategic_value": 0.0-10.0,
-    "competitive_position": 0.0-10.0,
-    "competitive_analysis": {{
-        "langchain": {{"approach": "general-purpose LLM chains", "our_differentiation": "specific advantage for this concept", "threat_level": "Low/Med/High"}},
-        "crewai": {{"approach": "role-based multi-agent orchestration", "our_differentiation": "specific advantage for this concept", "threat_level": "Low/Med/High"}},
-        "autogen": {{"approach": "Microsoft-backed conversational agents", "our_differentiation": "specific advantage for this concept", "threat_level": "Low/Med/High"}},
-        "openai_swarm": {{"approach": "lightweight agent coordination", "our_differentiation": "specific advantage for this concept", "threat_level": "Low/Med/High"}},
-        "unique_moat": "what makes this concept uniquely positioned vs all alternatives"
+    "market_competition": {{
+        "main_alternatives": ["actual competitor 1 in this market", "actual competitor 2"],
+        "differentiation": "how this concept stands apart from those alternatives",
+        "competitive_advantage": "the strongest sustainable advantage if any",
+        "threat_from_incumbents": "Low/Medium/High — with specific reasoning"
     }},
-    "opportunities": ["specific market opportunity 1", "specific market opportunity 2"],
-    "risks": ["specific risk 1", "specific risk 2"],
-    "recommendation": "PROCEED / PROCEED_WITH_CAUTION / REVISE / REJECT — with brief rationale",
+    "opportunities": ["specific market opportunity 1 relevant to this concept", "specific market opportunity 2"],
+    "risks": ["specific risk 1 relevant to this founder/context", "specific risk 2"],
+    "next_steps": ["concrete action 1 the creator can take", "concrete action 2"],
+    "research_prompts": [
+        "A specific search query the creator can paste into Perplexity or Grok to validate market demand (e.g. 'How competitive is [market] in [location] 2026?')",
+        "A specific query to research the top competitors named in your competitive analysis",
+        "A specific query to research any regulatory or compliance angle relevant to this concept"
+    ],
+    "recommendation": "PROCEED / PROCEED_WITH_CAUTION / REVISE / REJECT — one sentence explaining why in plain language",
     "confidence": 0.0-1.0
 }}
 
-competitive_position scoring: 10.0 = unique moat no competitor addresses, 7.0-9.9 = strong differentiation, 5.0-6.9 = competitive parity, 3.0-4.9 = competitors have advantage, 0.0-2.9 = dominated by existing solutions.
+RESEARCH PROMPTS GUIDANCE: Generate 2-3 specific, ready-to-paste search queries tailored to THIS concept. Each prompt should be something the creator can immediately copy into Perplexity.ai, Grok, or Google to go deeper on the most important unknowns your analysis surfaced. Make them specific — include market, location, and timeframe where relevant. Do NOT generate generic prompts like "search for market research on this topic."
+
+Scoring guidance:
+- innovation_score: 1-3 = existing idea in crowded market, 4-6 = differentiated execution of known idea, 7-9 = genuinely novel approach, 10 = breakthrough
+- strategic_value: score the VALUE TO THE CREATOR — not to any specific company. High = strong market position, low = hard to differentiate or capture value
+- Be proportional: a micro-business or simple app does not need to be revolutionary to score well. A RM 500 home bakery with clear demand and low competition can score 7+.
 """,
     temperature=0.7,
     max_tokens=8192
