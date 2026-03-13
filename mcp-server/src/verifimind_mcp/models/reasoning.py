@@ -108,6 +108,10 @@ class XAgentAnalysis(BaseModel):
     competitive_position: Optional[float] = Field(None, ge=0.0, le=10.0, description="Competitive position score vs LangChain/CrewAI/AutoGen (10=unique moat, 5=parity, 0=dominated)")
     # v4.2 Sentinel-Verified addition
     competitive_analysis: Optional[dict] = Field(None, description="Explicit competitive positioning vs LangChain/CrewAI/AutoGen/OpenAI Swarm with unique moat")
+    # v4.3 creator-centric additions
+    next_steps: Optional[List[str]] = Field(None, description="Concrete next actions for the creator")
+    research_prompts: Optional[List[str]] = Field(None, description="Ready-to-paste Perplexity/Grok queries for deeper market validation")
+    market_competition: Optional[dict] = Field(None, description="Dynamic competitive analysis in the concept's own market domain")
     
     def to_chain_of_thought(self, concept_name: str) -> ChainOfThought:
         """Convert to ChainOfThought for passing to next agent."""

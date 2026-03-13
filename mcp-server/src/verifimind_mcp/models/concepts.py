@@ -132,9 +132,16 @@ Place all reasoning inside the reasoning_steps array — one step per dimension 
     "opportunities": ["specific market opportunity 1 relevant to this concept", "specific market opportunity 2"],
     "risks": ["specific risk 1 relevant to this founder/context", "specific risk 2"],
     "next_steps": ["concrete action 1 the creator can take", "concrete action 2"],
+    "research_prompts": [
+        "A specific search query the creator can paste into Perplexity or Grok to validate market demand (e.g. 'How competitive is [market] in [location] 2026?')",
+        "A specific query to research the top competitors named in your competitive analysis",
+        "A specific query to research any regulatory or compliance angle relevant to this concept"
+    ],
     "recommendation": "PROCEED / PROCEED_WITH_CAUTION / REVISE / REJECT — one sentence explaining why in plain language",
     "confidence": 0.0-1.0
 }}
+
+RESEARCH PROMPTS GUIDANCE: Generate 2-3 specific, ready-to-paste search queries tailored to THIS concept. Each prompt should be something the creator can immediately copy into Perplexity.ai, Grok, or Google to go deeper on the most important unknowns your analysis surfaced. Make them specific — include market, location, and timeframe where relevant. Do NOT generate generic prompts like "search for market research on this topic."
 
 Scoring guidance:
 - innovation_score: 1-3 = existing idea in crowded market, 4-6 = differentiated execution of known idea, 7-9 = genuinely novel approach, 10 = breakthrough

@@ -213,12 +213,25 @@ def build_founder_summary(
     if not next_steps:
         next_steps = [r for r in x_result.risks[:2]]  # fallback
 
+    # Research continuation — Perplexity/Grok queries from X Agent
+    research_prompts = getattr(x_result, 'research_prompts', None) or []
+    research_continuation = None
+    if research_prompts:
+        research_continuation = {
+            "message": (
+                "Your validation is based on what's been described. To go deeper, "
+                "paste these queries into Perplexity.ai or Grok for real-time market intelligence:"
+            ),
+            "queries": research_prompts[:3],
+        }
+
     return {
         "verdict": verdict_line,
         "score_plain": f"{overall_score}/10",
         "what_works": whats_working[:3],
         "things_to_address": things_to_address[:3],
         "next_steps": next_steps[:3],
+        "research_continuation": research_continuation,
     }
 
 

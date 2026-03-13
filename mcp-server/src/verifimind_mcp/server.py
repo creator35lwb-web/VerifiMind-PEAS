@@ -864,7 +864,8 @@ def _create_mcp_instance():
                     "innovation_score": x_result.innovation_score,
                     "strategic_value": x_result.strategic_value,
                     "recommendation": x_result.recommendation,
-                    "confidence": x_result.confidence
+                    "confidence": x_result.confidence,
+                    "research_prompts": getattr(x_result, 'research_prompts', None),
                 },
                 "z_analysis": {
                     "ethics_score": z_result.ethics_score,
