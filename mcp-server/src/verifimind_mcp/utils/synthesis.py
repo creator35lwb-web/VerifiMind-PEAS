@@ -283,12 +283,10 @@ def create_synthesis(
         recommendation=recommendation,
         confidence=round(avg_confidence, 2),
         veto_triggered=z_result.veto_triggered,
-        veto_reason=z_result.ethical_concerns[0] if z_result.veto_triggered and z_result.ethical_concerns else None
-    )
-
-    # Attach founder summary as extra attribute (non-breaking)
-    synthesis.founder_summary = build_founder_summary(
-        overall_score, recommendation, x_result, z_result, cs_result
+        veto_reason=z_result.ethical_concerns[0] if z_result.veto_triggered and z_result.ethical_concerns else None,
+        founder_summary=build_founder_summary(
+            overall_score, recommendation, x_result, z_result, cs_result
+        ),
     )
 
     return synthesis

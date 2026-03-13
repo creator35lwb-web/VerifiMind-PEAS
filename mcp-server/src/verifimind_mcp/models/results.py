@@ -51,6 +51,12 @@ class TrinitySynthesis(BaseModel):
         description="Reason for veto if triggered"
     )
 
+    # v0.5.4 — plain-language founder layer
+    founder_summary: Optional[dict] = Field(
+        None,
+        description="Plain-language summary for non-technical founders: verdict, score_plain, what_works, things_to_address, next_steps, research_continuation"
+    )
+
 
 class TrinityResult(BaseModel):
     """
