@@ -1237,7 +1237,7 @@ VerifiMind-PEAS is developed through the **FLYWHEEL TEAM** multi-agent collabora
 - **Open-source community**: For inspiration and collaboration
 - **Early adopters**: For feedback and validation (1,088+ users and counting)
 - **Academic researchers**: For theoretical foundations
-- **PHAWM (Partnership on AI for Health and Well-being Monitoring)**: For academic engagement and methodology alignment discussions
+- **PHAWM (Participatory Harm Auditing Workbenches and Methodologies)**: For published research referenced in our harm auditing methodology
 - **Google Cloud Platform**: For generous free tier enabling $0/month operations
 
 ---
