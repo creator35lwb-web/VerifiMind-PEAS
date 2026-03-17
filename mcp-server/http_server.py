@@ -36,6 +36,15 @@ from starlette.routing import Mount, Route
 from starlette.middleware.cors import CORSMiddleware
 from verifimind_mcp.server import create_http_server
 from verifimind_mcp.middleware import RateLimitMiddleware, get_rate_limit_stats
+from verifimind_mcp.registration import (
+    EarlyAdopterRegistration,
+    FeedbackRequest,
+    register_early_adopter,
+    get_ea_status,
+    submit_feedback,
+    process_optout,
+)
+from verifimind_mcp.policies import PRIVACY_POLICY, TERMS_AND_CONDITIONS
 
 # Create MCP server instance
 mcp_server = create_http_server()
@@ -45,7 +54,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.5"
+SERVER_VERSION = "0.5.6"
 
 # Track server start time for uptime reporting (v0.5.0 health v2)
 _SERVER_START_TIME = time.time()
@@ -812,6 +821,105 @@ async def http_exception_handler(request, exc):
     }, status_code=status)
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# v0.5.6 Gateway: Early Adopter Registration Routes
+# Z-Protocol v1.1 compliant — consent-first, data minimization, opt-out
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def ea_register_handler(request):
+    """POST /early-adopters/register — EA registration with T&C + Privacy consent."""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+
+    try:
+        data = EarlyAdopterRegistration(**body)
+    except Exception as e:
+        return JSONResponse(
+            {"error": "Validation error", "detail": str(e)},
+            status_code=422,
+        )
+
+    result = await register_early_adopter(data)
+    return JSONResponse(result.model_dump(), status_code=201)
+
+
+async def ea_status_handler(request):
+    """GET /early-adopters/status/{uuid} — check EA tier status."""
+    uuid = request.path_params.get("uuid", "")
+    if not uuid:
+        return JSONResponse({"error": "UUID required"}, status_code=400)
+
+    status = await get_ea_status(uuid)
+    if status is None:
+        return JSONResponse(
+            {"error": "Early Adopter record not found for this UUID"},
+            status_code=404,
+        )
+    return JSONResponse(status.model_dump())
+
+
+async def ea_feedback_handler(request):
+    """POST /early-adopters/feedback — submit feedback, issue, or recommendation.
+
+    Available to registered EAs (include uuid) and anonymous users alike.
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+
+    try:
+        data = FeedbackRequest(**body)
+    except Exception as e:
+        return JSONResponse(
+            {"error": "Validation error", "detail": str(e)},
+            status_code=422,
+        )
+
+    result = await submit_feedback(data)
+    return JSONResponse(result.model_dump(), status_code=201)
+
+
+async def ea_optout_handler(request):
+    """POST /early-adopters/optout/{uuid} — opt-out and request data deletion."""
+    uuid = request.path_params.get("uuid", "")
+    if not uuid:
+        return JSONResponse({"error": "UUID required"}, status_code=400)
+
+    result = await process_optout(uuid)
+    return JSONResponse(result.model_dump())
+
+
+async def privacy_handler(request):
+    """GET /privacy — Privacy Policy v1.0 (plain text or JSON)."""
+    accept = request.headers.get("accept", "")
+    if "application/json" in accept:
+        return JSONResponse({
+            "title": "VerifiMind-PEAS Privacy Policy",
+            "version": "1.0",
+            "effective_date": "2026-03-18",
+            "content": PRIVACY_POLICY,
+            "url": "https://verifimind.ysenseai.org/privacy",
+        })
+    return PlainTextResponse(PRIVACY_POLICY)
+
+
+async def terms_handler(request):
+    """GET /terms — Terms & Conditions v1.0 (plain text or JSON)."""
+    accept = request.headers.get("accept", "")
+    if "application/json" in accept:
+        return JSONResponse({
+            "title": "VerifiMind-PEAS Early Adopter Terms & Conditions",
+            "version": "1.0",
+            "effective_date": "2026-03-18",
+            "content": TERMS_AND_CONDITIONS,
+            "url": "https://verifimind.ysenseai.org/terms",
+        })
+    return PlainTextResponse(TERMS_AND_CONDITIONS)
+
+
 # Create Starlette app with proper lifespan from MCP app
 app = Starlette(
     routes=[
@@ -823,6 +931,13 @@ app = Starlette(
         Route("/setup", setup_handler),
         Route("/.well-known/mcp-config", mcp_config_handler),
         Route("/.well-known/mcp/server-card.json", smithery_server_card_handler),
+        # v0.5.6 Gateway: EA registration + feedback + policy
+        Route("/early-adopters/register", ea_register_handler, methods=["POST"]),
+        Route("/early-adopters/status/{uuid}", ea_status_handler, methods=["GET"]),
+        Route("/early-adopters/feedback", ea_feedback_handler, methods=["POST"]),
+        Route("/early-adopters/optout/{uuid}", ea_optout_handler, methods=["POST"]),
+        Route("/privacy", privacy_handler, methods=["GET"]),
+        Route("/terms", terms_handler, methods=["GET"]),
         Mount("/mcp", app=mcp_app),
     ],
     lifespan=mcp_app.lifespan,  # CRITICAL: Pass lifespan for session initialization
