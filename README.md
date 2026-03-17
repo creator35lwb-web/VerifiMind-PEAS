@@ -27,7 +27,7 @@
 
 ## MCP Server: Production Deployed
 
-> **v0.5.5** — 4,069+ verified engagement hours | 1,088+ users | 84.5% Value Confirmation Rate | **X Agent v4.3** (creator-centric, VerifiMind bias removed) | **founder_summary** plain-language layer | **research_prompts** (Perplexity/Grok bridge) | **Token Ceiling Monitor** | **404 retention fix** | MACP v2.2 "Identity" | 208 tests, 54.3% coverage | 41 weekly COO reports. [Health Check](https://verifimind.ysenseai.org/health)
+> **v0.5.5** — 2,100+ verified engagement hours | 1,200+ users | 63.7% Value Confirmation Rate | **Phase 47 Ground Truth** (forensic deduplication audit) | **X Agent v4.3** (creator-centric, VerifiMind bias removed) | **founder_summary** plain-language layer | **research_prompts** (Perplexity/Grok bridge) | **Token Ceiling Monitor** | MACP v2.2 "Identity" | 208 tests, 54.3% coverage | 41 weekly COO reports. [Health Check](https://verifimind.ysenseai.org/health)
 
 VerifiMind PEAS is now **live and accessible** across multiple platforms:
 
@@ -169,13 +169,15 @@ Automated testing and security scanning runs on every push to `main` via GitHub 
 ## 📊 Verified Service Metrics
 
 > Cross-validated by FLYWHEEL TEAM (T/CTO — Manus AI, AY/COO — Antigravity) against raw GCP Cloud Run logs. Scrapers excluded. Conservative rounding applied.
+>
+> **Phase 47 Ground Truth Correction (Mar 15, 2026):** COO AY's forensic audit identified duplicate session counting in earlier reports. Metrics corrected: 4,000+ → 2,100+ engagement hours, 84.5% → 63.7% VCR, 1,088 → 1,281 users (user count increased after bot session deduplication). All metrics below reflect the forensically verified Ground Truth baseline. We believe honest self-correction builds stronger credibility than inflated numbers.
 
 | Metric | Value | Methodology |
 |--------|-------|-------------|
-| **Verified Engagement Hours** | **4,069+** (all-time) | Session duration: first-to-last request per user per day. Scrapers excluded via User-Agent audit classification. |
-| **Value Confirmation Rate** | **84.5%** (W11) | Sessions where user sends follow-up prompt (proof of value received) |
-| **Total Users** | **1,088+** | Unique users across all platforms |
-| **MCP Integration Rate** | **43.1% Verified** | 43.1% Verified / 36.1% Automated / 20.8% Unclassified (AY Report 041) |
+| **Verified Engagement Hours** | **2,100+** (all-time) | Session duration: first-to-last request per user per day. Scrapers excluded. Phase 47 forensic deduplication applied. |
+| **Value Confirmation Rate** | **63.7%** (Phase 47 Ground Truth) | Sessions where user sends follow-up prompt (proof of value received). Forensically verified after deduplication. |
+| **Total Users** | **1,200+** | Unique users across all platforms (bot sessions deduplicated) |
+| **MCP Integration Rate** | **43.1% Verified** | 43.1% Verified / 36.1% Automated / 20.8% Unclassified (AY Report 056) |
 | **MCP Tools Available** | **10** (4 core + 6 template) | Core: consult_agent_x, consult_agent_z, consult_agent_cs, run_full_trinity |
 | **Multi-Model Providers** | **X=Gemini, Z=Groq, CS=Groq** | Per-agent provider routing for optimal structured output |
 | **BYOK Live** | **Per-tool-call override** | Users can pass own API key + provider on any call (v0.4.5+) |
@@ -186,7 +188,7 @@ Automated testing and security scanning runs on every push to `main` via GitHub 
 
 ### Adoption Trajectory (Flying Hours ✈️)
 
-> **Data through W11 (March 15, 2026).** W12+ collection ongoing for v0.7.0 pricing decisions.
+> **Data through W12 (March 16, 2026). Phase 47 Ground Truth applied retroactively.** W13+ collection ongoing for v0.7.0 pricing decisions.
 
 | Week | Period | Weekly Hours | Cumulative Hours | Users | VCR |
 |------|--------|-------------|-----------------|-------|-----|
@@ -200,6 +202,8 @@ Automated testing and security scanning runs on every push to `main` via GitHub 
 | W09 | Feb 23–Mar 1 | 198.5h | 1,755h | 46 | 90.7% |
 | W10 | Mar 02–08 | 1,647.5h | 3,402h | 260 | 88.5% |
 | W11 | Mar 09–15 | 393.0h | 3,795h | 130 | 84.5% |
+
+> **⚠️ Phase 47 Correction Note:** The cumulative hours above reflect pre-audit figures from weekly COO reports. After Phase 47 forensic deduplication (Report 056), the verified Ground Truth all-time total is **2,100+ hours** with **1,200+ users** and **63.7% VCR**. The weekly breakdown will be retroactively corrected in a future report.
 
 ### Traffic Classification Breakdown
 
@@ -341,7 +345,7 @@ The standardization phase generated **57 complete Trinity validation reports** a
 | **LLM Providers** | 7 | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama, Perplexity |
 | **Multi-Model Routing** | X=Gemini, Z=Groq, CS=Groq | Per-agent provider optimization |
 | **Trinity Quality** | `_overall_quality: "full"` | All agents returning real inference (v0.4.4+) |
-| **Total Users** | 1,088+ | Unique users across all platforms |
+| **Total Users** | 1,200+ | Unique users (Phase 47 Ground Truth, bot sessions deduplicated) |
 | **Tests** | 208 | Comprehensive test suite with CI/CD pipeline |
 | **MACP Version** | v2.2 "Identity" | Human-orchestrated multi-agent coordination protocol |
 | **Weekly Reports** | 41 (automated) | COO AY GCP log-based analytics reports |
@@ -992,7 +996,7 @@ Phases 1 through 4 established the methodology framework, MCP server implementat
 | **Validation Reports** | 57+ | Proof of methodology at scale |
 | **Platforms Live** | 4 | GCP, MCP Registry, HuggingFace, verifimind.io |
 | **LLM Providers** | 7 | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama, Perplexity |
-| **All-Time Users** | 1,088+ | Cumulative unique users |
+| **All-Time Users** | 1,200+ | Cumulative unique users (Phase 47 Ground Truth) |
 | **Manus AI Skills** | 8 | Complete skill composition stack including ai-council |
 | **Cost per Validation** | ~$0.003 | Sustainable for all developers |
 
@@ -1131,9 +1135,9 @@ GitHub provides automatic citation support. Click the **"Cite this repository"**
 
 ### **Release Information**
 
-**VerifiMind-PEAS MCP Server v0.4.1** (Current):
-- **Release Date**: February 14, 2026
-- **Highlights**: Markdown-first output, Smithery URL removal, PDF deprecated
+**VerifiMind-PEAS MCP Server v0.5.5** (Current):
+- **Release Date**: March 13, 2026
+- **Highlights**: Trinity Baseline — TrinitySynthesis schema fix, 3 regression tests, 208 tests
 - **Changelog**: [CHANGELOG.md](CHANGELOG.md)
 - **Status**: Production deployed on GCP Cloud Run
 
@@ -1235,7 +1239,7 @@ VerifiMind-PEAS is developed through the **FLYWHEEL TEAM** multi-agent collabora
 ### Special Thanks
 
 - **Open-source community**: For inspiration and collaboration
-- **Early adopters**: For feedback and validation (1,088+ users and counting)
+- **Early adopters**: For feedback and validation (1,200+ users and counting)
 - **Academic researchers**: For theoretical foundations
 - **PHAWM (Participatory Harm Auditing Workbenches and Methodologies)**: For published research referenced in our harm auditing methodology
 - **Google Cloud Platform**: For generous free tier enabling $0/month operations
