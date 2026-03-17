@@ -100,11 +100,11 @@ Based on production log analysis (February 2026), these are the most frequent co
 | **Missing trailing slash** `/mcp` | `405 Method Not Allowed` | Always use `/mcp/` with the trailing slash |
 | **Using GET instead of POST** | `400 Bad Request` | MCP protocol requires POST requests with JSON-RPC body |
 | **Using `http-sse` transport** | Connection fails | Use `streamable-http` transport (not `http-sse`) |
-| **Connecting to Smithery proxy** | May stop working March 1, 2026 | Use the direct URL: `https://verifimind.ysenseai.org/mcp/` |
+| **Connecting to Smithery proxy** | Sunset completed (March 1, 2026) | Use the direct URL: `https://verifimind.ysenseai.org/mcp/` |
 
 > 💡 **Quick test**: Run `curl https://verifimind.ysenseai.org/health` — if you see `"status": "healthy"`, the server is up. Then configure your MCP client using the Quick Start instructions above.
 
-> ⚠️ **Smithery.ai Sunset Notice**: Smithery.ai's legacy architecture will be sunset on **March 1, 2026**. If you are currently connecting via `server.smithery.ai`, please switch to the direct URL `https://verifimind.ysenseai.org/mcp/` before that date. All Quick Start instructions above already use the direct URL.
+> ⚠️ **Smithery.ai Sunset Complete**: Smithery.ai's legacy architecture was sunset on **March 1, 2026**. If you were previously connecting via `server.smithery.ai`, switch to the direct URL `https://verifimind.ysenseai.org/mcp/`. All Quick Start instructions above already use the direct URL. Zero impact — VerifiMind PEAS has been fully self-hosted on GCP Cloud Run since v0.5.0.
 
 ### API Keys & BYOK (v0.4.5+)
 
@@ -113,7 +113,7 @@ Based on production log analysis (February 2026), these are the most frequent co
 | **GCP Server** / **MCP Registry** | ❌ No (default) | Server-side configured, ready to use |
 | **GCP Server** (BYOK) | ✅ Optional | Pass `api_key` + `llm_provider` per tool call to use your own key |
 | **HuggingFace Demo** | ❌ No | Server-side configured |
-| **Smithery** | ✅ Yes (BYOK) | Bring Your Own Key (sunset March 1, 2026) |
+| **Smithery** | N/A | Sunset completed (March 1, 2026) — use GCP Server instead |
 
 **v0.4.5 BYOK Live** — You can now override the default provider on any individual tool call by passing `api_key` and `llm_provider` parameters. The server auto-detects key format (e.g., `gsk_` → Groq, `sk-ant-` → Anthropic, `sk-` → OpenAI). If no key is provided, the server uses its default Gemini/Groq configuration. Triple-validated by Manus AI (6/6), Claude Code (6/6), and CI (175 tests). [PR #55](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/55)
 
@@ -214,7 +214,7 @@ Automated testing and security scanning runs on every push to `main` via GitHub 
 | **Unclassified** | 20.8% | Unknown User-Agent patterns |
 | **Scraper** | — | Excluded from all metrics |
 
-> **Source:** AY COO Report 041 (W11, March 2026). Scrapers excluded. Owner/Bot excluded.
+> **Source:** AY COO Report 056 (Phase 47 Ground Truth, March 2026). Scrapers excluded. Owner/Bot excluded. Forensic deduplication applied.
 
 ### Client Integration by User-Agent
 
@@ -857,18 +857,17 @@ curl https://verifimind.ysenseai.org/mcp/
 
 ### Operational Insights
 
-Traffic analysis from GCP Cloud Run logs (2-week sample, February 2026) provides the following operational baseline:
+Traffic analysis from GCP Cloud Run logs (Phase 47 Ground Truth, March 2026) provides the following operational baseline:
 
 | Metric | Value | Notes |
 |--------|-------|-------|
-| **Total Requests** | 8,578 | 14-day sample, excluding health checks |
-| **All-Time Users** | 530+ | Cumulative unique users |
-| **Active Users (Week)** | 118 | Weekly active users |
-| **Retention Rate** | 11.3% | Improving (up from 7.4%) |
-| **Top Client** | Node.js MCP (67.7%) | Primary integration method |
-| **Cursor IDE** | 12.5% | Growing IDE adoption |
+| **All-Time Engagement Hours** | 2,100+ | Forensically verified (Phase 47 deduplication) |
+| **All-Time Users** | 1,200+ | Unique users, bot sessions deduplicated |
+| **Value Confirmation Rate** | 63.7% | Sessions with follow-up prompts (proof of value) |
+| **Top Client** | Node.js MCP (65.3%) | Primary integration method |
+| **MCP Integration Rate** | 43.1% Verified | 36.1% Automated, 20.8% Unclassified |
 | **Server Errors (5xx)** | 0 | Zero server errors in production |
-| **Average Latency** | 4.30ms | Exceptional response time |
+| **COO Weekly Reports** | 41 | Automated GCP log-based analytics |
 | **Monthly Cost** | $0 | Within GCP free tier |
 
 The server runs on GCP Cloud Run with zero minimum instances (cold start architecture) to maintain a **$0/month operating cost**. GCP Global Uptime Checks monitor the `/health` endpoint every 5 minutes with email alerts to the project maintainer. All monitoring features operate within GCP’s free tier.
@@ -1145,7 +1144,7 @@ GitHub provides automatic citation support. Click the **"Cite this repository"**
 - **Release Date**: December 18, 2025
 - **Tag**: `verifimind-v1.1.0`
 - **Release Notes**: [RELEASE_NOTES_V1.1.0.md](RELEASE_NOTES_V1.1.0.md)
-- **Status**: Production-ready, deployment-ready for Smithery marketplace
+- **Status**: Production-ready, deployed on GCP Cloud Run
 
 **Genesis Methodology v2.0**:
 - **Release Date**: December 18, 2025
@@ -1257,6 +1256,6 @@ VerifiMind-PEAS is developed through the **FLYWHEEL TEAM** multi-agent collabora
 
 ---
 
-**Last Updated:** March 15, 2026 | **Version:** v0.5.5 | **MACP:** v2.2 "Identity"
+**Last Updated:** March 17, 2026 | **Version:** v0.5.5 | **MACP:** v2.2 "Identity"
 
 </div>
