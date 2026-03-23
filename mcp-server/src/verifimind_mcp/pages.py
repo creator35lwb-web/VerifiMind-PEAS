@@ -1,0 +1,1029 @@
+"""
+VerifiMind-PEAS — User-Facing HTML Pages
+
+GET /register — Early Adopter opt-in registration form
+GET /optout   — Early Adopter data deletion (GDPR right to erasure)
+
+Design principles:
+- Z-Protocol v1.1 consent-first: explicit T&C + Privacy Policy consent required
+- Self-contained: no external CDN dependencies (fully functional offline/firewalled)
+- XSS-safe: all user-controlled data written via textContent, never innerHTML
+- Mobile-responsive: works on all screen sizes
+- Dark theme: slate-950 / cyan-400 — matches VerifiMind brand
+"""
+
+# ── Shared CSS ────────────────────────────────────────────────────────────────
+
+_CSS = """
+:root {
+  --bg:          #020617;
+  --surface:     #0f172a;
+  --surface-2:   #1e293b;
+  --border:      #334155;
+  --accent:      #22d3ee;
+  --accent-hover:#0891b2;
+  --accent-dim:  #164e63;
+  --text:        #f1f5f9;
+  --muted:       #94a3b8;
+  --error:       #f87171;
+  --success:     #4ade80;
+  --warning:     #fbbf24;
+  --danger:      #ef4444;
+  --danger-hover:#dc2626;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { font-size: 16px; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+               Roboto, "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.6;
+  min-height: 100vh;
+  padding: 2rem 1rem;
+}
+
+.page-wrapper {
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+/* ── Header ── */
+.site-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.site-logo {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: -0.5px;
+  text-decoration: none;
+}
+
+.site-logo span {
+  color: var(--text);
+  font-weight: 400;
+}
+
+.version-badge {
+  font-size: 0.7rem;
+  background: var(--surface-2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  vertical-align: middle;
+}
+
+/* ── Card ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.card-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+
+.card-subtitle {
+  color: var(--muted);
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+}
+
+/* ── Benefits strip ── */
+.benefits-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.75rem;
+}
+
+.benefit-item {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  text-align: center;
+  font-size: 0.82rem;
+}
+
+.benefit-icon { font-size: 1.25rem; display: block; margin-bottom: 0.25rem; }
+.benefit-label { color: var(--muted); font-size: 0.75rem; }
+
+/* ── Form elements ── */
+.field { margin-bottom: 1.25rem; }
+
+label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 0.375rem;
+}
+
+.optional-tag {
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 400;
+  margin-left: 0.25rem;
+}
+
+input[type="email"],
+input[type="text"],
+select,
+textarea {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-family: inherit;
+  padding: 0.625rem 0.875rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+input[type="email"]:focus,
+input[type="text"]:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+input[type="email"]::placeholder,
+input[type="text"]::placeholder,
+textarea::placeholder { color: var(--muted); }
+
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.875rem center;
+  padding-right: 2.25rem;
+}
+
+select option { background: var(--surface); }
+
+textarea { resize: vertical; min-height: 100px; }
+
+.char-count {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: right;
+  margin-top: 0.25rem;
+}
+
+/* ── Consent block (Z-Protocol v1.1) ── */
+.consent-block {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  background: var(--surface-2);
+}
+
+.consent-block legend {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0 0.375rem;
+}
+
+.consent-note {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-bottom: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.checkbox-row:last-child { margin-bottom: 0; }
+
+.checkbox-row input[type="checkbox"] {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.checkbox-row label {
+  margin-bottom: 0;
+  font-weight: 400;
+  cursor: pointer;
+  line-height: 1.5;
+}
+
+.checkbox-row a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.checkbox-row a:hover { color: var(--accent-hover); }
+
+.required-marker { color: var(--error); margin-left: 1px; }
+.optional-row label { color: var(--muted); }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s, transform 0.1s;
+  font-family: inherit;
+  text-decoration: none;
+  width: 100%;
+}
+
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.btn-primary {
+  background: var(--accent);
+  color: #020617;
+}
+
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); color: #fff; }
+
+.btn-secondary {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  width: auto;
+  font-size: 0.8rem;
+  padding: 0.375rem 0.875rem;
+}
+
+.btn-secondary:hover:not(:disabled) { background: var(--border); }
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn-danger:hover:not(:disabled) { background: var(--danger-hover); }
+
+/* ── Alerts ── */
+.alert {
+  display: flex;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.alert-error {
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  color: var(--error);
+}
+
+.alert-success {
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  color: var(--success);
+}
+
+.alert-warning {
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  color: var(--warning);
+}
+
+/* ── UUID display ── */
+.uuid-box {
+  background: var(--bg);
+  border: 1px solid var(--accent-dim);
+  border-radius: 8px;
+  padding: 0.875rem 1rem;
+  margin: 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.uuid-code {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.88rem;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+  flex: 1;
+  word-break: break-all;
+}
+
+.copy-confirm {
+  font-size: 0.75rem;
+  color: var(--success);
+  margin-top: 0.25rem;
+}
+
+/* ── Success state ── */
+.success-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.success-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  background: rgba(74, 222, 128, 0.15);
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.success-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--success);
+}
+
+.benefits-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0.75rem 0 1.25rem;
+}
+
+.benefits-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.benefits-list li::before {
+  content: "✓";
+  color: var(--success);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.uuid-save-notice {
+  font-size: 0.82rem;
+  color: var(--warning);
+  margin-top: 0.25rem;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.25rem 0;
+}
+
+.optout-notice {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.optout-notice a { color: var(--muted); text-decoration: underline; }
+.optout-notice a:hover { color: var(--error); }
+
+/* ── Deletion info ── */
+.deletion-info {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.deletion-info h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.625rem;
+}
+
+.deletion-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin-bottom: 0.75rem;
+}
+
+.deletion-list li {
+  font-size: 0.875rem;
+  color: var(--muted);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.deletion-list li::before {
+  content: "×";
+  color: var(--error);
+  font-weight: 700;
+}
+
+.deletion-note {
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.deletion-note a { color: var(--accent); }
+
+/* ── Footer ── */
+.page-footer {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+}
+
+.page-footer a { color: var(--muted); text-decoration: underline; }
+.page-footer a:hover { color: var(--accent); }
+
+/* ── Utility ── */
+.hidden { display: none !important; }
+.muted { color: var(--muted); }
+.text-sm { font-size: 0.875rem; }
+
+/* ── Loading spinner ── */
+.spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(2, 6, 23, 0.3);
+  border-top-color: #020617;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  body { padding: 1rem 0.75rem; }
+  .card { padding: 1.5rem 1.25rem; }
+  .benefits-strip { grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+  .benefit-item { padding: 0.5rem 0.25rem; font-size: 0.75rem; }
+  .benefit-icon { font-size: 1rem; }
+}
+"""
+
+
+# ── HTML shell ────────────────────────────────────────────────────────────────
+
+def _shell(title: str, body: str, script: str = "") -> str:
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>{title} — VerifiMind-PEAS</title>
+  <style>{_CSS}</style>
+</head>
+<body>
+<div class="page-wrapper">
+
+  <header class="site-header">
+    <a class="site-logo" href="https://verifimind.ysenseai.org">
+      VerifiMind<span>-PEAS</span>
+    </a>
+    <span class="version-badge">v0.5.6 Gateway</span>
+  </header>
+
+  {body}
+
+  <footer class="page-footer">
+    <p>
+      <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> &nbsp;·&nbsp;
+      <a href="/terms" target="_blank" rel="noopener">Terms &amp; Conditions</a> &nbsp;·&nbsp;
+      <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS" target="_blank" rel="noopener">GitHub</a>
+    </p>
+    <p style="margin-top:0.5rem">Z-Protocol v1.1 · GDPR/PDPA Compliant · Open Source (MIT)</p>
+  </footer>
+
+</div>
+<script>{script}</script>
+</body>
+</html>"""
+
+
+# ── Register page ─────────────────────────────────────────────────────────────
+
+_REGISTER_BODY = """
+<div class="card">
+  <h1 class="card-title">Join as an Early Adopter</h1>
+  <p class="card-subtitle">
+    Register for free priority access to VerifiMind-PEAS v0.6.0-Beta
+    when it launches. No credit card required.
+  </p>
+
+  <div class="benefits-strip">
+    <div class="benefit-item">
+      <span class="benefit-icon">&#x23F0;</span>
+      <strong>3 months free</strong>
+      <div class="benefit-label">Pioneer tier</div>
+    </div>
+    <div class="benefit-item">
+      <span class="benefit-icon">&#x1F9EA;</span>
+      <strong>Beta access</strong>
+      <div class="benefit-label">v0.6.0 Pioneer</div>
+    </div>
+    <div class="benefit-item">
+      <span class="benefit-icon">&#x1F4AC;</span>
+      <strong>Shape it</strong>
+      <div class="benefit-label">Direct feedback</div>
+    </div>
+  </div>
+
+  <!-- ── Registration form ── -->
+  <form id="register-form" novalidate>
+
+    <div class="field">
+      <label for="email">Email address <span class="required-marker">*</span></label>
+      <input id="email" name="email" type="email" required
+             autocomplete="email" placeholder="you@example.com">
+    </div>
+
+    <div class="field">
+      <label for="name">
+        Name <span class="optional-tag">(optional)</span>
+      </label>
+      <input id="name" name="name" type="text" maxlength="100"
+             autocomplete="name" placeholder="Your name">
+    </div>
+
+    <div class="field">
+      <label for="feedback_type">I am a...</label>
+      <select id="feedback_type" name="feedback_type">
+        <option value="">&#x2014; Select (optional) &#x2014;</option>
+        <option value="new_user">New user, curious about VerifiMind</option>
+        <option value="returning_user">Returning user of VerifiMind</option>
+        <option value="recommendation">Here to recommend VerifiMind</option>
+        <option value="issue">Reporting an issue or suggestion</option>
+        <option value="general">General interest</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="feedback">
+        Tell us about yourself or your use case
+        <span class="optional-tag">(optional)</span>
+      </label>
+      <textarea id="feedback" name="feedback" maxlength="1000" rows="4"
+                placeholder="What are you building? How did you find VerifiMind? Any feedback for the team?"></textarea>
+      <div class="char-count" id="char-count" aria-live="polite">0 / 1000</div>
+    </div>
+
+    <!-- ── Consent block — Z-Protocol v1.1 ── -->
+    <fieldset class="consent-block">
+      <legend>Consent</legend>
+      <p class="consent-note">
+        We collect only what is necessary. You can opt out at any time.
+        Your data is stored on Google Cloud (EU-US region) and never sold.
+      </p>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="tc_accepted" name="tc_accepted" required>
+        <label for="tc_accepted">
+          I have read and accept the
+          <a href="/terms" target="_blank" rel="noopener">Terms &amp; Conditions</a>
+          <span class="required-marker">*</span>
+        </label>
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="privacy_acknowledged" name="privacy_acknowledged" required>
+        <label for="privacy_acknowledged">
+          I have read and acknowledge the
+          <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>
+          <span class="required-marker">*</span>
+        </label>
+      </div>
+
+      <div class="checkbox-row optional-row">
+        <input type="checkbox" id="updates_consent" name="updates_consent">
+        <label for="updates_consent">
+          I&rsquo;d like to receive product updates by email
+          <span class="optional-tag">(optional)</span>
+        </label>
+      </div>
+    </fieldset>
+
+    <div id="form-error" class="alert alert-error hidden" role="alert" aria-live="assertive"></div>
+
+    <button type="submit" id="submit-btn" class="btn btn-primary">
+      Register as Early Adopter
+    </button>
+
+  </form>
+
+  <!-- ── Success state (shown after successful registration) ── -->
+  <div id="success-state" class="hidden">
+    <div class="success-header">
+      <div class="success-icon">&#x2713;</div>
+      <div class="success-title">Registration complete!</div>
+    </div>
+
+    <p class="text-sm muted" style="margin-bottom:0.25rem">Your Early Adopter UUID:</p>
+    <div class="uuid-box">
+      <code class="uuid-code" id="uuid-value"></code>
+      <button id="copy-btn" class="btn btn-secondary" type="button">Copy</button>
+    </div>
+    <div class="uuid-save-notice" id="copy-confirm">
+      &#x26A0;&#xFE0F; Save this UUID &mdash; you will need it to check your status or opt out.
+    </div>
+
+    <ul class="benefits-list" id="benefits-list"></ul>
+
+    <hr class="divider">
+    <p class="optout-notice">
+      You can
+      <a href="/optout">opt out and delete your data</a>
+      at any time &mdash; no questions asked.
+    </p>
+  </div>
+</div>
+
+<!-- Already registered? -->
+<div class="card" style="padding: 1rem 1.5rem;">
+  <p class="text-sm muted">
+    Already registered?
+    Use <a href="/early-adopters/status/" style="color: var(--accent)">
+      /early-adopters/status/{uuid}
+    </a>
+    to check your status.
+    &nbsp;&middot;&nbsp;
+    <a href="/optout" style="color: var(--muted)">Opt out</a>
+  </p>
+</div>
+"""
+
+_REGISTER_SCRIPT = r"""
+// Character counter
+var feedbackArea = document.getElementById('feedback');
+var charCount = document.getElementById('char-count');
+feedbackArea.addEventListener('input', function() {
+  charCount.textContent = this.value.length + ' / 1000';
+});
+
+// Form submission
+document.getElementById('register-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  var btn = document.getElementById('submit-btn');
+  var errDiv = document.getElementById('form-error');
+  var tcBox = document.getElementById('tc_accepted');
+  var privBox = document.getElementById('privacy_acknowledged');
+
+  // Z-Protocol client-side gate (mirrors server Pydantic validators)
+  errDiv.classList.add('hidden');
+  if (!tcBox.checked || !privBox.checked) {
+    errDiv.textContent = 'You must accept the Terms & Conditions and Privacy Policy to register.';
+    errDiv.classList.remove('hidden');
+    return;
+  }
+
+  var email = document.getElementById('email').value.trim();
+  if (!email) {
+    errDiv.textContent = 'Email address is required.';
+    errDiv.classList.remove('hidden');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>&nbsp;Registering\u2026';
+
+  var feedbackType = document.getElementById('feedback_type').value;
+  var feedback = feedbackArea.value.trim();
+  var name = document.getElementById('name').value.trim();
+
+  var payload = {
+    email: email,
+    tc_accepted: true,
+    privacy_acknowledged: true,
+    updates_consent: document.getElementById('updates_consent').checked,
+  };
+  if (name) payload.name = name;
+  if (feedback) payload.feedback = feedback;
+  if (feedbackType) payload.feedback_type = feedbackType;
+
+  try {
+    var resp = await fetch('/early-adopters/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    var data = await resp.json();
+
+    if (resp.ok || resp.status === 201) {
+      // Show success state — textContent only (XSS-safe)
+      document.getElementById('register-form').classList.add('hidden');
+      var successDiv = document.getElementById('success-state');
+      successDiv.classList.remove('hidden');
+
+      document.getElementById('uuid-value').textContent = data.uuid;
+
+      var list = document.getElementById('benefits-list');
+      var benefits = [
+        'Tier: ' + (data.tier || 'early_adopter'),
+        'v0.6.0 Beta free until: ' + (data.benefits_free_until
+            ? data.benefits_free_until.split('T')[0] : 'n/a'),
+        'T\u0026C version accepted: ' + (data.tc_version || '1.0'),
+        'Privacy Policy version: ' + (data.privacy_version || '1.0'),
+      ];
+      if (data.feedback_received) {
+        benefits.push('Feedback received \u2014 thank you!');
+      }
+      benefits.forEach(function(text) {
+        var li = document.createElement('li');
+        li.textContent = text;
+        list.appendChild(li);
+      });
+
+    } else {
+      // Error path — textContent prevents reflected XSS
+      var msg = 'Registration failed. Please check your details and try again.';
+      if (data.detail) {
+        if (Array.isArray(data.detail)) {
+          msg = data.detail.map(function(d) {
+            return d.msg || String(d);
+          }).join(' ');
+        } else {
+          msg = String(data.detail);
+        }
+      } else if (data.error) {
+        msg = String(data.error);
+      }
+      errDiv.textContent = msg;
+      errDiv.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'Register as Early Adopter';
+    }
+
+  } catch (err) {
+    errDiv.textContent = 'Network error \u2014 please check your connection and try again.';
+    errDiv.classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'Register as Early Adopter';
+  }
+});
+
+// Copy UUID to clipboard
+document.getElementById('copy-btn').addEventListener('click', async function() {
+  var uuid = document.getElementById('uuid-value').textContent;
+  var confirmEl = document.getElementById('copy-confirm');
+
+  try {
+    await navigator.clipboard.writeText(uuid);
+    confirmEl.textContent = '\u2713 Copied to clipboard!';
+    confirmEl.style.color = 'var(--success)';
+  } catch (_) {
+    // Fallback for older browsers / HTTP
+    var inp = document.createElement('input');
+    inp.value = uuid;
+    inp.style.position = 'fixed';
+    inp.style.opacity = '0';
+    document.body.appendChild(inp);
+    inp.select();
+    try { document.execCommand('copy'); } catch (_) {}
+    document.body.removeChild(inp);
+    confirmEl.textContent = '\u2713 Copied!';
+    confirmEl.style.color = 'var(--success)';
+  }
+
+  setTimeout(function() {
+    confirmEl.textContent = '\u26A0\uFE0F Save this UUID \u2014 you will need it to check your status or opt out.';
+    confirmEl.style.color = 'var(--warning)';
+  }, 3000);
+});
+"""
+
+
+# ── Opt-out page ──────────────────────────────────────────────────────────────
+
+_OPTOUT_BODY = """
+<div class="card">
+  <h1 class="card-title">Opt Out &amp; Data Deletion</h1>
+  <p class="card-subtitle">
+    Request permanent deletion of your Early Adopter data.
+    This is your GDPR / PDPA right to erasure.
+  </p>
+
+  <div class="deletion-info">
+    <h3>What gets deleted</h3>
+    <ul class="deletion-list">
+      <li>Your email address</li>
+      <li>Your name (if provided)</li>
+      <li>Your registration feedback</li>
+      <li>Your consent records</li>
+      <li>Your EA tier and benefits status</li>
+    </ul>
+    <p class="deletion-note">
+      Deletion is processed within <strong>7 business days</strong> per our
+      <a href="/privacy" target="_blank" rel="noopener">Privacy Policy v1.0</a>.
+      Your UUID is retained in pseudonymised form for audit log integrity only
+      &mdash; no personal data is attached after deletion.
+    </p>
+  </div>
+
+  <!-- ── Opt-out form ── -->
+  <form id="optout-form" novalidate>
+
+    <div class="field">
+      <label for="uuid">
+        Your Early Adopter UUID <span class="required-marker">*</span>
+      </label>
+      <input id="uuid" name="uuid" type="text" required
+             placeholder="xxxxxxxx-xxxx-7xxx-xxxx-xxxxxxxxxxxx"
+             autocomplete="off" spellcheck="false"
+             style="font-family: monospace; letter-spacing: 0.02em;">
+      <p class="text-sm muted" style="margin-top:0.375rem">
+        You received this UUID when you registered.
+        Check your notes or visit
+        <code style="font-size:0.8rem; color: var(--accent)">/early-adopters/status/{uuid}</code>.
+      </p>
+    </div>
+
+    <div class="field">
+      <fieldset class="consent-block">
+        <legend>Confirm deletion</legend>
+        <p class="consent-note">
+          This action cannot be undone. Your EA benefits will be cancelled
+          and your data purged within 7 business days.
+        </p>
+        <div class="checkbox-row">
+          <input type="checkbox" id="confirmed" name="confirmed" required>
+          <label for="confirmed">
+            I confirm I want to permanently delete my Early Adopter account
+            and all associated personal data.
+            <span class="required-marker">*</span>
+          </label>
+        </div>
+      </fieldset>
+    </div>
+
+    <div id="form-error" class="alert alert-error hidden" role="alert" aria-live="assertive"></div>
+
+    <button type="submit" id="delete-btn" class="btn btn-danger">
+      Delete My Data
+    </button>
+
+  </form>
+
+  <!-- ── Success state ── -->
+  <div id="success-state" class="hidden">
+    <div class="success-header">
+      <div class="success-icon" style="background: rgba(74,222,128,0.15); border-color: rgba(74,222,128,0.3);">&#x2713;</div>
+      <div class="success-title">Deletion request received</div>
+    </div>
+    <div class="alert alert-success" id="deletion-message"></div>
+    <p class="text-sm muted" style="margin-bottom: 1rem">
+      Scheduled within: <strong id="deletion-timeline"></strong>
+    </p>
+    <p class="text-sm muted">
+      Changed your mind?
+      <a href="/register" style="color: var(--accent)">Register again here.</a>
+    </p>
+  </div>
+</div>
+
+<div class="card" style="padding: 1rem 1.5rem;">
+  <p class="text-sm muted">
+    Not trying to delete your account?
+    <a href="/register" style="color: var(--accent)">Register as an Early Adopter</a>
+    &nbsp;&middot;&nbsp;
+    <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions"
+       target="_blank" rel="noopener" style="color: var(--muted)">Get help on GitHub</a>
+  </p>
+</div>
+"""
+
+_OPTOUT_SCRIPT = r"""
+document.getElementById('optout-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  var btn = document.getElementById('delete-btn');
+  var errDiv = document.getElementById('form-error');
+  var uuid = document.getElementById('uuid').value.trim();
+  var confirmed = document.getElementById('confirmed').checked;
+
+  errDiv.classList.add('hidden');
+
+  if (!uuid) {
+    errDiv.textContent = 'Please enter your Early Adopter UUID.';
+    errDiv.classList.remove('hidden');
+    return;
+  }
+
+  if (!confirmed) {
+    errDiv.textContent = 'Please confirm that you want to delete your data.';
+    errDiv.classList.remove('hidden');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner" style="border-top-color:#fff"></span>&nbsp;Processing\u2026';
+
+  try {
+    var resp = await fetch('/early-adopters/optout/' + encodeURIComponent(uuid), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': '0' },
+    });
+
+    var data = await resp.json();
+
+    if (resp.ok) {
+      document.getElementById('optout-form').classList.add('hidden');
+      var successDiv = document.getElementById('success-state');
+      successDiv.classList.remove('hidden');
+
+      // textContent only — XSS-safe
+      var msgEl = document.getElementById('deletion-message');
+      msgEl.textContent = data.message
+        || 'Your deletion request has been recorded. Personal data will be purged within 7 business days.';
+
+      document.getElementById('deletion-timeline').textContent =
+        data.deletion_scheduled_within || '7 business days';
+
+    } else {
+      var msg = 'Opt-out request failed.';
+      if (data.error) msg = String(data.error);
+      else if (data.detail) msg = String(data.detail);
+      errDiv.textContent = msg;
+      errDiv.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'Delete My Data';
+    }
+
+  } catch (err) {
+    errDiv.textContent = 'Network error \u2014 please check your connection and try again.';
+    errDiv.classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'Delete My Data';
+  }
+});
+"""
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
+
+def get_register_page() -> str:
+    """Return the full HTML for GET /register."""
+    return _shell(
+        title="Early Adopter Registration",
+        body=_REGISTER_BODY,
+        script=_REGISTER_SCRIPT,
+    )
+
+
+def get_optout_page() -> str:
+    """Return the full HTML for GET /optout."""
+    return _shell(
+        title="Opt Out & Data Deletion",
+        body=_OPTOUT_BODY,
+        script=_OPTOUT_SCRIPT,
+    )

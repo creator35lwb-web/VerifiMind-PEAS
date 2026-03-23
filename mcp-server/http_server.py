@@ -45,6 +45,7 @@ from verifimind_mcp.registration import (
     process_optout,
 )
 from verifimind_mcp.policies import PRIVACY_POLICY, TERMS_AND_CONDITIONS
+from verifimind_mcp.pages import get_register_page, get_optout_page
 
 # Create MCP server instance
 mcp_server = create_http_server()
@@ -920,6 +921,16 @@ async def terms_handler(request):
     return PlainTextResponse(TERMS_AND_CONDITIONS)
 
 
+async def register_page_handler(request):
+    """GET /register — Early Adopter registration UI (Z-Protocol v1.1 consent-first)."""
+    return HTMLResponse(get_register_page())
+
+
+async def optout_page_handler(request):
+    """GET /optout — Early Adopter data deletion UI (Z-Protocol v1.1 right to erasure)."""
+    return HTMLResponse(get_optout_page())
+
+
 # Create Starlette app with proper lifespan from MCP app
 app = Starlette(
     routes=[
@@ -938,6 +949,9 @@ app = Starlette(
         Route("/early-adopters/optout/{uuid}", ea_optout_handler, methods=["POST"]),
         Route("/privacy", privacy_handler, methods=["GET"]),
         Route("/terms", terms_handler, methods=["GET"]),
+        # v0.5.6 UI: human-readable registration and opt-out pages
+        Route("/register", register_page_handler, methods=["GET"]),
+        Route("/optout", optout_page_handler, methods=["GET"]),
         Mount("/mcp", app=mcp_app),
     ],
     lifespan=mcp_app.lifespan,  # CRITICAL: Pass lifespan for session initialization
