@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.5.5"
+SERVER_VERSION = "0.5.6"
 
 
 def wrap_response(response: dict) -> dict:
