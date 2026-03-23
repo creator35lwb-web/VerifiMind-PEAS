@@ -167,13 +167,14 @@ def _get_firestore():
     if _firestore_client is not None:
         return _firestore_client
 
+    project_id = os.environ.get("FIRESTORE_PROJECT_ID") or os.environ.get("GOOGLE_CLOUD_PROJECT")
+    if not project_id:
+        logger.info("No FIRESTORE_PROJECT_ID configured — EA registration running without persistent storage")
+        return None
+
     try:
         from google.cloud import firestore  # type: ignore
-        project_id = os.environ.get("FIRESTORE_PROJECT_ID") or os.environ.get("GOOGLE_CLOUD_PROJECT")
-        if project_id:
-            _firestore_client = firestore.Client(project=project_id)
-        else:
-            _firestore_client = firestore.Client()
+        _firestore_client = firestore.Client(project=project_id)
         logger.info("Firestore client initialized")
         return _firestore_client
     except Exception as e:
