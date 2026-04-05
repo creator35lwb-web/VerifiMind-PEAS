@@ -706,6 +706,31 @@ _REGISTER_BODY = """
 """
 
 _REGISTER_SCRIPT = r"""
+// ── Pilot tier detection (page load) ──────────────────────────────────────────
+// If ?invite= param is present the user arrived via SYSTEM_NOTICE Pilot link.
+// We optimistically show Pilot benefits (6 months); server validates the code.
+(function() {
+  var hasInvite = !!new URLSearchParams(window.location.search).get('invite');
+  if (hasInvite) {
+    // Update page title
+    var cardTitle = document.querySelector('.card-title');
+    if (cardTitle) cardTitle.textContent = 'Join as a Pilot Member';
+
+    // Update subtitle
+    var sub = document.querySelector('.card-subtitle');
+    if (sub) sub.textContent = 'You have been invited to join the exclusive Pilot Program — 6 months FREE v0.6.0-Beta access. No credit card required.';
+
+    // Update benefits strip: 6 months free + Pilot cohort (50 slots)
+    var strip = document.querySelector('.benefits-strip');
+    if (strip) {
+      strip.innerHTML =
+        '<div class="benefit-item"><span class="benefit-icon">&#x23F0;</span><strong>6 months free</strong><div class="benefit-label">Pilot tier</div></div>' +
+        '<div class="benefit-item"><span class="benefit-icon">&#x1F9EA;</span><strong>Beta access</strong><div class="benefit-label">v0.6.0 Pilot</div></div>' +
+        '<div class="benefit-item"><span class="benefit-icon">&#x1F511;</span><strong>50-slot cohort</strong><div class="benefit-label">Founding members</div></div>';
+    }
+  }
+})();
+
 // Character counter
 var feedbackArea = document.getElementById('feedback');
 var charCount = document.getElementById('char-count');

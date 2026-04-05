@@ -1,17 +1,19 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** March 13, 2026
+**Last Updated:** April 5, 2026
 
 ---
 
 ## Current Status: Operational
 
-**v0.5.4 "Creator-Centric X Agent" deployed successfully on March 13, 2026**
+**v0.5.7 "Two-Tier Pioneer" deployed successfully on April 5, 2026**
 
 The VerifiMind MCP server is fully operational with the following capabilities:
 
 - 10 MCP tools (4 core validation + 6 template management)
 - 19 pre-built prompt templates across 6 libraries
+- **Two-Tier Pioneer Program (v0.5.7)**: Pilot (invite-only, 6 months free, 50 slots) + Early Adopter (public, 3 months free, 100 slots). Pilot tier assigned via `PILOT_INVITE_CODE` env var — never hardcoded. `SlotCapReachedError` → 410 Gone with waitlist message. Tier badge + benefit summary on registration success.
+- **SYSTEM_NOTICE Sanitization (v0.5.7)**: 280-char max, allow-list `[A-Za-z0-9 .,!?'"-()/:@#]`, URL domain allow-list (`verifimind.ysenseai.org`, `verifimind.io`, `ysenseai.org`). Safe to activate after IAM lockdown (Track D).
 - **X Agent v4.3 (v0.5.4)**: Removed VerifiMind internal bias — X now evaluates any concept from the CREATOR's perspective. Dynamic `market_competition` block (real competitors in the concept's own domain). `founder_summary` plain-language synthesis with `verdict`, `what_works`, `things_to_address`, `next_steps`. `research_prompts`: 2-3 ready-to-paste Perplexity/Grok queries for deeper market validation.
 - **Token Ceiling Monitor (v0.5.3)**: Z Agent response token tracking — `_z_token_monitor` field in every `run_full_trinity` response with `risk_level` (LOW/MEDIUM/HIGH/CRITICAL), `utilization %`, and `truncated` flag. Server-side WARNING logs on HIGH/CRITICAL.
 - **404 Retention Fix (AY COO Report 041)**: Catch-all 404 handler returns actionable JSON with correct MCP endpoint + troubleshooting link — targets 70% drop-off from misconfigured MCP clients.
@@ -20,8 +22,8 @@ The VerifiMind MCP server is fully operational with the following capabilities:
 - **CS Agent v1.1**: 6-stage, 12-dimension + `stage` + `standards_cited[]` per step, `stages_completed`, `dimensions_evaluated`, `macp_security_assessment`
 - Input sanitization active on all tools
 - Gemini 2.5-flash as default FREE provider
-- Rate limiting and EDoS protection active
-- GCP Cloud Run revision `verifimind-mcp-server-00265-29b`
+- Rate limiting and EDoS protection active (registration endpoint exempt)
+- GCP Cloud Run revision `verifimind-mcp-server-00286-xg6`
 - CI/CD pipeline passing (GitHub Actions — all 7 checks pass)
 
 ---
@@ -32,11 +34,24 @@ The VerifiMind MCP server is fully operational with the following capabilities:
 |----------|-------|
 | **Endpoint** | `https://verifimind.ysenseai.org/mcp` |
 | **Health Check** | `https://verifimind.ysenseai.org/health` |
-| **Server Version** | 0.5.4 "Creator-Centric" (deployed March 13, 2026) |
+| **Register** | `https://verifimind.ysenseai.org/register` |
+| **Server Version** | 0.5.7 "Two-Tier Pioneer" (deployed April 5, 2026) |
 | **Transport** | Streamable HTTP (SSE) |
 | **Default Provider** | Gemini 2.5-flash (FREE) |
 | **BYOK Providers** | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama, Perplexity |
 | **Monthly Cost** | $0 (GCP free tier) |
+
+---
+
+## Pioneer Program Status
+
+| Tier | Slots Used | Max Slots | Free Months | Access |
+|------|-----------|-----------|-------------|--------|
+| **Pilot** | 1 | 50 | 6 months | Invite code via SYSTEM_NOTICE (active MCP users) |
+| **Early Adopter** | 0 | 100 | 3 months | Public — `/register` |
+
+**Waitlist:** Email `alton@ysenseai.org` or DM `@creator35lwb` on X
+**Benefits active from:** v0.6.0-Beta launch (targeted June 2026)
 
 ---
 
@@ -48,6 +63,17 @@ The VerifiMind MCP server is fully operational with the following capabilities:
 | **Error Rate Alert** | ✅ Active | Threshold: >50 errors in 5 minutes |
 | **Traffic Spike Alert** | ✅ Active | Threshold: >500 requests in 1 hour |
 | **CI/CD Pipeline** | ✅ Passing | Unit tests, Bandit, Safety |
+
+---
+
+## Pending Activation (Alton — GCP Console)
+
+| Action | Priority | Blocker for |
+|--------|----------|-------------|
+| GCP IAM lockdown (Track D) | **HIGH** | SYSTEM_NOTICE activation (Track E) |
+| Rotate `GEMINI_API_KEY` + `GROQ_API_KEY` | **HIGH** | Security (exposed Mar 24) |
+| Set `PILOT_INVITE_CODE` env var | After Track D | Pilot tier invite flow |
+| Set `SYSTEM_NOTICE` env var | After Track D + deploy | Track E (EA cohort invite) |
 
 ---
 
@@ -82,16 +108,10 @@ If you experience connectivity issues:
 
 | Version | Blind Tests | Gate | Released |
 |---------|-------------|------|---------|
+| **v0.5.7 "Two-Tier Pioneer"** | — | ✅ **CI PASSED** | April 5, 2026 |
+| **v0.5.6 "Gateway"** | CI passing | ✅ **PASSED** | March 23, 2026 |
 | **v0.5.2 "Sentinel-Verified"** | 11/11 correct outcomes (L, March 9, 2026) | ✅ **PASSED** | March 9, 2026 |
 | v0.5.1 "Sentinel" | Blind #1: partial citations | ⚠️ Gate open | March 7, 2026 |
-
-**v0.5.2 Release Gate Evidence (L — March 9, 2026):**
-- 11 Trinity runs across 8 distinct concepts — zero misclassifications
-- Z Guardian veto triggers correctly on ethical red lines
-- CS Security: 6-stage pipeline confirmed, "10 agentic-specific threats" (OWASP), reasoning-layer audit active
-- Framework citation strategy: compressed codes + selective citation working as token-efficiency anchors
-- 45.8% token headroom below 8,192 ceiling (Strategy 1+2 confirmed)
-- Pending v0.5.3: Token Ceiling Monitor (Strategy 3) — non-blocking
 
 ---
 
@@ -99,6 +119,11 @@ If you experience connectivity issues:
 
 | Date | Action | Version | Status |
 |------|--------|---------|--------|
+| Apr 5, 2026 | Two-tier Pioneer Program (Pilot + EA), SYSTEM_NOTICE sanitization | v0.5.7 | Complete |
+| Mar 23, 2026 | UUID + EA registration (Firestore), /register + /optout UI, MCP Registry v2.3.0 | v0.5.6 | Complete |
+| Mar 13, 2026 | TrinitySynthesis Pydantic schema fix (founder_summary field) | v0.5.5 | Complete |
+| Mar 13, 2026 | X Agent v4.3 + founder_summary + research_prompts | v0.5.4 | Complete |
+| Mar 12, 2026 | Token Ceiling Monitor (Z Agent) | v0.5.3 | Complete |
 | Mar 9, 2026 | Genesis v4.2 + v0.5.2 deployed — Release Gate PASSED | v0.5.2 | Complete |
 | Mar 7, 2026 | Z-Protocol v1.1 Sentinel + CS Agent v1.1 deployed | v0.5.1 | Complete |
 | Mar 1, 2026 | BYOK v2 (per-agent keys) + SessionContext deployed | v0.5.0 | Complete |
