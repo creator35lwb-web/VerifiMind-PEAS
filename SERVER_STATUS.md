@@ -6,25 +6,28 @@
 
 ## Current Status: Operational
 
-**v0.5.7 "Two-Tier Pioneer" deployed successfully on April 5, 2026**
+**v0.5.10 "Trinity Verified" deployed successfully on April 5, 2026**
 
-The VerifiMind MCP server is fully operational with the following capabilities:
+The VerifiMind MCP server is fully operational with three-provider Trinity architecture (Gemini × Anthropic × Anthropic). All Claude.ai blind tests pass. Zero timeouts.
 
 - 10 MCP tools (4 core validation + 6 template management)
 - 19 pre-built prompt templates across 6 libraries
-- **Two-Tier Pioneer Program (v0.5.7)**: Pilot (invite-only, 6 months free, 50 slots) + Early Adopter (public, 3 months free, 100 slots). Pilot tier assigned via `PILOT_INVITE_CODE` env var — never hardcoded. `SlotCapReachedError` → 410 Gone with waitlist message. Tier badge + benefit summary on registration success.
-- **SYSTEM_NOTICE Sanitization (v0.5.7)**: 280-char max, allow-list `[A-Za-z0-9 .,!?'"-()/:@#]`, URL domain allow-list (`verifimind.ysenseai.org`, `verifimind.io`, `ysenseai.org`). Safe to activate after IAM lockdown (Track D).
-- **X Agent v4.3 (v0.5.4)**: Removed VerifiMind internal bias — X now evaluates any concept from the CREATOR's perspective. Dynamic `market_competition` block (real competitors in the concept's own domain). `founder_summary` plain-language synthesis with `verdict`, `what_works`, `things_to_address`, `next_steps`. `research_prompts`: 2-3 ready-to-paste Perplexity/Grok queries for deeper market validation.
-- **Token Ceiling Monitor (v0.5.3)**: Z Agent response token tracking — `_z_token_monitor` field in every `run_full_trinity` response with `risk_level` (LOW/MEDIUM/HIGH/CRITICAL), `utilization %`, and `truncated` flag. Server-side WARNING logs on HIGH/CRITICAL.
-- **404 Retention Fix (AY COO Report 041)**: Catch-all 404 handler returns actionable JSON with correct MCP endpoint + troubleshooting link — targets 70% drop-off from misconfigured MCP clients.
-- **Genesis v4.2 "Sentinel-Verified"**: Forced citation patterns — Z Guardian and CS Security now cite specific framework names in every reasoning step output
-- **Z-Protocol v1.1**: 21 frameworks, 4 tiers + `frameworks_cited[]` per step, `scoring_breakdown`, `applicable_frameworks` by tier
-- **CS Agent v1.1**: 6-stage, 12-dimension + `stage` + `standards_cited[]` per step, `stages_completed`, `dimensions_evaluated`, `macp_security_assessment`
+- **Three-Provider Trinity (v0.5.10)**: X Agent on Gemini 2.5 Flash (FREE), Z Guardian + CS Security on Anthropic Claude (BYOK). Auto-routes when `anthropic-api-key` header present.
+- **Z Guardian Veto Hardened (v0.5.8)**: Code-enforced auto-veto at `ethics_score < 4.0` — never prompt-dilutable. EU AI Act Article 5 citations in veto decisions.
+- **Anthropic BYOK Fixed (v0.5.9)**: All model strings updated to Claude 4 family (`claude-sonnet-4-20250514`, `claude-haiku-4-5-20251001`, `claude-opus-4-20250514`). Models env-var configurable: `ANTHROPIC_MODEL`, `OPENAI_MODEL`.
+- **Trinity Token Fix (v0.5.8)**: Compressed prior reasoning (~17,900 → ~8,400 tokens) — safely under Groq 12K limit.
+- **Cloud Run 600s Timeout (v0.5.10)**: Anthropic Trinity chain takes ~200-300s — now completes reliably. Applies to all providers.
+- **Two-Tier Pioneer Program (v0.5.7)**: Pilot (invite-only, 6 months free, 50 slots) + Early Adopter (public, 3 months free, 100 slots).
+- **SYSTEM_NOTICE Active (v0.5.7)**: Pilot invite live — active MCP users see Pioneer Program invitation in every tool response.
+- **Score-Aware Verdicts**: Three distinct `founder_summary` tones mapped to score ranges (7.8 = "go build it", 6.9 = "address these first", 3.0 = "STOPPED: EU AI Act Art 5").
+- **X Agent v4.3 (v0.5.4)**: Creator-perspective evaluation, `founder_summary`, `research_prompts` (ready-to-paste Perplexity/Grok queries).
+- **Genesis v4.2 "Sentinel-Verified"**: Forced citation patterns — Z Guardian and CS Security cite specific framework names in every reasoning step.
+- **Z-Protocol v1.1**: 21 frameworks, 4 tiers + `frameworks_cited[]` per step, `scoring_breakdown`, `applicable_frameworks` by tier.
+- **CS Agent v1.1**: 6-stage, 12-dimension + `stage` + `standards_cited[]` per step, `stages_completed`, `dimensions_evaluated`.
 - Input sanitization active on all tools
-- Gemini 2.5-flash as default FREE provider
-- Rate limiting and EDoS protection active (registration endpoint exempt)
-- GCP Cloud Run revision `verifimind-mcp-server-00286-xg6`
-- CI/CD pipeline passing (GitHub Actions — all 7 checks pass)
+- Rate limiting and EDoS protection active
+- GCP Cloud Run revision `verifimind-mcp-server-00293-89r`
+- CI/CD pipeline passing (GitHub Actions — all tests pass)
 
 ---
 
@@ -35,11 +38,11 @@ The VerifiMind MCP server is fully operational with the following capabilities:
 | **Endpoint** | `https://verifimind.ysenseai.org/mcp` |
 | **Health Check** | `https://verifimind.ysenseai.org/health` |
 | **Register** | `https://verifimind.ysenseai.org/register` |
-| **Server Version** | 0.5.7 "Two-Tier Pioneer" (deployed April 5, 2026) |
+| **Server Version** | 0.5.10 "Trinity Verified" (deployed April 5, 2026) |
 | **Transport** | Streamable HTTP (SSE) |
 | **Default Provider** | Gemini 2.5-flash (FREE) |
 | **BYOK Providers** | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama, Perplexity |
-| **Monthly Cost** | $0 (GCP free tier) |
+| **Monthly Cost** | ~$0 normal usage (GCP free tier + Gemini free) |
 
 ---
 
@@ -50,8 +53,8 @@ The VerifiMind MCP server is fully operational with the following capabilities:
 | **Pilot** | 1 | 50 | 6 months | Invite code via SYSTEM_NOTICE (active MCP users) |
 | **Early Adopter** | 0 | 100 | 3 months | Public — `/register` |
 
-**Waitlist:** Email `alton@ysenseai.org` or DM `@creator35lwb` on X
 **Benefits active from:** v0.6.0-Beta launch (targeted June 2026)
+**Waitlist:** Email `alton@ysenseai.org` or DM `@creator35lwb` on X
 
 ---
 
@@ -66,48 +69,13 @@ The VerifiMind MCP server is fully operational with the following capabilities:
 
 ---
 
-## Pending Activation (Alton — GCP Console)
-
-| Action | Priority | Blocker for |
-|--------|----------|-------------|
-| GCP IAM lockdown (Track D) | **HIGH** | SYSTEM_NOTICE activation (Track E) |
-| Rotate `GEMINI_API_KEY` + `GROQ_API_KEY` | **HIGH** | Security (exposed Mar 24) |
-| Set `PILOT_INVITE_CODE` env var | After Track D | Pilot tier invite flow |
-| Set `SYSTEM_NOTICE` env var | After Track D + deploy | Track E (EA cohort invite) |
-
----
-
-## Resolved Issues
-
-### Issue #1: Gemini Model Deprecation
-**Status:** RESOLVED (v0.3.2, January 29, 2026)
-
-Google deprecated `gemini-2.0-flash-exp`. Updated default to `gemini-2.5-flash` (stable, FREE tier).
-
-### Issue #2: Input Sanitization
-**Status:** RESOLVED (v0.3.5, January 30, 2026)
-
-Added comprehensive input sanitization to all MCP tools. 29/29 unit tests passing.
-
----
-
-## Workarounds
-
-If you experience connectivity issues:
-
-1. **Verify URL**: Use `https://verifimind.ysenseai.org/mcp/` (with trailing slash)
-2. **Test connectivity**: `curl https://verifimind.ysenseai.org/mcp/`
-3. **Use BYOK**: Configure your own API keys for premium providers
-4. **Self-Host**: Run your own instance with your API keys
-
-**Full troubleshooting guide**: [MCP_Server_Troubleshooting_Guide.md](docs/MCP_Server_Troubleshooting_Guide.md)
-
----
-
 ## Release Gate Status
 
 | Version | Blind Tests | Gate | Released |
 |---------|-------------|------|---------|
+| **v0.5.10 "Trinity Verified"** | 3/3 (HireAI veto, Recipe Buddy proceed, Kuih proceed) — Alton, April 5, 2026 | ✅ **PASSED** | April 5, 2026 |
+| **v0.5.9 "BYOK Model Refresh"** | Anthropic BYOK unblocked | ✅ **PASSED** | April 5, 2026 |
+| **v0.5.8 "Trinity Restored"** | Trinity pipeline restored | ✅ **PASSED** | April 5, 2026 |
 | **v0.5.7 "Two-Tier Pioneer"** | — | ✅ **CI PASSED** | April 5, 2026 |
 | **v0.5.6 "Gateway"** | CI passing | ✅ **PASSED** | March 23, 2026 |
 | **v0.5.2 "Sentinel-Verified"** | 11/11 correct outcomes (L, March 9, 2026) | ✅ **PASSED** | March 9, 2026 |
@@ -119,7 +87,10 @@ If you experience connectivity issues:
 
 | Date | Action | Version | Status |
 |------|--------|---------|--------|
-| Apr 5, 2026 | Two-tier Pioneer Program (Pilot + EA), SYSTEM_NOTICE sanitization | v0.5.7 | Complete |
+| Apr 5, 2026 | Z max_tokens 8192→4096 + Cloud Run 600s timeout | v0.5.10 | Complete |
+| Apr 5, 2026 | Anthropic BYOK model refresh (Claude 4 family) + OpenAI model update | v0.5.9 | Complete |
+| Apr 5, 2026 | Trinity token overflow fix + Z Guardian veto hardened | v0.5.8 | Complete |
+| Apr 5, 2026 | Two-tier Pioneer Program + SYSTEM_NOTICE activation | v0.5.7 | Complete |
 | Mar 23, 2026 | UUID + EA registration (Firestore), /register + /optout UI, MCP Registry v2.3.0 | v0.5.6 | Complete |
 | Mar 13, 2026 | TrinitySynthesis Pydantic schema fix (founder_summary field) | v0.5.5 | Complete |
 | Mar 13, 2026 | X Agent v4.3 + founder_summary + research_prompts | v0.5.4 | Complete |
@@ -135,13 +106,35 @@ If you experience connectivity issues:
 
 ---
 
-## Updates
+## Resolved Issues
 
-For real-time updates:
+### Issue #1: Gemini Model Deprecation
+**Status:** RESOLVED (v0.3.2, January 29, 2026)
 
-- **GitHub Issues:** [Report or track issues](https://github.com/creator35lwb-web/VerifiMind-PEAS/issues)
-- **GitHub Discussions:** [Community support](https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions)
+### Issue #2: Input Sanitization
+**Status:** RESOLVED (v0.3.5, January 30, 2026)
+
+### Issue #3: Trinity Token Overflow (Groq 12K limit)
+**Status:** RESOLVED (v0.5.8, April 5, 2026)
+Compressed prior reasoning from ~17,900 → ~8,400 tokens.
+
+### Issue #4: Anthropic BYOK 404 (Retired Model Strings)
+**Status:** RESOLVED (v0.5.9, April 5, 2026)
+All Claude 3.x model IDs updated to Claude 4 family.
+
+### Issue #5: Cloud Run 60s Timeout (Anthropic Trinity)
+**Status:** RESOLVED (v0.5.10, April 5, 2026)
+Cloud Run timeout increased from 60s → 600s.
 
 ---
 
-*VerifiMind-PEAS FLYWHEEL TEAM*
+## Workarounds
+
+If you experience connectivity issues:
+
+1. **Verify URL**: Use `https://verifimind.ysenseai.org/mcp/` (with trailing slash)
+2. **Test connectivity**: `curl https://verifimind.ysenseai.org/mcp/`
+3. **Use BYOK**: Configure your own API keys for premium providers
+4. **Self-Host**: Run your own instance with your API keys
+
+**Full troubleshooting guide**: [MCP_Server_Troubleshooting_Guide.md](docs/MCP_Server_Troubleshooting_Guide.md)
