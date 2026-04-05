@@ -4,6 +4,110 @@ All notable changes to the VerifiMind PEAS project will be documented in this fi
 
 ---
 
+## v0.5.6 - Gateway (March 23, 2026)
+
+Early Adopter Registration Gateway deployed. Privacy Policy v1.0 + T&C v1.0. Z-Protocol consent-first design. PR #99.
+
+### Early Adopter Registration
+- **Registration Gateway** live at `verifimind.ysenseai.org/register` with consent-first Z-Protocol design
+- **Privacy Policy v1.0** and **Terms of Service v1.0** — T-reviewed, Z-Protocol compliant
+- **Opt-Out System** with UUID-based data deletion at `/optout`
+- **Firestore** as EA data store (native to GCP, free tier covers EA volume)
+
+### Phase 55 Metrics (Report 062 — W12 Fully Closed)
+
+| Metric | Value | Change from v0.5.5 |
+|--------|-------|--------------------|
+| Verified Engagement Hours | 2,250+ | +150 from 2,100+ |
+| Value Confirmation Rate | 96.0% | +32.3pp from 63.7% |
+| Total Users | 1,480+ | +280 from 1,200+ |
+| Test Count | 290 | +82 from 208 |
+| GCP Revision | 00282-qm4 | New deployment |
+
+### DFSC 2026
+- Campaign live on Mystartr: [rewards.mystartr.com/projects/verifimind](https://rewards.mystartr.com/projects/verifimind)
+- Pitch deck v3.3 submitted (14 slides)
+
+### Landing Page (verifimind.io)
+- Updated hero banner with v0.5.6 branding and Phase 55 metrics
+- EA Registration CTA section with direct link to registration
+- Mystartr campaign section with all 4 reward tiers
+- Service Analytics Dashboard updated through W12
+
+### Wiki
+- **Early Adopter Program** page created by RNA (CSO) with API docs, curl examples, and Z-Protocol compliance details
+
+### Credits
+- EA Gateway Implementation: RNA (Claude Code, CSO)
+- Landing Page & Documentation: T (Manus AI, CTO)
+- Metrics Validation: AY (Antigravity, COO)
+- Human Orchestrator: Alton (L)
+
+---
+
+## v0.5.5 - Trinity Quality Baseline (March 13, 2026)
+
+Critical schema regression fix for `run_full_trinity`. Quality baseline for v0.6.0. PR #89.
+
+### Bug Fixes
+- **Critical:** Fixed `founder_summary` field assigned as post-construction Python attribute on Pydantic `BaseModel` — Pydantic rejects at runtime. Declared as proper `Optional[dict]` field in `TrinitySynthesis`.
+- Individual agent calls (`consult_agent_x/z/cs`) were unaffected throughout.
+
+### Testing
+- 208/208 tests passing
+- 3 regression tests added to guard against schema-class bugs
+
+### Credits
+- Implementation: RNA (Claude Code, CSO)
+- Diagnosis: T (Manus AI, CTO)
+
+---
+
+## v0.5.4 - X Agent v4.3 + Token Monitor (March 12, 2026)
+
+X Agent creator-centric rewrite, founder_summary layer, research_prompts bridge, Token Ceiling Monitor. PRs #83–88.
+
+### X Agent v4.3 — Creator-Centric
+- Removed VerifiMind self-referential bias from X Agent analysis
+- Creator-centric evaluation: focuses on the concept being analyzed, not VerifiMind itself
+- `founder_summary` plain-language layer for non-technical stakeholders
+
+### New MCP Tools
+- **`research_prompts`** — Generates optimized prompts for Perplexity/Grok research bridge
+- **Token Ceiling Monitor** — Tracks token usage against 8,192 ceiling per agent
+
+### Testing
+- 208/208 tests passing
+- 54.3% coverage
+
+### Credits
+- Implementation: RNA (Claude Code, CSO)
+- Specifications: T (Manus AI, CTO)
+
+---
+
+## v0.5.3 - Phase 47 Ground Truth (March 15, 2026)
+
+Forensic deduplication audit. Engagement metrics corrected to verified Ground Truth baseline.
+
+### Data Integrity
+- **Phase 47 Ground Truth Reset:** COO AY's forensic audit identified 37.4% duplicate session inflation
+- **Engagement Hours:** Corrected from ~4,000 to **2,100+** (forensic deduplication)
+- **Value Confirmation Rate:** Corrected from 84.5% to **63.7%** (100% unique `insertId` baseline)
+- **Users:** Corrected to **1,200+** (bot sessions deduplicated, actual user count increased)
+- **Ingestion Registry:** Implemented `ingestion_registry.json` safeguard to prevent future duplication
+
+### Transparency
+- Full correction documented in README with Phase 47 Forensic Audit section
+- "We believe honest self-correction builds stronger credibility than inflated numbers."
+
+### Credits
+- Forensic Audit: AY (Antigravity, COO)
+- Documentation: T (Manus AI, CTO)
+- Human Orchestrator: Alton (L)
+
+---
+
 ## v0.5.2 - Sentinel-Verified (March 9, 2026)
 
 Genesis v4.2 citation enforcement. Release gate PASSED (11/11 blind tests). PRs #77–78.
@@ -536,5 +640,5 @@ LLM_MAX_TOKENS=4096
 
 ---
 
-**Document Version**: 2.1
-**Last Updated**: March 9, 2026
+**Document Version**: 3.0
+**Last Updated**: March 23, 2026
