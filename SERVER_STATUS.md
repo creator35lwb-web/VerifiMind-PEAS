@@ -6,12 +6,13 @@
 
 ## Current Status: Operational
 
-**v0.5.7 "Two-Tier Pioneer" deployed successfully on April 5, 2026**
+**v0.5.8 "Trinity Restored" deployed successfully on April 5, 2026**
 
 The VerifiMind MCP server is fully operational with the following capabilities:
 
 - 10 MCP tools (4 core validation + 6 template management)
 - 19 pre-built prompt templates across 6 libraries
+- **Trinity Restored + Z Guardian Hardened (v0.5.8)**: `run_full_trinity` fixed — compressed `prior_reasoning` (evidence stripped, steps truncated to 300 chars) keeps total request under Groq 12K TPM limit. CS `max_tokens` reduced 8192→4096. Z Guardian veto now code-enforced: `ethics_score < 4.0` triggers auto-veto regardless of LLM output, guarding against prompt dilution regressions. Z prompt restructured — Red Line veto checks moved to TOP with 5 concrete VETO EXAMPLES.
 - **Two-Tier Pioneer Program (v0.5.7)**: Pilot (invite-only, 6 months free, 50 slots) + Early Adopter (public, 3 months free, 100 slots). Pilot tier assigned via `PILOT_INVITE_CODE` env var — never hardcoded. `SlotCapReachedError` → 410 Gone with waitlist message. Tier badge + benefit summary on registration success.
 - **SYSTEM_NOTICE Sanitization (v0.5.7)**: 280-char max, allow-list `[A-Za-z0-9 .,!?'"-()/:@#]`, URL domain allow-list (`verifimind.ysenseai.org`, `verifimind.io`, `ysenseai.org`). Safe to activate after IAM lockdown (Track D).
 - **X Agent v4.3 (v0.5.4)**: Removed VerifiMind internal bias — X now evaluates any concept from the CREATOR's perspective. Dynamic `market_competition` block (real competitors in the concept's own domain). `founder_summary` plain-language synthesis with `verdict`, `what_works`, `things_to_address`, `next_steps`. `research_prompts`: 2-3 ready-to-paste Perplexity/Grok queries for deeper market validation.
@@ -23,7 +24,7 @@ The VerifiMind MCP server is fully operational with the following capabilities:
 - Input sanitization active on all tools
 - Gemini 2.5-flash as default FREE provider
 - Rate limiting and EDoS protection active (registration endpoint exempt)
-- GCP Cloud Run revision `verifimind-mcp-server-00286-xg6`
+- GCP Cloud Run revision `verifimind-mcp-server-00287-*` (auto-deployed via CI/CD on PR #114 merge)
 - CI/CD pipeline passing (GitHub Actions — all 7 checks pass)
 
 ---
@@ -35,7 +36,7 @@ The VerifiMind MCP server is fully operational with the following capabilities:
 | **Endpoint** | `https://verifimind.ysenseai.org/mcp` |
 | **Health Check** | `https://verifimind.ysenseai.org/health` |
 | **Register** | `https://verifimind.ysenseai.org/register` |
-| **Server Version** | 0.5.7 "Two-Tier Pioneer" (deployed April 5, 2026) |
+| **Server Version** | 0.5.8 "Trinity Restored" (deployed April 5, 2026) |
 | **Transport** | Streamable HTTP (SSE) |
 | **Default Provider** | Gemini 2.5-flash (FREE) |
 | **BYOK Providers** | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama, Perplexity |
@@ -108,6 +109,7 @@ If you experience connectivity issues:
 
 | Version | Blind Tests | Gate | Released |
 |---------|-------------|------|---------|
+| **v0.5.8 "Trinity Restored"** | — | ✅ **CI PASSED** | April 5, 2026 |
 | **v0.5.7 "Two-Tier Pioneer"** | — | ✅ **CI PASSED** | April 5, 2026 |
 | **v0.5.6 "Gateway"** | CI passing | ✅ **PASSED** | March 23, 2026 |
 | **v0.5.2 "Sentinel-Verified"** | 11/11 correct outcomes (L, March 9, 2026) | ✅ **PASSED** | March 9, 2026 |
@@ -119,6 +121,7 @@ If you experience connectivity issues:
 
 | Date | Action | Version | Status |
 |------|--------|---------|--------|
+| Apr 5, 2026 | Trinity restored — compressed prior_reasoning, Z Guardian veto hardened | v0.5.8 | Complete |
 | Apr 5, 2026 | Two-tier Pioneer Program (Pilot + EA), SYSTEM_NOTICE sanitization | v0.5.7 | Complete |
 | Mar 23, 2026 | UUID + EA registration (Firestore), /register + /optout UI, MCP Registry v2.3.0 | v0.5.6 | Complete |
 | Mar 13, 2026 | TrinitySynthesis Pydantic schema fix (founder_summary field) | v0.5.5 | Complete |
