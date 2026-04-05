@@ -5,6 +5,7 @@ Z Guardian is the Ethics and Z-Protocol Guardian in the RefleXion Trinity.
 It focuses on ethical implications, privacy, bias, and has VETO power.
 """
 
+import logging
 from typing import Optional
 
 from ..models import (
@@ -15,6 +16,12 @@ from ..models import (
 )
 from ..llm import LLMProvider
 from .base_agent import BaseAgent
+
+logger = logging.getLogger(__name__)
+
+# Code-enforced veto threshold — ethics_score below this MUST trigger veto
+# regardless of LLM output. Guards against prompt dilution regression.
+_VETO_SCORE_THRESHOLD = 4.0
 
 
 class ZAgent(BaseAgent):
@@ -60,6 +67,35 @@ class ZAgent(BaseAgent):
             "Focus: Is this concept ethical and does it protect users?"
         )
     
+    async def analyze(self, concept, prior_reasoning=None, metrics=None):
+        """Analyze with post-LLM code-enforced veto threshold.
+
+        Z Guardian has VETO POWER. If the LLM assigns ethics_score < 4.0
+        but does not set veto_triggered=True, this method enforces it
+        programmatically. This guards against prompt dilution regressions
+        (e.g. Z-Protocol v1.1's expanded 21-framework prompt reducing
+        sensitivity of the veto trigger).
+        """
+        result = await super().analyze(concept, prior_reasoning)
+
+        # Code-enforced veto: score < 4.0 is the "Concerning → Non-Compliant"
+        # boundary on the Z scale. Any concept scoring this low MUST be vetoed.
+        if result.ethics_score < _VETO_SCORE_THRESHOLD and not result.veto_triggered:
+            logger.warning(
+                f"Z Guardian auto-veto enforced: score={result.ethics_score} "
+                f"< threshold={_VETO_SCORE_THRESHOLD} but LLM did not trigger veto. "
+                f"concept='{concept.name}'"
+            )
+            result.veto_triggered = True
+            if not result.veto_reason:
+                result.veto_reason = (
+                    f"Auto-enforced: ethics_score {result.ethics_score:.1f}/10 "
+                    f"is below the {_VETO_SCORE_THRESHOLD} safety threshold. "
+                    f"Review concept for red line violations."
+                )
+
+        return result
+
     async def check_veto_status(self, concept: Concept) -> dict:
         """
         Quick check if a concept would trigger a veto.
