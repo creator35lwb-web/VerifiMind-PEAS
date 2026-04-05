@@ -418,9 +418,6 @@ class GeminiProvider(LLMProvider):
         We strip unsupported fields (title, default, etc.), resolve $ref/$defs
         references inline, and return a clean schema suitable for the API.
         """
-        # Extract $defs for $ref resolution
-        defs = output_schema.get("$defs", {})
-
         def _resolve_ref(ref_str: str) -> dict:
             """Resolve a $ref like '#/$defs/ReasoningStep' to the actual definition."""
             parts = ref_str.lstrip("#/").split("/")
