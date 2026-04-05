@@ -853,7 +853,7 @@ async def ea_register_handler(request):
                 "tier": e.tier,
                 "message": (
                     f"All {e.max_slots} {tier_label} slots are currently filled. "
-                    f"Join the waitlist — email founders@ysenseai.org with subject '{tier_label} Waitlist'."
+                    f"Join the waitlist — email alton@ysenseai.org or DM @ysenseai on X with subject '{tier_label} Waitlist'."
                 ),
             },
             status_code=410,
