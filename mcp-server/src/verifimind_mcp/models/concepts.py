@@ -321,7 +321,8 @@ CRITICAL RULES:
 - NEVER cite a framework you did not actually evaluate in your reasoning
 """,
     temperature=0.7,
-    max_tokens=8192
+    max_tokens=4096  # Reduced from 8192: Z receives compressed X prior (~300 tokens);
+                     # total request (input ~5,000 + output 4,096) stays under Groq 12K limit
 )
 
 CS_AGENT_CONFIG = AgentConfig(
