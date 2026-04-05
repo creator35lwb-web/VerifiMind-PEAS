@@ -39,7 +39,7 @@ RATE_LIMIT_WINDOW = int(os.getenv("RATE_LIMIT_WINDOW", "60"))  # seconds (1 minu
 RATE_LIMIT_CLEANUP_INTERVAL = int(os.getenv("RATE_LIMIT_CLEANUP", "300"))  # cleanup every 5 minutes
 
 # Exempt paths from rate limiting
-EXEMPT_PATHS = {"/health", "/", "/.well-known/mcp-config", "/setup", "/register", "/optout", "/privacy", "/terms", "/robots.txt", "/favicon.ico"}
+EXEMPT_PATHS = {"/health", "/", "/.well-known/mcp-config", "/setup", "/register", "/optout", "/privacy", "/terms", "/robots.txt", "/favicon.ico", "/early-adopters/register"}
 
 
 class RateLimitStore:
