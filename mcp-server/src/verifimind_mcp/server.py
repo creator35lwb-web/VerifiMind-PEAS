@@ -41,7 +41,7 @@ SERVER_VERSION = "0.5.7"
 
 # Track C — SYSTEM_NOTICE sanitization constants
 _NOTICE_MAX_LEN = 280
-_NOTICE_ALLOWED = re.compile(r"[^A-Za-z0-9 .,!?'\"\-()\/:@#]")
+_NOTICE_ALLOWED = re.compile(r"[^A-Za-z0-9 .,!?'\"\-()\/:@#=&]")
 _NOTICE_ALLOWED_DOMAINS = {"verifimind.ysenseai.org", "verifimind.io", "ysenseai.org"}
 
 
