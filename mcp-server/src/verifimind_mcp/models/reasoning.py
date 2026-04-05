@@ -66,7 +66,7 @@ class ChainOfThought(BaseModel):
     def format_for_next_agent(self) -> str:
         """
         Format this Chain of Thought for consumption by the next agent.
-        
+
         Returns a human-readable summary that the next agent can
         reference in their own analysis.
         """
@@ -75,16 +75,39 @@ class ChainOfThought(BaseModel):
             f"**Concept**: {self.concept_name}\n",
             "**Reasoning Chain**:\n"
         ]
-        
+
         for step in self.reasoning_steps:
             confidence_pct = int(step.confidence * 100)
             lines.append(f"- Step {step.step_number} ({confidence_pct}% confidence): {step.thought}")
             if step.evidence:
                 lines.append(f"  - Evidence: {step.evidence}")
-        
+
         lines.append(f"\n**Conclusion**: {self.final_conclusion}")
         lines.append(f"**Overall Confidence**: {int(self.overall_confidence * 100)}%\n")
-        
+
+        return "\n".join(lines)
+
+    def format_for_next_agent_compressed(self, max_thought_chars: int = 300) -> str:
+        """
+        Compressed format for Trinity chain-of-thought passing.
+
+        Omits evidence strings and truncates each step's thought to
+        max_thought_chars to keep the accumulated prior_reasoning
+        well within LLM provider input token limits (e.g. Groq 12K TPM).
+        The conclusion is always preserved in full.
+        """
+        lines = [
+            f"\n## Prior Analysis from {self.agent_name} ({self.agent_id})\n",
+            f"**Concept**: {self.concept_name}\n",
+            "**Reasoning Chain**:\n",
+        ]
+        for step in self.reasoning_steps:
+            thought = step.thought
+            if len(thought) > max_thought_chars:
+                thought = thought[:max_thought_chars] + "…"
+            lines.append(f"- Step {step.step_number}: {thought}")
+        lines.append(f"\n**Conclusion**: {self.final_conclusion}")
+        lines.append(f"**Overall Confidence**: {int(self.overall_confidence * 100)}%\n")
         return "\n".join(lines)
     
     def to_summary(self) -> str:
@@ -220,19 +243,30 @@ class PriorReasoning(BaseModel):
         """Add a new reasoning chain."""
         self.chains.append(chain)
     
-    def format_for_prompt(self) -> str:
-        """Format all prior reasoning for inclusion in a prompt."""
+    def format_for_prompt(self, compressed: bool = True) -> str:
+        """Format all prior reasoning for inclusion in a prompt.
+
+        Args:
+            compressed: If True (default), use compressed format that omits
+                evidence strings and truncates step thoughts to 300 chars.
+                This keeps accumulated prior_reasoning under provider input
+                token limits (e.g. Groq 12K TPM) when chaining X→Z→CS.
+                Set to False only when token budget is not a concern.
+        """
         if not self.chains:
             return ""
-        
+
         lines = ["\n# PRIOR AGENT REASONING\n"]
         lines.append("Consider the following analysis from previous agents:\n")
-        
+
         for chain in self.chains:
-            lines.append(chain.format_for_next_agent())
-        
+            if compressed:
+                lines.append(chain.format_for_next_agent_compressed())
+            else:
+                lines.append(chain.format_for_next_agent())
+
         lines.append("\nBuild upon this prior reasoning in your analysis.\n")
-        
+
         return "\n".join(lines)
     
     def get_agent_ids(self) -> List[str]:
