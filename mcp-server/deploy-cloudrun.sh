@@ -41,7 +41,7 @@ IMAGE_TAG="gcr.io/$PROJECT_ID/$SERVICE_NAME:v$SERVER_VERSION"
 MAX_INSTANCES=3           # Hard cap - prevents runaway scaling
 MIN_INSTANCES=0           # Scale to zero when idle (cost savings)
 CONCURRENCY=10            # Max concurrent requests per instance
-TIMEOUT=60                # Request timeout in seconds
+TIMEOUT=600               # Request timeout in seconds — 600s for Anthropic BYOK Trinity (3-agent chain ~200-300s)
 MEMORY="512Mi"
 CPU="1"
 
