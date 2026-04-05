@@ -24,6 +24,7 @@ Version: 0.4.5 (BYOK Live — Per-Tool-Call Provider Override)
 import json
 import logging
 import os
+import re
 from pathlib import Path
 from typing import Any, Optional
 
@@ -35,8 +36,30 @@ from pydantic import BaseModel, Field
 logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
-SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.5.6"
+_RAW_SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
+SERVER_VERSION = "0.5.7"
+
+# Track C — SYSTEM_NOTICE sanitization constants
+_NOTICE_MAX_LEN = 280
+_NOTICE_ALLOWED = re.compile(r"[^A-Za-z0-9 .,!?'\"\-()\/:@#]")
+_NOTICE_ALLOWED_DOMAINS = {"verifimind.ysenseai.org", "verifimind.io", "ysenseai.org"}
+
+
+def _sanitize_system_notice(notice: str) -> str:
+    """Sanitize SYSTEM_NOTICE: max 280 chars, allow-list chars, domain-check URLs."""
+    if not notice:
+        return ""
+    notice = notice[:_NOTICE_MAX_LEN]
+    notice = _NOTICE_ALLOWED.sub("", notice)
+    for m in re.finditer(r"https?://([^\s/]+)", notice):
+        domain = m.group(1)
+        if not any(domain == d or domain.endswith("." + d) for d in _NOTICE_ALLOWED_DOMAINS):
+            logger.warning(f"SYSTEM_NOTICE: blocked URL domain '{domain}'")
+            notice = notice.replace(m.group(0), "")
+    return notice.strip()
+
+
+SYSTEM_NOTICE = _sanitize_system_notice(_RAW_SYSTEM_NOTICE)
 
 
 def wrap_response(response: dict) -> dict:

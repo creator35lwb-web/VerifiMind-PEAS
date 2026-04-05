@@ -39,6 +39,7 @@ from verifimind_mcp.middleware import RateLimitMiddleware, get_rate_limit_stats
 from verifimind_mcp.registration import (
     EarlyAdopterRegistration,
     FeedbackRequest,
+    SlotCapReachedError,
     register_early_adopter,
     get_ea_status,
     submit_feedback,
@@ -55,7 +56,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.6"
+SERVER_VERSION = "0.5.7"
 
 # Track server start time for uptime reporting (v0.5.0 health v2)
 _SERVER_START_TIME = time.time()
@@ -828,7 +829,7 @@ async def http_exception_handler(request, exc):
 # ─────────────────────────────────────────────────────────────────────────────
 
 async def ea_register_handler(request):
-    """POST /early-adopters/register — EA registration with T&C + Privacy consent."""
+    """POST /early-adopters/register — EA or Pilot registration with T&C + Privacy consent."""
     try:
         body = await request.json()
     except Exception:
@@ -842,7 +843,22 @@ async def ea_register_handler(request):
             status_code=422,
         )
 
-    result = await register_early_adopter(data)
+    try:
+        result = await register_early_adopter(data)
+    except SlotCapReachedError as e:
+        tier_label = "Pilot Member" if e.tier == "pilot" else "Early Adopter"
+        return JSONResponse(
+            {
+                "error": "slots_full",
+                "tier": e.tier,
+                "message": (
+                    f"All {e.max_slots} {tier_label} slots are currently filled. "
+                    f"Join the waitlist — email alton@ysenseai.org or DM @creator35lwb on X with subject '{tier_label} Waitlist'."
+                ),
+            },
+            status_code=410,
+        )
+
     return JSONResponse(result.model_dump(), status_code=201)
 
 

@@ -17,8 +17,17 @@ from .policies import PRIVACY_POLICY_VERSION, TERMS_VERSION
 
 logger = logging.getLogger(__name__)
 
-# EA benefit: 3 months free v0.6.0-Beta access
+# ── Tier constants ─────────────────────────────────────────────────────────────
+# Pilot tier: active MCP users invited via SYSTEM_NOTICE
+PILOT_FREE_MONTHS = 6
+PILOT_MAX_SLOTS = 50
+
+# Early Adopter tier: public open registration
 EA_BETA_FREE_MONTHS = 3
+EA_MAX_SLOTS = 100
+
+# Pilot invite code (set via GCP env var — never hardcoded)
+PILOT_INVITE_CODE = os.environ.get("PILOT_INVITE_CODE", "")
 
 # Firestore collection names
 COLLECTION_EA = "early_adopters"
@@ -62,6 +71,11 @@ class EarlyAdopterRegistration(BaseModel):
         False,
         description="Optional: receive product updates by email"
     )
+    invite_code: Optional[str] = Field(
+        None,
+        max_length=64,
+        description="Pilot invite code from SYSTEM_NOTICE (optional — upgrades tier to pilot if valid)"
+    )
 
     @field_validator("tc_accepted")
     @classmethod
@@ -95,11 +109,14 @@ class RegistrationResponse(BaseModel):
     uuid: str
     email_masked: str  # e.g. "a***@example.com" — never echo full email in response
     tier: str = "early_adopter"
+    tier_label: str = "Early Adopter"
+    free_months: int = EA_BETA_FREE_MONTHS
     registered_at: str
     benefits_free_until: str
     tc_version: str
     privacy_version: str
     message: str
+    benefit_summary: str = ""
     opt_out_url: str
     feedback_received: bool
 
@@ -186,6 +203,29 @@ def _get_firestore():
 # Core Functions
 # ─────────────────────────────────────────────
 
+class SlotCapReachedError(Exception):
+    """Raised when a tier's slot cap is full."""
+    def __init__(self, tier: str, max_slots: int):
+        self.tier = tier
+        self.max_slots = max_slots
+        super().__init__(f"{tier} slots full ({max_slots}/{max_slots})")
+
+
+def _build_benefit_summary(tier: str, tier_label: str, benefits_until: str) -> str:
+    """Build a clear human-readable benefit summary for the registration response."""
+    free_months = PILOT_FREE_MONTHS if tier == "pilot" else EA_BETA_FREE_MONTHS
+    until_date = benefits_until[:10]
+    if tier == "pilot":
+        return (
+            f"Pilot Member: {free_months} months FREE v0.6.0-Beta access (launching Jun 2026). "
+            f"Free until {until_date}. You are among our 50-slot exclusive Pilot cohort."
+        )
+    return (
+        f"Early Adopter: {free_months} months FREE v0.6.0-Beta access (launching Jun 2026). "
+        f"Free until {until_date}. One of 100 open Early Adopter slots."
+    )
+
+
 def _mask_email(email: str) -> str:
     """Return a masked email for safe display: a***@example.com"""
     parts = email.split("@")
@@ -200,47 +240,85 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _benefits_until_iso() -> str:
-    dt = datetime.now(timezone.utc) + timedelta(days=EA_BETA_FREE_MONTHS * 30)
+def _benefits_until_iso(months: int) -> str:
+    dt = datetime.now(timezone.utc) + timedelta(days=months * 30)
     return dt.isoformat()
 
 
+def _count_tier_slots(db, tier: str) -> int:
+    """Count registered slots for a given tier. Returns 0 if Firestore unavailable."""
+    try:
+        docs = db.collection(COLLECTION_EA).where("tier", "==", tier).where("status", "==", "active").count().get()
+        return int(docs[0][0].value)
+    except Exception as e:
+        logger.warning(f"Slot count query failed for tier={tier}: {e}")
+        return 0
+
+
 async def register_early_adopter(data: EarlyAdopterRegistration) -> RegistrationResponse:
-    """Register a new Early Adopter or return existing record for duplicate email.
+    """Register a new Early Adopter or Pilot, or return existing record for duplicate email.
+
+    Tier assignment:
+    - Pilot (6 months free, 50 slots): valid invite_code matching PILOT_INVITE_CODE env var
+    - Early Adopter (3 months free, 100 slots): everyone else
 
     Idempotent: same email → returns existing UUID (no duplicate records).
+    Slot cap: returns 410 Gone (raises ValueError with code) if tier is full.
     """
     db = _get_firestore()
     now = _now_iso()
-    benefits_until = _benefits_until_iso()
+
+    # ── Determine tier ──────────────────────────────────────────────────────────
+    is_pilot = (
+        bool(data.invite_code)
+        and bool(PILOT_INVITE_CODE)
+        and data.invite_code.strip() == PILOT_INVITE_CODE
+    )
+    tier = "pilot" if is_pilot else "early_adopter"
+    tier_label = "Pilot Member" if is_pilot else "Early Adopter"
+    free_months = PILOT_FREE_MONTHS if is_pilot else EA_BETA_FREE_MONTHS
+    max_slots = PILOT_MAX_SLOTS if is_pilot else EA_MAX_SLOTS
+    benefits_until = _benefits_until_iso(free_months)
 
     if db is not None:
-        # Check for duplicate email
+        # ── Slot cap check ──────────────────────────────────────────────────────
+        current_slots = _count_tier_slots(db, tier)
+        if current_slots >= max_slots:
+            logger.info(f"Slot cap reached for tier={tier}: {current_slots}/{max_slots}")
+            raise SlotCapReachedError(tier, max_slots)
+
+        # ── Duplicate email check ───────────────────────────────────────────────
         existing = db.collection(COLLECTION_EA).where("email", "==", str(data.email)).limit(1).get()
         if existing:
             doc = existing[0].to_dict()
-            logger.info(f"Duplicate EA registration for masked email {_mask_email(str(data.email))} — returning existing UUID")
+            existing_tier = doc.get("tier", "early_adopter")
+            existing_label = "Pilot Member" if existing_tier == "pilot" else "Early Adopter"
+            existing_until = doc["benefits"]["v060_beta_free_until"]
+            logger.info(f"Duplicate registration for masked email {_mask_email(str(data.email))} — returning existing UUID")
             return RegistrationResponse(
                 uuid=doc["uuid"],
                 email_masked=_mask_email(str(data.email)),
-                tier=doc.get("tier", "early_adopter"),
+                tier=existing_tier,
+                tier_label=existing_label,
+                free_months=doc.get("pilot_free_months", EA_BETA_FREE_MONTHS) if existing_tier == "pilot" else EA_BETA_FREE_MONTHS,
                 registered_at=doc["registered_at"],
-                benefits_free_until=doc["benefits"]["v060_beta_free_until"],
+                benefits_free_until=existing_until,
                 tc_version=doc.get("tc_version", TERMS_VERSION),
                 privacy_version=doc.get("privacy_version", PRIVACY_POLICY_VERSION),
-                message="You're already registered as an Early Adopter! Your UUID and benefits are unchanged.",
+                message=f"You're already registered as {existing_label}! Your UUID and benefits are unchanged.",
+                benefit_summary=_build_benefit_summary(existing_tier, existing_label, existing_until),
                 opt_out_url=f"/early-adopters/optout/{doc['uuid']}",
                 feedback_received=False,
             )
 
-        # New registration
+        # ── New registration ────────────────────────────────────────────────────
         new_uuid = generate_ea_uuid()
         record = {
             "uuid": new_uuid,
             "email": str(data.email),  # stored securely in Firestore, never logged
             "name": data.name,
             "registered_at": now,
-            "tier": "early_adopter",
+            "tier": tier,
             "tc_accepted": True,
             "tc_version": TERMS_VERSION,
             "tc_accepted_at": now,
@@ -256,10 +334,13 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
             "feedback_type": data.feedback_type or ("new_user" if not data.feedback else "general"),
             "status": "active",
         }
+        if is_pilot:
+            record["pilot_free_months"] = PILOT_FREE_MONTHS
+            record["pilot_source"] = "system_notice_invite"
         db.collection(COLLECTION_EA).document(new_uuid).set(record)
-        logger.info(f"New EA registered: UUID={new_uuid}")
+        logger.info(f"New {tier} registered: UUID={new_uuid}")
 
-        # Store registration feedback separately if provided
+        # ── Store feedback separately ───────────────────────────────────────────
         if data.feedback:
             feedback_record = {
                 "feedback_id": generate_feedback_id(),
@@ -274,23 +355,26 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
 
     else:
         # Fallback: Firestore unavailable — generate UUID but cannot persist
-        logger.warning("Firestore unavailable — EA registration cannot be persisted")
+        logger.warning("Firestore unavailable — registration cannot be persisted")
         new_uuid = generate_ea_uuid()
 
     return RegistrationResponse(
         uuid=new_uuid,
         email_masked=_mask_email(str(data.email)),
-        tier="early_adopter",
+        tier=tier,
+        tier_label=tier_label,
+        free_months=free_months,
         registered_at=now,
         benefits_free_until=benefits_until,
         tc_version=TERMS_VERSION,
         privacy_version=PRIVACY_POLICY_VERSION,
         message=(
-            f"Welcome to the VerifiMind-PEAS Early Adopter program! "
-            f"Your UUID is your access key. Save it — you'll need it to check your status "
-            f"and access v0.6.0-Beta when it launches. "
-            f"Your 3 months free access expires on {benefits_until[:10]}."
+            f"Welcome to the VerifiMind-PEAS {tier_label} program! "
+            f"Your UUID is your access key — save it. "
+            f"You receive {free_months} months free access to v0.6.0-Beta when it launches. "
+            f"Your free access runs until {benefits_until[:10]}."
         ),
+        benefit_summary=_build_benefit_summary(tier, tier_label, benefits_until),
         opt_out_url=f"/early-adopters/optout/{new_uuid}",
         feedback_received=bool(data.feedback),
     )

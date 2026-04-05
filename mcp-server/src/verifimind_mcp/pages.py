@@ -664,16 +664,20 @@ _REGISTER_BODY = """
   <div id="success-state" class="hidden">
     <div class="success-header">
       <div class="success-icon">&#x2713;</div>
-      <div class="success-title">Registration complete!</div>
+      <div class="success-title" id="success-title">Registration complete!</div>
     </div>
 
-    <p class="text-sm muted" style="margin-bottom:0.25rem">Your Early Adopter UUID:</p>
+    <div id="tier-badge" style="display:inline-block;padding:0.3rem 0.9rem;border-radius:6px;font-size:0.8rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:1rem;"></div>
+
+    <div id="benefit-summary" style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:0.875rem 1rem;margin-bottom:1.25rem;font-size:0.9rem;line-height:1.6;"></div>
+
+    <p class="text-sm muted" style="margin-bottom:0.25rem">Your UUID (access key):</p>
     <div class="uuid-box">
       <code class="uuid-code" id="uuid-value"></code>
       <button id="copy-btn" class="btn btn-secondary" type="button">Copy</button>
     </div>
     <div class="uuid-save-notice" id="copy-confirm">
-      &#x26A0;&#xFE0F; Save this UUID &mdash; you will need it to check your status or opt out.
+      &#x26A0;&#xFE0F; Save this UUID &mdash; you will need it to access v0.6.0-Beta and to opt out.
     </div>
 
     <ul class="benefits-list" id="benefits-list"></ul>
@@ -740,6 +744,9 @@ document.getElementById('register-form').addEventListener('submit', async functi
   var feedback = feedbackArea.value.trim();
   var name = document.getElementById('name').value.trim();
 
+  // Read invite code from URL (?invite=...) — set by SYSTEM_NOTICE link for Pilot tier
+  var inviteCode = new URLSearchParams(window.location.search).get('invite') || '';
+
   var payload = {
     email: email,
     tc_accepted: true,
@@ -749,6 +756,7 @@ document.getElementById('register-form').addEventListener('submit', async functi
   if (name) payload.name = name;
   if (feedback) payload.feedback = feedback;
   if (feedbackType) payload.feedback_type = feedbackType;
+  if (inviteCode) payload.invite_code = inviteCode;
 
   try {
     var resp = await fetch('/early-adopters/register', {
@@ -765,13 +773,32 @@ document.getElementById('register-form').addEventListener('submit', async functi
       var successDiv = document.getElementById('success-state');
       successDiv.classList.remove('hidden');
 
+      var isPilot = data.tier === 'pilot';
+      var tierLabel = data.tier_label || (isPilot ? 'Pilot Member' : 'Early Adopter');
+
+      // Tier badge
+      var badge = document.getElementById('tier-badge');
+      badge.textContent = tierLabel;
+      badge.style.background = isPilot ? 'var(--accent)' : 'var(--surface-2)';
+      badge.style.color = isPilot ? '#020617' : 'var(--accent)';
+      badge.style.border = isPilot ? 'none' : '1px solid var(--accent)';
+
+      // Success title
+      document.getElementById('success-title').textContent = isPilot
+        ? 'Welcome, Pilot Member!'
+        : 'Registration complete!';
+
+      // Benefit summary
+      var summaryEl = document.getElementById('benefit-summary');
+      summaryEl.textContent = data.benefit_summary || (
+        tierLabel + ': ' + (data.free_months || 3) + ' months FREE v0.6.0-Beta access. '
+        + 'Free until: ' + (data.benefits_free_until ? data.benefits_free_until.split('T')[0] : 'n/a') + '.'
+      );
+
       document.getElementById('uuid-value').textContent = data.uuid;
 
       var list = document.getElementById('benefits-list');
       var benefits = [
-        'Tier: ' + (data.tier || 'early_adopter'),
-        'v0.6.0 Beta free until: ' + (data.benefits_free_until
-            ? data.benefits_free_until.split('T')[0] : 'n/a'),
         'T\u0026C version accepted: ' + (data.tc_version || '1.0'),
         'Privacy Policy version: ' + (data.privacy_version || '1.0'),
       ];
@@ -787,7 +814,9 @@ document.getElementById('register-form').addEventListener('submit', async functi
     } else {
       // Error path — textContent prevents reflected XSS
       var msg = 'Registration failed. Please check your details and try again.';
-      if (data.detail) {
+      if (resp.status === 410 && data.message) {
+        msg = data.message;
+      } else if (data.detail) {
         if (Array.isArray(data.detail)) {
           msg = data.detail.map(function(d) {
             return d.msg || String(d);
