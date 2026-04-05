@@ -13,7 +13,6 @@ Tests for:
 import importlib
 import importlib.util
 import logging
-import sys
 from pathlib import Path
 
 import pytest
