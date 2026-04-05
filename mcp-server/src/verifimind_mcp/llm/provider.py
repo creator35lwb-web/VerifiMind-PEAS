@@ -94,15 +94,15 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     "openai": {
         "name": "OpenAI",
         "default_model": "gpt-4o-mini",
-        "models": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
+        "models": ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini"],
         "api_key_env": "OPENAI_API_KEY",
         "base_url": "https://api.openai.com/v1",
         "free_tier": False,
     },
     "anthropic": {
         "name": "Anthropic Claude",
-        "default_model": "claude-3-5-sonnet-20241022",
-        "models": ["claude-3-5-sonnet-20241022", "claude-3-opus-20240229"],
+        "default_model": os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
+        "models": ["claude-sonnet-4-20250514", "claude-haiku-4-5-20251001", "claude-opus-4-20250514"],
         "api_key_env": "ANTHROPIC_API_KEY",
         "base_url": "https://api.anthropic.com/v1",
         "free_tier": False,
@@ -221,10 +221,10 @@ class OpenAIProvider(LLMProvider):
     
     def __init__(
         self,
-        model: str = "gpt-4-turbo-preview",
+        model: str = None,
         api_key: Optional[str] = None
     ):
-        self.model = model
+        self.model = model or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         
         if not self.api_key:
@@ -306,10 +306,10 @@ class AnthropicProvider(LLMProvider):
     
     def __init__(
         self,
-        model: str = "claude-3-5-sonnet-20241022",
+        model: str = None,
         api_key: Optional[str] = None
     ):
-        self.model = model
+        self.model = model or os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         
         if not self.api_key:
