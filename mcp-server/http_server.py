@@ -56,7 +56,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.11"
+SERVER_VERSION = "0.5.12"
 
 # Track server start time for uptime reporting (v0.5.0 health v2)
 _SERVER_START_TIME = time.time()
@@ -947,6 +947,69 @@ async def optout_page_handler(request):
     return HTMLResponse(get_optout_page())
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# v0.5.12 Polar Webhook Route
+# Endpoint: POST /api/webhooks/polar
+# Registered in Polar dashboard (ID: e7519bc1-3966-49c1-9258-6ca418326daf)
+# Events: subscription.created/updated/active/revoked/canceled, order.created
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Module-level handler singleton — initialised on first request
+_polar_webhook_handler = None
+
+
+def _get_polar_webhook_handler():
+    """Return cached PolarWebhookHandler, or None if not configured."""
+    global _polar_webhook_handler
+    if _polar_webhook_handler is not None:
+        return _polar_webhook_handler
+
+    secret = os.environ.get("POLAR_WEBHOOK_SECRET", "").strip()
+    if not secret:
+        return None
+
+    from verifimind_mcp.webhooks import PolarWebhookHandler
+    _polar_webhook_handler = PolarWebhookHandler(webhook_secret=secret)
+    return _polar_webhook_handler
+
+
+async def polar_webhook_handler(request):
+    """POST /api/webhooks/polar — Polar subscription event webhook.
+
+    Receives subscription lifecycle events from Polar and updates the
+    PolarAdapter tier cache for real-time Pioneer access transitions.
+
+    Polar events handled:
+      subscription.active   → grant Pioneer access
+      subscription.revoked  → revoke Pioneer access
+      subscription.canceled → revoke Pioneer access
+      subscription.created  → no access (pending payment)
+      subscription.updated  → inspect status field
+      order.created         → ignored
+
+    Security: Standard Webhooks HMAC-SHA256 signature verification.
+    Returns 200 on success, 400 on verification failure, 503 if not configured.
+    """
+    handler = _get_polar_webhook_handler()
+    if handler is None:
+        return JSONResponse(
+            {"error": "Webhook not configured — POLAR_WEBHOOK_SECRET not set"},
+            status_code=503,
+        )
+
+    try:
+        payload = await request.body()
+        headers = dict(request.headers)
+        result = await handler.handle(payload, headers)
+        return JSONResponse(result, status_code=200)
+    except Exception as e:
+        # Signature verification failure or parse error
+        # Return 400 so Polar retries; don't expose internal details
+        import logging
+        logging.getLogger(__name__).warning("Polar webhook error: %s", type(e).__name__)
+        return JSONResponse({"status": "error", "detail": "verification_failed"}, status_code=400)
+
+
 # Create Starlette app with proper lifespan from MCP app
 app = Starlette(
     routes=[
@@ -968,6 +1031,8 @@ app = Starlette(
         # v0.5.6 UI: human-readable registration and opt-out pages
         Route("/register", register_page_handler, methods=["GET"]),
         Route("/optout", optout_page_handler, methods=["GET"]),
+        # v0.5.12 Polar: subscription lifecycle webhook
+        Route("/api/webhooks/polar", polar_webhook_handler, methods=["POST"]),
         Mount("/mcp", app=mcp_app),
     ],
     lifespan=mcp_app.lifespan,  # CRITICAL: Pass lifespan for session initialization

@@ -2,27 +2,29 @@
 Polar Webhook Handler — v0.5.12 Pioneer Integration
 ====================================================
 
-Handles customer.state_changed events from Polar to keep the
-PolarAdapter tier cache in sync with real-time subscription changes.
+Handles Polar subscription events to keep the PolarAdapter tier cache
+in sync with real-time subscription changes.
 
-Events handled:
-  customer.state_changed — fires when a user subscribes, cancels,
-    has a payment failure or recovery, or their benefit grants change.
-    One event covers all subscription lifecycle transitions.
+Events configured by T (CTO) via Polar API (endpoint ID: e7519bc1-...):
+  subscription.created   — new subscription (pending payment, NOT yet active)
+  subscription.updated   — subscription state changed (check status field)
+  subscription.active    — subscription confirmed active → GRANT Pioneer
+  subscription.revoked   — subscription access revoked → REVOKE Pioneer
+  subscription.canceled  — subscription canceled → REVOKE Pioneer
+  order.created          — order placed (ignored, no tier change)
 
 Signature verification:
   Polar uses the Standard Webhooks specification (https://www.standardwebhooks.com/).
   Requires: pip install standardwebhooks
 
-Deployment:
-  Register this endpoint in the Polar dashboard:
-    URL: https://verifimind.ysenseai.org/api/webhooks/polar
-    Event: customer.state_changed
-    Secret: stored in POLAR_WEBHOOK_SECRET env var
+Webhook registered in Polar dashboard:
+  URL:    https://verifimind.ysenseai.org/api/webhooks/polar
+  ID:     e7519bc1-3966-49c1-9258-6ca418326daf
+  Secret: stored in POLAR_WEBHOOK_SECRET env var (whsec_... format)
 
-References:
-  Polar webhooks: https://docs.polar.sh/features/webhooks
-  Standard Webhooks: https://www.standardwebhooks.com/
+External ID extraction:
+  VerifiMind UUID is stored as Polar External ID at registration.
+  In subscription events: event["data"]["customer"]["external_id"]
 """
 
 import logging
@@ -30,19 +32,44 @@ from typing import Optional, Any
 
 logger = logging.getLogger(__name__)
 
-EVENT_CUSTOMER_STATE_CHANGED = "customer.state_changed"
-HANDLED_EVENTS = frozenset({EVENT_CUSTOMER_STATE_CHANGED})
+# Events that grant Pioneer access
+_GRANT_EVENTS = frozenset({"subscription.active"})
+
+# Events that revoke Pioneer access
+_REVOKE_EVENTS = frozenset({"subscription.revoked", "subscription.canceled"})
+
+# Events that require status inspection
+_INSPECT_EVENTS = frozenset({"subscription.updated", "subscription.created"})
+
+# Events that are explicitly ignored (no tier change)
+_IGNORE_EVENTS = frozenset({"order.created"})
+
+# All events we receive from Polar (configured in dashboard)
+HANDLED_EVENTS = _GRANT_EVENTS | _REVOKE_EVENTS | _INSPECT_EVENTS
+
+# Polar subscription statuses that indicate active Pioneer access
+_ACTIVE_STATUSES = frozenset({"active"})
 
 
 class PolarWebhookHandler:
-    """Processes Polar webhook events for tier-gate cache updates.
+    """Processes Polar subscription events for tier-gate cache updates.
 
     Uses Standard Webhooks HMAC-SHA256 signature verification.
-    Only customer.state_changed is needed to cover all subscription transitions.
+    Maps each subscription event type to a Pioneer access decision
+    and updates the PolarAdapter cache immediately.
 
-    Usage (in FastAPI route handler):
-        handler = PolarWebhookHandler(webhook_secret=os.environ["POLAR_WEBHOOK_SECRET"])
-        result = await handler.handle(request.body(), dict(request.headers))
+    Subscription status → Pioneer access mapping:
+      subscription.active   → True  (payment confirmed)
+      subscription.revoked  → False (immediate revocation)
+      subscription.canceled → False (revoked now, not at period end)
+      subscription.created  → False (pending payment, not yet active)
+      subscription.updated  → True if status=="active", False otherwise
+      order.created         → ignored
+
+    Usage (in route handler):
+        secret = os.environ["POLAR_WEBHOOK_SECRET"]
+        handler = PolarWebhookHandler(webhook_secret=secret)
+        result = await handler.handle(await request.body(), dict(request.headers))
     """
 
     def __init__(self, webhook_secret: str, adapter: Optional[Any] = None):
@@ -50,19 +77,19 @@ class PolarWebhookHandler:
 
         Args:
             webhook_secret: Polar webhook signing secret (whsec_... format).
-                            Retrieved from the Polar dashboard after endpoint registration.
-            adapter: Optional PolarAdapter instance. If None, get_polar_adapter()
-                     is called lazily on first event — singleton will be used.
+                            From POLAR_WEBHOOK_SECRET env var.
+            adapter: Optional PolarAdapter. If None, get_polar_adapter() is
+                     called lazily on first event (singleton).
 
         Raises:
-            ImportError: If the standardwebhooks package is not installed.
+            ImportError: If standardwebhooks is not installed.
         """
         try:
             from standardwebhooks import Webhook
             self._wh = Webhook(webhook_secret)
         except ImportError:
             raise ImportError(
-                "standardwebhooks package is required for Polar webhook verification. "
+                "standardwebhooks package required for Polar webhook verification. "
                 "Install with: pip install standardwebhooks"
             )
         self._adapter = adapter
@@ -75,100 +102,123 @@ class PolarWebhookHandler:
         """Verify the webhook signature and return the parsed event.
 
         Delegates to standardwebhooks.Webhook.verify() which checks:
-          - webhook-id header (event unique ID)
-          - webhook-timestamp header (replay protection)
-          - webhook-signature header (HMAC-SHA256)
+          - webhook-id (unique event ID, replay protection)
+          - webhook-timestamp (timestamp staleness check)
+          - webhook-signature (HMAC-SHA256 over id + timestamp + payload)
 
         Args:
             payload: Raw HTTP request body bytes.
-            headers: HTTP headers dict (case-insensitive key lookup handled by
-                     standardwebhooks internally).
+            headers: HTTP headers dict.
 
         Returns:
             Parsed event dict.
 
         Raises:
-            WebhookVerificationError: If the signature is invalid or the
-                                      timestamp is outside the allowed window.
+            WebhookVerificationError: On invalid signature or stale timestamp.
         """
         return self._wh.verify(payload, headers)
 
     async def handle(self, payload: bytes, headers: dict) -> dict:
-        """Verify and process a Polar webhook event.
+        """Verify and process a Polar subscription event.
 
         Args:
             payload: Raw HTTP request body bytes.
-            headers: HTTP headers containing Standard Webhooks signature fields.
+            headers: HTTP headers containing Standard Webhooks fields.
 
         Returns:
-            Result dict with keys: status, event_type, and action details.
-            status values: "processed", "ignored", "skipped", "error"
+            Result dict: status ("processed"/"ignored"/"skipped"), event_type,
+                         and action details.
         """
         event = self.verify(payload, headers)
         event_type = event.get("type", "")
 
-        if event_type not in HANDLED_EVENTS:
-            logger.debug("Unhandled Polar event type: %s — ignored", event_type)
+        if event_type in _IGNORE_EVENTS:
+            logger.debug("Polar event %s — ignored (no tier change)", event_type)
             return {"status": "ignored", "event_type": event_type}
 
-        if event_type == EVENT_CUSTOMER_STATE_CHANGED:
-            return await self._handle_customer_state_changed(event)
+        if event_type in _GRANT_EVENTS:
+            return await self._handle_subscription_event(event, has_access=True)
 
-        # Future events handled here
+        if event_type in _REVOKE_EVENTS:
+            return await self._handle_subscription_event(event, has_access=False)
+
+        if event_type in _INSPECT_EVENTS:
+            return await self._handle_inspect_event(event)
+
+        # Unknown event type — log and ignore safely
+        logger.debug("Unhandled Polar event type: %s — ignored", event_type)
         return {"status": "ignored", "event_type": event_type}
 
     # ------------------------------------------------------------------
     # Event handlers
     # ------------------------------------------------------------------
 
-    async def _handle_customer_state_changed(self, event: dict) -> dict:
-        """Process customer.state_changed — update PolarAdapter cache.
-
-        Extracts the VerifiMind UUID (external_id) from the event, checks
-        whether the pioneer_access feature flag is granted, and updates
-        the adapter cache immediately.
+    async def _handle_subscription_event(self, event: dict, has_access: bool) -> dict:
+        """Process a grant or revoke subscription event.
 
         Args:
             event: Verified Polar event dict.
+            has_access: True to grant Pioneer, False to revoke.
 
         Returns:
-            Result dict with external_id, pioneer_access, and action taken.
+            Result dict with external_id, pioneer_access, and action.
         """
-        customer_data = event.get("data", {})
-        external_id = customer_data.get("external_id")
+        event_type = event.get("type", "")
+        external_id = self._extract_external_id(event)
 
         if not external_id:
-            logger.warning("customer.state_changed missing external_id — skipping")
-            return {"status": "skipped", "reason": "missing external_id"}
+            logger.warning("%s missing external_id — skipping", event_type)
+            return {"status": "skipped", "reason": "missing external_id", "event_type": event_type}
 
-        has_pioneer = self._check_pioneer_benefit(customer_data)
-
-        adapter = self._adapter
-        if adapter is None:
-            from ..middleware.polar_adapter import get_polar_adapter
-            adapter = get_polar_adapter()
-
-        if adapter:
-            adapter.update_cache(external_id, has_pioneer)
-            action = "cache_updated"
-        else:
-            logger.warning(
-                "No PolarAdapter available — POLAR_ACCESS_TOKEN not set? Cache not updated."
-            )
-            action = "no_adapter"
+        action = await self._update_adapter_cache(external_id, has_access)
 
         logger.info(
-            "customer.state_changed: external_id=%s… pioneer=%s action=%s",
-            external_id[:8],
-            has_pioneer,
-            action,
+            "%s: external_id=%s… pioneer=%s action=%s",
+            event_type, external_id[:8], has_access, action
         )
-
         return {
             "status": "processed",
-            "event_type": EVENT_CUSTOMER_STATE_CHANGED,
+            "event_type": event_type,
             "external_id": external_id,
-            "pioneer_access": has_pioneer,
+            "pioneer_access": has_access,
+            "action": action,
+        }
+
+    async def _handle_inspect_event(self, event: dict) -> dict:
+        """Process subscription.created / subscription.updated.
+
+        Inspects the status field to determine access:
+          "active" → Pioneer granted
+          anything else → Pioneer revoked
+
+        Args:
+            event: Verified Polar subscription event dict.
+
+        Returns:
+            Result dict with external_id, pioneer_access, and action.
+        """
+        event_type = event.get("type", "")
+        data = event.get("data", {})
+        external_id = self._extract_external_id(event)
+        status = data.get("status", "")
+
+        if not external_id:
+            logger.warning("%s missing external_id — skipping", event_type)
+            return {"status": "skipped", "reason": "missing external_id", "event_type": event_type}
+
+        has_access = status in _ACTIVE_STATUSES
+        action = await self._update_adapter_cache(external_id, has_access)
+
+        logger.info(
+            "%s: external_id=%s… status=%s pioneer=%s action=%s",
+            event_type, external_id[:8], status, has_access, action
+        )
+        return {
+            "status": "processed",
+            "event_type": event_type,
+            "external_id": external_id,
+            "subscription_status": status,
+            "pioneer_access": has_access,
             "action": action,
         }
 
@@ -176,30 +226,40 @@ class PolarWebhookHandler:
     # Helpers
     # ------------------------------------------------------------------
 
-    def _check_pioneer_benefit(self, customer_state: dict) -> bool:
-        """Return True if pioneer_access feature flag is granted in customer state.
+    def _extract_external_id(self, event: dict) -> Optional[str]:
+        """Extract VerifiMind UUID from a Polar subscription event.
 
-        Mirrors PolarClient.has_pioneer_access() — kept here to avoid an
-        import cycle between webhooks and integrations packages.
+        Polar stores the VerifiMind UUID as the customer External ID.
+        Location in subscription events: event["data"]["customer"]["external_id"]
 
         Args:
-            customer_state: Polar customer state data (event["data"]).
+            event: Verified Polar event dict.
 
         Returns:
-            True if pioneer feature flag is active, False otherwise.
+            external_id string, or None if not present.
         """
-        from ..integrations.polar_client import (
-            POLAR_PIONEER_BENEFIT_TYPE,
-            POLAR_PIONEER_TIER_KEY,
-        )
-        for grant in customer_state.get("benefit_grants", []):
-            if not grant.get("granted", False):
-                continue
-            benefit = grant.get("benefit", {})
-            if benefit.get("type") != POLAR_PIONEER_BENEFIT_TYPE:
-                continue
-            props = grant.get("properties", {})
-            metadata = props.get("metadata", {})
-            if metadata.get("tier") == POLAR_PIONEER_TIER_KEY:
-                return True
-        return False
+        data = event.get("data", {})
+        customer = data.get("customer", {})
+        return customer.get("external_id") or None
+
+    async def _update_adapter_cache(self, external_id: str, has_access: bool) -> str:
+        """Push tier update to PolarAdapter cache.
+
+        Args:
+            external_id: VerifiMind user UUID.
+            has_access: New Pioneer access state.
+
+        Returns:
+            Action string: "cache_updated" or "no_adapter".
+        """
+        adapter = self._adapter
+        if adapter is None:
+            from ..middleware.polar_adapter import get_polar_adapter
+            adapter = get_polar_adapter()
+
+        if adapter:
+            adapter.update_cache(external_id, has_access)
+            return "cache_updated"
+
+        logger.warning("No PolarAdapter available — POLAR_ACCESS_TOKEN not set? Cache not updated.")
+        return "no_adapter"

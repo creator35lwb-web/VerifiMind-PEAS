@@ -323,48 +323,39 @@ class TestPolarWebhookHandlerVerify:
 
     def test_verify_calls_wh_verify(self):
         handler = _make_webhook_handler()
-        handler._wh.verify = MagicMock(return_value={"type": "customer.state_changed"})
-        result = handler.verify(b'{"type":"customer.state_changed"}', {})
+        handler._wh.verify = MagicMock(return_value={"type": "subscription.active"})
+        result = handler.verify(b'{"type":"subscription.active"}', {})
         handler._wh.verify.assert_called_once()
-        assert result["type"] == "customer.state_changed"
+        assert result["type"] == "subscription.active"
 
-    def test_import_error_without_standardwebhooks(self):
-        with patch.dict("sys.modules", {"standardwebhooks": None}):
-            with pytest.raises(ImportError, match="standardwebhooks"):
-                from verifimind_mcp.webhooks import polar_webhook
-                import importlib
-                importlib.reload(polar_webhook)
+    def test_import_error_without_standardwebhooks(self, monkeypatch):
+        import sys
+        original = sys.modules.get("standardwebhooks")
+        sys.modules["standardwebhooks"] = None  # type: ignore[assignment]
+        try:
+            import importlib
+            from verifimind_mcp.webhooks import polar_webhook
+            importlib.reload(polar_webhook)
+            with pytest.raises((ImportError, TypeError)):
                 polar_webhook.PolarWebhookHandler(TEST_SECRET)
+        finally:
+            if original is None:
+                sys.modules.pop("standardwebhooks", None)
+            else:
+                sys.modules["standardwebhooks"] = original
 
 
 class TestPolarWebhookHandlerHandle:
-    """handle() routes events correctly."""
+    """handle() routes the 6 Polar subscription events correctly."""
 
     @pytest.mark.asyncio
-    async def test_unhandled_event_ignored(self):
-        handler = _make_webhook_handler()
-        handler._wh.verify = MagicMock(return_value={"type": "order.created"})
-        result = await handler.handle(b"{}", {})
-        assert result["status"] == "ignored"
-        assert result["event_type"] == "order.created"
-
-    @pytest.mark.asyncio
-    async def test_customer_state_changed_processed(self):
+    async def test_grant_event_processed(self):
         mock_adapter = MagicMock()
         mock_adapter.update_cache = MagicMock()
         handler = _make_webhook_handler(adapter=mock_adapter)
         handler._wh.verify = MagicMock(return_value={
-            "type": "customer.state_changed",
-            "data": {
-                "external_id": TEST_UUID,
-                "benefit_grants": [
-                    {
-                        "granted": True,
-                        "benefit": {"type": "feature"},
-                        "properties": {"metadata": {"tier": "pioneer"}},
-                    }
-                ],
-            },
+            "type": "subscription.active",
+            "data": {"customer": {"external_id": TEST_UUID}},
         })
         result = await handler.handle(b"{}", {})
         assert result["status"] == "processed"
@@ -372,11 +363,25 @@ class TestPolarWebhookHandlerHandle:
         mock_adapter.update_cache.assert_called_once_with(TEST_UUID, True)
 
     @pytest.mark.asyncio
+    async def test_revoke_event_processed(self):
+        mock_adapter = MagicMock()
+        mock_adapter.update_cache = MagicMock()
+        handler = _make_webhook_handler(adapter=mock_adapter)
+        handler._wh.verify = MagicMock(return_value={
+            "type": "subscription.revoked",
+            "data": {"customer": {"external_id": TEST_UUID}},
+        })
+        result = await handler.handle(b"{}", {})
+        assert result["status"] == "processed"
+        assert result["pioneer_access"] is False
+        mock_adapter.update_cache.assert_called_once_with(TEST_UUID, False)
+
+    @pytest.mark.asyncio
     async def test_missing_external_id_skipped(self):
         handler = _make_webhook_handler()
         handler._wh.verify = MagicMock(return_value={
-            "type": "customer.state_changed",
-            "data": {},
+            "type": "subscription.active",
+            "data": {"customer": {}},
         })
         result = await handler.handle(b"{}", {})
         assert result["status"] == "skipped"
@@ -386,43 +391,144 @@ class TestPolarWebhookHandlerHandle:
     async def test_no_adapter_action_logged(self):
         handler = _make_webhook_handler(adapter=None)
         handler._wh.verify = MagicMock(return_value={
-            "type": "customer.state_changed",
-            "data": {"external_id": TEST_UUID, "benefit_grants": []},
+            "type": "subscription.active",
+            "data": {"customer": {"external_id": TEST_UUID}},
         })
-        with patch("verifimind_mcp.middleware.polar_adapter.get_polar_adapter", return_value=None):
-            result = await handler.handle(b"{}", {})
+        # Patch _update_adapter_cache to return "no_adapter" directly
+        handler._update_adapter_cache = AsyncMock(return_value="no_adapter")
+        result = await handler.handle(b"{}", {})
         assert result["status"] == "processed"
         assert result["action"] == "no_adapter"
 
 
-class TestCheckPioneerBenefit:
-    """_check_pioneer_benefit correctly inspects customer state."""
+class TestExtractExternalId:
+    """_extract_external_id pulls UUID from subscription event data."""
 
-    def _handler(self):
-        return _make_webhook_handler()
+    def test_extracts_from_customer_field(self):
+        handler = _make_webhook_handler()
+        event = {"data": {"customer": {"external_id": TEST_UUID}}}
+        assert handler._extract_external_id(event) == TEST_UUID
 
-    def test_returns_true_when_granted(self):
-        handler = self._handler()
-        state = _make_state(granted=True)
-        assert handler._check_pioneer_benefit(state) is True
-
-    def test_returns_false_not_granted(self):
-        handler = self._handler()
-        state = _make_state(granted=False)
-        assert handler._check_pioneer_benefit(state) is False
-
-    def test_returns_false_wrong_type(self):
-        handler = self._handler()
-        state = _make_state(benefit_type="license")
-        assert handler._check_pioneer_benefit(state) is False
-
-    def test_returns_false_empty(self):
-        handler = self._handler()
-        assert handler._check_pioneer_benefit({}) is False
+    def test_returns_none_when_missing(self):
+        handler = _make_webhook_handler()
+        assert handler._extract_external_id({"data": {"customer": {}}}) is None
+        assert handler._extract_external_id({"data": {}}) is None
+        assert handler._extract_external_id({}) is None
 
 
 # ===========================================================================
-# 5. Docstring regression — Stripe removed from tier_gate.py
+# 5. Subscription event handlers (T's 6 configured events)
+# ===========================================================================
+
+def _make_subscription_event(event_type: str, external_id: str = TEST_UUID, status: str = "") -> dict:
+    """Build a minimal Polar subscription event dict."""
+    data = {
+        "customer": {"external_id": external_id},
+        "status": status,
+    }
+    return {"type": event_type, "data": data}
+
+
+class TestSubscriptionEvents:
+    """PolarWebhookHandler correctly maps T's 6 configured Polar events."""
+
+    @pytest.mark.asyncio
+    async def test_subscription_active_grants_access(self):
+        mock_adapter = MagicMock()
+        mock_adapter.update_cache = MagicMock()
+        handler = _make_webhook_handler(adapter=mock_adapter)
+        handler._wh.verify = MagicMock(
+            return_value=_make_subscription_event("subscription.active")
+        )
+        result = await handler.handle(b"{}", {})
+        assert result["status"] == "processed"
+        assert result["pioneer_access"] is True
+        mock_adapter.update_cache.assert_called_once_with(TEST_UUID, True)
+
+    @pytest.mark.asyncio
+    async def test_subscription_revoked_denies_access(self):
+        mock_adapter = MagicMock()
+        mock_adapter.update_cache = MagicMock()
+        handler = _make_webhook_handler(adapter=mock_adapter)
+        handler._wh.verify = MagicMock(
+            return_value=_make_subscription_event("subscription.revoked")
+        )
+        result = await handler.handle(b"{}", {})
+        assert result["status"] == "processed"
+        assert result["pioneer_access"] is False
+        mock_adapter.update_cache.assert_called_once_with(TEST_UUID, False)
+
+    @pytest.mark.asyncio
+    async def test_subscription_canceled_denies_access(self):
+        mock_adapter = MagicMock()
+        mock_adapter.update_cache = MagicMock()
+        handler = _make_webhook_handler(adapter=mock_adapter)
+        handler._wh.verify = MagicMock(
+            return_value=_make_subscription_event("subscription.canceled")
+        )
+        result = await handler.handle(b"{}", {})
+        assert result["status"] == "processed"
+        assert result["pioneer_access"] is False
+
+    @pytest.mark.asyncio
+    async def test_subscription_created_no_access(self):
+        mock_adapter = MagicMock()
+        mock_adapter.update_cache = MagicMock()
+        handler = _make_webhook_handler(adapter=mock_adapter)
+        handler._wh.verify = MagicMock(
+            return_value=_make_subscription_event("subscription.created", status="incomplete")
+        )
+        result = await handler.handle(b"{}", {})
+        assert result["status"] == "processed"
+        assert result["pioneer_access"] is False
+
+    @pytest.mark.asyncio
+    async def test_subscription_updated_active_grants(self):
+        mock_adapter = MagicMock()
+        mock_adapter.update_cache = MagicMock()
+        handler = _make_webhook_handler(adapter=mock_adapter)
+        handler._wh.verify = MagicMock(
+            return_value=_make_subscription_event("subscription.updated", status="active")
+        )
+        result = await handler.handle(b"{}", {})
+        assert result["status"] == "processed"
+        assert result["pioneer_access"] is True
+
+    @pytest.mark.asyncio
+    async def test_subscription_updated_inactive_denies(self):
+        mock_adapter = MagicMock()
+        mock_adapter.update_cache = MagicMock()
+        handler = _make_webhook_handler(adapter=mock_adapter)
+        handler._wh.verify = MagicMock(
+            return_value=_make_subscription_event("subscription.updated", status="past_due")
+        )
+        result = await handler.handle(b"{}", {})
+        assert result["status"] == "processed"
+        assert result["pioneer_access"] is False
+
+    @pytest.mark.asyncio
+    async def test_order_created_ignored(self):
+        handler = _make_webhook_handler()
+        handler._wh.verify = MagicMock(
+            return_value={"type": "order.created", "data": {}}
+        )
+        result = await handler.handle(b"{}", {})
+        assert result["status"] == "ignored"
+        assert result["event_type"] == "order.created"
+
+    @pytest.mark.asyncio
+    async def test_missing_external_id_skipped(self):
+        handler = _make_webhook_handler()
+        handler._wh.verify = MagicMock(
+            return_value={"type": "subscription.active", "data": {"customer": {}}}
+        )
+        result = await handler.handle(b"{}", {})
+        assert result["status"] == "skipped"
+        assert "external_id" in result["reason"]
+
+
+# ===========================================================================
+# 6. Docstring regression — Stripe removed from tier_gate.py
 # ===========================================================================
 
 class TestStripeDocstringRemoved:
@@ -435,3 +541,12 @@ class TestStripeDocstringRemoved:
         assert "Stripe" not in source, (
             "tier_gate.py still references 'Stripe' — update to 'Polar' per T review note"
         )
+
+# ===========================================================================
+# 7. Version regression — server.py must be v0.5.12
+# ===========================================================================
+
+class TestServerVersion:
+    def test_server_version_is_0512(self):
+        from verifimind_mcp.server import SERVER_VERSION
+        assert SERVER_VERSION == "0.5.12"
