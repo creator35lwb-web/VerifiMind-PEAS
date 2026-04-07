@@ -18,7 +18,8 @@ dependencies = [
     "fastapi>=0.109.0",
     "uvicorn[standard]>=0.27.0",
     "google-cloud-firestore>=2.13.0",
-    "email-validator>=2.0.0"
+    "email-validator>=2.0.0",
+    "standardwebhooks>=1.0.0"
 ]
 
 [tool.hatch.build.targets.wheel]

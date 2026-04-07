@@ -29,6 +29,9 @@ uvicorn[standard]>=0.27.0
 google-cloud-firestore>=2.13.0
 email-validator>=2.0.0
 
+# v0.5.12 Polar Integration: Standard Webhooks signature verification
+standardwebhooks>=1.0.0
+
 # Testing (dev dependencies)
 pytest>=7.0.0
 pytest-asyncio>=0.21.0
