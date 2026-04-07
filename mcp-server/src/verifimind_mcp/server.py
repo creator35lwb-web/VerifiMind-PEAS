@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 _RAW_SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.5.9"
+SERVER_VERSION = "0.5.11"
 
 # Track C — SYSTEM_NOTICE sanitization constants
 _NOTICE_MAX_LEN = 280
@@ -1324,6 +1324,269 @@ def _create_mcp_instance():
                 "status": "error",
                 "error": str(e)
             })
+
+    # ===== v0.5.11 COORDINATION TOOLS (Pioneer Tier) =====
+
+    @app.tool()
+    async def coordination_handoff_create(
+        agent_id: str,
+        session_type: str,
+        completed: list,
+        decisions: list,
+        artifacts: list,
+        pending: list,
+        blockers: list,
+        pioneer_key: str,
+        next_agent: Optional[str] = None,
+        ctx: Context = None,
+    ) -> dict:
+        """
+        Create a structured MACP v2.2 handoff record.
+
+        Pioneer tier tool — requires pioneer_key.
+
+        Generates a MACP v2.2 compliant handoff document and stores it in
+        the coordination layer. Returns the formatted markdown content
+        and suggested filename for saving to .macp/handoffs/ in your repository.
+
+        Args:
+            agent_id: Identifier for the agent creating this handoff (e.g. "RNA", "cursor").
+            session_type: Type of session (e.g. "development", "research", "review").
+            completed: List of completed items this session.
+            decisions: List of decisions made (each as a string).
+            artifacts: List of artifact paths or descriptions created.
+            pending: List of pending items for the next agent.
+            blockers: List of current blockers (empty list if none).
+            pioneer_key: Your Pioneer tier access key.
+            next_agent: Recommended next agent ID (optional).
+
+        Returns:
+            Handoff record with filename, content, and storage confirmation.
+        """
+        from .middleware.tier_gate import check_tier, tier_gate_error, sanitize_handoff_content
+        from .coordination import get_store, format_handoff_markdown
+        from .coordination.handoff_store import build_handoff_record
+
+        allowed, tier = check_tier(pioneer_key)
+        if not allowed:
+            return wrap_response(tier_gate_error())
+
+        try:
+            record = build_handoff_record(
+                agent_id=agent_id,
+                session_type=session_type,
+                completed=[str(x) for x in completed],
+                decisions=[str(x) for x in decisions],
+                artifacts=[str(x) for x in artifacts],
+                pending=[str(x) for x in pending],
+                blockers=[str(x) for x in blockers],
+                next_agent=next_agent,
+            )
+            content = format_handoff_markdown(record)
+            content = sanitize_handoff_content(content)
+            record["content"] = content
+
+            store = get_store()
+            store.add(pioneer_key, record)
+
+            return wrap_response({
+                "status": "success",
+                "handoff_id": record["handoff_id"],
+                "filename": record["filename"],
+                "suggested_path": f".macp/handoffs/{record['filename']}",
+                "content": content,
+                "agent_id": agent_id,
+                "timestamp": record["timestamp"],
+                "tier": tier,
+                "message": (
+                    f"Handoff record created. Save content to "
+                    f".macp/handoffs/{record['filename']} in your repository."
+                ),
+            })
+        except Exception as e:
+            return wrap_response(build_error_response(
+                error_code="COORDINATION_CREATE_ERROR",
+                message=str(e),
+                recovery_hint="Check that all list fields contain strings.",
+                agent="coordination_handoff_create",
+                original_error=e,
+            ))
+
+    @app.tool()
+    async def coordination_handoff_read(
+        pioneer_key: str,
+        agent_id: Optional[str] = None,
+        count: int = 1,
+        ctx: Context = None,
+    ) -> dict:
+        """
+        Read the most recent coordination handoff record(s).
+
+        Pioneer tier tool — requires pioneer_key.
+
+        Retrieves handoff records previously created via coordination_handoff_create.
+        Records are namespaced by pioneer_key — you only see your own handoffs.
+
+        Args:
+            pioneer_key: Your Pioneer tier access key.
+            agent_id: Filter to handoffs from this agent only (optional).
+            count: Number of records to return (default: 1, max: 50).
+
+        Returns:
+            List of handoff records (most recent first) with full content.
+        """
+        from .middleware.tier_gate import check_tier, tier_gate_error
+        from .coordination import get_store
+
+        allowed, tier = check_tier(pioneer_key)
+        if not allowed:
+            return wrap_response(tier_gate_error())
+
+        try:
+            count = max(1, min(int(count), 50))
+            store = get_store()
+            records = store.get(pioneer_key, agent_id=agent_id, count=count)
+
+            return wrap_response({
+                "status": "success",
+                "count": len(records),
+                "filter_agent_id": agent_id,
+                "tier": tier,
+                "handoffs": [
+                    {
+                        "handoff_id": r["handoff_id"],
+                        "filename": r["filename"],
+                        "agent_id": r["agent_id"],
+                        "session_type": r["session_type"],
+                        "timestamp": r["timestamp"],
+                        "status": r["status"],
+                        "pending": r["pending"],
+                        "blockers": r["blockers"],
+                        "next_agent": r["next_agent"],
+                        "content": r.get("content", ""),
+                    }
+                    for r in records
+                ],
+            })
+        except Exception as e:
+            return wrap_response(build_error_response(
+                error_code="COORDINATION_READ_ERROR",
+                message=str(e),
+                recovery_hint="Verify your pioneer_key and try again.",
+                agent="coordination_handoff_read",
+                original_error=e,
+            ))
+
+    @app.tool()
+    async def coordination_team_status(
+        pioneer_key: str,
+        ctx: Context = None,
+    ) -> dict:
+        """
+        Return current team coordination state and session summary.
+
+        Pioneer tier tool — requires pioneer_key.
+
+        Aggregates all stored handoff records to provide a snapshot of:
+        - Which agents have been active
+        - All pending actions (from latest handoff per agent)
+        - All open blockers
+        - Recent activity timeline
+        - Recommended next actions
+
+        Args:
+            pioneer_key: Your Pioneer tier access key.
+
+        Returns:
+            Team state summary with agent activity, pending actions, and blockers.
+        """
+        from .middleware.tier_gate import check_tier, tier_gate_error
+        from .coordination import get_store
+
+        allowed, tier = check_tier(pioneer_key)
+        if not allowed:
+            return wrap_response(tier_gate_error())
+
+        try:
+            store = get_store()
+            all_records = store.get_all(pioneer_key)
+            total = len(all_records)
+
+            if not all_records:
+                return wrap_response({
+                    "status": "success",
+                    "message": "No handoff records found. Create your first handoff with coordination_handoff_create.",
+                    "total_handoffs": 0,
+                    "active_agents": [],
+                    "pending_actions": [],
+                    "open_blockers": [],
+                    "recent_activity": [],
+                    "recommended_next": None,
+                    "tier": tier,
+                })
+
+            # Latest handoff per agent (for pending/blockers)
+            latest_per_agent: dict[str, dict] = {}
+            for r in all_records:
+                aid = r["agent_id"]
+                if aid not in latest_per_agent or r["timestamp"] > latest_per_agent[aid]["timestamp"]:
+                    latest_per_agent[aid] = r
+
+            active_agents = list(latest_per_agent.keys())
+
+            pending_actions = []
+            for aid, r in latest_per_agent.items():
+                for item in r.get("pending", []):
+                    pending_actions.append({"agent": aid, "item": item})
+
+            open_blockers = []
+            for aid, r in latest_per_agent.items():
+                for b in r.get("blockers", []):
+                    open_blockers.append({"agent": aid, "blocker": b})
+
+            # Most recent 5 handoffs as activity log
+            recent = list(reversed(all_records))[:5]
+            recent_activity = [
+                {
+                    "handoff_id": r["handoff_id"],
+                    "agent_id": r["agent_id"],
+                    "session_type": r["session_type"],
+                    "timestamp": r["timestamp"],
+                    "completed_count": len(r.get("completed", [])),
+                    "pending_count": len(r.get("pending", [])),
+                    "has_blockers": bool(r.get("blockers", [])),
+                }
+                for r in recent
+            ]
+
+            # Recommended next: agent from the most recent handoff's next_agent field
+            most_recent = all_records[-1]
+            recommended_next = most_recent.get("next_agent") or None
+
+            return wrap_response({
+                "status": "success",
+                "total_handoffs": total,
+                "active_agents": active_agents,
+                "pending_actions": pending_actions,
+                "open_blockers": open_blockers,
+                "recent_activity": recent_activity,
+                "recommended_next": recommended_next,
+                "most_recent_handoff": {
+                    "handoff_id": most_recent["handoff_id"],
+                    "agent_id": most_recent["agent_id"],
+                    "session_type": most_recent["session_type"],
+                    "timestamp": most_recent["timestamp"],
+                },
+                "tier": tier,
+            })
+        except Exception as e:
+            return wrap_response(build_error_response(
+                error_code="COORDINATION_STATUS_ERROR",
+                message=str(e),
+                recovery_hint="Verify your pioneer_key and try again.",
+                agent="coordination_team_status",
+                original_error=e,
+            ))
 
     return app
 

@@ -279,7 +279,6 @@ def _validate_template(template: PromptTemplate) -> list:
         warnings.append(f"Template has many variables ({len(template.variables)})")
 
     # Check for unmatched placeholders
-    import re
     placeholders = re.findall(r'\{(\w+)\}', template.content)
     var_names = {v.name for v in template.variables}
     undefined = set(placeholders) - var_names - {'prior_reasoning', 'concept_name', 'concept_description', 'context'}
