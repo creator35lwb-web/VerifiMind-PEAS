@@ -6,10 +6,10 @@ Separates Scholar (free) from Pioneer (paid) tool access.
 
 Tier definitions:
   Scholar  — all 10 free Trinity + template tools. No coordination tools.
-  Pioneer  — all Scholar tools + 6 coordination tools ($9/month, future Stripe).
+  Pioneer  — all Scholar tools + 6 coordination tools ($9/month via Polar).
 
 Phase 1 validation: PIONEER_ACCESS_KEYS env var (comma-separated valid keys).
-Phase 2 (v0.5.13+): Replace _validate_pioneer_key() with Stripe customer lookup.
+Phase 2 (v0.5.12+): Replace _validate_pioneer_key() with Polar customer lookup.
 
 Design-in for v0.5.13:
   sanitize_handoff_content() is a stub here — full secret-stripping implemented later.
@@ -50,7 +50,7 @@ def check_tier(pioneer_key: str | None) -> Tuple[bool, str]:
     """Return (allowed, tier_name) for the given key.
 
     Phase 1: validates against PIONEER_ACCESS_KEYS env var.
-    Phase 2 hook: swap _validate_pioneer_key() for Stripe lookup — caller stays unchanged.
+    Phase 2 hook: swap _validate_pioneer_key() for Polar lookup — caller stays unchanged.
 
     Args:
         pioneer_key: Key provided by the user (or None / empty string).
@@ -74,7 +74,7 @@ def _validate_pioneer_key(key: str) -> bool:
     """Validate a pioneer key.
 
     Phase 1: env var lookup.
-    Phase 2 (v0.5.13): replace body with Stripe subscription check.
+    Phase 2 (v0.5.12): replace body with Polar customer state check via PolarAdapter.
     """
     return key in _PIONEER_KEYS
 
