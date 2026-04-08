@@ -46,7 +46,7 @@ from verifimind_mcp.registration import (
     process_optout,
 )
 from verifimind_mcp.policies import PRIVACY_POLICY, TERMS_AND_CONDITIONS
-from verifimind_mcp.pages import get_register_page, get_optout_page
+from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page
 
 # Create MCP server instance
 mcp_server = create_http_server()
@@ -910,31 +910,31 @@ async def ea_optout_handler(request):
 
 
 async def privacy_handler(request):
-    """GET /privacy — Privacy Policy v1.0 (plain text or JSON)."""
+    """GET /privacy — Privacy Policy v2.0 (HTML by default, JSON if requested)."""
     accept = request.headers.get("accept", "")
     if "application/json" in accept:
         return JSONResponse({
             "title": "VerifiMind-PEAS Privacy Policy",
-            "version": "1.0",
-            "effective_date": "2026-03-18",
+            "version": "2.0",
+            "effective_date": "2026-04-08",
             "content": PRIVACY_POLICY,
             "url": "https://verifimind.ysenseai.org/privacy",
         })
-    return PlainTextResponse(PRIVACY_POLICY)
+    return HTMLResponse(get_privacy_page())
 
 
 async def terms_handler(request):
-    """GET /terms — Terms & Conditions v1.0 (plain text or JSON)."""
+    """GET /terms — Terms & Conditions v2.0 (HTML by default, JSON if requested)."""
     accept = request.headers.get("accept", "")
     if "application/json" in accept:
         return JSONResponse({
-            "title": "VerifiMind-PEAS Early Adopter Terms & Conditions",
-            "version": "1.0",
-            "effective_date": "2026-03-18",
+            "title": "VerifiMind-PEAS Terms & Conditions",
+            "version": "2.0",
+            "effective_date": "2026-04-08",
             "content": TERMS_AND_CONDITIONS,
             "url": "https://verifimind.ysenseai.org/terms",
         })
-    return PlainTextResponse(TERMS_AND_CONDITIONS)
+    return HTMLResponse(get_terms_page())
 
 
 async def register_page_handler(request):
