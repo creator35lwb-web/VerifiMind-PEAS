@@ -46,7 +46,7 @@ from verifimind_mcp.registration import (
     process_optout,
 )
 from verifimind_mcp.policies import PRIVACY_POLICY, TERMS_AND_CONDITIONS
-from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page
+from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_changelog_page
 
 # Create MCP server instance
 mcp_server = create_http_server()
@@ -80,7 +80,8 @@ async def health_handler(request):
             "mcp": "/mcp",
             "config": "/.well-known/mcp-config",
             "health": "/health",
-            "setup": "/setup"
+            "setup": "/setup",
+            "changelog": "/changelog"
         },
         "resources": 4,
         "tools": 10,
@@ -947,6 +948,18 @@ async def optout_page_handler(request):
     return HTMLResponse(get_optout_page())
 
 
+async def changelog_handler(request):
+    """GET /changelog — Version history (HTML by default, JSON if requested)."""
+    accept = request.headers.get("accept", "")
+    if "application/json" in accept:
+        return JSONResponse({
+            "title": "VerifiMind-PEAS Changelog",
+            "current_version": SERVER_VERSION,
+            "url": "https://verifimind.ysenseai.org/changelog",
+        })
+    return HTMLResponse(get_changelog_page())
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # v0.5.12 Polar Webhook Route
 # Endpoint: POST /api/webhooks/polar
@@ -1028,6 +1041,7 @@ app = Starlette(
         Route("/early-adopters/optout/{uuid}", ea_optout_handler, methods=["POST"]),
         Route("/privacy", privacy_handler, methods=["GET"]),
         Route("/terms", terms_handler, methods=["GET"]),
+        Route("/changelog", changelog_handler, methods=["GET"]),
         # v0.5.6 UI: human-readable registration and opt-out pages
         Route("/register", register_page_handler, methods=["GET"]),
         Route("/optout", optout_page_handler, methods=["GET"]),

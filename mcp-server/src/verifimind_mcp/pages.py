@@ -1579,3 +1579,160 @@ def get_privacy_page() -> str:
 def get_terms_page() -> str:
     """Return the full HTML for GET /terms — Terms &amp; Conditions v2.0."""
     return _legal_shell(title="Terms &amp; Conditions", body=_TERMS_BODY)
+
+
+# ── Changelog page ────────────────────────────────────────────────────────────
+
+_CHANGELOG_BODY = """
+<h1>Changelog</h1>
+<div class="meta">
+  <span>Last updated: April 9, 2026</span>
+  <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
+</div>
+
+<div id="v0.5.13">
+<h2>v0.5.13 — In Development</h2>
+<ul>
+  <li>Phase 2 tier-gate wiring — <code>PolarAdapter</code> → <code>check_tier()</code> (Polar Customer State API replaces env var)</li>
+  <li>Firestore handoff storage migration (<code>coordination_handoffs</code> collection)</li>
+  <li><code>sanitize_handoff_content()</code> activation — secret stripping before persistence</li>
+  <li>Changelog endpoint (this page)</li>
+</ul>
+</div>
+
+<div id="v0.5.12">
+<h2>v0.5.12 — Polar Integration + Legal v2.0 <span style="color:var(--success);font-size:0.8rem;margin-left:0.5rem">● LIVE</span></h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 8, 2026</p>
+<ul>
+  <li><strong>PolarClient</strong> — Customer State API, <code>has_pioneer_access()</code></li>
+  <li><strong>PolarAdapter</strong> — 5-minute TTL cache, singleton, webhook-driven cache invalidation</li>
+  <li><strong>Webhook endpoint</strong> <code>POST /api/webhooks/polar</code> — Standard Webhooks HMAC verification, 6 subscription events</li>
+  <li><strong>Legal pages v2.0</strong> — Privacy Policy and Terms &amp; Conditions with Polar Merchant of Record, Pioneer tier pricing, 14-day refund policy</li>
+  <li><strong>UUID Tracer</strong> — <code>print(TRACER_UUID, flush=True)</code> in all 3 coordination tools for GCP log analytics bridge</li>
+  <li>312 tests, 52.76% coverage</li>
+  <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/123" target="_blank" rel="noopener">PR #123</a> · <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/124" target="_blank" rel="noopener">PR #124</a> · <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/125" target="_blank" rel="noopener">PR #125</a></li>
+</ul>
+</div>
+
+<div id="v0.5.11">
+<h2>v0.5.11 — Coordination Foundation</h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 7, 2026</p>
+<ul>
+  <li><strong>3 coordination tools</strong> — <code>coordination_handoff_create</code>, <code>coordination_handoff_read</code>, <code>coordination_team_status</code></li>
+  <li><strong>Tier-gate middleware</strong> — Scholar (free) vs Pioneer (paid) access control via <code>check_tier()</code></li>
+  <li>Phase 1: <code>PIONEER_ACCESS_KEYS</code> env var validation (Phase 2 Polar wiring in v0.5.13)</li>
+  <li>308 tests</li>
+  <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/122" target="_blank" rel="noopener">PR #122</a></li>
+</ul>
+</div>
+
+<div id="v0.5.10">
+<h2>v0.5.10 — Trinity Verified</h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 5, 2026</p>
+<ul>
+  <li>Trinity pipeline verified end-to-end with real multi-model inference</li>
+  <li>600-second timeout for long-running validation sessions</li>
+  <li>Z Guardian <code>max_tokens</code> enforcement (8,192 ceiling)</li>
+  <li>BYOK Anthropic Claude 4 family (claude-opus-4-6, claude-sonnet-4-6)</li>
+  <li>Prior reasoning compression — fixes token overflow in Z Agent</li>
+  <li>Two-tier PILOT/EA registration with invite codes</li>
+  <li>290 tests</li>
+</ul>
+</div>
+
+<div id="v0.5.7">
+<h2>v0.5.7 — Two-Tier Pioneer + SYSTEM_NOTICE</h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">March 29, 2026</p>
+<ul>
+  <li>Two-tier access system (PILOT + EA) with invite codes</li>
+  <li><code>SYSTEM_NOTICE</code> injection — server-side context for all tool calls</li>
+  <li>PILOT detection at registration</li>
+</ul>
+</div>
+
+<div id="v0.5.6">
+<h2>v0.5.6 — Gateway: Early Adopter Registration</h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">March 23, 2026</p>
+<ul>
+  <li>Early Adopter registration at <code>/register</code> (Z-Protocol v1.1 consent-first)</li>
+  <li>UUID-based opt-out at <code>/optout</code> (GDPR right to erasure)</li>
+  <li>Firestore EA data store (GCP native)</li>
+  <li>Privacy Policy v1.0 + Terms &amp; Conditions v1.0</li>
+  <li>290 tests</li>
+</ul>
+</div>
+
+<div id="v0.5.5">
+<h2>v0.5.5 — Trinity Baseline</h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">March 13, 2026</p>
+<ul>
+  <li><code>TrinitySynthesis</code> Pydantic schema fix — <code>founder_summary</code> field added</li>
+  <li>3 regression tests for schema validation</li>
+  <li>208 tests, Phase 47 Ground Truth baseline established</li>
+</ul>
+</div>
+
+<div id="v0.5.2">
+<h2>v0.5.2 — Genesis v4.2 "Sentinel-Verified"</h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">March 9, 2026</p>
+<ul>
+  <li>Genesis v4.2 — forced citation patterns (C-S-P methodology)</li>
+  <li>Z Guardian: compressed framework codes, max 5 per step (~45% token reduction)</li>
+  <li>CS Agent: <code>stage</code> + <code>standards_cited[]</code> per step mandatory</li>
+  <li>L Blind Test #3 PASSED (11/11)</li>
+  <li>198 tests</li>
+</ul>
+</div>
+
+<div id="v0.5.1">
+<h2>v0.5.1 — Z-Protocol v1.1 + CS Security v1.1 "Sentinel"</h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">March 7, 2026</p>
+<ul>
+  <li>Z-Protocol v1.1 "Sentinel" — 21 frameworks, 4-tier jurisdictional analysis</li>
+  <li>CS Security v1.1 — 6-stage, 12-dimension, OWASP Agentic AI framework</li>
+  <li>Trinity baseline: <strong>8.7/10 PROCEED</strong></li>
+</ul>
+</div>
+
+<div id="v0.5.0">
+<h2>v0.5.0 — Foundation: BYOK v2 + SessionContext</h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">March 1, 2026</p>
+<ul>
+  <li>BYOK v2 — Bring Your Own Key with per-agent-call provider override</li>
+  <li><code>SessionContext</code> dataclass — session state isolation, UUID tracing</li>
+  <li>Structured error responses (<code>build_error_response</code>)</li>
+  <li>API key prefix auto-detection (gsk_, sk-ant-, AIza, sk-)</li>
+  <li>Smithery removal complete</li>
+</ul>
+</div>
+
+<div id="v0.4.0">
+<h2>v0.4.0 — Unified Prompt Templates</h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">January 30, 2026</p>
+<ul>
+  <li>Prompt template library with import/export</li>
+  <li>MCP Registry listing — <code>io.github.creator35lwb-web/verifimind-genesis</code></li>
+  <li>Streamable HTTP transport</li>
+</ul>
+</div>
+
+<div id="v0.1.0">
+<h2>v0.1.0 — Genesis</h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">January 12, 2026</p>
+<ul>
+  <li>Initial MCP server scaffold</li>
+  <li>Genesis Prompt Engineering Methodology design</li>
+  <li>First commit to <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS" target="_blank" rel="noopener">creator35lwb-web/VerifiMind-PEAS</a></li>
+</ul>
+</div>
+
+<p style="margin-top:2rem; padding-top:1rem; border-top:1px solid var(--border); color:var(--muted); font-size:0.875rem;">
+  Full release history:
+  <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">github.com/creator35lwb-web/VerifiMind-PEAS/releases</a>
+</p>
+"""
+
+
+def get_changelog_page() -> str:
+    """Return the full HTML for GET /changelog — version history."""
+    return _legal_shell(title="Changelog", body=_CHANGELOG_BODY)
