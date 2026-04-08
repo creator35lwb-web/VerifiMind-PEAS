@@ -275,6 +275,18 @@ We provide a systematic approach to **multi-model AI validation** that ensures y
 
 ## 🎯 Latest Achievements
 
+### v0.5.12 — Polar Integration + Legal v2.0 (April 8, 2026)
+
+Full Polar payment infrastructure deployed: `PolarClient` for customer state API, `PolarAdapter` with 5-minute TTL cache, webhook endpoint with Standard Webhooks HMAC verification (6 subscription events). **Legal pages v2.0** — Privacy Policy and Terms & Conditions rewritten with Polar as Merchant of Record, service tier table (Scholar/EA/PILOT/Pioneer at $9/mo), 14-day refund policy, Malaysia governing law — now served as styled HTML pages at `/privacy` and `/terms`. UUID Tracer patch ensures Pioneer UUIDs reach GCP Log Explorer stdout for AY analytics ingestion (UUID Bridge Threat resolved). 312 tests, 52.76% coverage. [PR #123](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/123), [PR #124](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/124), [PR #125](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/125)
+
+### v0.5.11 — Coordination Foundation (April 7, 2026)
+
+Three MACP v2.2 coordination tools deployed as Pioneer-gated premium tier: `coordination_handoff_create`, `coordination_handoff_read`, `coordination_team_status`. Tier-gate middleware (`check_tier()`) separates Scholar (free Trinity tools) from Pioneer (paid coordination tools). Phase 1 uses `PIONEER_ACCESS_KEYS` env var; Phase 2 Polar API wiring targets v0.5.13. 308 tests. [PR #122](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/122)
+
+### v0.5.10 — Trinity Verified (April 5, 2026)
+
+Trinity pipeline verified end-to-end with real multi-model inference. 600-second timeout for long-running validation. Z Guardian `max_tokens` enforcement. BYOK Anthropic Claude 4 family (claude-opus-4-6, claude-sonnet-4-6). Two-tier Pilot/EA registration with invite codes. Prior reasoning compression fixes token overflow. Phase 73 metrics: 2,389+ verified engagement hours, 90.7% VCR. 290 tests. [PR #120](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/120)
+
 ### v0.5.6 — Gateway: Early Adopter Registration (March 23, 2026)
 
 The v0.5.6 "Gateway" release deploys the **Early Adopter Registration Gateway** at `verifimind.ysenseai.org/register` with Z-Protocol consent-first design. **Privacy Policy v1.0** and **Terms of Service v1.0** reviewed and approved by T (CTO). **Opt-Out System** with UUID-based data deletion at `/optout`. Firestore as EA data store (native to GCP, free tier covers EA volume). **Phase 55 metrics (Report 062):** 2,250+ verified engagement hours, 96.0% VCR, 1,480+ users, 290 tests. W12 fully closed. **DFSC 2026** campaign live on [Mystartr](https://rewards.mystartr.com/projects/verifimind). Landing page (verifimind.io) updated with EA Registration CTA and Mystartr campaign section. Wiki **Early Adopter Program** page created by RNA (CSO). [PR #99](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/99)
