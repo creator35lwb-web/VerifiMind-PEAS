@@ -1371,6 +1371,9 @@ def _create_mcp_instance():
         if not allowed:
             return wrap_response(tier_gate_error())
 
+        # AZ UUID Bridge: emit pioneer_key to stdout for AY analytics ingestion (v0.5.12)
+        print(f"TRACER_UUID: {pioneer_key} tool=coordination_handoff_create", flush=True)
+
         try:
             record = build_handoff_record(
                 agent_id=agent_id,
@@ -1442,6 +1445,9 @@ def _create_mcp_instance():
         if not allowed:
             return wrap_response(tier_gate_error())
 
+        # AZ UUID Bridge: emit pioneer_key to stdout for AY analytics ingestion (v0.5.12)
+        print(f"TRACER_UUID: {pioneer_key} tool=coordination_handoff_read", flush=True)
+
         try:
             count = max(1, min(int(count), 50))
             store = get_store()
@@ -1506,6 +1512,9 @@ def _create_mcp_instance():
         allowed, tier = check_tier(pioneer_key)
         if not allowed:
             return wrap_response(tier_gate_error())
+
+        # AZ UUID Bridge: emit pioneer_key to stdout for AY analytics ingestion (v0.5.12)
+        print(f"TRACER_UUID: {pioneer_key} tool=coordination_team_status", flush=True)
 
         try:
             store = get_store()
