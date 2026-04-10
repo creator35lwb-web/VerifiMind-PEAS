@@ -3,13 +3,13 @@
 
   # VerifiMind™ PEAS
 
-  **Prompt Engineering Agents System**
+  **Prompt Engineering Agents Standardization**
 
   *A Validation-First Methodology for Ethical and Secure Application Development*
 
   Transform your vision into validated, ethical, secure applications through systematic multi-model AI orchestration — from concept to deployment, with human-centered wisdom validation.
 
-  > **Evolution of PEAS:** v1.x (2024): *Prompt Engineering Application Synthesis* (Zenodo DOI — immutable) · v2.x–v4.x (2025): *Prompt Engineering & AI Standardization* (Genesis Methodology era) · **v5.x (2026): *Prompt Engineering Agents System* — current canonical** — AI Council vote 3/4 APPROVE (Apr 10, 2026)
+  > **Evolution of PEAS:** v1.x (2024): *Prompt Engineering Application Synthesis* (Zenodo DOI — immutable) · v2.x–v4.x (2025): *Prompt Engineering & AI Standardization* (Genesis Methodology era) · **v5.x (2026): *Prompt Engineering Agents Standardization* — current canonical** — AI Council vote 3/4 APPROVE (Apr 10, 2026)
 
   [![Version](https://img.shields.io/badge/version-v0.5.12-blue.svg)](CHANGELOG.md)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
@@ -31,7 +31,7 @@
 
 ## MCP Server: Production Deployed
 
-> **v0.5.12 "Polar Integration"** — 2,389+ verified engagement hours | 1,876+ users | 90.7% Value Confirmation Rate | **Pioneer Tier** ($9/mo, Polar MoR) | **Polar Integration** (PolarClient + Adapter + Webhook, Standard Webhooks HMAC) | **Legal Pages v2.0** (Privacy + T&C with Polar MoR, 14-day refund) | **Coordination Layer Phase 1** (3 Pioneer-gated tools) | **UUID Tracer** (GCP log analytics bridge) | **BYOK Anthropic Claude 4** (claude-opus-4-6, claude-sonnet-4-6) | MACP v2.2 "Identity" | 312 tests, 52.76% coverage | 74+ weekly COO reports. [Health Check](https://verifimind.ysenseai.org/health) | [Changelog](https://verifimind.ysenseai.org/changelog) | [Register as Early Adopter](https://verifimind.ysenseai.org/register) | [Pioneer Tier](https://verifimind.ysenseai.org/terms)
+> **v0.5.12 "Polar Integration"** — 2,389+ verified engagement hours | 1,876+ unique endpoints (IP-based; verified users tracked via EA registration UUID) | 90.7% Value Confirmation Rate | **Pioneer Tier** ($9/mo, Polar MoR) | **Polar Integration** (PolarClient + Adapter + Webhook, Standard Webhooks HMAC) | **Legal Pages v2.0** (Privacy + T&C with Polar MoR, 14-day refund) | **Coordination Layer Phase 1** (3 Pioneer-gated tools) | **UUID Tracer** (GCP log analytics bridge) | **BYOK Anthropic Claude 4** (claude-opus-4-6, claude-sonnet-4-6) | MACP v2.2 "Identity" | 312 tests, 52.76% coverage | 74+ weekly COO reports. [Health Check](https://verifimind.ysenseai.org/health) | [Changelog](https://verifimind.ysenseai.org/changelog) | [Register as Early Adopter](https://verifimind.ysenseai.org/register) | [Pioneer Tier](https://verifimind.ysenseai.org/terms)
 
 VerifiMind PEAS is now **live and accessible** across multiple platforms:
 
@@ -176,13 +176,13 @@ Automated testing and security scanning runs on every push to `main` via GitHub 
 >
 > **Phase 47 Ground Truth Correction (Mar 15, 2026):** COO AY's forensic audit identified duplicate session counting in earlier reports. Metrics corrected: 4,000+ → 2,100+ engagement hours, 84.5% → 63.7% VCR, 1,088 → 1,281 users (user count increased after bot session deduplication). All metrics below reflect the forensically verified Ground Truth baseline. We believe honest self-correction builds stronger credibility than inflated numbers.
 >
-> **Phase 74 Update (Apr 10, 2026):** Metrics updated to Report 074 (COO AY). 2,389+ hours, 90.7% VCR, 1,876+ users, 312 tests. Pioneer Tier live via Polar. Coordination Layer Phase 1 deployed.
+> **Phase 74 Update (Apr 10, 2026):** Metrics updated to Report 074 (COO AY). 2,389+ hours, 90.7% VCR, 1,876+ unique endpoints (IP-based; verified users tracked via EA registration UUID), 312 tests. Pioneer Tier live via Polar. Coordination Layer Phase 1 deployed.
 
 | Metric | Value | Methodology |
 |--------|-------|-------------|
 | **Verified Engagement Hours** | **2,389+** (all-time) | Session duration: first-to-last request per user per day. Scrapers excluded. Forensic standard v2.5 applied. |
 | **Value Confirmation Rate** | **90.7%** (Phase 74) | Sessions where user sends follow-up prompt (proof of value received). Forensically verified after deduplication. |
-| **Total Users / Endpoints** | **1,876+** | Unique IP-based endpoints across all platforms (bot sessions deduplicated) |
+| **Total Unique Endpoints** | **1,876+** | Unique IP-based endpoints across all platforms (bot sessions deduplicated) |
 | **MCP Integration Rate** | **43.1% Verified** | 43.1% Verified / 36.1% Automated / 20.8% Unclassified (AY Report 056 baseline) |
 | **MCP Tools Available** | **10 Scholar + 3 Pioneer** | Scholar: 4 core + 6 template. Pioneer ($9/mo): 3 coordination tools |
 | **Multi-Model Providers** | **X=Gemini, Z=Groq, CS=Groq** | Per-agent provider routing for optimal structured output |
@@ -211,7 +211,7 @@ Automated testing and security scanning runs on every push to `main` via GitHub 
 | W10 | Mar 02–08 | 1,647.5h | 3,402h | 260 | 88.5% |
 | W11 | Mar 09–15 | 393.0h | 3,795h | 130 | 84.5% |
 
-> **⚠️ Phase 47 Correction Note:** The cumulative hours above reflect pre-audit figures from weekly COO reports. After Phase 47 forensic deduplication (Report 056) and Phase 74 update (Report 074), the verified all-time total is **2,389+ hours** with **1,876+ users** and **90.7% VCR**. The weekly breakdown will be retroactively corrected in a future report.
+> **⚠️ Phase 47 Correction Note:** The cumulative hours above reflect pre-audit figures from weekly COO reports. After Phase 47 forensic deduplication (Report 056) and Phase 74 update (Report 074), the verified all-time total is **2,389+ hours** with **1,876+ unique endpoints (IP-based; verified users tracked via EA registration UUID)** and **90.7% VCR**. The weekly breakdown will be retroactively corrected in a future report.
 
 ### Traffic Classification Breakdown
 
