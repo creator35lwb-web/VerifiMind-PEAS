@@ -2,6 +2,140 @@
 
 All notable changes to the VerifiMind PEAS project will be documented in this file.
 
+Full version history also available at [verifimind.ysenseai.org/changelog](https://verifimind.ysenseai.org/changelog).
+
+---
+
+## v0.5.12 - Polar Integration + Legal v2.0 (April 8, 2026)
+
+Polar payment integration, Legal Pages v2.0, UUID Tracer, /changelog endpoint.
+
+### Polar Integration
+- **PolarClient** — Customer State API, `has_pioneer_access()` check
+- **PolarAdapter** — 5-minute TTL cache, singleton, webhook-driven cache invalidation
+- **Webhook endpoint** `POST /api/webhooks/polar` — Standard Webhooks HMAC verification, 6 subscription events
+
+### Legal Pages v2.0
+- **Privacy Policy v2.0** — Polar as Merchant of Record, payment data retention, GDPR/PDPA/Z-Protocol v1.1 compliance
+- **Terms & Conditions v2.0** — Service tier table (Scholar/EA/PILOT/Pioneer $9/mo), Polar billing §4.1-4.4, 14-day refund policy, Malaysia governing law
+
+### New Endpoints
+- `/changelog` — Full version history (this file, rendered as HTML)
+
+### Analytics
+- **UUID Tracer** — `TRACER_UUID:` stdout logging in all 3 coordination tools for GCP log analytics bridge
+
+### Testing
+- 312 tests, 52.76% coverage
+
+### Pull Requests
+- PR #123 (PolarClient + PolarAdapter), PR #124 (UUID Tracer), PR #125 (Legal v2.0 pages)
+
+### Credits
+- Implementation: RNA (Claude Code, CSO)
+- Legal Content: T (Manus AI, CTO)
+- Human Orchestrator: Alton
+
+---
+
+## v0.5.11 - Coordination Foundation (April 7, 2026)
+
+Multi-agent coordination handoff tools with Pioneer tier-gate.
+
+### New MCP Tools (3)
+- **`coordination_handoff_create`** — Structured handoff from one agent session to another
+- **`coordination_handoff_read`** — Retrieve handoff artifacts by UUID
+- **`coordination_team_status`** — Live FLYWHEEL TEAM status (available to Pioneer tier)
+
+### Tier-Gate Middleware
+- Scholar (free) vs Pioneer (paid) access control via `check_tier()`
+- Phase 1: `PIONEER_ACCESS_KEYS` env var validation (Phase 2 Polar wiring in v0.5.13)
+
+### Testing
+- 308 tests
+
+### Pull Requests
+- PR #122
+
+### Credits
+- Implementation: RNA (Claude Code, CSO)
+- Architecture: T (Manus AI, CTO)
+- Human Orchestrator: Alton
+
+---
+
+## v0.5.10 - Trinity Verified (April 5, 2026)
+
+End-to-end Trinity validation verified with real multi-model inference. Timeout + token fixes.
+
+### Fixes
+- 600-second timeout for long-running Trinity validation sessions
+- Z Guardian `max_tokens` enforcement (8,192 ceiling)
+- Prior reasoning compression — resolves Z Agent token overflow
+
+### BYOK Update
+- Anthropic Claude 4 family added: `claude-opus-4-6`, `claude-sonnet-4-6`
+
+### Registration
+- Two-tier PILOT/EA registration with invite codes
+
+### Testing
+- 290 tests
+
+### Credits
+- Implementation: RNA (Claude Code, CSO)
+- Specifications: T (Manus AI, CTO)
+- Human Orchestrator: Alton
+
+---
+
+## v0.5.9 - BYOK Model Refresh (April 4, 2026)
+
+Claude 4 family support added to BYOK provider.
+
+### BYOK
+- `claude-opus-4-6` and `claude-sonnet-4-6` added to Anthropic provider
+- Model list updated across all agents
+
+### Credits
+- Implementation: RNA (Claude Code, CSO)
+
+---
+
+## v0.5.8 - Trinity Restored + Z Guardian Hardened (April 3, 2026)
+
+Z Guardian reliability hardened. Trinity pipeline restored to full operation.
+
+### Z Guardian
+- Hardened `max_tokens` guardrail — prevents mid-JSON truncation
+- Token ceiling monitor active on all agent calls
+
+### Trinity
+- Full X-Z-CS pipeline verified end-to-end
+- Prompt structure aligned with Genesis v4.2 citation architecture
+
+### Credits
+- Implementation: RNA (Claude Code, CSO)
+- Specifications: T (Manus AI, CTO)
+
+---
+
+## v0.5.7 - Two-Tier Pioneer + SYSTEM_NOTICE (March 29, 2026)
+
+Invite-code access tiers and server-side context injection.
+
+### Access Tiers
+- Two-tier system: PILOT (invite-only) + EA (Early Adopter)
+- PILOT detection at registration endpoint
+
+### SYSTEM_NOTICE
+- Server-side context injection for all tool calls
+- Enables version and policy notices without client-side changes
+
+### Credits
+- Implementation: RNA (Claude Code, CSO)
+- Strategy: T (Manus AI, CTO)
+
 ---
 
 ## v0.5.6 - Gateway (March 23, 2026)
