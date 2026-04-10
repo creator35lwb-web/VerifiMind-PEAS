@@ -46,11 +46,12 @@ TIER_PIONEER = "pioneer"
 # Core check
 # ---------------------------------------------------------------------------
 
-def check_tier(pioneer_key: str | None) -> Tuple[bool, str]:
+async def check_tier(pioneer_key: str | None) -> Tuple[bool, str]:
     """Return (allowed, tier_name) for the given key.
 
-    Phase 1: validates against PIONEER_ACCESS_KEYS env var.
-    Phase 2 hook: swap _validate_pioneer_key() for Polar lookup — caller stays unchanged.
+    Phase 2 (v0.5.13): calls PolarAdapter.check_pioneer_access() when
+    POLAR_ACCESS_TOKEN is set. Falls back to PIONEER_ACCESS_KEYS env var
+    for local dev and when Polar is not configured.
 
     Args:
         pioneer_key: Key provided by the user (or None / empty string).
@@ -62,7 +63,7 @@ def check_tier(pioneer_key: str | None) -> Tuple[bool, str]:
     if not pioneer_key or not pioneer_key.strip():
         return False, TIER_SCHOLAR
 
-    if _validate_pioneer_key(pioneer_key.strip()):
+    if await _validate_pioneer_key(pioneer_key.strip()):
         logger.debug("Tier check: PIONEER granted")
         return True, TIER_PIONEER
 
@@ -70,12 +71,22 @@ def check_tier(pioneer_key: str | None) -> Tuple[bool, str]:
     return False, TIER_SCHOLAR
 
 
-def _validate_pioneer_key(key: str) -> bool:
+async def _validate_pioneer_key(key: str) -> bool:
     """Validate a pioneer key.
 
-    Phase 1: env var lookup.
-    Phase 2 (v0.5.12): replace body with Polar customer state check via PolarAdapter.
+    Phase 2 (v0.5.13): queries Polar Customer State API via PolarAdapter
+    when POLAR_ACCESS_TOKEN env var is set. Cancelled subscription →
+    access denied after 5-minute cache expiry.
+
+    Phase 1 fallback: PIONEER_ACCESS_KEYS env var (local dev / no Polar token).
     """
+    from .polar_adapter import get_polar_adapter
+    adapter = get_polar_adapter()
+    if adapter is not None:
+        try:
+            return await adapter.check_pioneer_access(key)
+        except Exception as e:
+            logger.error("Polar tier check failed for key %s…: %s — falling back to env var", key[:8], e)
     return key in _PIONEER_KEYS
 
 
@@ -119,17 +130,15 @@ _SECRET_PATTERNS = [
 def sanitize_handoff_content(content: str) -> str:
     """Strip secrets from handoff content before storage.
 
-    Phase 1: pass-through stub — patterns are defined but not applied.
-    Phase 2 (v0.5.13): uncomment the loop below to activate.
+    v0.5.13 "Fortify": ACTIVE — strips API keys and secrets before Firestore write.
     Security requirement: Z Guardian Section 4.3, Architecture v1.2.
 
     Args:
         content: Raw handoff markdown content.
 
     Returns:
-        Sanitized content (Phase 1: unchanged).
+        Sanitized content with secrets replaced by [REDACTED].
     """
-    # --- Phase 2 activation point ---
-    # for pattern in _SECRET_PATTERNS:
-    #     content = pattern.sub("[REDACTED]", content)
+    for pattern in _SECRET_PATTERNS:
+        content = pattern.sub("[REDACTED]", content)
     return content

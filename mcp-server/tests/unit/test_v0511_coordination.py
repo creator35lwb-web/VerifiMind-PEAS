@@ -39,55 +39,64 @@ def _set_pioneer_env(monkeypatch, key: str = VALID_KEY):
 # 1. Tier-Gating (12 tests)
 # ---------------------------------------------------------------------------
 
+@pytest.mark.asyncio
 class TestTierGate:
-    """check_tier / tier_gate_error / sanitize_handoff_content."""
+    """check_tier / tier_gate_error / sanitize_handoff_content.
 
-    def test_valid_key_grants_pioneer(self, monkeypatch):
+    check_tier() is async (v0.5.13 Phase 2 — Polar adapter). When
+    POLAR_ACCESS_TOKEN is not set, falls back to PIONEER_ACCESS_KEYS env var.
+    """
+
+    async def test_valid_key_grants_pioneer(self, monkeypatch):
         tg = _set_pioneer_env(monkeypatch, VALID_KEY)
-        allowed, tier = tg.check_tier(VALID_KEY)
+        monkeypatch.delenv("POLAR_ACCESS_TOKEN", raising=False)
+        allowed, tier = await tg.check_tier(VALID_KEY)
         assert allowed is True
         assert tier == "pioneer"
 
-    def test_invalid_key_returns_scholar(self, monkeypatch):
+    async def test_invalid_key_returns_scholar(self, monkeypatch):
         tg = _set_pioneer_env(monkeypatch, VALID_KEY)
-        allowed, tier = tg.check_tier(INVALID_KEY)
+        monkeypatch.delenv("POLAR_ACCESS_TOKEN", raising=False)
+        allowed, tier = await tg.check_tier(INVALID_KEY)
         assert allowed is False
         assert tier == "scholar"
 
-    def test_none_key_returns_scholar(self, monkeypatch):
+    async def test_none_key_returns_scholar(self, monkeypatch):
         tg = _set_pioneer_env(monkeypatch, VALID_KEY)
-        allowed, tier = tg.check_tier(None)
+        allowed, tier = await tg.check_tier(None)
         assert allowed is False
         assert tier == "scholar"
 
-    def test_empty_string_key_returns_scholar(self, monkeypatch):
+    async def test_empty_string_key_returns_scholar(self, monkeypatch):
         tg = _set_pioneer_env(monkeypatch, VALID_KEY)
-        allowed, tier = tg.check_tier("")
+        allowed, tier = await tg.check_tier("")
         assert allowed is False
         assert tier == "scholar"
 
-    def test_whitespace_key_returns_scholar(self, monkeypatch):
+    async def test_whitespace_key_returns_scholar(self, monkeypatch):
         tg = _set_pioneer_env(monkeypatch, VALID_KEY)
-        allowed, tier = tg.check_tier("   ")
+        allowed, tier = await tg.check_tier("   ")
         assert allowed is False
         assert tier == "scholar"
 
-    def test_multiple_valid_keys(self, monkeypatch):
+    async def test_multiple_valid_keys(self, monkeypatch):
         """PIONEER_ACCESS_KEYS can be comma-separated list."""
         tg = _set_pioneer_env(monkeypatch, "key-alpha,key-beta,key-gamma")
+        monkeypatch.delenv("POLAR_ACCESS_TOKEN", raising=False)
         for k in ["key-alpha", "key-beta", "key-gamma"]:
-            allowed, tier = tg.check_tier(k)
+            allowed, tier = await tg.check_tier(k)
             assert allowed is True, f"Expected key {k!r} to be allowed"
             assert tier == "pioneer"
 
-    def test_empty_env_blocks_all_keys(self, monkeypatch):
+    async def test_empty_env_blocks_all_keys(self, monkeypatch):
         """If PIONEER_ACCESS_KEYS is empty, no key is valid."""
         tg = _set_pioneer_env(monkeypatch, "")
-        allowed, tier = tg.check_tier(VALID_KEY)
+        monkeypatch.delenv("POLAR_ACCESS_TOKEN", raising=False)
+        allowed, tier = await tg.check_tier(VALID_KEY)
         assert allowed is False
         assert tier == "scholar"
 
-    def test_tier_gate_error_has_required_fields(self, monkeypatch):
+    async def test_tier_gate_error_has_required_fields(self, monkeypatch):
         tg = _set_pioneer_env(monkeypatch, VALID_KEY)
         err = tg.tier_gate_error()
         assert err["status"] == "error"
@@ -96,31 +105,32 @@ class TestTierGate:
         assert err["tier_required"] == "pioneer"
         assert "upgrade_url" in err
 
-    def test_tier_constants(self, monkeypatch):
+    async def test_tier_constants(self, monkeypatch):
         tg = _set_pioneer_env(monkeypatch, VALID_KEY)
         assert tg.TIER_SCHOLAR == "scholar"
         assert tg.TIER_PIONEER == "pioneer"
 
-    def test_sanitize_handoff_passthrough_phase1(self, monkeypatch):
-        """Phase 1: sanitize is a pass-through. Content must be returned unchanged."""
+    async def test_sanitize_handoff_active_v0513(self, monkeypatch):
+        """v0.5.13: sanitize_handoff_content strips API keys (no longer a passthrough)."""
         tg = _set_pioneer_env(monkeypatch, VALID_KEY)
-        content = "This is a handoff with sk-abc123secretkey and some other text."
+        content = "Handoff notes with sk-abc123secretkey_longkey and some text."
         result = tg.sanitize_handoff_content(content)
-        # Phase 1: no stripping — pass-through
-        assert result == content
+        assert "[REDACTED]" in result
+        assert "sk-abc123secretkey_longkey" not in result
 
-    def test_key_with_leading_trailing_spaces_blocked(self, monkeypatch):
-        """Keys with surrounding whitespace are NOT automatically stripped by caller."""
+    async def test_key_with_leading_trailing_spaces_stripped(self, monkeypatch):
+        """check_tier strips surrounding whitespace before checking."""
         tg = _set_pioneer_env(monkeypatch, VALID_KEY)
-        # The check_tier strips before checking, so leading spaces on key itself are handled
-        allowed, _ = tg.check_tier(f"  {VALID_KEY}  ")
-        assert allowed is True  # check_tier does .strip() internally
+        monkeypatch.delenv("POLAR_ACCESS_TOKEN", raising=False)
+        allowed, _ = await tg.check_tier(f"  {VALID_KEY}  ")
+        assert allowed is True
 
-    def test_pioneer_keys_stripped_on_load(self, monkeypatch):
+    async def test_pioneer_keys_stripped_on_load(self, monkeypatch):
         """Env var keys with spaces around commas are stripped at load time."""
         tg = _set_pioneer_env(monkeypatch, "  key-a  ,  key-b  ")
-        allowed_a, _ = tg.check_tier("key-a")
-        allowed_b, _ = tg.check_tier("key-b")
+        monkeypatch.delenv("POLAR_ACCESS_TOKEN", raising=False)
+        allowed_a, _ = await tg.check_tier("key-a")
+        allowed_b, _ = await tg.check_tier("key-b")
         assert allowed_a is True
         assert allowed_b is True
 
@@ -393,7 +403,7 @@ class TestCoordinationToolsIntegration:
         from verifimind_mcp.coordination import get_store, format_handoff_markdown
         from verifimind_mcp.coordination.handoff_store import build_handoff_record
 
-        allowed, tier = check_tier(VALID_KEY)
+        allowed, tier = await check_tier(VALID_KEY)
         assert allowed is True
 
         record = build_handoff_record("RNA", "development", ["done"], ["dec"], ["art.py"], ["todo"], [], "XV")
@@ -408,7 +418,7 @@ class TestCoordinationToolsIntegration:
     @pytest.mark.asyncio
     async def test_create_scholar_blocked(self):
         from verifimind_mcp.middleware.tier_gate import check_tier, tier_gate_error
-        allowed, tier = check_tier(INVALID_KEY)
+        allowed, tier = await check_tier(INVALID_KEY)
         assert allowed is False
         err = tier_gate_error()
         assert err["error_code"] == "PIONEER_TIER_REQUIRED"
@@ -471,7 +481,7 @@ class TestCoordinationToolsIntegration:
     @pytest.mark.asyncio
     async def test_read_scholar_key_blocked(self):
         from verifimind_mcp.middleware.tier_gate import check_tier
-        allowed, _ = check_tier(INVALID_KEY)
+        allowed, _ = await check_tier(INVALID_KEY)
         assert allowed is False
 
     # -- coordination_team_status --
@@ -480,7 +490,7 @@ class TestCoordinationToolsIntegration:
     async def test_status_empty_store(self):
         from verifimind_mcp.coordination import get_store
         from verifimind_mcp.middleware.tier_gate import check_tier
-        allowed, tier = check_tier(VALID_KEY)
+        allowed, tier = await check_tier(VALID_KEY)
         assert allowed is True
         records = get_store().get_all(VALID_KEY)
         assert records == []
@@ -520,7 +530,7 @@ class TestCoordinationToolsIntegration:
     @pytest.mark.asyncio
     async def test_status_scholar_blocked(self):
         from verifimind_mcp.middleware.tier_gate import check_tier
-        allowed, _ = check_tier(INVALID_KEY)
+        allowed, _ = await check_tier(INVALID_KEY)
         assert allowed is False
 
 
@@ -528,36 +538,38 @@ class TestCoordinationToolsIntegration:
 # 8. Scholar/Pioneer access enforcement (5 tests)
 # ---------------------------------------------------------------------------
 
+@pytest.mark.asyncio
 class TestTierEnforcement:
     """Verify tier boundaries are correctly enforced."""
 
     @pytest.fixture(autouse=True)
     def reset_env(self, monkeypatch):
         monkeypatch.setenv("PIONEER_ACCESS_KEYS", VALID_KEY)
+        monkeypatch.delenv("POLAR_ACCESS_TOKEN", raising=False)
         import importlib
         import verifimind_mcp.middleware.tier_gate as tg
         importlib.reload(tg)
 
-    def test_scholar_cannot_access_coordination_create(self):
+    async def test_scholar_cannot_access_coordination_create(self):
         from verifimind_mcp.middleware.tier_gate import check_tier
-        allowed, tier = check_tier(INVALID_KEY)
+        allowed, tier = await check_tier(INVALID_KEY)
         assert allowed is False
         assert tier == "scholar"
 
-    def test_scholar_cannot_access_coordination_read(self):
+    async def test_scholar_cannot_access_coordination_read(self):
         from verifimind_mcp.middleware.tier_gate import check_tier
-        allowed, _ = check_tier("")
+        allowed, _ = await check_tier("")
         assert allowed is False
 
-    def test_scholar_cannot_access_team_status(self):
+    async def test_scholar_cannot_access_team_status(self):
         from verifimind_mcp.middleware.tier_gate import check_tier
-        allowed, _ = check_tier(None)
+        allowed, _ = await check_tier(None)
         assert allowed is False
 
-    def test_pioneer_can_access_all_coordination_tools(self):
+    async def test_pioneer_can_access_all_coordination_tools(self):
         from verifimind_mcp.middleware.tier_gate import check_tier
         for tool in ["coordination_handoff_create", "coordination_handoff_read", "coordination_team_status"]:
-            allowed, tier = check_tier(VALID_KEY)
+            allowed, tier = await check_tier(VALID_KEY)
             assert allowed is True, f"{tool} should be allowed for Pioneer"
             assert tier == "pioneer"
 
