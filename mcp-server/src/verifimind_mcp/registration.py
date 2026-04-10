@@ -1,6 +1,10 @@
 """
-VerifiMind-PEAS Early Adopter Registration — v0.5.6 Gateway
+VerifiMind-PEAS Registration — v0.5.13 Fortify
 Z-Protocol v1.1 compliant: consent-first, data minimization, explicit opt-out.
+
+Two registration paths:
+  1. POST /register           — Lightweight (v0.5.13): email optional, UUIDv7 identity spine
+  2. POST /early-adopters/register — Full EA (v0.5.6): email required, feedback, invite codes
 
 Storage: Google Cloud Firestore (free tier, GCP project)
 UUID format: UUIDv7-compatible (timestamp-ordered per AI Council recommendation)
@@ -462,4 +466,151 @@ async def process_optout(uuid: str) -> OptOutResponse:
             "Your UUID will no longer grant EA benefits after deletion is complete. "
             "The free Trinity validation tier (v0.5.5) remains available without registration."
         )
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# v0.5.13 "Fortify" — Lightweight /register endpoint
+# XV PIN #49 architecture: email optional, UUID = identity spine
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Polar Pioneer checkout URL — set via GCP env var
+_POLAR_CHECKOUT_URL = os.environ.get(
+    "POLAR_CHECKOUT_URL",
+    "https://polar.sh/ysenseai-ecosystem/pioneer",
+)
+
+# Firestore collection for lightweight registrations
+COLLECTION_REGISTRATIONS = "ea_registrations"
+
+
+class UserRegistrationRequest(BaseModel):
+    """Lightweight registration request — v0.5.13.
+
+    Only consent is required. Email and display_name are optional.
+    A user who registers with only consent: true gets a UUID — maximum privacy.
+    """
+    email: Optional[EmailStr] = Field(
+        None,
+        description="Your email address (optional — used only for account recovery)"
+    )
+    display_name: Optional[str] = Field(
+        None,
+        max_length=100,
+        description="Display name (optional)"
+    )
+    consent: bool = Field(
+        ...,
+        description="You consent to the Privacy Policy v2.0 and Terms & Conditions v2.0"
+    )
+
+    @field_validator("consent")
+    @classmethod
+    def consent_must_be_true(cls, v: bool) -> bool:
+        if not v:
+            raise ValueError(
+                "Consent is required to register. "
+                "Please review our Privacy Policy and Terms & Conditions."
+            )
+        return v
+
+
+class UserRegistrationResponse(BaseModel):
+    """Response from POST /register — v0.5.13."""
+    uuid: str
+    tier: str = "ea"
+    registered_at: str
+    expires_at: str
+    pioneer_checkout: str
+    message: str
+    opt_out_url: str
+    privacy_version: str
+    tc_version: str
+
+
+async def register_user(data: UserRegistrationRequest) -> UserRegistrationResponse:
+    """Register a new user with minimal data — UUID is their identity.
+
+    XV PIN #49 architecture (v0.5.13):
+    - Email is optional: consent-only registration returns a UUID
+    - UUID is UUIDv7 (time-ordered for Firestore query efficiency)
+    - UUID = Polar external_id when user upgrades to Pioneer
+    - Anonymous Scholar users are NOT required to register (zero friction)
+    - pioneer_checkout URL embeds UUID as Polar customer_metadata.external_id
+
+    Idempotent by UUID — each call generates a new UUID (email-based
+    dedup is best-effort only, not enforced for privacy-first anonymous path).
+    """
+    db = _get_firestore()
+    now = _now_iso()
+    new_uuid = generate_ea_uuid()
+    expires_at = _benefits_until_iso(EA_BETA_FREE_MONTHS)
+
+    # Best-effort email dedup (only when email provided and Firestore available)
+    if data.email and db is not None:
+        existing = (
+            db.collection(COLLECTION_REGISTRATIONS)
+            .where("email", "==", str(data.email))
+            .limit(1)
+            .get()
+        )
+        if existing:
+            doc = existing[0].to_dict()
+            logger.info(
+                "Lightweight register: duplicate email %s — returning existing UUID",
+                _mask_email(str(data.email)),
+            )
+            checkout = f"{_POLAR_CHECKOUT_URL}?customer[external_id]={doc['uuid']}"
+            return UserRegistrationResponse(
+                uuid=doc["uuid"],
+                tier=doc.get("tier", "ea"),
+                registered_at=doc["registered_at"],
+                expires_at=doc.get("expires_at", expires_at),
+                pioneer_checkout=checkout,
+                message=(
+                    "You're already registered! Your UUID and Pioneer checkout link are below. "
+                    "Save your UUID — it is your permanent identity."
+                ),
+                opt_out_url=f"/early-adopters/optout/{doc['uuid']}",
+                privacy_version=PRIVACY_POLICY_VERSION,
+                tc_version=TERMS_VERSION,
+            )
+
+    # Store in Firestore (when available)
+    if db is not None:
+        record = {
+            "uuid": new_uuid,
+            "email": str(data.email) if data.email else None,
+            "display_name": data.display_name,
+            "tier": "ea",
+            "registered_at": now,
+            "expires_at": expires_at,
+            "consent": True,
+            "consent_ts": now,
+            "privacy_version": PRIVACY_POLICY_VERSION,
+            "tc_version": TERMS_VERSION,
+            "status": "active",
+            "registration_path": "lightweight_v0513",
+        }
+        db.collection(COLLECTION_REGISTRATIONS).document(new_uuid).set(record)
+        logger.info("Lightweight registration: UUID=%s", new_uuid)
+    else:
+        logger.warning("Firestore unavailable — lightweight registration UUID=%s not persisted", new_uuid)
+
+    checkout = f"{_POLAR_CHECKOUT_URL}?customer[external_id]={new_uuid}"
+
+    return UserRegistrationResponse(
+        uuid=new_uuid,
+        tier="ea",
+        registered_at=now,
+        expires_at=expires_at,
+        pioneer_checkout=checkout,
+        message=(
+            "Registration successful! Your UUID is your permanent identity — save it. "
+            f"Use the pioneer_checkout URL to upgrade to Pioneer tier ($9/month). "
+            f"Free EA access runs until {expires_at[:10]}."
+        ),
+        opt_out_url=f"/early-adopters/optout/{new_uuid}",
+        privacy_version=PRIVACY_POLICY_VERSION,
+        tc_version=TERMS_VERSION,
     )

@@ -44,6 +44,8 @@ from verifimind_mcp.registration import (
     get_ea_status,
     submit_feedback,
     process_optout,
+    UserRegistrationRequest,
+    register_user,
 )
 from verifimind_mcp.policies import PRIVACY_POLICY, TERMS_AND_CONDITIONS
 from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_changelog_page
@@ -943,6 +945,30 @@ async def register_page_handler(request):
     return HTMLResponse(get_register_page())
 
 
+async def register_handler(request):
+    """POST /register — Lightweight registration (v0.5.13 Fortify).
+
+    XV PIN #49 architecture: email optional, UUID = identity spine.
+    Only consent: true is required. Returns UUIDv7 + Polar checkout URL.
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+
+    try:
+        data = UserRegistrationRequest(**body)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=422)
+
+    try:
+        result = await register_user(data)
+        return JSONResponse(result.model_dump(), status_code=200)
+    except Exception as e:
+        logger.error("Lightweight registration error: %s", e)
+        return JSONResponse({"error": "Registration failed. Please try again."}, status_code=500)
+
+
 async def optout_page_handler(request):
     """GET /optout — Early Adopter data deletion UI (Z-Protocol v1.1 right to erasure)."""
     return HTMLResponse(get_optout_page())
@@ -1044,6 +1070,7 @@ app = Starlette(
         Route("/changelog", changelog_handler, methods=["GET"]),
         # v0.5.6 UI: human-readable registration and opt-out pages
         Route("/register", register_page_handler, methods=["GET"]),
+        Route("/register", register_handler, methods=["POST"]),
         Route("/optout", optout_page_handler, methods=["GET"]),
         # v0.5.12 Polar: subscription lifecycle webhook
         Route("/api/webhooks/polar", polar_webhook_handler, methods=["POST"]),

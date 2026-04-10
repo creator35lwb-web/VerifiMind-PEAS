@@ -1,24 +1,45 @@
 """
-Handoff Store — v0.5.11 Coordination Foundation
-================================================
+Handoff Store — v0.5.13 Fortify
+================================
 
-In-memory, per-pioneer-key storage for MACP v2.2 handoff records.
+Dual-backend storage for MACP v2.2 handoff records:
+  Primary:  Firestore `coordination_handoffs` collection (cross-instance persistence)
+  Fallback: In-memory deque per pioneer key (when Firestore unavailable)
 
-Phase 1: in-memory deque per pioneer key (lost on instance restart).
-Phase 3 (v0.5.13+): swap _store backend for Firestore for cross-instance persistence.
+Firestore document ID: record["filename"] (e.g. "20260410_RNA_development.md")
+Firestore collection:  coordination_handoffs
 
 The HandoffStore is process-global and thread-safe. Each pioneer_key is an isolated
 namespace — one user's handoffs are never visible to another user.
 
-Max handoffs per key: 50 (configurable via MAX_HANDOFFS_PER_KEY).
-If the limit is reached, the oldest handoff is dropped (FIFO eviction).
+Max handoffs per key (in-memory): 50 (configurable via MAX_HANDOFFS_PER_KEY).
 """
 
+import logging
+import os
 import threading
 import uuid
 from collections import defaultdict, deque
 from datetime import datetime, timezone
 from typing import Any
+
+logger = logging.getLogger(__name__)
+
+# Firestore collection for coordination handoffs
+COLLECTION_HANDOFFS = "coordination_handoffs"
+
+
+def _get_firestore_client():
+    """Lazy-init Firestore client. Returns None if unavailable."""
+    project_id = os.environ.get("FIRESTORE_PROJECT_ID") or os.environ.get("GOOGLE_CLOUD_PROJECT")
+    if not project_id:
+        return None
+    try:
+        from google.cloud import firestore  # type: ignore
+        return firestore.Client(project=project_id)
+    except Exception as e:
+        logger.warning("Firestore unavailable for handoff store: %s", e)
+        return None
 
 MAX_HANDOFFS_PER_KEY = 50
 
@@ -36,7 +57,23 @@ class HandoffStore:
         self._data: dict[str, deque] = defaultdict(lambda: deque(maxlen=self._max))
 
     def add(self, pioneer_key: str, handoff: dict) -> None:
-        """Append a handoff record under the given pioneer_key."""
+        """Append a handoff record under the given pioneer_key.
+
+        Writes to Firestore (coordination_handoffs collection) when available,
+        then appends to in-memory deque. If Firestore fails, in-memory only.
+        """
+        # Firestore write (primary persistence — cross-instance)
+        try:
+            db = _get_firestore_client()
+            if db is not None:
+                doc_id = handoff.get("filename", handoff.get("handoff_id", str(uuid.uuid4())))
+                doc_data = {**handoff, "pioneer_key_prefix": pioneer_key[:8]}
+                db.collection(COLLECTION_HANDOFFS).document(doc_id).set(doc_data)
+                logger.debug("Handoff persisted to Firestore: %s", doc_id)
+        except Exception as e:
+            logger.warning("Firestore handoff write failed (in-memory fallback): %s", e)
+
+        # In-memory write (fast reads, process-lifetime)
         with self._lock:
             self._data[pioneer_key].append(handoff)
 
