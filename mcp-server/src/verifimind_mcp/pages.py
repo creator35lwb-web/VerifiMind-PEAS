@@ -500,6 +500,25 @@ textarea { resize: vertical; min-height: 100px; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+@keyframes livepulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.25; }
+}
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--success);
+  margin-left: 0.6rem;
+  vertical-align: middle;
+}
+.live-badge::before {
+  content: "●";
+  animation: livepulse 1.4s ease-in-out infinite;
+}
+
 /* ── Responsive ── */
 @media (max-width: 600px) {
   body { padding: 1rem 0.75rem; }
@@ -1586,22 +1605,28 @@ def get_terms_page() -> str:
 _CHANGELOG_BODY = """
 <h1>Changelog</h1>
 <div class="meta">
-  <span>Last updated: April 9, 2026</span>
+  <span>Last updated: April 12, 2026</span>
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
 </div>
 
 <div id="v0.5.13">
-<h2>v0.5.13 — In Development</h2>
+<h2>v0.5.13 — Fortify <span class="live-badge">LIVE</span></h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 12, 2026</p>
 <ul>
-  <li>Phase 2 tier-gate wiring — <code>PolarAdapter</code> → <code>check_tier()</code> (Polar Customer State API replaces env var)</li>
-  <li>Firestore handoff storage migration (<code>coordination_handoffs</code> collection)</li>
-  <li><code>sanitize_handoff_content()</code> activation — secret stripping before persistence</li>
-  <li>Changelog endpoint (this page)</li>
+  <li><strong>Polar circuit breaker</strong> — 5-failure/60s window → OPEN; half-open recovery after 60s</li>
+  <li><strong>Fail-closed production semantics</strong> — any Polar outage = access denied (not env-var fallback)</li>
+  <li><strong>Retry with backoff</strong> — 3 attempts, 1s → 2s delay; 404/401 not retried</li>
+  <li><strong>Sanitization: 20+ providers</strong> — GitHub, AWS, Polar, Hugging Face, Replicate, SendGrid, Twilio, Mailgun, Slack, JWT, Bearer, Azure + catch-all</li>
+  <li><strong>Phase 2 tier-gate</strong> — <code>_validate_pioneer_key()</code> calls Polar API in production (real-time billing enforcement)</li>
+  <li><strong>Lightweight <code>/register</code></strong> — consent-only UUID identity for anonymous Scholars (zero PII)</li>
+  <li><strong>CodeQL clean</strong> — 0 medium+ alerts; stack-trace-exposure fixed in registration handlers</li>
+  <li><strong>485 tests</strong> — billing-critical coverage: <code>tier_gate.py</code> 100%, <code>polar_adapter.py</code> 96%, <code>polar_client.py</code> 100%</li>
+  <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/131" target="_blank" rel="noopener">PR #131</a> · <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/133" target="_blank" rel="noopener">PR #133</a></li>
 </ul>
 </div>
 
 <div id="v0.5.12">
-<h2>v0.5.12 — Polar Integration + Legal v2.0 <span style="color:var(--success);font-size:0.8rem;margin-left:0.5rem">● LIVE</span></h2>
+<h2>v0.5.12 — Polar Integration + Legal v2.0</h2>
 <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 8, 2026</p>
 <ul>
   <li><strong>PolarClient</strong> — Customer State API, <code>has_pioneer_access()</code></li>
