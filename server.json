@@ -17,7 +17,7 @@
   "_meta": {
     "io.modelcontextprotocol.registry/publisher-provided": {
       "homepage": "https://verifimind.ysenseai.org",
-      "iconUrl": "https://verifimind.ysenseai.org/favicon.ico",
+      "iconUrl": "https://verifimind.ysenseai.org/logo.png",
       "license": "MIT",
       "keywords": [
         "ai-validation",

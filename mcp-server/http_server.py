@@ -621,6 +621,16 @@ async def favicon_handler(request):
     return Response(content=FAVICON_BYTES, media_type="image/png")
 
 
+async def logo_handler(request):
+    """Serve the VerifiMind PEAS square logo (high-res PNG) for MCP connectors."""
+    import pathlib
+    logo_path = pathlib.Path(__file__).parent / "logo.png"
+    if logo_path.exists():
+        return Response(content=logo_path.read_bytes(), media_type="image/png")
+    # fallback to favicon if logo.png not present
+    return Response(content=FAVICON_BYTES, media_type="image/png")
+
+
 async def smithery_server_card_handler(request):
     """Smithery server-card.json — skips auto-scan during publish.
 
@@ -637,7 +647,7 @@ async def smithery_server_card_handler(request):
             "(6-stage, 12-dimension, OWASP Agentic AI). Free tier powered by Gemini 2.5 Flash."
         ),
         "version": SERVER_VERSION,
-        "iconUrl": "https://verifimind.ysenseai.org/favicon.ico",
+        "iconUrl": "https://verifimind.ysenseai.org/logo.png",
         "connections": [
             {
                 "type": "http",
@@ -1057,6 +1067,7 @@ app = Starlette(
         Route("/", root_post_redirect, methods=["POST"]),
         Route("/robots.txt", robots_handler),
         Route("/favicon.ico", favicon_handler),
+        Route("/logo.png", logo_handler),
         Route("/setup", setup_handler),
         Route("/.well-known/mcp-config", mcp_config_handler),
         Route("/.well-known/mcp/server-card.json", smithery_server_card_handler),
