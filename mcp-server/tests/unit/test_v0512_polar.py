@@ -543,10 +543,10 @@ class TestStripeDocstringRemoved:
         )
 
 # ===========================================================================
-# 7. Version regression — server.py must be v0.5.12
+# 7. Version regression — server.py must be v0.5.13
 # ===========================================================================
 
 class TestServerVersion:
-    def test_server_version_is_0512(self):
+    def test_server_version_is_0513(self):
         from verifimind_mcp.server import SERVER_VERSION
-        assert SERVER_VERSION == "0.5.12"
+        assert SERVER_VERSION == "0.5.13"

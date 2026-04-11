@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 _RAW_SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.5.12"
+SERVER_VERSION = "0.5.13"
 
 # Track C — SYSTEM_NOTICE sanitization constants
 _NOTICE_MAX_LEN = 280
@@ -1367,7 +1367,7 @@ def _create_mcp_instance():
         from .coordination import get_store, format_handoff_markdown
         from .coordination.handoff_store import build_handoff_record
 
-        allowed, tier = check_tier(pioneer_key)
+        allowed, tier = await check_tier(pioneer_key)
         if not allowed:
             return wrap_response(tier_gate_error())
 
@@ -1441,7 +1441,7 @@ def _create_mcp_instance():
         from .middleware.tier_gate import check_tier, tier_gate_error
         from .coordination import get_store
 
-        allowed, tier = check_tier(pioneer_key)
+        allowed, tier = await check_tier(pioneer_key)
         if not allowed:
             return wrap_response(tier_gate_error())
 
@@ -1509,7 +1509,7 @@ def _create_mcp_instance():
         from .middleware.tier_gate import check_tier, tier_gate_error
         from .coordination import get_store
 
-        allowed, tier = check_tier(pioneer_key)
+        allowed, tier = await check_tier(pioneer_key)
         if not allowed:
             return wrap_response(tier_gate_error())
 

@@ -6,6 +6,46 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.13 - Fortify: Production Hardening (April 12, 2026)
+
+Production security hardening sprint. All 4 X-Agent AI Council conditions from PR #131 review resolved. Zero CodeQL medium+ alerts.
+
+### Security Hardening
+- **Polar circuit breaker**: 5-failure/60s window → OPEN state; half-open recovery after 60s timeout
+- **Fail-closed production semantics**: Any Polar failure when `POLAR_ACCESS_TOKEN` is set → access denied (not env-var fallback). Env-var fallback restricted to local dev.
+- **Retry with backoff**: 3 attempts, 1s → 2s delay; 404/401 not retried (terminal errors)
+- **Sanitization expanded**: `_SECRET_PATTERNS` 6 → 20 providers — GitHub (PAT/OAuth/server), AWS AKIA, payment keys (sk_live_/sk_test_/pk_live_), Polar, Hugging Face, Replicate, SendGrid, Twilio, Mailgun, Slack, JWT, Bearer, Azure, catch-all high-entropy contexts
+
+### New Endpoint
+- `/register` (lightweight) — consent-only UUID registration for anonymous Scholars (no email required, zero PII)
+
+### Phase 2 Tier-Gate
+- `_validate_pioneer_key()` now calls `PolarAdapter.check_pioneer_access()` when `POLAR_ACCESS_TOKEN` is set — billing is now real-time enforced
+
+### UUID Audit
+- `generate_ea_uuid()` CSPRNG source documented: `os.urandom()` (OS entropy), RFC 9562 UUIDv7, audit trail in module docstring
+
+### CodeQL Clean
+- Fixed 3 `py/stack-trace-exposure` (Pydantic `str(e)` → static field hints in registration/feedback/lightweight-register handlers)
+- Removed 3 unused imports + 1 unused variable (all in test files)
+- **Result: 0 medium+ CodeQL alerts open**
+
+### Testing
+- 485 tests passed, 0 failed
+- Billing-critical coverage: `registration.py` 94%, `tier_gate.py` 100%, `polar_adapter.py` 96%, `polar_client.py` 100%, `uuid_helper.py` 100%, `polar_webhook.py` 88%
+
+### Pull Requests
+- PR #131 (v0.5.13 Fortify base), PR #133 (hardening sprint — all 4 X-Agent conditions)
+
+### Credits
+- Implementation: RNA (Claude Code, CSO)
+- Specification: T (Manus AI, CTO) — PIN `20260410_T_rna_v0513_hardening_sprint.md`
+- Quality Gate: X-Agent (AI Council Analyst/Perplexity) — 4 hardening conditions
+- Architecture: XV (Perplexity, CIO) — UUID identity spine + Polar MOR validation
+- Human Orchestrator: Alton
+
+---
+
 ## v0.5.12 - Polar Integration + Legal v2.0 (April 8, 2026)
 
 Polar payment integration, Legal Pages v2.0, UUID Tracer, /changelog endpoint.
