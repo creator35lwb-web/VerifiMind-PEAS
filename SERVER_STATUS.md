@@ -1,33 +1,31 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** April 5, 2026
+**Last Updated:** April 12, 2026
 
 ---
 
 ## Current Status: Operational
 
-**v0.5.10 "Trinity Verified" deployed successfully on April 5, 2026**
+**v0.5.13 "Fortify" deployed successfully on April 12, 2026**
 
-The VerifiMind MCP server is fully operational with three-provider Trinity architecture (Gemini × Anthropic × Anthropic). All Claude.ai blind tests pass. Zero timeouts.
+The VerifiMind MCP server is fully operational with production-hardened Polar integration (circuit breaker, fail-closed, retry). All security gates passed. 485 tests, 0 CodeQL medium+ alerts.
 
-- 10 MCP tools (4 core validation + 6 template management)
+- 13 MCP tools (4 core validation + 6 template management + 3 coordination)
 - 19 pre-built prompt templates across 6 libraries
+- **Polar Pioneer Tier ($9/mo)**: Phase 2 tier-gate live — `_validate_pioneer_key()` calls Polar Customer State API. Cancelled subscriptions denied on next call after 5-min cache expiry.
+- **Circuit Breaker (v0.5.13)**: 5-failure/60s window → OPEN; half-open recovery after 60s. Fail-closed in production — any Polar outage = access denied (not env-var fallback).
+- **Sanitization Hardened (v0.5.13)**: `_SECRET_PATTERNS` expanded 6 → 20 providers (GitHub, AWS, Polar, Hugging Face, Replicate, SendGrid, Twilio, Mailgun, Slack, JWT, Azure + catch-all).
 - **Three-Provider Trinity (v0.5.10)**: X Agent on Gemini 2.5 Flash (FREE), Z Guardian + CS Security on Anthropic Claude (BYOK). Auto-routes when `anthropic-api-key` header present.
 - **Z Guardian Veto Hardened (v0.5.8)**: Code-enforced auto-veto at `ethics_score < 4.0` — never prompt-dilutable. EU AI Act Article 5 citations in veto decisions.
-- **Anthropic BYOK Fixed (v0.5.9)**: All model strings updated to Claude 4 family (`claude-sonnet-4-20250514`, `claude-haiku-4-5-20251001`, `claude-opus-4-20250514`). Models env-var configurable: `ANTHROPIC_MODEL`, `OPENAI_MODEL`.
-- **Trinity Token Fix (v0.5.8)**: Compressed prior reasoning (~17,900 → ~8,400 tokens) — safely under Groq 12K limit.
-- **Cloud Run 600s Timeout (v0.5.10)**: Anthropic Trinity chain takes ~200-300s — now completes reliably. Applies to all providers.
+- **Cloud Run 600s Timeout (v0.5.10)**: Anthropic Trinity chain takes ~200-300s — now completes reliably.
 - **Two-Tier Pioneer Program (v0.5.7)**: Pilot (invite-only, 6 months free, 50 slots) + Early Adopter (public, 3 months free, 100 slots).
-- **SYSTEM_NOTICE Active (v0.5.7)**: Pilot invite live — active MCP users see Pioneer Program invitation in every tool response.
-- **Score-Aware Verdicts**: Three distinct `founder_summary` tones mapped to score ranges (7.8 = "go build it", 6.9 = "address these first", 3.0 = "STOPPED: EU AI Act Art 5").
-- **X Agent v4.3 (v0.5.4)**: Creator-perspective evaluation, `founder_summary`, `research_prompts` (ready-to-paste Perplexity/Grok queries).
 - **Genesis v4.2 "Sentinel-Verified"**: Forced citation patterns — Z Guardian and CS Security cite specific framework names in every reasoning step.
-- **Z-Protocol v1.1**: 21 frameworks, 4 tiers + `frameworks_cited[]` per step, `scoring_breakdown`, `applicable_frameworks` by tier.
-- **CS Agent v1.1**: 6-stage, 12-dimension + `stage` + `standards_cited[]` per step, `stages_completed`, `dimensions_evaluated`.
-- Input sanitization active on all tools
+- **Z-Protocol v1.1**: 21 frameworks, 4 tiers + `frameworks_cited[]` per step.
+- **CS Agent v1.1**: 6-stage, 12-dimension, OWASP Agentic AI Top 10.
+- Input sanitization active (20+ providers)
 - Rate limiting and EDoS protection active
-- GCP Cloud Run revision `verifimind-mcp-server-00293-89r`
-- CI/CD pipeline passing (GitHub Actions — all tests pass)
+- GCP Cloud Run revision: pending (deploy in progress)
+- CI/CD pipeline passing — 485 tests, 0 CodeQL medium+ alerts
 
 ---
 
@@ -38,7 +36,7 @@ The VerifiMind MCP server is fully operational with three-provider Trinity archi
 | **Endpoint** | `https://verifimind.ysenseai.org/mcp` |
 | **Health Check** | `https://verifimind.ysenseai.org/health` |
 | **Register** | `https://verifimind.ysenseai.org/register` |
-| **Server Version** | 0.5.10 "Trinity Verified" (deployed April 5, 2026) |
+| **Server Version** | 0.5.13 "Fortify" (deployed April 12, 2026) |
 | **Transport** | Streamable HTTP (SSE) |
 | **Default Provider** | Gemini 2.5-flash (FREE) |
 | **BYOK Providers** | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama, Perplexity |
@@ -73,6 +71,7 @@ The VerifiMind MCP server is fully operational with three-provider Trinity archi
 
 | Version | Blind Tests | Gate | Released |
 |---------|-------------|------|---------|
+| **v0.5.13 "Fortify"** | Security gate — 485 tests, 0 CodeQL alerts, X-Agent 4/4 conditions met | ✅ **PASSED** | April 12, 2026 |
 | **v0.5.10 "Trinity Verified"** | 3/3 (HireAI veto, Recipe Buddy proceed, Kuih proceed) — Alton, April 5, 2026 | ✅ **PASSED** | April 5, 2026 |
 | **v0.5.9 "BYOK Model Refresh"** | Anthropic BYOK unblocked | ✅ **PASSED** | April 5, 2026 |
 | **v0.5.8 "Trinity Restored"** | Trinity pipeline restored | ✅ **PASSED** | April 5, 2026 |
@@ -87,6 +86,8 @@ The VerifiMind MCP server is fully operational with three-provider Trinity archi
 
 | Date | Action | Version | Status |
 |------|--------|---------|--------|
+| Apr 12, 2026 | Polar circuit breaker + fail-closed + 20+ sanitization patterns + 485 tests, 0 CodeQL alerts | v0.5.13 | Complete |
+| Apr 12, 2026 | /register endpoint, Phase 2 tier-gate (Polar), Firestore handoffs, sanitization active | v0.5.13 | Complete |
 | Apr 5, 2026 | Z max_tokens 8192→4096 + Cloud Run 600s timeout | v0.5.10 | Complete |
 | Apr 5, 2026 | Anthropic BYOK model refresh (Claude 4 family) + OpenAI model update | v0.5.9 | Complete |
 | Apr 5, 2026 | Trinity token overflow fix + Z Guardian veto hardened | v0.5.8 | Complete |
