@@ -1,24 +1,32 @@
 """
-Polar Tier-Gate Adapter — v0.5.12 Pioneer Integration
-======================================================
+Polar Tier-Gate Adapter — v0.5.13 Fortify
+==========================================
 
 Bridges the Polar Customer State API to tier_gate.py middleware.
 Provides a caching layer so Pioneer tier is checked efficiently
 without hitting the Polar API on every tool invocation.
 
+v0.5.13 additions (X-Agent Item 3 hardening sprint):
+  - Retry with exponential backoff (max 3 attempts: 1s → 2s → 4s)
+  - Circuit breaker: after 5 consecutive failures within 60s → OPEN
+    → raises CircuitOpenError; tier_gate fails-closed (deny access)
+  - Structured failure logging (timestamp, error_type, attempt count)
+  - Env-var fallback restricted to local dev (no POLAR_ACCESS_TOKEN)
+
 Integration flow:
   Tool call with pioneer_key (UUID)
-    → check_tier() [tier_gate.py — Phase 1 env-var still works]
-    → OR: PolarAdapter.check_pioneer_access(uuid)  ← Phase 2 (this module)
+    → check_tier() [tier_gate.py]
+    → PolarAdapter.check_pioneer_access(uuid)
+      → Circuit open? → raise CircuitOpenError → tier_gate: deny
       → Cache hit: return cached result (no network call)
-      → Cache miss: GET /v1/customers/external/{uuid}/state
+      → Cache miss: GET /v1/customers/external/{uuid}/state (with retry)
       → Cache updated by PolarWebhookHandler on customer.state_changed
 
-Phase 1 (v0.5.11): PIONEER_ACCESS_KEYS env var (still active as fallback).
-Phase 2 (v0.5.12): PolarAdapter is used when POLAR_ACCESS_TOKEN is set.
-  The adapter is a singleton initialised once on first call to get_polar_adapter().
+Phase 1 (v0.5.11): PIONEER_ACCESS_KEYS env var (local dev / no POLAR_ACCESS_TOKEN).
+Phase 2 (v0.5.13): PolarAdapter used when POLAR_ACCESS_TOKEN is set.
 """
 
+import asyncio
 import os
 import time
 import logging
@@ -31,15 +39,33 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_CACHE_TTL = 300  # 5 minutes — matches Polar webhook SLA
 
+# Circuit breaker constants (X-Agent Item 3)
+_CIRCUIT_FAILURE_THRESHOLD = 5   # consecutive failures before opening
+_CIRCUIT_WINDOW_SECONDS = 60     # rolling window for counting consecutive failures
+_CIRCUIT_RESET_SECONDS = 60      # how long before attempting half-open recovery
+
+# Retry constants (X-Agent Item 3)
+_RETRY_MAX_ATTEMPTS = 3
+_RETRY_BASE_DELAY = 1.0          # seconds; doubled each attempt: 1 → 2 → 4
+
 # Module-level singleton — initialised on first get_polar_adapter() call
 _adapter: Optional["PolarAdapter"] = None
+
+
+class CircuitOpenError(Exception):
+    """Raised when the Polar circuit breaker is open.
+
+    Signals tier_gate.py to fail-closed (deny Pioneer access) rather than
+    falling back to env vars. This prevents unauthorized access during
+    extended Polar outages.
+    """
 
 
 def get_polar_adapter() -> Optional["PolarAdapter"]:
     """Return the active PolarAdapter singleton, or None if not configured.
 
     Returns None when POLAR_ACCESS_TOKEN env var is absent, preserving
-    Phase 1 (env-var key) behavior as the active path.
+    Phase 1 (env-var key) behavior as the active path for local dev.
 
     On first call with POLAR_ACCESS_TOKEN present, creates and caches the
     singleton for the lifetime of the process.
@@ -82,9 +108,21 @@ class PolarAdapter:
 
     Cache behaviour:
       Hit (< cache_ttl): return cached result — no Polar API call.
-      Miss or expired: query Polar Customer State API, cache result.
+      Miss or expired: query Polar Customer State API (with retry), cache result.
       Webhook update: immediately overwrite cache (timer reset).
       404 from Polar: cache as False (Scholar tier) — customer not registered.
+
+    Circuit breaker behaviour (v0.5.13):
+      After _CIRCUIT_FAILURE_THRESHOLD consecutive failures within
+      _CIRCUIT_WINDOW_SECONDS, the circuit OPENS and raises CircuitOpenError
+      for all subsequent calls. After _CIRCUIT_RESET_SECONDS the circuit
+      enters half-open state — the next call is allowed through, and on
+      success the circuit fully closes.
+
+    Retry behaviour (v0.5.13):
+      Transient errors (5xx, timeout, connection) are retried up to
+      _RETRY_MAX_ATTEMPTS times with exponential backoff (1s → 2s → 4s).
+      404 and 401 are not retried.
 
     Typical cache_ttl = 300s (5 minutes). The PolarWebhookHandler keeps the
     cache in sync with actual subscription state for real-time transitions.
@@ -101,6 +139,88 @@ class PolarAdapter:
         self.cache_ttl = cache_ttl
         self._cache: dict[str, tuple[bool, float]] = {}
 
+        # Circuit breaker state
+        self._consecutive_failures: int = 0
+        self._first_failure_at: float = 0.0
+        self._circuit_open: bool = False
+        self._circuit_opened_at: float = 0.0
+
+    # ------------------------------------------------------------------
+    # Circuit breaker internals
+    # ------------------------------------------------------------------
+
+    def _is_circuit_open(self) -> bool:
+        """Return True if requests should be blocked (circuit is OPEN).
+
+        After _CIRCUIT_RESET_SECONDS the circuit enters half-open state:
+        one request is allowed through. A success closes the circuit;
+        a failure re-opens it and resets the window.
+        """
+        if not self._circuit_open:
+            return False
+        if time.time() - self._circuit_opened_at >= _CIRCUIT_RESET_SECONDS:
+            # Half-open: allow one attempt through
+            logger.info(
+                "Polar circuit breaker entering half-open state — attempting recovery"
+            )
+            self._circuit_open = False
+            self._consecutive_failures = 0
+            self._first_failure_at = 0.0
+            return False
+        return True
+
+    def _record_success(self) -> None:
+        """Reset failure tracking after a successful Polar API call."""
+        if self._consecutive_failures > 0 or self._circuit_open:
+            logger.info(
+                "Polar circuit breaker: CLOSED after successful call "
+                "(was at %d consecutive failures)",
+                self._consecutive_failures,
+            )
+        self._consecutive_failures = 0
+        self._circuit_open = False
+        self._first_failure_at = 0.0
+        self._circuit_opened_at = 0.0
+
+    def _record_failure(self, error_type: str, attempts_made: int) -> None:
+        """Update circuit breaker state after all retries are exhausted.
+
+        Args:
+            error_type: Human-readable error class name for structured logging.
+            attempts_made: Number of retry attempts that were made.
+        """
+        now = time.time()
+
+        # Start a fresh window if the last failure was outside the window
+        if self._first_failure_at == 0.0 or now - self._first_failure_at > _CIRCUIT_WINDOW_SECONDS:
+            self._consecutive_failures = 1
+            self._first_failure_at = now
+        else:
+            self._consecutive_failures += 1
+
+        logger.error(
+            "Polar failure #%d/%d (error_type=%s, attempts=%d, window_start=%.0f, now=%.0f)",
+            self._consecutive_failures,
+            _CIRCUIT_FAILURE_THRESHOLD,
+            error_type,
+            attempts_made,
+            self._first_failure_at,
+            now,
+        )
+
+        if self._consecutive_failures >= _CIRCUIT_FAILURE_THRESHOLD:
+            if not self._circuit_open:
+                logger.error(
+                    "Polar circuit breaker OPEN — %d consecutive failures in %ds window. "
+                    "All Pioneer access denied until %.0f (now+%ds).",
+                    self._consecutive_failures,
+                    _CIRCUIT_WINDOW_SECONDS,
+                    now + _CIRCUIT_RESET_SECONDS,
+                    _CIRCUIT_RESET_SECONDS,
+                )
+            self._circuit_open = True
+            self._circuit_opened_at = now
+
     # ------------------------------------------------------------------
     # Primary access check
     # ------------------------------------------------------------------
@@ -108,9 +228,14 @@ class PolarAdapter:
     async def check_pioneer_access(self, user_uuid: str) -> bool:
         """Return True if the user has an active Pioneer subscription.
 
-        1. Check local cache (fast path — no network).
-        2. If miss or expired: query Polar Customer State API.
-        3. Cache the result for cache_ttl seconds.
+        Flow:
+          1. Circuit open? → raise CircuitOpenError (fail-closed).
+          2. Cache hit? → return cached result (no network call).
+          3. Retry loop (max 3 attempts, 1s/2s/4s backoff):
+             a. GET /v1/customers/external/{uuid}/state
+             b. 404 → Scholar (not in Polar); cache + return False.
+             c. 5xx / timeout → retry; on exhaustion → record failure.
+          4. All retries failed → record failure → re-raise last error.
 
         Args:
             user_uuid: VerifiMind user UUID (stored as Polar External ID).
@@ -119,7 +244,9 @@ class PolarAdapter:
             True if Pioneer access active, False for Scholar.
 
         Raises:
-            httpx.HTTPStatusError: On non-404 Polar API errors (5xx, 401).
+            CircuitOpenError: Circuit is open (5+ consecutive failures in window).
+            httpx.HTTPStatusError: On auth (401) or non-retryable Polar errors.
+            httpx.TimeoutException / httpx.ConnectError: If all retries fail.
         """
         import httpx
 
@@ -128,31 +255,76 @@ class PolarAdapter:
 
         uuid = user_uuid.strip()
 
-        # Cache hit
+        # 1. Circuit breaker guard
+        if self._is_circuit_open():
+            raise CircuitOpenError(
+                f"Polar circuit open — denying Pioneer access for {uuid[:8]}… "
+                f"(will retry after {_CIRCUIT_RESET_SECONDS}s)"
+            )
+
+        # 2. Cache hit
         if uuid in self._cache:
             has_access, cached_at = self._cache[uuid]
             if time.time() - cached_at < self.cache_ttl:
                 logger.debug("Cache hit for %s…: pioneer=%s", uuid[:8], has_access)
                 return has_access
 
-        # Cache miss — query Polar
-        try:
-            state = await self.client.get_customer_state(uuid)
-            has_access = self.client.has_pioneer_access(state)
-            logger.debug("Polar API: %s… pioneer=%s", uuid[:8], has_access)
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                # Customer not registered in Polar → Scholar tier
-                logger.debug("Polar customer not found: %s… → Scholar", uuid[:8])
-                has_access = False
-            else:
-                logger.error(
-                    "Polar API error %s for %s…", e.response.status_code, uuid[:8]
-                )
-                raise
+        # 3. Retry loop
+        last_error: Exception | None = None
+        for attempt in range(_RETRY_MAX_ATTEMPTS):
+            try:
+                state = await self.client.get_customer_state(uuid)
+                has_access = self.client.has_pioneer_access(state)
+                logger.debug("Polar API: %s… pioneer=%s", uuid[:8], has_access)
+                self._record_success()
+                self._cache[uuid] = (has_access, time.time())
+                return has_access
 
-        self._cache[uuid] = (has_access, time.time())
-        return has_access
+            except httpx.HTTPStatusError as e:
+                status = e.response.status_code
+                if status == 404:
+                    # Customer not registered in Polar → Scholar; not a failure
+                    logger.debug("Polar customer not found: %s… → Scholar", uuid[:8])
+                    self._record_success()
+                    self._cache[uuid] = (False, time.time())
+                    return False
+                if status == 401:
+                    # Auth error — do not retry; count as failure immediately
+                    logger.error(
+                        "Polar auth error 401 for %s… (POLAR_ACCESS_TOKEN invalid?)", uuid[:8]
+                    )
+                    last_error = e
+                    break
+                # 5xx — retryable
+                logger.warning(
+                    "Polar HTTP %d for %s… (attempt %d/%d)",
+                    status, uuid[:8], attempt + 1, _RETRY_MAX_ATTEMPTS,
+                )
+                last_error = e
+
+            except (httpx.TimeoutException, httpx.ConnectError) as e:
+                logger.warning(
+                    "Polar %s for %s… (attempt %d/%d)",
+                    type(e).__name__, uuid[:8], attempt + 1, _RETRY_MAX_ATTEMPTS,
+                )
+                last_error = e
+
+            # Backoff before next attempt (skip on last attempt)
+            if attempt < _RETRY_MAX_ATTEMPTS - 1:
+                delay = _RETRY_BASE_DELAY * (2 ** attempt)  # 1.0s, 2.0s
+                logger.warning(
+                    "Polar retry %d/%d in %.1fs for %s…",
+                    attempt + 1, _RETRY_MAX_ATTEMPTS, delay, uuid[:8],
+                )
+                await asyncio.sleep(delay)
+
+        # 4. All retries exhausted — record this as a single circuit-breaker failure
+        error_type = type(last_error).__name__ if last_error else "unknown"
+        self._record_failure(error_type, _RETRY_MAX_ATTEMPTS if last_error else 0)
+
+        if last_error:
+            raise last_error
+        raise RuntimeError("Polar: all retries exhausted with no error captured")
 
     # ------------------------------------------------------------------
     # Cache management (called by PolarWebhookHandler)
@@ -187,7 +359,8 @@ class PolarAdapter:
         """Return cache statistics for monitoring and observability.
 
         Returns:
-            Dict with total_cached, active_entries, expired_entries, cache_ttl_seconds.
+            Dict with total_cached, active_entries, expired_entries,
+            cache_ttl_seconds, circuit_open, consecutive_failures.
         """
         now = time.time()
         active = sum(
@@ -198,4 +371,6 @@ class PolarAdapter:
             "active_entries": active,
             "expired_entries": len(self._cache) - active,
             "cache_ttl_seconds": self.cache_ttl,
+            "circuit_open": self._circuit_open,
+            "consecutive_failures": self._consecutive_failures,
         }

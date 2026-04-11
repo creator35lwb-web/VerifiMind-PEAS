@@ -14,7 +14,6 @@ Tests for:
 9. Regression: existing 10 free tools unaffected
 """
 
-import os
 import pytest
 
 # ---------------------------------------------------------------------------

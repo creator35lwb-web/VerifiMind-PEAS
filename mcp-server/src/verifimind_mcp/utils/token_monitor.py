@@ -9,7 +9,6 @@ Author: RNA (Claude Code), CSO
 Version: v0.5.3
 """
 
-from typing import Optional
 
 
 # Z Agent token ceiling (Groq/Llama-3.3-70B context limit)
