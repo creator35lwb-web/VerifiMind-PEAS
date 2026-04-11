@@ -840,9 +840,9 @@ async def ea_register_handler(request):
 
     try:
         data = EarlyAdopterRegistration(**body)
-    except Exception as e:
+    except Exception:
         return JSONResponse(
-            {"error": "Validation error", "detail": str(e)},
+            {"error": "Validation error", "detail": "Check required fields: email, tc_accepted, privacy_acknowledged."},
             status_code=422,
         )
 
@@ -892,9 +892,9 @@ async def ea_feedback_handler(request):
 
     try:
         data = FeedbackRequest(**body)
-    except Exception as e:
+    except Exception:
         return JSONResponse(
-            {"error": "Validation error", "detail": str(e)},
+            {"error": "Validation error", "detail": "Check required fields: content, feedback_type."},
             status_code=422,
         )
 
@@ -958,8 +958,8 @@ async def register_handler(request):
 
     try:
         data = UserRegistrationRequest(**body)
-    except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=422)
+    except Exception:
+        return JSONResponse({"error": "Validation error", "detail": "consent is required and must be true."}, status_code=422)
 
     try:
         result = await register_user(data)

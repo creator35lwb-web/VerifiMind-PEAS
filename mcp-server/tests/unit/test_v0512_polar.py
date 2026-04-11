@@ -298,7 +298,7 @@ class TestGetPolarAdapterSingleton:
         monkeypatch.setenv("POLAR_ENVIRONMENT", "sandbox")
         from verifimind_mcp.middleware import polar_adapter as pa
         pa.reset_polar_adapter()
-        a1 = pa.get_polar_adapter()
+        pa.get_polar_adapter()
         pa.reset_polar_adapter()
         # After reset, module-level _adapter is None
         assert pa._adapter is None

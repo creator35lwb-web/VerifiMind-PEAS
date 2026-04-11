@@ -3,7 +3,7 @@ Tests for v0.5.6 Gateway: Early Adopter Registration
 Z-Protocol compliance: consent enforcement, data minimization, opt-out.
 """
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 from pydantic import ValidationError
 
 from verifimind_mcp.registration import (
