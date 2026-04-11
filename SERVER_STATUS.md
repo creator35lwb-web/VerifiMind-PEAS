@@ -24,7 +24,7 @@ The VerifiMind MCP server is fully operational with production-hardened Polar in
 - **CS Agent v1.1**: 6-stage, 12-dimension, OWASP Agentic AI Top 10.
 - Input sanitization active (20+ providers)
 - Rate limiting and EDoS protection active
-- GCP Cloud Run revision: pending (deploy in progress)
+- GCP Cloud Run revision: `verifimind-mcp-server-00313-nrp`
 - CI/CD pipeline passing — 485 tests, 0 CodeQL medium+ alerts
 
 ---
