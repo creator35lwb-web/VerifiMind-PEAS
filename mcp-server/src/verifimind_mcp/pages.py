@@ -1930,6 +1930,18 @@ _RESEARCH_CSS = """
 }
 
 .discussion-link:hover { text-decoration: underline; }
+
+.mermaid-wrap {
+  margin: 1.5rem 0 2rem;
+  background: #0f172a;
+  border: 1px solid var(--border, #334155);
+  border-radius: 8px;
+  padding: 1.5rem 1rem;
+  overflow-x: auto;
+  text-align: center;
+}
+
+.mermaid-wrap .mermaid { display: inline-block; }
 """
 
 
@@ -1972,21 +1984,27 @@ _RESEARCH_BODY = """
 
 <h3>The 5-Layer Stack</h3>
 
-<div class="protocol-stack">&#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510;
-&#x2502;  Layer 5: MACP  &#x2014; Trust &amp; Validation           YSenseAI  &#x2502;
-&#x2502;  Cross-model consensus &#x00B7; AI Council &#x00B7; Anti-Rationalization &#x2502;
-&#x251C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2524;
-&#x2502;  Layer 4: A2A / ACP  &#x2014; Task Delegation          Linux Foundation &#x2502;
-&#x2502;  Agent Cards &#x00B7; Task outsourcing &#x00B7; 150+ organizations    &#x2502;
-&#x251C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2524;
-&#x2502;  Layer 3: ANP  &#x2014; Network Discovery &amp; Negotiation    Open Source  &#x2502;
-&#x2502;  DID:WBA &#x00B7; Meta-Protocol &#x00B7; Linked Data Crawling        &#x2502;
-&#x251C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2524;
-&#x2502;  Layer 2: MCP  &#x2014; Tool Integration                Linux Foundation &#x2502;
-&#x2502;  Agent &#x2194; Tool RPC &#x00B7; Schema Discovery &#x00B7; 110M+ monthly     &#x2502;
-&#x251C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2524;
-&#x2502;  Layer 1: HTTP / WebSocket / gRPC  &#x2014; Transport                  &#x2502;
-&#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518;</div>
+<div class="mermaid-wrap">
+<div class="mermaid">
+%%{init: {"theme": "dark", "themeVariables": {"primaryColor": "#6366f1", "primaryTextColor": "#ffffff", "primaryBorderColor": "#4338ca", "lineColor": "#64748b", "background": "#0f172a", "mainBkg": "#1e293b", "nodeBorder": "#475569", "fontFamily": "ui-monospace, SFMono-Regular, monospace", "fontSize": "13px"}}}%%
+flowchart TD
+    classDef macp fill:#6366f1,color:#fff,stroke:#4338ca,stroke-width:2px
+    classDef std fill:#1e293b,color:#e2e8f0,stroke:#475569,stroke-width:1px
+    classDef transport fill:#0f172a,color:#94a3b8,stroke:#334155,stroke-width:1px
+
+    L5["Layer 5 — MACP<br/><b>Trust and Validation</b><br/>Cross-model consensus · AI Council · Anti-Rationalization<br/><i>YSenseAI</i>"]
+    L4["Layer 4 — A2A / ACP<br/><b>Task Delegation</b><br/>Agent Cards · Task outsourcing · 150+ organizations<br/><i>Linux Foundation</i>"]
+    L3["Layer 3 — ANP<br/><b>Network Discovery and Negotiation</b><br/>DID:WBA · Meta-Protocol · Linked Data Crawling<br/><i>Open Source</i>"]
+    L2["Layer 2 — MCP<br/><b>Tool Integration</b><br/>Agent-Tool RPC · Schema Discovery · 110M+ monthly<br/><i>Linux Foundation</i>"]
+    L1["Layer 1 — HTTP / WebSocket / gRPC<br/><b>Transport</b>"]
+
+    L5 --> L4 --> L3 --> L2 --> L1
+
+    class L5 macp
+    class L4,L3,L2 std
+    class L1 transport
+</div>
+</div>
 
 <h3>What MACP Solves vs What ANP Solves</h3>
 
@@ -2180,6 +2198,8 @@ def _research_shell(body: str) -> str:
   </footer>
 
 </div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({{startOnLoad:true,securityLevel:'loose'}});</script>
 </body>
 </html>"""
 
