@@ -1061,7 +1061,6 @@ async def polar_webhook_handler(request):
 
 # Create Starlette app with proper lifespan from MCP app
 app = Starlette(
-    redirect_slashes=False,  # Prevent 307 trailing-slash redirect on /mcp → /mcp/ (MCP clients convert POST→GET on redirect)
     routes=[
         Route("/health", health_handler),
         Route("/", root_handler, methods=["GET", "HEAD"]),
@@ -1091,6 +1090,9 @@ app = Starlette(
     lifespan=mcp_app.lifespan,  # CRITICAL: Pass lifespan for session initialization
     exception_handlers={404: http_exception_handler, 400: http_exception_handler, 405: http_exception_handler, 406: http_exception_handler},
 )
+# Disable trailing-slash redirects so POST /mcp works like POST /mcp/
+# (Router.redirect_slashes is available on all Starlette versions)
+app.router.redirect_slashes = False
 
 # IMPORTANT: Add middleware in correct order
 # 1. Rate limiting (first, to block before any processing)
