@@ -110,8 +110,10 @@ class TestServerEndpoints:
         """MCP endpoint should exist."""
         try:
             # MCP uses SSE, so we just check it doesn't 404
+            # Note: /mcp/ (trailing slash) is the canonical path — redirect_slashes=False
+            # means /mcp (no slash) returns 404; use /mcp/ per documented setup instructions
             response = http_client.get(
-                f"{server_url}/mcp",
+                f"{server_url}/mcp/",
                 headers={"Accept": "text/event-stream"},
                 timeout=5.0
             )
