@@ -393,21 +393,19 @@ class TestCoordinationToolsIntegration:
     @pytest.mark.asyncio
     async def test_create_returns_success(self):
         from verifimind_mcp.server import _create_mcp_instance
-        # Import tools directly from server module scope
-        import verifimind_mcp.server as srv
         # Rebuild instance to pick up fresh store
         _create_mcp_instance()
         # Call the tool function directly via the coordination module
-        from verifimind_mcp.middleware.tier_gate import check_tier, tier_gate_error, sanitize_handoff_content
+        import verifimind_mcp.middleware.tier_gate as tg
         from verifimind_mcp.coordination import get_store, format_handoff_markdown
         from verifimind_mcp.coordination.handoff_store import build_handoff_record
 
-        allowed, tier = await check_tier(VALID_KEY)
+        allowed, tier = await tg.check_tier(VALID_KEY)
         assert allowed is True
 
         record = build_handoff_record("RNA", "development", ["done"], ["dec"], ["art.py"], ["todo"], [], "XV")
         content = format_handoff_markdown(record)
-        content = sanitize_handoff_content(content)
+        content = tg.sanitize_handoff_content(content)
         record["content"] = content
         store = get_store()
         store.add(VALID_KEY, record)
@@ -416,10 +414,10 @@ class TestCoordinationToolsIntegration:
 
     @pytest.mark.asyncio
     async def test_create_scholar_blocked(self):
-        from verifimind_mcp.middleware.tier_gate import check_tier, tier_gate_error
-        allowed, tier = await check_tier(INVALID_KEY)
+        import verifimind_mcp.middleware.tier_gate as tg
+        allowed, tier = await tg.check_tier(INVALID_KEY)
         assert allowed is False
-        err = tier_gate_error()
+        err = tg.tier_gate_error()
         assert err["error_code"] == "PIONEER_TIER_REQUIRED"
 
     @pytest.mark.asyncio
@@ -479,8 +477,8 @@ class TestCoordinationToolsIntegration:
 
     @pytest.mark.asyncio
     async def test_read_scholar_key_blocked(self):
-        from verifimind_mcp.middleware.tier_gate import check_tier
-        allowed, _ = await check_tier(INVALID_KEY)
+        import verifimind_mcp.middleware.tier_gate as tg
+        allowed, _ = await tg.check_tier(INVALID_KEY)
         assert allowed is False
 
     # -- coordination_team_status --
@@ -488,8 +486,8 @@ class TestCoordinationToolsIntegration:
     @pytest.mark.asyncio
     async def test_status_empty_store(self):
         from verifimind_mcp.coordination import get_store
-        from verifimind_mcp.middleware.tier_gate import check_tier
-        allowed, tier = await check_tier(VALID_KEY)
+        import verifimind_mcp.middleware.tier_gate as tg
+        allowed, tier = await tg.check_tier(VALID_KEY)
         assert allowed is True
         records = get_store().get_all(VALID_KEY)
         assert records == []
@@ -528,8 +526,8 @@ class TestCoordinationToolsIntegration:
 
     @pytest.mark.asyncio
     async def test_status_scholar_blocked(self):
-        from verifimind_mcp.middleware.tier_gate import check_tier
-        allowed, _ = await check_tier(INVALID_KEY)
+        import verifimind_mcp.middleware.tier_gate as tg
+        allowed, _ = await tg.check_tier(INVALID_KEY)
         assert allowed is False
 
 
@@ -550,31 +548,31 @@ class TestTierEnforcement:
         importlib.reload(tg)
 
     async def test_scholar_cannot_access_coordination_create(self):
-        from verifimind_mcp.middleware.tier_gate import check_tier
-        allowed, tier = await check_tier(INVALID_KEY)
+        import verifimind_mcp.middleware.tier_gate as tg
+        allowed, tier = await tg.check_tier(INVALID_KEY)
         assert allowed is False
         assert tier == "scholar"
 
     async def test_scholar_cannot_access_coordination_read(self):
-        from verifimind_mcp.middleware.tier_gate import check_tier
-        allowed, _ = await check_tier("")
+        import verifimind_mcp.middleware.tier_gate as tg
+        allowed, _ = await tg.check_tier("")
         assert allowed is False
 
     async def test_scholar_cannot_access_team_status(self):
-        from verifimind_mcp.middleware.tier_gate import check_tier
-        allowed, _ = await check_tier(None)
+        import verifimind_mcp.middleware.tier_gate as tg
+        allowed, _ = await tg.check_tier(None)
         assert allowed is False
 
     async def test_pioneer_can_access_all_coordination_tools(self):
-        from verifimind_mcp.middleware.tier_gate import check_tier
+        import verifimind_mcp.middleware.tier_gate as tg
         for tool in ["coordination_handoff_create", "coordination_handoff_read", "coordination_team_status"]:
-            allowed, tier = await check_tier(VALID_KEY)
+            allowed, tier = await tg.check_tier(VALID_KEY)
             assert allowed is True, f"{tool} should be allowed for Pioneer"
             assert tier == "pioneer"
 
     def test_tier_gate_error_structure(self):
-        from verifimind_mcp.middleware.tier_gate import tier_gate_error
-        err = tier_gate_error()
+        import verifimind_mcp.middleware.tier_gate as tg
+        err = tg.tier_gate_error()
         assert err["status"] == "error"
         assert err["tier_required"] == "pioneer"
         assert "upgrade_url" in err
