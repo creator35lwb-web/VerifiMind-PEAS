@@ -48,7 +48,7 @@ from verifimind_mcp.registration import (
     register_user,
 )
 from verifimind_mcp.policies import PRIVACY_POLICY, TERMS_AND_CONDITIONS
-from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_changelog_page
+from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_changelog_page, get_research_page
 
 # Create MCP server instance
 mcp_server = create_http_server()
@@ -996,6 +996,11 @@ async def changelog_handler(request):
     return HTMLResponse(get_changelog_page())
 
 
+async def research_handler(request):
+    """GET /research — Published FLYWHEEL TEAM research on agent protocols."""
+    return HTMLResponse(get_research_page())
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # v0.5.12 Polar Webhook Route
 # Endpoint: POST /api/webhooks/polar
@@ -1079,6 +1084,7 @@ app = Starlette(
         Route("/privacy", privacy_handler, methods=["GET"]),
         Route("/terms", terms_handler, methods=["GET"]),
         Route("/changelog", changelog_handler, methods=["GET"]),
+        Route("/research", research_handler, methods=["GET"]),
         # v0.5.6 UI: human-readable registration and opt-out pages
         Route("/register", register_page_handler, methods=["GET"]),
         Route("/register", register_handler, methods=["POST"]),
