@@ -48,7 +48,7 @@ from verifimind_mcp.registration import (
     register_user,
 )
 from verifimind_mcp.policies import PRIVACY_POLICY, TERMS_AND_CONDITIONS
-from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_changelog_page
+from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_changelog_page, get_research_page
 
 # Create MCP server instance
 mcp_server = create_http_server()
@@ -996,6 +996,11 @@ async def changelog_handler(request):
     return HTMLResponse(get_changelog_page())
 
 
+async def research_handler(request):
+    """GET /research — Published FLYWHEEL TEAM research on agent protocols."""
+    return HTMLResponse(get_research_page())
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # v0.5.12 Polar Webhook Route
 # Endpoint: POST /api/webhooks/polar
@@ -1079,6 +1084,7 @@ app = Starlette(
         Route("/privacy", privacy_handler, methods=["GET"]),
         Route("/terms", terms_handler, methods=["GET"]),
         Route("/changelog", changelog_handler, methods=["GET"]),
+        Route("/research", research_handler, methods=["GET"]),
         # v0.5.6 UI: human-readable registration and opt-out pages
         Route("/register", register_page_handler, methods=["GET"]),
         Route("/register", register_handler, methods=["POST"]),
@@ -1090,9 +1096,33 @@ app = Starlette(
     lifespan=mcp_app.lifespan,  # CRITICAL: Pass lifespan for session initialization
     exception_handlers={404: http_exception_handler, 400: http_exception_handler, 405: http_exception_handler, 406: http_exception_handler},
 )
-# Disable trailing-slash redirects so POST /mcp works like POST /mcp/
-# (Router.redirect_slashes is available on all Starlette versions)
-app.router.redirect_slashes = False
+
+
+class McpPathNormalization:
+    """ASGI middleware: silently rewrite POST /mcp → /mcp/ before routing.
+
+    Without this, Starlette's Mount('/mcp') sends a 307 redirect to /mcp/
+    with Location: http://... (HTTPS→HTTP downgrade). MCP clients then
+    convert POST→GET on the redirect, producing a 400 Bad Request loop.
+
+    This middleware rewrites the path internally — no 3xx response is ever
+    sent to the client, so the POST body and method are fully preserved.
+    Compatible with all Starlette versions.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") == "http" and scope.get("path") == "/mcp":
+            scope = dict(scope)
+            scope["path"] = "/mcp/"
+            scope["raw_path"] = b"/mcp/"
+        await self.app(scope, receive, send)
+
+
+# Wrap app with MCP path normalization (outermost layer — runs before routing)
+app = McpPathNormalization(app)
 
 # IMPORTANT: Add middleware in correct order
 # 1. Rate limiting (first, to block before any processing)
