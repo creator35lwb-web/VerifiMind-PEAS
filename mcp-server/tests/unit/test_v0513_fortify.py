@@ -149,14 +149,14 @@ class TestTierGatePhase2:
         assert tier == "scholar"
 
     async def test_none_key_always_scholar(self, monkeypatch):
-        from verifimind_mcp.middleware.tier_gate import check_tier
-        allowed, tier = await check_tier(None)
+        import verifimind_mcp.middleware.tier_gate as tg
+        allowed, tier = await tg.check_tier(None)
         assert allowed is False
         assert tier == "scholar"
 
     async def test_empty_key_always_scholar(self, monkeypatch):
-        from verifimind_mcp.middleware.tier_gate import check_tier
-        allowed, tier = await check_tier("")
+        import verifimind_mcp.middleware.tier_gate as tg
+        allowed, tier = await tg.check_tier("")
         assert allowed is False
         assert tier == "scholar"
 
@@ -190,8 +190,8 @@ class TestSanitizeHandoffContent:
     """sanitize_handoff_content() is now ACTIVE — strips real secrets."""
 
     def _sanitize(self, content: str) -> str:
-        from verifimind_mcp.middleware.tier_gate import sanitize_handoff_content
-        return sanitize_handoff_content(content)
+        import verifimind_mcp.middleware.tier_gate as tg
+        return tg.sanitize_handoff_content(content)
 
     def test_openai_key_redacted(self):
         result = self._sanitize("key: sk-abc123def456ghi789jkl012345678901234567890")
@@ -275,8 +275,8 @@ class TestSanitizeHandoffContentProviders:
     """
 
     def _s(self, content: str) -> str:
-        from verifimind_mcp.middleware.tier_gate import sanitize_handoff_content
-        return sanitize_handoff_content(content)
+        import verifimind_mcp.middleware.tier_gate as tg
+        return tg.sanitize_handoff_content(content)
 
     # --- OpenAI ---
     def test_openai_sk_proj_redacted(self):
@@ -510,10 +510,10 @@ class TestPolarCircuitBreaker:
     def _make_adapter(self):
         """Create an adapter with a mock PolarClient."""
         from unittest.mock import MagicMock
-        from verifimind_mcp.middleware.polar_adapter import PolarAdapter
+        import verifimind_mcp.middleware.polar_adapter as pa
         mock_client = MagicMock()
         mock_client.has_pioneer_access.return_value = True
-        adapter = PolarAdapter(mock_client, cache_ttl=300)
+        adapter = pa.PolarAdapter(mock_client, cache_ttl=300)
         return adapter, mock_client
 
     async def test_timeout_raises_and_tier_gate_denies(self, monkeypatch):
@@ -540,7 +540,7 @@ class TestPolarCircuitBreaker:
         """Polar 500 → PolarAdapter retries _RETRY_MAX_ATTEMPTS times, then fails."""
         import httpx
         from unittest.mock import AsyncMock, MagicMock
-        from verifimind_mcp.middleware.polar_adapter import PolarAdapter, _RETRY_MAX_ATTEMPTS
+        import verifimind_mcp.middleware.polar_adapter as pa
 
         adapter, mock_client = self._make_adapter()
 
@@ -558,15 +558,13 @@ class TestPolarCircuitBreaker:
             await adapter.check_pioneer_access("test-uuid-500-scenario-000001")
 
         # Should have attempted _RETRY_MAX_ATTEMPTS times
-        assert mock_client.get_customer_state.call_count == _RETRY_MAX_ATTEMPTS
+        assert mock_client.get_customer_state.call_count == pa._RETRY_MAX_ATTEMPTS
 
     async def test_circuit_breaker_opens_after_threshold(self, monkeypatch):
         """5 consecutive failures → circuit opens → CircuitOpenError raised."""
         import httpx
         from unittest.mock import AsyncMock, MagicMock
-        from verifimind_mcp.middleware.polar_adapter import (
-            PolarAdapter, CircuitOpenError, _CIRCUIT_FAILURE_THRESHOLD
-        )
+        import verifimind_mcp.middleware.polar_adapter as pa
 
         adapter, mock_client = self._make_adapter()
         mock_response = MagicMock()
@@ -577,18 +575,18 @@ class TestPolarCircuitBreaker:
         monkeypatch.setattr("asyncio.sleep", AsyncMock())
 
         # Trip the circuit by exhausting failures
-        for _ in range(_CIRCUIT_FAILURE_THRESHOLD):
+        for _ in range(pa._CIRCUIT_FAILURE_THRESHOLD):
             try:
                 await adapter.check_pioneer_access(f"uuid-trip-{_:04d}-AABBCC")
             except Exception:
                 pass  # expected — failures accumulate
 
         assert adapter._circuit_open is True
-        assert adapter._consecutive_failures >= _CIRCUIT_FAILURE_THRESHOLD
+        assert adapter._consecutive_failures >= pa._CIRCUIT_FAILURE_THRESHOLD
 
         # Next call should raise CircuitOpenError immediately (no network call)
         call_count_before = mock_client.get_customer_state.call_count
-        with pytest.raises(CircuitOpenError):
+        with pytest.raises(pa.CircuitOpenError):
             await adapter.check_pioneer_access("uuid-after-circuit-open-1234")
         # No additional Polar API calls when circuit is open
         assert mock_client.get_customer_state.call_count == call_count_before
@@ -596,9 +594,6 @@ class TestPolarCircuitBreaker:
     async def test_circuit_breaker_fail_closed_in_tier_gate(self, monkeypatch):
         """Circuit open → tier_gate returns (False, 'scholar') without env-var fallback."""
         from unittest.mock import AsyncMock, MagicMock
-        from verifimind_mcp.middleware.polar_adapter import (
-            PolarAdapter, CircuitOpenError
-        )
         import verifimind_mcp.middleware.polar_adapter as pa
         import verifimind_mcp.middleware.tier_gate as tg
 
@@ -621,9 +616,7 @@ class TestPolarCircuitBreaker:
     async def test_circuit_breaker_resets_after_window(self, monkeypatch):
         """After _CIRCUIT_RESET_SECONDS, circuit enters half-open → success closes it."""
         from unittest.mock import AsyncMock
-        from verifimind_mcp.middleware.polar_adapter import (
-            PolarAdapter, _CIRCUIT_RESET_SECONDS
-        )
+        import verifimind_mcp.middleware.polar_adapter as pa
 
         adapter, mock_client = self._make_adapter()
         mock_client.get_customer_state = AsyncMock(return_value={"benefit_grants": []})
@@ -632,7 +625,7 @@ class TestPolarCircuitBreaker:
         # Manually open the circuit with an old timestamp (beyond reset window)
         adapter._circuit_open = True
         adapter._consecutive_failures = 5
-        adapter._circuit_opened_at = __import__("time").time() - _CIRCUIT_RESET_SECONDS - 1
+        adapter._circuit_opened_at = __import__("time").time() - pa._CIRCUIT_RESET_SECONDS - 1
 
         # Next call: circuit should enter half-open, Polar succeeds → circuit closed
         result = await adapter.check_pioneer_access("uuid-recovery-test-12345678")
