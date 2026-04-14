@@ -1061,6 +1061,7 @@ async def polar_webhook_handler(request):
 
 # Create Starlette app with proper lifespan from MCP app
 app = Starlette(
+    redirect_slashes=False,  # Prevent 307 trailing-slash redirect on /mcp → /mcp/ (MCP clients convert POST→GET on redirect)
     routes=[
         Route("/health", health_handler),
         Route("/", root_handler, methods=["GET", "HEAD"]),
