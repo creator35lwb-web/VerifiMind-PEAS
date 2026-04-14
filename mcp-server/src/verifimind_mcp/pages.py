@@ -1761,3 +1761,429 @@ _CHANGELOG_BODY = """
 def get_changelog_page() -> str:
     """Return the full HTML for GET /changelog — version history."""
     return _legal_shell(title="Changelog", body=_CHANGELOG_BODY)
+
+
+# ---------------------------------------------------------------------------
+# Research page — public research from the FLYWHEEL TEAM
+# ---------------------------------------------------------------------------
+
+_RESEARCH_CSS = """
+.research-wrapper {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.research-doc h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.25rem;
+}
+
+.research-doc .page-subtitle {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.research-article {
+  margin-bottom: 3rem;
+  padding-bottom: 2.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.research-article:last-child {
+  border-bottom: none;
+}
+
+.research-article h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+}
+
+.research-article h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 1.5rem 0 0.5rem;
+}
+
+.research-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.research-meta .authors { font-weight: 500; color: var(--text-soft, var(--muted)); }
+
+.research-tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: var(--accent-dim, rgba(99,102,241,0.12));
+  color: var(--accent);
+  margin-right: 0.35rem;
+  margin-bottom: 0.4rem;
+  vertical-align: middle;
+}
+
+.research-abstract {
+  background: var(--surface, #f8f8fc);
+  border-left: 3px solid var(--accent);
+  padding: 0.9rem 1.1rem;
+  margin: 1rem 0 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  border-radius: 0 6px 6px 0;
+}
+
+.research-doc p { line-height: 1.7; margin-bottom: 0.9rem; }
+
+.protocol-stack {
+  font-family: monospace;
+  font-size: 0.8rem;
+  background: var(--surface, #f8f8fc);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+  line-height: 1.6;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.finding-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.finding-card {
+  background: var(--surface, #f8f8fc);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  font-size: 0.85rem;
+}
+
+.finding-card .finding-num {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent);
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.finding-card p { margin: 0; color: var(--muted); font-size: 0.8rem; }
+
+.research-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.research-table th {
+  background: var(--surface, #f8f8fc);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text);
+  border-bottom: 2px solid var(--border);
+}
+
+.research-table td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.research-table tr:last-child td { border-bottom: none; }
+
+.research-table td:first-child,
+.research-table th:first-child { font-weight: 600; color: var(--accent); }
+
+.research-table .layer-5 td { background: rgba(99,102,241,0.06); }
+
+.discussion-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+  margin-top: 0.5rem;
+}
+
+.discussion-link:hover { text-decoration: underline; }
+"""
+
+
+_RESEARCH_BODY = """
+<h1>Research</h1>
+<p class="page-subtitle">
+  Published research from the VerifiMind FLYWHEEL TEAM — independent analysis on
+  agent protocols, AI trust infrastructure, and the evolving multi-agent ecosystem.
+  All findings are open and reproducible.
+</p>
+
+
+<!-- ================================================================ -->
+<!-- Article 1: 5-Layer Stack / ANP Analysis                          -->
+<!-- ================================================================ -->
+
+<div class="research-article" id="five-layer-stack">
+
+<h2>The 5-Layer Agent Protocol Stack: Where MACP Fits (and Why ANP Is Not a Competitor)</h2>
+
+<div class="research-meta">
+  <span class="authors">T (CTO, Manus AI) &nbsp;&middot;&nbsp; L (GodelAI) &nbsp;&middot;&nbsp; XV (CIO, Perplexity)</span>
+  <span>April 15, 2026</span>
+  <span>
+    <span class="research-tag">Protocol Architecture</span>
+    <span class="research-tag">Competitive Analysis</span>
+    <span class="research-tag">AI Council Validated</span>
+  </span>
+</div>
+
+<div class="research-abstract">
+  <strong>Abstract.</strong> The agent protocol ecosystem has matured into a 5-layer stack.
+  MCP (Layer 2), ANP (Layer 3), A2A (Layer 4), and MACP (Layer 5) address fundamentally
+  different problems. An AI Council session flagged ANP as a potential direct competitor to
+  MACP's cross-vendor validation claim. Instead of dismissing the challenge, we ran a
+  research sprint and published what we found — including where our original claim was wrong.
+  MACP remains the only protocol at Layer 5 (trust and validation). ANP operates at Layer 3
+  (network discovery). They are complementary, not competitive.
+</div>
+
+<h3>The 5-Layer Stack</h3>
+
+<div class="protocol-stack">&#x250C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2510;
+&#x2502;  Layer 5: MACP  &#x2014; Trust &amp; Validation           YSenseAI  &#x2502;
+&#x2502;  Cross-model consensus &#x00B7; AI Council &#x00B7; Anti-Rationalization &#x2502;
+&#x251C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2524;
+&#x2502;  Layer 4: A2A / ACP  &#x2014; Task Delegation          Linux Foundation &#x2502;
+&#x2502;  Agent Cards &#x00B7; Task outsourcing &#x00B7; 150+ organizations    &#x2502;
+&#x251C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2524;
+&#x2502;  Layer 3: ANP  &#x2014; Network Discovery &amp; Negotiation    Open Source  &#x2502;
+&#x2502;  DID:WBA &#x00B7; Meta-Protocol &#x00B7; Linked Data Crawling        &#x2502;
+&#x251C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2524;
+&#x2502;  Layer 2: MCP  &#x2014; Tool Integration                Linux Foundation &#x2502;
+&#x2502;  Agent &#x2194; Tool RPC &#x00B7; Schema Discovery &#x00B7; 110M+ monthly     &#x2502;
+&#x251C;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2524;
+&#x2502;  Layer 1: HTTP / WebSocket / gRPC  &#x2014; Transport                  &#x2502;
+&#x2514;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2500;&#x2518;</div>
+
+<h3>What MACP Solves vs What ANP Solves</h3>
+
+<table class="research-table">
+  <thead>
+    <tr><th>Question</th><th>Protocol</th><th>Layer</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>How do agents discover each other?</td><td>ANP</td><td>3</td></tr>
+    <tr><td>How do agents agree on communication formats?</td><td>ANP</td><td>3</td></tr>
+    <tr><td>How do agents call external tools?</td><td>MCP</td><td>2</td></tr>
+    <tr><td>How do agents delegate tasks to other agents?</td><td>A2A</td><td>4</td></tr>
+    <tr class="layer-5"><td>How do we know the output is trustworthy?</td><td><strong>MACP</strong></td><td><strong>5</strong></td></tr>
+    <tr class="layer-5"><td>How do we reduce hallucination across models?</td><td><strong>MACP</strong></td><td><strong>5</strong></td></tr>
+    <tr class="layer-5"><td>How do we keep a human in the loop?</td><td><strong>MACP</strong></td><td><strong>5</strong></td></tr>
+  </tbody>
+</table>
+
+<h3>Where Our Original Claim Was Wrong</h3>
+<p>
+  Our April 14 differentiation document claimed "no other protocol provides cross-vendor
+  semantic validation." The AI Council CS Agent was right to flag this — ANP does provide
+  cross-vendor semantic <em>negotiation</em> (agents from different vendors agree on
+  communication formats). We corrected the claim. MACP provides cross-vendor semantic
+  <em>validation</em> (verifying correctness and trustworthiness of outputs after they exist).
+  Negotiation and validation are complementary, not competing, concerns.
+</p>
+
+<h3>The Honest Conclusion</h3>
+<p>
+  An agent system can and should use ANP (Layer 3) for discovery, MCP (Layer 2) for
+  tool integration, A2A (Layer 4) for task delegation, and MACP (Layer 5) for trust
+  validation — simultaneously, just as a web application uses DNS for discovery and
+  TLS for security simultaneously. MACP is the only protocol that addresses the
+  epistemic question: <em>is this output correct and aligned?</em>
+</p>
+
+<a class="discussion-link" href="https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions" target="_blank" rel="noopener">
+  &#8594; Read full discussion on GitHub
+</a>
+
+</div>
+
+
+<!-- ================================================================ -->
+<!-- Article 2: Market Intelligence Week 16                           -->
+<!-- ================================================================ -->
+
+<div class="research-article" id="market-intelligence-week16">
+
+<h2>Market Intelligence: Agent Protocol Ecosystem — Week 16 (April 8&#x2013;15, 2026)</h2>
+
+<div class="research-meta">
+  <span class="authors">T (CTO, Manus AI)</span>
+  <span>April 15, 2026</span>
+  <span>
+    <span class="research-tag">Market Intelligence</span>
+    <span class="research-tag">Ecosystem Analysis</span>
+    <span class="research-tag">Weekly Report</span>
+  </span>
+</div>
+
+<div class="research-abstract">
+  <strong>Abstract.</strong> The agent protocol ecosystem is experiencing a Cambrian explosion.
+  In seven days, the competitive landscape expanded from 7 to 10+ protocols. More significantly,
+  independent researchers, protocol designers, and enterprise analysts are converging on the
+  same conclusion: the trust and validation layer is the critical missing piece in agent
+  infrastructure. MACP's Layer 5 positioning is not only defensible — it is being validated
+  by independent third parties who have no knowledge of MACP's existence.
+</div>
+
+<h3>Key Findings</h3>
+
+<div class="finding-grid">
+  <div class="finding-card">
+    <span class="finding-num">10+</span>
+    <p>Agent protocols in active development as of April 15, 2026 — up from 7 the prior week</p>
+  </div>
+  <div class="finding-card">
+    <span class="finding-num">150+</span>
+    <p>Organizations supporting A2A (Linux Foundation), confirming Layer 4 has reached critical mass</p>
+  </div>
+  <div class="finding-card">
+    <span class="finding-num">110M+</span>
+    <p>Monthly MCP downloads (confirmed by Anthropic, April 13) — Layer 2 is the default tool layer</p>
+  </div>
+  <div class="finding-card">
+    <span class="finding-num">0</span>
+    <p>Other protocols at Layer 5 (trust &amp; validation) — the gap MACP was built to fill remains open</p>
+  </div>
+</div>
+
+<h3>New Protocol Entrants (April 8&#x2013;15)</h3>
+
+<table class="research-table">
+  <thead>
+    <tr><th>Protocol</th><th>Layer</th><th>Organization</th><th>Key Contribution</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>MPAC</td><td>4.5</td><td>Open Source (arXiv:2604.09744)</td><td>Multi-principal governance — resolves whose intent prevails when independent principals' agents must coordinate over shared state</td></tr>
+    <tr><td>AXCP</td><td>3</td><td>Rodriguez, 2026</td><td>Secure multi-agent communication using DID resolution trust and message provenance</td></tr>
+    <tr><td>HDP</td><td>3.5</td><td>Open Source (arXiv:2604.04522)</td><td>Human Delegation Provenance — cryptographic tokens carrying human authorization context through multi-agent chains</td></tr>
+  </tbody>
+</table>
+
+<h3>The Provenance Gap Consensus</h3>
+<p>
+  The most strategically significant development this week: independent researchers are
+  converging on the same structural finding across all major protocols.
+  Paul Clegg's April 11 analysis surveyed MCP, A2A, ACP, and ANP and found
+  the same missing piece in all four:
+</p>
+
+<table class="research-table">
+  <thead>
+    <tr><th>Protocol</th><th>Identified Gap</th><th>Prescribed Mitigation</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>MCP</td><td>Tool Redefinition</td><td>Signed, versioned manifests</td></tr>
+    <tr><td>A2A</td><td>Version Drift</td><td>Immutable, versioned manifests; signed diffs</td></tr>
+    <tr><td>ACP</td><td>Configuration Drift</td><td>Validate against known state</td></tr>
+    <tr><td>ANP</td><td>Provenance tracking</td><td>Same pattern applies</td></tr>
+  </tbody>
+</table>
+
+<p>
+  Same prescription. Four protocols. The researchers are not describing a theoretical gap
+  — they are documenting what is missing right now across the entire production protocol
+  landscape. MACP's multi-model validation directly addresses the trust gap that all four
+  independent analyses identify.
+</p>
+
+<h3>Enterprise Signals</h3>
+<ul>
+  <li><strong>Kong AI Gateway</strong> (April 15) — now supports A2A traffic alongside MCP, positioning as "the most comprehensive AI gateway for the agentic era." The trust and validation layer (Layer 5) remains absent from enterprise gateway offerings.</li>
+  <li><strong>Futurum Group survey</strong> (April 14) — 24.9% of enterprises primarily rely on neutral orchestration over walled gardens. MACP's protocol-agnostic validation layer aligns with this preference.</li>
+  <li><strong>Microsoft Copilot Studio</strong> (April 9) — published A2A integration documentation, confirming A2A as the enterprise task-delegation standard.</li>
+  <li><strong>IETF DAWN draft</strong> (April 2026) — first IETF-track work on agent discovery requirements, validating ANP's approach and signaling that standards bodies are actively shaping the landscape.</li>
+</ul>
+
+<h3>W3C Standards Activity</h3>
+<p>
+  The W3C AI Agent Protocol Community Group published a comparison of MCP, A2A, ACP, ANP,
+  and AGORA in April 2026. MACP is absent from this comparison. Our CIO (XV) elevated
+  W3C/IETF engagement from a "post-Beta" item to an "alongside Beta" priority.
+  Standards bodies are defining the agent protocol landscape now — absence means absence.
+</p>
+
+<a class="discussion-link" href="https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions" target="_blank" rel="noopener">
+  &#8594; Read full report and join the discussion on GitHub
+</a>
+
+</div>
+"""
+
+
+def _research_shell(body: str) -> str:
+    """Shell for the research page — indexable, wider layout for research content."""
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Research — VerifiMind-PEAS</title>
+  <meta name="description" content="Open research from the VerifiMind FLYWHEEL TEAM on agent protocols, AI trust infrastructure, and the multi-agent ecosystem.">
+  <style>{_CSS}{_LEGAL_CSS}{_RESEARCH_CSS}</style>
+</head>
+<body>
+<div class="page-wrapper research-wrapper">
+
+  <header class="site-header">
+    <a class="site-logo" href="https://verifimind.ysenseai.org">
+      VerifiMind<span>-PEAS</span>
+    </a>
+    <span class="version-badge">Research</span>
+  </header>
+
+  <div class="legal-doc research-doc">
+    {body}
+  </div>
+
+  <footer class="page-footer">
+    <p>
+      <a href="/changelog">Changelog</a> &nbsp;&middot;&nbsp;
+      <a href="/research">Research</a> &nbsp;&middot;&nbsp;
+      <a href="/privacy">Privacy Policy</a> &nbsp;&middot;&nbsp;
+      <a href="/terms">Terms &amp; Conditions</a> &nbsp;&middot;&nbsp;
+      <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS" target="_blank" rel="noopener">GitHub</a>
+    </p>
+    <p style="margin-top:0.5rem">MACP v2.2 &#xB7; FLYWHEEL TEAM &#xB7; Open Research (CC BY 4.0)</p>
+  </footer>
+
+</div>
+</body>
+</html>"""
+
+
+def get_research_page() -> str:
+    """Return the full HTML for GET /research — published FLYWHEEL TEAM research."""
+    return _research_shell(body=_RESEARCH_BODY)
