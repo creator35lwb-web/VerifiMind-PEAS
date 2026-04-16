@@ -511,6 +511,11 @@ User-agent: *
 Disallow: /mcp/
 Allow: /health
 Allow: /.well-known/
+Allow: /research
+Allow: /research/index.json
+Allow: /changelog
+
+Sitemap: https://verifimind.ysenseai.org/sitemap.xml
 
 # VerifiMind-PEAS MCP Server
 # Landing page: https://verifimind.io
@@ -614,6 +619,42 @@ HELP_URL = "https://github.com/creator35lwb-web/VerifiMind-PEAS#-common-mistakes
 async def robots_handler(request):
     """Serve robots.txt to suppress crawler 404s."""
     return PlainTextResponse(ROBOTS_TXT)
+
+
+_SITEMAP_XML = """\
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://verifimind.ysenseai.org/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://verifimind.ysenseai.org/research</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://verifimind.ysenseai.org/research/index.json</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://verifimind.ysenseai.org/changelog</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://verifimind.ysenseai.org/setup</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+</urlset>"""
+
+
+async def sitemap_handler(request):
+    """GET /sitemap.xml — for search engines and AI crawlers."""
+    return Response(content=_SITEMAP_XML, media_type="application/xml")
 
 
 async def favicon_handler(request):
@@ -1001,6 +1042,66 @@ async def research_handler(request):
     return HTMLResponse(get_research_page())
 
 
+# Machine-readable index — enables future MCP tool + AI crawlers (Perplexity, Google SGE)
+_RESEARCH_INDEX = {
+    "version": "1.0",
+    "updated": "2026-04-15",
+    "url": "https://verifimind.ysenseai.org/research",
+    "license": "CC BY 4.0",
+    "papers": [
+        {
+            "id": "five-layer-stack",
+            "title": "The 5-Layer Agent Protocol Stack: Where MACP Fits (and Why ANP Is Not a Competitor)",
+            "authors": ["T (CTO, Manus AI)", "L (GodelAI)", "XV (CIO, Perplexity)"],
+            "date": "2026-04-15",
+            "tags": ["Protocol Architecture", "Competitive Analysis", "AI Council Validated"],
+            "url": "https://verifimind.ysenseai.org/research#five-layer-stack",
+            "discussion": "https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions/143",
+            "abstract": (
+                "The agent protocol ecosystem has matured into a 5-layer stack. "
+                "MCP (Layer 2), ANP (Layer 3), A2A (Layer 4), and MACP (Layer 5) address "
+                "fundamentally different problems. MACP remains the only protocol at Layer 5 "
+                "(trust and validation). ANP operates at Layer 3 (network discovery). "
+                "They are complementary, not competitive."
+            ),
+        },
+        {
+            "id": "market-intelligence-week16",
+            "title": "Market Intelligence: Agent Protocol Ecosystem — Week 16 (April 8–15, 2026)",
+            "authors": ["T (CTO, Manus AI)"],
+            "date": "2026-04-15",
+            "tags": ["Market Intelligence", "Ecosystem Analysis", "Weekly Report"],
+            "url": "https://verifimind.ysenseai.org/research#market-intelligence-week16",
+            "discussion": "https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions/144",
+            "abstract": (
+                "10+ protocols in active development. 0 protocols at Layer 5. "
+                "Independent researchers are converging on the same provenance gap across "
+                "MCP, A2A, ACP, and ANP — the same mitigation MACP provides."
+            ),
+        },
+        {
+            "id": "white-paper",
+            "title": "VerifiMind-PEAS Canonical White Paper",
+            "authors": ["Alton Lee", "YSenseAI Research"],
+            "date": "2025",
+            "tags": ["Academic", "Prior Art", "Zenodo"],
+            "url": "https://verifimind.ysenseai.org/research#white-paper",
+            "doi": "10.5281/zenodo.17645665",
+            "abstract": (
+                "The foundational methodology behind VerifiMind-PEAS — the Prompt Engineering "
+                "Agents Standardization framework and its validation-first architecture — "
+                "formally published with a permanent DOI for academic citation and prior art."
+            ),
+        },
+    ],
+}
+
+
+async def research_index_handler(request):
+    """GET /research/index.json — machine-readable research index for AI crawlers and MCP tools."""
+    return JSONResponse(_RESEARCH_INDEX)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # v0.5.12 Polar Webhook Route
 # Endpoint: POST /api/webhooks/polar
@@ -1071,6 +1172,7 @@ app = Starlette(
         Route("/", root_handler, methods=["GET", "HEAD"]),
         Route("/", root_post_redirect, methods=["POST"]),
         Route("/robots.txt", robots_handler),
+        Route("/sitemap.xml", sitemap_handler),
         Route("/favicon.ico", favicon_handler),
         Route("/logo.png", logo_handler),
         Route("/setup", setup_handler),
@@ -1085,6 +1187,7 @@ app = Starlette(
         Route("/terms", terms_handler, methods=["GET"]),
         Route("/changelog", changelog_handler, methods=["GET"]),
         Route("/research", research_handler, methods=["GET"]),
+        Route("/research/index.json", research_index_handler, methods=["GET"]),
         # v0.5.6 UI: human-readable registration and opt-out pages
         Route("/register", register_page_handler, methods=["GET"]),
         Route("/register", register_handler, methods=["POST"]),
