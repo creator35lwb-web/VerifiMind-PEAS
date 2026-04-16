@@ -1986,23 +1986,23 @@ _RESEARCH_BODY = """
 
 <div class="mermaid-wrap">
 <div class="mermaid">
-%%{init: {"theme": "dark", "themeVariables": {"primaryColor": "#6366f1", "primaryTextColor": "#ffffff", "primaryBorderColor": "#4338ca", "lineColor": "#64748b", "background": "#0f172a", "mainBkg": "#1e293b", "nodeBorder": "#475569", "fontFamily": "ui-monospace, SFMono-Regular, monospace", "fontSize": "13px"}}}%%
-flowchart TD
-    classDef macp fill:#6366f1,color:#fff,stroke:#4338ca,stroke-width:2px
-    classDef std fill:#1e293b,color:#e2e8f0,stroke:#475569,stroke-width:1px
-    classDef transport fill:#0f172a,color:#94a3b8,stroke:#334155,stroke-width:1px
+%%{init: {"theme": "dark", "themeVariables": {"primaryColor": "#6366f1", "primaryTextColor": "#ffffff", "primaryBorderColor": "#4338ca", "lineColor": "#6366f1", "background": "#0f172a", "mainBkg": "#1e293b", "nodeBorder": "#475569", "fontFamily": "ui-monospace, SFMono-Regular, monospace", "fontSize": "13px"}}}%%
+flowchart BT
+    classDef macp  fill:#6366f1,color:#fff,stroke:#4338ca,stroke-width:2px
+    classDef std   fill:#1e293b,color:#e2e8f0,stroke:#475569,stroke-width:1px
+    classDef trans fill:#0f172a,color:#64748b,stroke:#334155,stroke-width:1px,stroke-dasharray:4
 
-    L5["Layer 5 — MACP<br/><b>Trust and Validation</b><br/>Cross-model consensus · AI Council · Anti-Rationalization<br/><i>YSenseAI</i>"]
-    L4["Layer 4 — A2A / ACP<br/><b>Task Delegation</b><br/>Agent Cards · Task outsourcing · 150+ organizations<br/><i>Linux Foundation</i>"]
-    L3["Layer 3 — ANP<br/><b>Network Discovery and Negotiation</b><br/>DID:WBA · Meta-Protocol · Linked Data Crawling<br/><i>Open Source</i>"]
-    L2["Layer 2 — MCP<br/><b>Tool Integration</b><br/>Agent-Tool RPC · Schema Discovery · 110M+ monthly<br/><i>Linux Foundation</i>"]
     L1["Layer 1 — HTTP / WebSocket / gRPC<br/><b>Transport</b>"]
+    L2["Layer 2 — MCP · Linux Foundation<br/><b>Tool Integration</b><br/>Agent-Tool RPC · Schema Discovery · 110M+ monthly"]
+    L3["Layer 3 — ANP · W3C Community Group<br/><b>Network Discovery and Negotiation</b><br/>DID:WBA · Meta-Protocol · Linked Data Crawling"]
+    L4["Layer 4 — A2A / ACP · Linux Foundation<br/><b>Task Delegation</b><br/>Agent Cards · Task outsourcing · 150+ organizations"]
+    L5["Layer 5 — MACP · YSenseAI ✦<br/><b>Trust and Validation</b><br/>AI Council · Anti-Rationalization · Z-Protocol"]
 
-    L5 --> L4 --> L3 --> L2 --> L1
+    L1 --> L2 --> L3 --> L4 --> L5
 
     class L5 macp
     class L4,L3,L2 std
-    class L1 transport
+    class L1 trans
 </div>
 </div>
 
@@ -2042,8 +2042,8 @@ flowchart TD
   epistemic question: <em>is this output correct and aligned?</em>
 </p>
 
-<a class="discussion-link" href="https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions" target="_blank" rel="noopener">
-  &#8594; Read full discussion on GitHub
+<a class="discussion-link" href="https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions/143" target="_blank" rel="noopener">
+  &#8594; Read full discussion and join the conversation on GitHub (#143)
 </a>
 
 </div>
@@ -2153,8 +2153,39 @@ flowchart TD
   Standards bodies are defining the agent protocol landscape now — absence means absence.
 </p>
 
-<a class="discussion-link" href="https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions" target="_blank" rel="noopener">
-  &#8594; Read full report and join the discussion on GitHub
+<a class="discussion-link" href="https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions/144" target="_blank" rel="noopener">
+  &#8594; Read full report and join the discussion on GitHub (#144)
+</a>
+
+</div>
+
+
+<!-- ================================================================ -->
+<!-- White Paper / DOI                                                -->
+<!-- ================================================================ -->
+
+<div class="research-article" id="white-paper">
+
+<h2>Canonical White Paper</h2>
+
+<div class="research-meta">
+  <span class="authors">Alton Lee &nbsp;&middot;&nbsp; YSenseAI Research</span>
+  <span>2025&ndash;2026</span>
+  <span>
+    <span class="research-tag">Academic</span>
+    <span class="research-tag">Prior Art</span>
+    <span class="research-tag">Zenodo</span>
+  </span>
+</div>
+
+<p>
+  The foundational methodology behind VerifiMind-PEAS &mdash; the Prompt Engineering Agents
+  Standardization framework and its validation-first architecture &mdash; is formally published
+  with a permanent DOI for academic citation and prior art purposes.
+</p>
+
+<a class="discussion-link" href="https://doi.org/10.5281/zenodo.17645665" target="_blank" rel="noopener">
+  &#8599; Read on Zenodo &mdash; DOI: 10.5281/zenodo.17645665
 </a>
 
 </div>
@@ -2162,14 +2193,83 @@ flowchart TD
 
 
 def _research_shell(body: str) -> str:
-    """Shell for the research page — indexable, wider layout for research content."""
+    """Shell for the research page — indexable, OG tags, JSON-LD, wider layout."""
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Research — VerifiMind-PEAS</title>
-  <meta name="description" content="Open research from the VerifiMind FLYWHEEL TEAM on agent protocols, AI trust infrastructure, and the multi-agent ecosystem.">
+  <title>Research — The 5-Layer Agent Protocol Stack &amp; MACP | VerifiMind-PEAS</title>
+
+  <!-- SEO -->
+  <meta name="description" content="Open research from the VerifiMind FLYWHEEL TEAM: the 5-layer agent protocol stack (MCP, ANP, A2A, MACP), market intelligence on AI agent protocols, and why MACP is the only Layer 5 trust and validation protocol.">
+  <meta name="keywords" content="MACP, MCP, ANP, A2A, agent protocol, AI trust, multi-agent, Layer 5, protocol stack, VerifiMind, FLYWHEEL TEAM">
+  <meta name="author" content="VerifiMind FLYWHEEL TEAM — T (Manus AI), XV (Perplexity), L (GodelAI)">
+  <link rel="canonical" href="https://verifimind.ysenseai.org/research">
+
+  <!-- Open Graph (LinkedIn, Slack, Discord, iMessage) -->
+  <meta property="og:type"        content="article">
+  <meta property="og:site_name"   content="VerifiMind-PEAS">
+  <meta property="og:title"       content="The 5-Layer Agent Protocol Stack: Where MACP Fits">
+  <meta property="og:description" content="MCP, ANP, A2A, and MACP operate at different layers. MACP is the only protocol at Layer 5 — trust and validation. Open research from the VerifiMind FLYWHEEL TEAM.">
+  <meta property="og:url"         content="https://verifimind.ysenseai.org/research">
+  <meta property="og:image"       content="https://verifimind.ysenseai.org/logo.png">
+
+  <!-- Twitter / X card -->
+  <meta name="twitter:card"        content="summary_large_image">
+  <meta name="twitter:title"       content="The 5-Layer Agent Protocol Stack — VerifiMind Research">
+  <meta name="twitter:description" content="MACP is the only protocol at Layer 5 (trust &amp; validation). Independent research on MCP, ANP, A2A, MACP — open, reproducible, CC BY 4.0.">
+  <meta name="twitter:image"       content="https://verifimind.ysenseai.org/logo.png">
+
+  <!-- JSON-LD structured data — helps AI search (Claude, Perplexity, Google SGE) surface this page -->
+  <script type="application/ld+json">
+  {{
+    "@context": "https://schema.org",
+    "@graph": [
+      {{
+        "@type": "ScholarlyArticle",
+        "@id": "https://verifimind.ysenseai.org/research#five-layer-stack",
+        "headline": "The 5-Layer Agent Protocol Stack: Where MACP Fits (and Why ANP Is Not a Competitor)",
+        "description": "The agent protocol ecosystem has matured into a 5-layer stack. MACP remains the only protocol at Layer 5 (trust and validation). ANP operates at Layer 3 (network discovery). They are complementary, not competitive.",
+        "author": [
+          {{"@type": "Person", "name": "T", "jobTitle": "CTO, Manus AI"}},
+          {{"@type": "Person", "name": "L", "jobTitle": "CEO, GodelAI"}},
+          {{"@type": "Person", "name": "XV", "jobTitle": "CIO, Perplexity"}}
+        ],
+        "datePublished": "2026-04-15",
+        "publisher": {{"@type": "Organization", "name": "VerifiMind FLYWHEEL TEAM", "url": "https://verifimind.ysenseai.org"}},
+        "url": "https://verifimind.ysenseai.org/research#five-layer-stack",
+        "discussionUrl": "https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions/143",
+        "keywords": ["MACP", "MCP", "ANP", "A2A", "agent protocol", "Layer 5", "AI trust", "multi-agent validation"],
+        "license": "https://creativecommons.org/licenses/by/4.0/"
+      }},
+      {{
+        "@type": "ScholarlyArticle",
+        "@id": "https://verifimind.ysenseai.org/research#market-intelligence-week16",
+        "headline": "Market Intelligence: Agent Protocol Ecosystem — Week 16 (April 8–15, 2026)",
+        "description": "10+ protocols in active development. 0 protocols at Layer 5. The provenance gap is converging across MCP, A2A, ACP, and ANP — independent researchers prescribe the same mitigation MACP provides.",
+        "author": [{{"@type": "Person", "name": "T", "jobTitle": "CTO, Manus AI"}}],
+        "datePublished": "2026-04-15",
+        "publisher": {{"@type": "Organization", "name": "VerifiMind FLYWHEEL TEAM", "url": "https://verifimind.ysenseai.org"}},
+        "url": "https://verifimind.ysenseai.org/research#market-intelligence-week16",
+        "discussionUrl": "https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions/144",
+        "keywords": ["agent protocol", "market intelligence", "MCP", "A2A", "ANP", "ACP", "MACP", "AI ecosystem"],
+        "license": "https://creativecommons.org/licenses/by/4.0/"
+      }},
+      {{
+        "@type": "WebPage",
+        "@id": "https://verifimind.ysenseai.org/research",
+        "name": "Research — VerifiMind-PEAS",
+        "url": "https://verifimind.ysenseai.org/research",
+        "description": "Open research from the VerifiMind FLYWHEEL TEAM on agent protocols, AI trust infrastructure, and the evolving multi-agent ecosystem.",
+        "publisher": {{"@type": "Organization", "name": "VerifiMind-PEAS", "url": "https://verifimind.ysenseai.org"}},
+        "inLanguage": "en",
+        "license": "https://creativecommons.org/licenses/by/4.0/"
+      }}
+    ]
+  }}
+  </script>
+
   <style>{_CSS}{_LEGAL_CSS}{_RESEARCH_CSS}</style>
 </head>
 <body>
