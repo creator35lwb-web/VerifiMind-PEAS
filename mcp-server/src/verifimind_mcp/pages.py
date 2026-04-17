@@ -1605,12 +1605,27 @@ def get_terms_page() -> str:
 _CHANGELOG_BODY = """
 <h1>Changelog</h1>
 <div class="meta">
-  <span>Last updated: April 12, 2026</span>
+  <span>Last updated: April 17, 2026</span>
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
 </div>
 
+<div id="v0.5.14">
+<h2>v0.5.14 — Fortify: Research Library + Connection Test <span class="live-badge">LIVE</span></h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 17, 2026</p>
+<ul>
+  <li><strong><code>GET /mcp/test?key=&lt;uuid&gt;</code></strong> — UUID connection test: verify your key is valid and see your tier before configuring your MCP client</li>
+  <li><strong><code>GET /library</code></strong> — Genesis Research Library v1.0: living compendium of 20+ academic papers validating the VerifiMind methodology (Sections A&ndash;E, evidence chain timeline, JSON-LD SEO)</li>
+  <li><strong><code>GET /library/index.json</code></strong> — machine-readable library index for AI crawlers and future MCP tool</li>
+  <li><strong>/research Article 3</strong> — MPAC vs MACP competitive analysis (XV + T, April 17, 2026); AI Council CONDITIONAL verdict disclosed</li>
+  <li><strong><code>/research/index.json</code> v1.1</strong> — 4 papers (was 3), mpac-alignment entry added</li>
+  <li><strong>sitemap.xml + robots.txt</strong> — <code>/library</code> and <code>/library/index.json</code> added for crawler access</li>
+  <li>485 tests</li>
+  <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/151" target="_blank" rel="noopener">PR #151</a></li>
+</ul>
+</div>
+
 <div id="v0.5.13">
-<h2>v0.5.13 — Fortify <span class="live-badge">LIVE</span></h2>
+<h2>v0.5.13 — Fortify</h2>
 <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 12, 2026</p>
 <ul>
   <li><strong>Polar circuit breaker</strong> — 5-failure/60s window → OPEN; half-open recovery after 60s</li>
