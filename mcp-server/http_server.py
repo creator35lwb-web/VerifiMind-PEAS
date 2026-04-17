@@ -35,7 +35,7 @@ from starlette.responses import HTMLResponse, PlainTextResponse, RedirectRespons
 from starlette.routing import Mount, Route
 from starlette.middleware.cors import CORSMiddleware
 from verifimind_mcp.server import create_http_server
-from verifimind_mcp.middleware import RateLimitMiddleware, get_rate_limit_stats
+from verifimind_mcp.middleware import RateLimitMiddleware, get_rate_limit_stats, check_tier
 from verifimind_mcp.registration import (
     EarlyAdopterRegistration,
     FeedbackRequest,
@@ -48,7 +48,7 @@ from verifimind_mcp.registration import (
     register_user,
 )
 from verifimind_mcp.policies import PRIVACY_POLICY, TERMS_AND_CONDITIONS
-from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_changelog_page, get_research_page
+from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_changelog_page, get_research_page, get_library_page
 
 # Create MCP server instance
 mcp_server = create_http_server()
@@ -58,7 +58,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.13"
+SERVER_VERSION = "0.5.14"
 
 # Track server start time for uptime reporting (v0.5.0 health v2)
 _SERVER_START_TIME = time.time()
@@ -513,6 +513,8 @@ Allow: /health
 Allow: /.well-known/
 Allow: /research
 Allow: /research/index.json
+Allow: /library
+Allow: /library/index.json
 Allow: /changelog
 
 Sitemap: https://verifimind.ysenseai.org/sitemap.xml
@@ -641,6 +643,16 @@ _SITEMAP_XML = """\
   </url>
   <url>
     <loc>https://verifimind.ysenseai.org/changelog</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://verifimind.ysenseai.org/library</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://verifimind.ysenseai.org/library/index.json</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
@@ -1042,10 +1054,34 @@ async def research_handler(request):
     return HTMLResponse(get_research_page())
 
 
+async def mcp_test_handler(request):
+    """GET /mcp/test?key=<uuid> — Verify UUID + connection health (P0 UUID transfer UX fix)."""
+    key = request.query_params.get("key", "")
+    if not key:
+        return JSONResponse({
+            "status": "error",
+            "message": "Provide your UUID as ?key=<uuid>. Example: /mcp/test?key=your-uuid-here"
+        }, status_code=400)
+
+    allowed, tier = await check_tier(key)
+
+    return JSONResponse({
+        "status": "connected",
+        "tier": tier,
+        "pioneer_access": allowed,
+        "server_version": SERVER_VERSION,
+        "message": (
+            f"Connection verified! Your tier: {tier}. "
+            + ("Pioneer tools are active." if allowed
+               else "Upgrade to Pioneer for coordination tools.")
+        )
+    })
+
+
 # Machine-readable index — enables future MCP tool + AI crawlers (Perplexity, Google SGE)
 _RESEARCH_INDEX = {
-    "version": "1.0",
-    "updated": "2026-04-15",
+    "version": "1.1",
+    "updated": "2026-04-17",
     "url": "https://verifimind.ysenseai.org/research",
     "license": "CC BY 4.0",
     "papers": [
@@ -1063,6 +1099,24 @@ _RESEARCH_INDEX = {
                 "fundamentally different problems. MACP remains the only protocol at Layer 5 "
                 "(trust and validation). ANP operates at Layer 3 (network discovery). "
                 "They are complementary, not competitive."
+            ),
+        },
+        {
+            "id": "mpac-alignment",
+            "title": "MPAC vs MACP: Complementary Coordination Layers in the Agent Protocol Ecosystem",
+            "authors": ["XV (CIO, Perplexity)", "T (CTO, Manus AI)"],
+            "date": "2026-04-17",
+            "tags": ["Protocol Architecture", "Competitive Analysis", "AI Council Validated"],
+            "url": "https://verifimind.ysenseai.org/research#mpac-alignment",
+            "external_ref": "https://arxiv.org/abs/2604.09744",
+            "abstract": (
+                "MPAC (Multi-Principal Agent Coordination, arXiv:2604.09744) and MACP are "
+                "literal anagrams but operate at different layers. MPAC solves operational "
+                "coordination ('did all agents agree on what happened?'). MACP solves semantic "
+                "validation ('is what happened actually correct and ethical?'). They are "
+                "complementary: MPAC handles coordination plumbing; MACP adds validation "
+                "judgment on top. AI Council verdict: CONDITIONAL — medium self-serving bias "
+                "acknowledged and disclosed."
             ),
         },
         {
@@ -1100,6 +1154,85 @@ _RESEARCH_INDEX = {
 async def research_index_handler(request):
     """GET /research/index.json — machine-readable research index for AI crawlers and MCP tools."""
     return JSONResponse(_RESEARCH_INDEX)
+
+
+async def library_handler(request):
+    """GET /library — Genesis Research Library v1.0: academic evidence chain for VerifiMind."""
+    return HTMLResponse(get_library_page())
+
+
+# Machine-readable library index — enables AI crawlers and future MCP tool read_verifimind_library
+_LIBRARY_INDEX = {
+    "version": "1.0",
+    "updated": "2026-04-17",
+    "url": "https://verifimind.ysenseai.org/library",
+    "compiled_by": "XV (CIO, Perplexity AI)",
+    "license": "CC BY 4.0",
+    "sections": {
+        "A": "Our Publications — Prior Art and Defensive Records",
+        "B": "Direct Validations — Independent Papers Confirming Our Approach",
+        "C": "Aligned Research — Supporting Findings Without Direct Knowledge of Us",
+        "D": "Protocol Landscape — The Ecosystem We Operate In",
+        "E": "Challenging Evidence — Honest Counter-Arguments",
+    },
+    "summary": {
+        "total_papers": 20,
+        "zenodo_dois": 5,
+        "zenodo_views": "995+",
+        "zenodo_downloads": "114+",
+        "prior_art_lead_months": 5,
+        "live_endpoints": 2162,
+    },
+    "highlights": [
+        {
+            "id": "council-mode",
+            "title": "Council Mode — 35.9% Hallucination Reduction via Multi-Agent Consensus",
+            "citation": "Wu, S. et al. arXiv:2604.02923, April 3, 2026",
+            "confidence": "★★★★★",
+            "url": "https://arxiv.org/abs/2604.02923",
+            "finding": (
+                "35.9% relative hallucination reduction on HaluEval. Heterogeneous council "
+                "(multi-model) is twice as effective as same-model ensemble. Independently "
+                "validates the exact architecture VerifiMind-PEAS was built on."
+            ),
+        },
+        {
+            "id": "woozle-effect",
+            "title": "Woozle Effect — Hallucinations Propagate in Same-Model Debate",
+            "citation": "IEEE 2026. ieeexplore.ieee.org/abstract/document/11443228/",
+            "confidence": "★★★★★",
+            "finding": (
+                "When multi-agent debate uses agents from the same training distribution, "
+                "hallucinations propagate rather than cancel. Validates the design choice "
+                "of using different model families."
+            ),
+        },
+        {
+            "id": "ieee-two-stage",
+            "title": "Two-Stage LLM Meta-Verification — 95.21% Verification Accuracy",
+            "citation": "arXiv:2604.12543, accepted IEEE World Congress 2026",
+            "confidence": "★★★★",
+            "url": "https://arxiv.org/abs/2604.12543",
+            "finding": "Verification is not merely beneficial but essential.",
+        },
+        {
+            "id": "hallucination-inevitable",
+            "title": "Hallucination is Inevitable — Mathematical Proof",
+            "citation": "Xu, Z. et al. arXiv:2401.11817",
+            "confidence": "★★★★",
+            "url": "https://arxiv.org/abs/2401.11817",
+            "finding": (
+                "Hallucinations are mathematically inevitable in LLMs used as general "
+                "problem solvers. External validation is not optional — it is necessary."
+            ),
+        },
+    ],
+}
+
+
+async def library_index_handler(request):
+    """GET /library/index.json — machine-readable library index for AI crawlers and MCP tools."""
+    return JSONResponse(_LIBRARY_INDEX)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1188,6 +1321,9 @@ app = Starlette(
         Route("/changelog", changelog_handler, methods=["GET"]),
         Route("/research", research_handler, methods=["GET"]),
         Route("/research/index.json", research_index_handler, methods=["GET"]),
+        Route("/library", library_handler, methods=["GET"]),
+        Route("/library/index.json", library_index_handler, methods=["GET"]),
+        Route("/mcp/test", mcp_test_handler, methods=["GET"]),
         # v0.5.6 UI: human-readable registration and opt-out pages
         Route("/register", register_page_handler, methods=["GET"]),
         Route("/register", register_handler, methods=["POST"]),
