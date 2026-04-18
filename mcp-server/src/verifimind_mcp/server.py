@@ -32,12 +32,14 @@ from fastmcp import FastMCP, Context
 
 from pydantic import BaseModel, Field
 
+from verifimind_mcp.utils.uuid_tracer import emit_tracer
+
 # Initialize logger for security events
 logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 _RAW_SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.5.14"
+SERVER_VERSION = "0.5.15"
 
 # Track C — SYSTEM_NOTICE sanitization constants
 _NOTICE_MAX_LEN = 280
@@ -347,6 +349,7 @@ def _create_mcp_instance():
         context: Optional[str] = None,
         llm_provider: Optional[str] = None,
         api_key: Optional[str] = None,
+        user_uuid: Optional[str] = None,
         ctx: Context = None
     ) -> dict:
         """
@@ -373,6 +376,8 @@ def _create_mcp_instance():
         Returns:
             Structured analysis with reasoning chain, scores, and recommendations
         """
+        if user_uuid:
+            emit_tracer(user_uuid, "consult_agent_x")
         try:
             from .models import Concept
             from .agents import XAgent
@@ -442,6 +447,7 @@ def _create_mcp_instance():
         prior_reasoning: Optional[str] = None,
         llm_provider: Optional[str] = None,
         api_key: Optional[str] = None,
+        user_uuid: Optional[str] = None,
         ctx: Context = None
     ) -> dict:
         """
@@ -472,6 +478,8 @@ def _create_mcp_instance():
         Returns:
             Structured analysis with reasoning chain, ethics score, and veto status
         """
+        if user_uuid:
+            emit_tracer(user_uuid, "consult_agent_z")
         try:
             from .models import Concept, PriorReasoning, ChainOfThought, ReasoningStep
             from .agents import ZAgent
@@ -556,6 +564,7 @@ def _create_mcp_instance():
         prior_reasoning: Optional[str] = None,
         llm_provider: Optional[str] = None,
         api_key: Optional[str] = None,
+        user_uuid: Optional[str] = None,
         ctx: Context = None
     ) -> dict:
         """
@@ -583,6 +592,8 @@ def _create_mcp_instance():
         Returns:
             Structured analysis with security score, vulnerabilities, and Socratic questions
         """
+        if user_uuid:
+            emit_tracer(user_uuid, "consult_agent_cs")
         try:
             from .models import Concept, PriorReasoning, ChainOfThought, ReasoningStep
             from .agents import CSAgent
@@ -672,6 +683,7 @@ def _create_mcp_instance():
         z_api_key: Optional[str] = None,
         cs_provider: Optional[str] = None,
         cs_api_key: Optional[str] = None,
+        user_uuid: Optional[str] = None,
         ctx: Context = None
     ) -> dict:
         """
@@ -708,6 +720,8 @@ def _create_mcp_instance():
         Returns:
             Complete Trinity validation result with all agent analyses and synthesis
         """
+        if user_uuid:
+            emit_tracer(user_uuid, "run_full_trinity")
         # Check Accept header for markdown content negotiation
         output_format = "json"
         if ctx and hasattr(ctx, 'request_context'):
@@ -962,6 +976,7 @@ def _create_mcp_instance():
         agent_id: Optional[str] = None,
         category: Optional[str] = None,
         tags: Optional[str] = None,
+        user_uuid: Optional[str] = None,
         ctx: Context = None
     ) -> dict:
         """
@@ -977,6 +992,8 @@ def _create_mcp_instance():
         Returns:
             List of templates with metadata
         """
+        if user_uuid:
+            emit_tracer(user_uuid, "list_prompt_templates")
         try:
             from .templates import TemplateRegistry
 
@@ -1025,6 +1042,7 @@ def _create_mcp_instance():
     async def get_prompt_template(
         template_id: str,
         include_content: bool = True,
+        user_uuid: Optional[str] = None,
         ctx: Context = None
     ) -> dict:
         """
@@ -1039,6 +1057,8 @@ def _create_mcp_instance():
         Returns:
             Complete template with all metadata and variables
         """
+        if user_uuid:
+            emit_tracer(user_uuid, "get_prompt_template")
         try:
             from .templates import TemplateRegistry
 
@@ -1091,6 +1111,7 @@ def _create_mcp_instance():
     async def export_prompt_template(
         template_id: str,
         format: str = "markdown",
+        user_uuid: Optional[str] = None,
         ctx: Context = None
     ) -> dict:
         """
@@ -1105,6 +1126,8 @@ def _create_mcp_instance():
         Returns:
             Exported template content in specified format
         """
+        if user_uuid:
+            emit_tracer(user_uuid, "export_prompt_template")
         try:
             from .templates import (
                 TemplateRegistry,
@@ -1157,6 +1180,7 @@ def _create_mcp_instance():
         category: str = "custom",
         description: Optional[str] = None,
         tags: Optional[str] = None,
+        user_uuid: Optional[str] = None,
         ctx: Context = None
     ) -> dict:
         """
@@ -1175,6 +1199,8 @@ def _create_mcp_instance():
         Returns:
             Registered template info with generated ID
         """
+        if user_uuid:
+            emit_tracer(user_uuid, "register_custom_template")
         try:
             from .templates import TemplateRegistry
 
@@ -1219,6 +1245,7 @@ def _create_mcp_instance():
     async def import_template_from_url(
         url: str,
         validate: bool = True,
+        user_uuid: Optional[str] = None,
         ctx: Context = None
     ) -> dict:
         """
@@ -1238,6 +1265,8 @@ def _create_mcp_instance():
         Returns:
             Import result with template info or error details
         """
+        if user_uuid:
+            emit_tracer(user_uuid, "import_template_from_url")
         try:
             from .templates import (
                 import_template_from_url as do_import,
@@ -1286,6 +1315,7 @@ def _create_mcp_instance():
 
     @app.tool()
     async def get_template_statistics(
+        user_uuid: Optional[str] = None,
         ctx: Context = None
     ) -> dict:
         """
@@ -1296,6 +1326,8 @@ def _create_mcp_instance():
         Returns:
             Statistics including template counts by agent, phase, and type
         """
+        if user_uuid:
+            emit_tracer(user_uuid, "get_template_statistics")
         try:
             from .templates import TemplateRegistry
 
