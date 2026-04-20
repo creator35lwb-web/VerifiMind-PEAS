@@ -1268,9 +1268,9 @@ def _legal_shell(title: str, body: str) -> str:
 _PRIVACY_BODY = """
 <h1>Privacy Policy</h1>
 <div class="meta">
-  <span>Version 2.0</span>
-  <span>Effective: April 8, 2026</span>
-  <span>Previous: v1.0 (March 18, 2026)</span>
+  <span>Version 2.1</span>
+  <span>Effective: April 20, 2026</span>
+  <span>Previous: v2.0 (April 8, 2026)</span>
 </div>
 
 <h2>Who We Are</h2>
@@ -1340,6 +1340,31 @@ _PRIVACY_BODY = """
   Anonymous usage telemetry on verifimind.ysenseai.org uses privacy-respecting analytics that
   do not track individual users.</p>
 
+<h2>UUID Usage Analytics <span style="font-size:0.8em;font-weight:normal;color:var(--muted)">(v2.1 addition — April 20, 2026)</span></h2>
+<p>As of v0.5.15, registered Scholar users may optionally pass their UUID as a
+  <code>user_uuid</code> parameter in any Trinity tool call. This is always voluntary —
+  anonymous tool calls work identically without it.</p>
+<div class="notice-box">
+  <strong>What we log when you provide <code>user_uuid</code>:</strong>
+</div>
+<table class="legal-table">
+  <thead>
+    <tr><th>Data Logged</th><th>Purpose</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Your UUID</td><td>Pseudonymous identifier (no name or email linked in logs)</td></tr>
+    <tr><td>Tool name</td><td>Which tool you called (e.g. <code>consult_agent_x</code>)</td></tr>
+    <tr><td>Tier label</td><td>"scholar" (always — Pioneer tools use <code>pioneer_key</code>)</td></tr>
+    <tr><td>Timestamp</td><td>When the call was made (server time, UTC)</td></tr>
+  </tbody>
+</table>
+<p><strong>What we do NOT log:</strong> your concept name or description, the tool's response or
+  output, your IP address linked to your UUID, or any personally identifiable information.</p>
+<p>These logs flow into our GCP Cloud Logging pipeline and are used to power the Scholar usage
+  dashboard (<code>/early-adopters/dashboard/{uuid}</code>) and understand aggregate tool usage
+  patterns. <strong>Log retention: 30 days</strong> (GCP Cloud Logging auto-purge). You may stop
+  UUID analytics at any time by simply omitting <code>user_uuid</code> from tool calls.</p>
+
 <h2>How Long We Keep Your Data</h2>
 <table class="legal-table">
   <thead>
@@ -1350,6 +1375,7 @@ _PRIVACY_BODY = """
     <tr><td>Pioneer subscription records</td><td>Duration of subscription + 7 years (tax and legal compliance)</td></tr>
     <tr><td>Feedback messages</td><td>Kept indefinitely in anonymised form after 6 months</td></tr>
     <tr><td>Transaction metadata (Polar IDs, dates)</td><td>7 years from transaction date (tax compliance)</td></tr>
+    <tr><td>UUID usage analytics logs</td><td>30 days (GCP Cloud Logging auto-purge)</td></tr>
   </tbody>
 </table>
 <p>On deletion request, all personal data is purged within 7 business days, except where
@@ -1591,7 +1617,7 @@ _TERMS_BODY = """
 
 
 def get_privacy_page() -> str:
-    """Return the full HTML for GET /privacy — Privacy Policy v2.0."""
+    """Return the full HTML for GET /privacy — Privacy Policy v2.1."""
     return _legal_shell(title="Privacy Policy", body=_PRIVACY_BODY)
 
 
