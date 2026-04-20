@@ -11,7 +11,7 @@
 
   > **Evolution of PEAS:** v1.x (2024): *Prompt Engineering Application Synthesis* (Zenodo DOI — immutable) · v2.x–v4.x (2025): *Prompt Engineering & AI Standardization* (Genesis Methodology era) · **v5.x (2026): *Prompt Engineering Agents Standardization* — current canonical** — AI Council vote 3/4 APPROVE (Apr 10, 2026)
 
-  [![Version](https://img.shields.io/badge/version-v0.5.12-blue.svg)](CHANGELOG.md)
+  [![Version](https://img.shields.io/badge/version-v0.5.15-blue.svg)](CHANGELOG.md)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Status](https://img.shields.io/badge/status-Operational-success.svg)](SERVER_STATUS.md)
   [![MACP](https://img.shields.io/badge/MACP-v2.2%20%22Identity%22-blueviolet)](https://doi.org/10.5281/zenodo.18504478)
@@ -31,7 +31,7 @@
 
 ## MCP Server: Production Deployed
 
-> **v0.5.12 "Polar Integration"** — 2,389+ verified engagement hours | 1,876+ unique endpoints (IP-based; verified users tracked via EA registration UUID) | 90.7% Value Confirmation Rate | **Pioneer Tier** ($9/mo, Polar MoR) | **Polar Integration** (PolarClient + Adapter + Webhook, Standard Webhooks HMAC) | **Legal Pages v2.0** (Privacy + T&C with Polar MoR, 14-day refund) | **Coordination Layer Phase 1** (3 Pioneer-gated tools) | **UUID Tracer** (GCP log analytics bridge) | **BYOK Anthropic Claude 4** (claude-opus-4-6, claude-sonnet-4-6) | MACP v2.2 "Identity" | 312 tests, 52.76% coverage | 74+ weekly COO reports. [Health Check](https://verifimind.ysenseai.org/health) | [Changelog](https://verifimind.ysenseai.org/changelog) | [Register as Early Adopter](https://verifimind.ysenseai.org/register) | [Pioneer Tier](https://verifimind.ysenseai.org/terms)
+> **v0.5.15 "Scholar Incentives"** — 2,389+ verified engagement hours | 1,876+ unique endpoints (IP-based; verified users tracked via EA registration UUID) | 90.7% Value Confirmation Rate | **Pioneer Tier** ($9/mo, Polar MoR) | **UUID Tracer on all 10 Scholar tools** (optional `user_uuid` → GCP analytics) | **Privacy Policy v2.1** (UUID analytics disclosed, Z-Protocol v1.1) | **Registration UX** (mcp_config + test_url + dashboard_url in response) | **Research Library v1.0** (20+ papers at `/library`) | **Connection Test** (`/mcp/test?key=<uuid>`) | MACP v2.2 "Identity" | 515 tests | 74+ weekly COO reports. [Health Check](https://verifimind.ysenseai.org/health) | [Changelog](https://verifimind.ysenseai.org/changelog) | [Register](https://verifimind.ysenseai.org/register) | [Pioneer Tier](https://verifimind.ysenseai.org/terms)
 
 VerifiMind PEAS is now **live and accessible** across multiple platforms:
 
@@ -65,6 +65,22 @@ claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysense
   }
 }
 ```
+
+**Claude Desktop (Scholar UUID — optional, enables usage dashboard):** After [registering](https://verifimind.ysenseai.org/register), pass your UUID for analytics and the dashboard at `/early-adopters/dashboard/{uuid}`:
+```json
+{
+  "mcpServers": {
+    "verifimind": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://verifimind.ysenseai.org/mcp/"],
+      "env": {
+        "VERIFIMIND_UUID": "your-uuid-here"
+      }
+    }
+  }
+}
+```
+> Pass `user_uuid` on any Scholar tool call to log to your dashboard. Anonymous tool calls (no `user_uuid`) work identically.
 
 **Cursor / VS Code Copilot** (`.cursor/mcp.json` or `.vscode/mcp.json`):
 ```json
@@ -190,9 +206,9 @@ Automated testing and security scanning runs on every push to `main` via GitHub 
 | **Trinity Quality** | **`_overall_quality: "full"`** | All 3 agents returning real inference (v0.4.4+) |
 | **SessionContext** | **`_session_id` tracing** | 8-char correlation ID per Trinity run (v0.5.0+) |
 | **COO Weekly Reports** | **74+ automated** | GCP log-based weekly analytics reports (AY/Antigravity, forensic standard v2.5) |
-| **Test Coverage** | **312 tests, 52.76%** | Comprehensive test suite with CI/CD pipeline |
+| **Test Coverage** | **515 tests** | Comprehensive test suite with CI/CD pipeline; CodeQL clean (0 medium+ alerts) |
 | **Pioneer Tier** | **[$9/month](https://verifimind.ysenseai.org/terms)** | Polar MoR, 14-day refund, coordination tools |
-| **EA Registration** | **[Register](https://verifimind.ysenseai.org/register)** | Consent-first Z-Protocol design with Privacy Policy v2.0 + T&C v2.0 |
+| **EA Registration** | **[Register](https://verifimind.ysenseai.org/register)** | Consent-first Z-Protocol design with Privacy Policy v2.1 + T&C v2.0 |
 
 ### Adoption Trajectory (Flying Hours ✈️)
 
@@ -279,6 +295,14 @@ We provide a systematic approach to **multi-model AI validation** that ensures y
 ---
 
 ## 🎯 Latest Achievements
+
+### v0.5.15 — Scholar Incentives: UUID Tracer + Registration UX (April 20, 2026)
+
+Optional `user_uuid` parameter added to all 10 Scholar tools — when provided, `emit_tracer()` fires a `TRACER_UUID:` stdout log (UUID, tool name, tier, timestamp) that feeds directly into the AY GCP analytics pipeline. UUID format is validated via RFC 4122 regex; malicious strings are silently ignored. **Privacy Policy v2.1** fully discloses the analytics pipeline (Z-Protocol v1.1 compliant, 30-day GCP auto-purge). **Registration response enhanced**: `register_user()` now returns `mcp_config` (ready-to-paste Claude Desktop JSON), `test_url`, `dashboard_url`, and `checkout_url` — one call gives new Scholars everything they need to start. Terms updated with explicit Anonymous/Scholar/Pioneer 3-tier table. 515 tests, CodeQL clean. [PR #154](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/154)
+
+### v0.5.14 — Fortify: Research Library + Connection Test (April 17, 2026)
+
+Genesis Research Library v1.0 at `/library` — living compendium of 20+ academic papers validating the VerifiMind methodology (Sections A–E, evidence chain timeline, JSON-LD SEO). `/library/index.json` for AI crawlers. `GET /mcp/test?key=<uuid>` connection test endpoint — verify your key and see your tier before configuring your MCP client. `/research` Article 3: MPAC vs MACP competitive analysis (XV + T); AI Council CONDITIONAL verdict disclosed. `sitemap.xml` and `robots.txt` updated for `/library`. 485 tests. [PR #151](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/151)
 
 ### v0.5.12 — Polar Integration + Legal v2.0 (April 8, 2026)
 
@@ -381,6 +405,12 @@ The standardization phase generated **57 complete Trinity validation reports** a
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| **v0.5.15** | Apr 20, 2026 | **Scholar Incentives**: UUID Tracer on 10 Scholar tools, Privacy Policy v2.1, Registration UX (mcp_config + test_url), 515 tests |
+| **v0.5.14** | Apr 17, 2026 | **Research Library v1.0**: 20+ papers at `/library`, `/mcp/test` connection test, MPAC competitive analysis, 485 tests |
+| **v0.5.13** | Apr 12, 2026 | **Fortify**: Polar circuit breaker, fail-closed semantics, retry/backoff, `/register` lightweight, CodeQL clean, 485 tests |
+| **v0.5.12** | Apr 8, 2026 | **Polar Integration**: PolarClient + Adapter + Webhook, Legal Pages v2.0, UUID Tracer, `/changelog`, 312 tests |
+| **v0.5.11** | Apr 7, 2026 | **Coordination Foundation**: 3 Pioneer-gated tools, tier-gate middleware, 308 tests |
+| **v0.5.10** | Apr 5, 2026 | **Trinity Verified**: 600s timeout, Z max_tokens, BYOK Claude 4, 290 tests |
 | **v0.5.6** | Mar 23, 2026 | **Gateway**: EA Registration, Privacy Policy v1.0, Phase 55 metrics, DFSC 2026, 290 tests |
 | **v0.5.5** | Mar 13, 2026 | **Trinity Baseline**: TrinitySynthesis schema fix, 3 regression tests, 208 tests |
 | **v0.5.4** | Mar 12, 2026 | **X Agent v4.3**: creator-centric bias fix, founder_summary, research_prompts |

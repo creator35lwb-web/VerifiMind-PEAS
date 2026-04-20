@@ -1605,12 +1605,25 @@ def get_terms_page() -> str:
 _CHANGELOG_BODY = """
 <h1>Changelog</h1>
 <div class="meta">
-  <span>Last updated: April 17, 2026</span>
+  <span>Last updated: April 20, 2026</span>
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
 </div>
 
+<div id="v0.5.15">
+<h2>v0.5.15 — Scholar Incentives: UUID Tracer + Registration UX <span class="live-badge">LIVE</span></h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 20, 2026</p>
+<ul>
+  <li><strong>UUID Tracer on all 10 Scholar tools</strong> — optional <code>user_uuid</code> parameter; fire-and-forget <code>TRACER_UUID:</code> stdout log feeds AY GCP analytics pipeline; invalid UUIDs silently ignored (log injection prevention)</li>
+  <li><strong>Privacy Policy v2.1</strong> — UUID usage analytics fully disclosed: what is logged (UUID, tool name, tier, timestamp), what is NOT logged (concept content, IP linked to UUID, PII), 30-day GCP auto-purge; Z-Protocol v1.1 compliant</li>
+  <li><strong>Terms v2.0 updated</strong> — Anonymous tier row added to service tiers table with Identity column and Rate Limit column; 3-tier model (Anonymous/Scholar/Pioneer) now unambiguous</li>
+  <li><strong>Registration response enhanced (P1-C)</strong> — <code>register_user()</code> now returns <code>mcp_config</code> (ready-to-paste Claude Desktop JSON), <code>test_url</code>, <code>dashboard_url</code>, <code>checkout_url</code> — one API call gives Scholar everything needed to start</li>
+  <li>515 tests, CodeQL clean (0 medium+ alerts)</li>
+  <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/154" target="_blank" rel="noopener">PR #154</a></li>
+</ul>
+</div>
+
 <div id="v0.5.14">
-<h2>v0.5.14 — Fortify: Research Library + Connection Test <span class="live-badge">LIVE</span></h2>
+<h2>v0.5.14 — Fortify: Research Library + Connection Test</h2>
 <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 17, 2026</p>
 <ul>
   <li><strong><code>GET /mcp/test?key=&lt;uuid&gt;</code></strong> — UUID connection test: verify your key is valid and see your tier before configuring your MCP client</li>
