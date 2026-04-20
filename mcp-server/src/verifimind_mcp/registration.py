@@ -472,7 +472,32 @@ async def process_optout(uuid: str) -> OptOutResponse:
 # ─────────────────────────────────────────────────────────────────────────────
 # v0.5.13 "Fortify" — Lightweight /register endpoint
 # XV PIN #49 architecture: email optional, UUID = identity spine
+# v0.5.15 — P1-C: registration response enhanced with MCP config snippet
 # ─────────────────────────────────────────────────────────────────────────────
+
+_SERVER_BASE_URL = "https://verifimind.ysenseai.org"
+
+
+def _build_registration_extras(uuid: str, checkout: str) -> dict:
+    """Build the P1-C enhanced fields for the registration response.
+
+    Returns dict with: checkout_url, test_url, dashboard_url, mcp_config.
+    Security: uuid is already validated (UUIDv7 from generate_ea_uuid()).
+    """
+    return {
+        "checkout_url": checkout,
+        "test_url": f"{_SERVER_BASE_URL}/mcp/test?key={uuid}",
+        "dashboard_url": f"{_SERVER_BASE_URL}/early-adopters/dashboard/{uuid}",
+        "mcp_config": {
+            "mcpServers": {
+                "verifimind": {
+                    "command": "npx",
+                    "args": ["-y", "mcp-remote", f"{_SERVER_BASE_URL}/mcp/"],
+                    "env": {"VERIFIMIND_UUID": uuid},
+                }
+            }
+        },
+    }
 
 # Polar Pioneer checkout URL — set via GCP env var
 _POLAR_CHECKOUT_URL = os.environ.get(
@@ -516,14 +541,18 @@ class UserRegistrationRequest(BaseModel):
 
 
 class UserRegistrationResponse(BaseModel):
-    """Response from POST /register — v0.5.13."""
+    """Response from POST /register — v0.5.15."""
     uuid: str
     tier: str = "ea"
     registered_at: str
     expires_at: str
     pioneer_checkout: str
+    checkout_url: str
     message: str
     opt_out_url: str
+    test_url: str
+    dashboard_url: str
+    mcp_config: dict
     privacy_version: str
     tc_version: str
 
@@ -561,6 +590,7 @@ async def register_user(data: UserRegistrationRequest) -> UserRegistrationRespon
                 _mask_email(str(data.email)),
             )
             checkout = f"{_POLAR_CHECKOUT_URL}?customer[external_id]={doc['uuid']}"
+            extras = _build_registration_extras(doc["uuid"], checkout)
             return UserRegistrationResponse(
                 uuid=doc["uuid"],
                 tier=doc.get("tier", "ea"),
@@ -574,6 +604,7 @@ async def register_user(data: UserRegistrationRequest) -> UserRegistrationRespon
                 opt_out_url=f"/early-adopters/optout/{doc['uuid']}",
                 privacy_version=PRIVACY_POLICY_VERSION,
                 tc_version=TERMS_VERSION,
+                **extras,
             )
 
     # Store in Firestore (when available)
@@ -598,6 +629,7 @@ async def register_user(data: UserRegistrationRequest) -> UserRegistrationRespon
         logger.warning("Firestore unavailable — lightweight registration UUID=%s not persisted", new_uuid)
 
     checkout = f"{_POLAR_CHECKOUT_URL}?customer[external_id]={new_uuid}"
+    extras = _build_registration_extras(new_uuid, checkout)
 
     return UserRegistrationResponse(
         uuid=new_uuid,
@@ -607,10 +639,12 @@ async def register_user(data: UserRegistrationRequest) -> UserRegistrationRespon
         pioneer_checkout=checkout,
         message=(
             "Registration successful! Your UUID is your permanent identity — save it. "
-            f"Use the pioneer_checkout URL to upgrade to Pioneer tier ($9/month). "
+            "Copy the mcp_config below into your Claude Desktop or Cursor config. "
+            "Use test_url to verify your connection, dashboard_url to track your usage. "
             f"Free EA access runs until {expires_at[:10]}."
         ),
         opt_out_url=f"/early-adopters/optout/{new_uuid}",
         privacy_version=PRIVACY_POLICY_VERSION,
         tc_version=TERMS_VERSION,
+        **extras,
     )

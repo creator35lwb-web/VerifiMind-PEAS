@@ -65,10 +65,10 @@ class TestSmitheryRemoval:
         assert "@smithery.server" not in content
 
     def test_server_version_is_0513(self):
-        """SERVER_VERSION must be bumped to 0.5.14 (Library + /mcp/test + MPAC article)."""
+        """SERVER_VERSION must be bumped to 0.5.15 (Scholar Incentives — P1-A/P1-C)."""
         from verifimind_mcp.server import SERVER_VERSION
-        assert SERVER_VERSION == "0.5.14", (
-            f"Expected 0.5.14, got {SERVER_VERSION}"
+        assert SERVER_VERSION == "0.5.15", (
+            f"Expected 0.5.15, got {SERVER_VERSION}"
         )
 
 
