@@ -6,6 +6,70 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.15 - Scholar Incentives: UUID Tracer + Registration UX (April 20, 2026)
+
+Optional UUID tracer on all 10 Scholar tools, Privacy Policy v2.1 disclosure, enhanced registration response.
+
+### Scholar UUID Tracer (P1-A)
+- Optional `user_uuid` parameter added to all 10 Scholar tools (`consult_agent_x/z/cs`, `run_full_trinity`, and all 6 template tools)
+- `emit_tracer(uuid, tool)` — fire-and-forget `TRACER_UUID:` stdout log feeds AY GCP analytics pipeline
+- UUID format validated via RFC 4122 regex; malicious strings (log injection, non-UUID values) silently ignored
+- Anonymous tool calls unchanged — `user_uuid=None` works identically
+- Pioneer tools (`coordination_handoff_*`, `coordination_team_status`) unaffected — still use `pioneer_key`
+
+### Registration Response UX (P1-C)
+- `register_user()` now returns `mcp_config` (ready-to-paste Claude Desktop JSON with server URL + UUID env var), `test_url`, `dashboard_url`, `checkout_url`
+- One API call gives a new Scholar everything needed: copy the config, test the connection, see the dashboard, upgrade to Pioneer
+- Both new-user and duplicate-email return paths include full extras
+
+### Privacy Policy v2.1
+- UUID USAGE ANALYTICS section added — full Z-Protocol v1.1 compliant disclosure of what is logged (UUID, tool name, tier label, timestamp), what is NOT logged (concept content, IP linked to UUID, PII), 30-day GCP Cloud Logging auto-purge
+- Terms v2.0 updated — Anonymous tier row added to service tiers table; Identity and Rate Limit columns made explicit
+
+### Testing
+- 515 tests, CodeQL clean (0 medium+ alerts)
+- 30 new tests: UUID format validation (9), user_uuid parameter existence on all 10 Scholar tools (11), P1-C registration response fields (10)
+
+### Pull Requests
+- PR #154 (Scholar Incentives — P1-A + P1-C)
+
+### Credits
+- Implementation: RNA (Claude Code, CSO)
+- Specification: T (Manus AI, CTO) — Phase 83 PIN `3-tier-implementation`
+- Architecture Review: AY (Antigravity, COO) — UUID bridge analytics pipeline
+- Human Orchestrator: Alton
+
+---
+
+## v0.5.14 - Fortify: Research Library + Connection Test (April 17, 2026)
+
+Genesis Research Library v1.0, UUID connection test endpoint, MPAC competitive analysis.
+
+### New Endpoints
+- `GET /mcp/test?key=<uuid>` — UUID connection test: verify your key is valid and see your tier before configuring your MCP client
+- `GET /library` — Genesis Research Library v1.0: 20+ academic papers validating the VerifiMind methodology (Sections A–E, evidence chain timeline, JSON-LD SEO)
+- `GET /library/index.json` — machine-readable library index for AI crawlers
+
+### Research
+- **/research Article 3** — MPAC vs MACP competitive analysis (XV + T, April 17, 2026); AI Council CONDITIONAL verdict disclosed
+- **`/research/index.json` v1.1** — 4 papers (was 3), mpac-alignment entry added
+
+### SEO & Crawlers
+- `sitemap.xml + robots.txt` — `/library` and `/library/index.json` added for crawler access
+
+### Testing
+- 485 tests
+
+### Pull Requests
+- PR #151
+
+### Credits
+- Implementation: RNA (Claude Code, CSO)
+- Research: XV (Perplexity, CIO) + T (Manus AI, CTO)
+- Human Orchestrator: Alton
+
+---
+
 ## v0.5.13 - Fortify: Production Hardening (April 12, 2026)
 
 Production security hardening sprint. All 4 X-Agent AI Council conditions from PR #131 review resolved. Zero CodeQL medium+ alerts.
