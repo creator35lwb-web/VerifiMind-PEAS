@@ -1,16 +1,17 @@
 """
-VerifiMind-PEAS Privacy Policy — v2.0
+VerifiMind-PEAS Privacy Policy — v2.1
 Z-Protocol v1.1 compliant: data minimisation, explicit consent, right to erasure.
 GDPR / PDPA / Polar MOR (Stripe Connect) aligned.
-Effective: April 8, 2026
+Effective: April 20, 2026
+v2.1 change: UUID analytics disclosure (user_uuid tool parameter, GCP log pipeline).
 """
 
-PRIVACY_POLICY_VERSION = "2.0"
-PRIVACY_POLICY_EFFECTIVE_DATE = "2026-04-08"
+PRIVACY_POLICY_VERSION = "2.1"
+PRIVACY_POLICY_EFFECTIVE_DATE = "2026-04-20"
 
 PRIVACY_POLICY = """
-VerifiMind-PEAS — Privacy Policy v2.0
-Effective: April 8, 2026 (previous: v1.0, March 18, 2026)
+VerifiMind-PEAS — Privacy Policy v2.1
+Effective: April 20, 2026 (previous: v2.0, April 8, 2026)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -87,6 +88,38 @@ uses privacy-respecting analytics that do not track individual users.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+UUID USAGE ANALYTICS (v2.1 addition)
+As of v0.5.15 (April 20, 2026), registered Scholar users may optionally pass
+their UUID as a "user_uuid" parameter in any Trinity tool call. This is always
+voluntary — anonymous tool calls work identically without it.
+
+When you provide user_uuid, we log the following to our Google Cloud Run
+infrastructure:
+
+  Data logged             Purpose
+  ─────────────────────────────────────────────────────────────────
+  Your UUID               Pseudonymous identifier (no name/email linked)
+  Tool name               Which tool you called (e.g. consult_agent_x)
+  Tier label              "scholar" (always — Pioneer tools use pioneer_key)
+  Timestamp               When the call was made (server time, UTC)
+
+What we do NOT log:
+  ✗ Your concept name or description
+  ✗ The tool's response or output
+  ✗ Your IP address (not linked to UUID)
+  ✗ Any personally identifiable information
+
+These logs flow into our GCP Cloud Logging pipeline and are used to:
+  • Power the Scholar usage dashboard (/early-adopters/dashboard/{uuid})
+  • Understand aggregate tool usage patterns (anonymised)
+  • Improve tool reliability and performance
+
+Log retention: GCP Cloud Logging default (30 days), then auto-purged.
+You may stop UUID analytics at any time by omitting the user_uuid parameter
+from tool calls. Your registered account and UUID remain intact.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 HOW LONG WE KEEP YOUR DATA
 
   Data Type                    Retention Period
@@ -95,6 +128,7 @@ HOW LONG WE KEEP YOUR DATA
   Pioneer subscription records Duration of subscription + 7 years (tax/legal)
   Feedback messages            Indefinitely in anonymised form after 6 months
   Transaction metadata         7 years from transaction date (tax compliance)
+  UUID usage analytics logs    30 days (GCP Cloud Logging auto-purge)
 
 On deletion request, all personal data is purged within 7 business days,
 except where retention is required by law (e.g., tax records from Polar).

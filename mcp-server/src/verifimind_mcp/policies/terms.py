@@ -32,20 +32,25 @@ that you have read and accept:
 
 3. SERVICE TIERS
 
-  Tier          Access                                    Price          Duration
-  ─────────────────────────────────────────────────────────────────────────────────
-  Scholar       All 10 Trinity validation tools +         Free forever   Permanent
-                templates. Open-source core (MIT).
-  Early Adopter All Scholar tools + Pioneer               Free 3 months  3 months
-  (EA)          coordination tools                        then Pioneer
-  PILOT         All Scholar tools + Pioneer               Free 6 months  6 months
-                coordination tools                        then Pioneer
-  Pioneer       All Scholar tools + 6 coordination        $9/month (USD) Monthly
-                tools (handoff mgmt, team status,
-                session coordination)
+  Tier          Identity   Access                              Price          Rate Limit
+  ────────────────────────────────────────────────────────────────────────────────────────
+  Anonymous     None       All 10 Trinity validation tools +   Free forever   10 req/60s
+                (IP only)  templates. No registration needed.                 (per IP)
+  Scholar       UUID       Same tools + usage dashboard +       Free forever   30 req/60s
+                (consent)  Trinity history. Register at /register.            (per UUID)
+  Early Adopter UUID +     All Scholar tools + Pioneer          Free 3 months  100 req/60s
+  (EA)          email      coordination tools                   then Pioneer   (per UUID)
+  PILOT         UUID +     All Scholar tools + Pioneer          Free 6 months  100 req/60s
+                email      coordination tools                   then Pioneer   (per UUID)
+  Pioneer       UUID +     All Scholar + 6 coordination         $9/month (USD) 100 req/60s
+                payment    tools (handoff mgmt, team status,    Monthly        (per UUID)
+                           session coordination)
 
-The Scholar tier remains free forever. You never lose Scholar access by
-registering for any program. The core is MIT licensed — self-host anytime.
+The Anonymous tier provides full Trinity access with zero friction and no
+registration. The Scholar tier is free forever and adds UUID-based identity,
+usage analytics (opt-in via user_uuid parameter), and a personal dashboard.
+You never lose Scholar access by registering for any program.
+The core is MIT licensed — self-host anytime.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
