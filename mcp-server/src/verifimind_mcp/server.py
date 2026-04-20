@@ -33,13 +33,14 @@ from fastmcp import FastMCP, Context
 from pydantic import BaseModel, Field
 
 from verifimind_mcp.utils.uuid_tracer import emit_tracer
+from verifimind_mcp.utils.trinity_history import persist_trinity_result
 
 # Initialize logger for security events
 logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 _RAW_SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.5.15"
+SERVER_VERSION = "0.5.16"
 
 # Track C — SYSTEM_NOTICE sanitization constants
 _NOTICE_MAX_LEN = 280
@@ -412,7 +413,7 @@ def _create_mcp_instance():
             agent = XAgent(llm_provider=provider)
             result = await agent.analyze(concept)
 
-            return wrap_response({
+            payload = {
                 "agent": "X Intelligent",
                 "concept": concept_name,
                 "reasoning_steps": [
@@ -428,7 +429,9 @@ def _create_mcp_instance():
                 "_inference_quality": getattr(result, '_inference_quality', 'unknown'),
                 "_provider_used": provider.get_model_name(),
                 "_byok": byok_used
-            })
+            }
+            persist_trinity_result(user_uuid, "consult_agent_x", payload)
+            return wrap_response(payload)
 
         except Exception as e:
             return wrap_response({
@@ -528,7 +531,7 @@ def _create_mcp_instance():
             agent = ZAgent(llm_provider=provider)
             result = await agent.analyze(concept, prior)
 
-            return wrap_response({
+            payload = {
                 "agent": "Z Guardian",
                 "concept": concept_name,
                 "reasoning_steps": [
@@ -545,7 +548,9 @@ def _create_mcp_instance():
                 "_inference_quality": getattr(result, '_inference_quality', 'unknown'),
                 "_provider_used": provider.get_model_name(),
                 "_byok": byok_used
-            })
+            }
+            persist_trinity_result(user_uuid, "consult_agent_z", payload)
+            return wrap_response(payload)
 
         except Exception as e:
             return wrap_response({
@@ -641,7 +646,7 @@ def _create_mcp_instance():
             agent = CSAgent(llm_provider=provider)
             result = await agent.analyze(concept, prior)
 
-            return wrap_response({
+            payload = {
                 "agent": "CS Security",
                 "concept": concept_name,
                 "reasoning_steps": [
@@ -658,7 +663,9 @@ def _create_mcp_instance():
                 "_inference_quality": getattr(result, '_inference_quality', 'unknown'),
                 "_provider_used": provider.get_model_name(),
                 "_byok": byok_used
-            })
+            }
+            persist_trinity_result(user_uuid, "consult_agent_cs", payload)
+            return wrap_response(payload)
 
         except Exception as e:
             return wrap_response({
@@ -882,7 +889,7 @@ def _create_mcp_instance():
             # Return result — Markdown-first if requested (v0.4.1)
             if output_format == "markdown":
                 from .reporting import generate_markdown_report
-                return wrap_response({
+                md_payload = {
                     "format": "markdown",
                     "content": generate_markdown_report(trinity_result),
                     "validation_id": trinity_result.validation_id,
@@ -892,9 +899,11 @@ def _create_mcp_instance():
                     "_z_token_monitor": z_token_monitor,
                     **_byok_meta,
                     **session.to_metadata(),
-                })
+                }
+                persist_trinity_result(user_uuid, "run_full_trinity", md_payload)
+                return wrap_response(md_payload)
 
-            return wrap_response({
+            payload = {
                 "validation_id": trinity_result.validation_id,
                 "concept_name": concept_name,
                 "x_analysis": {
@@ -933,7 +942,9 @@ def _create_mcp_instance():
                 "_z_token_monitor": z_token_monitor,
                 **_byok_meta,
                 **session.to_metadata(),
-            })
+            }
+            persist_trinity_result(user_uuid, "run_full_trinity", payload)
+            return wrap_response(payload)
 
         except Exception as e:
             err_str = str(e).lower()
