@@ -1439,6 +1439,7 @@ _TERMS_BODY = """
 <div class="meta">
   <span>Version 2.0</span>
   <span>Effective: April 8, 2026</span>
+  <span>Updated: April 20, 2026</span>
   <span>Previous: v1.0 (March 18, 2026)</span>
 </div>
 
@@ -1452,7 +1453,7 @@ _TERMS_BODY = """
   read and accept:</p>
 <ul>
   <li>These Terms &amp; Conditions v2.0</li>
-  <li>The <a href="/privacy">Privacy Policy v2.0</a></li>
+  <li>The <a href="/privacy">Privacy Policy v2.1</a></li>
   <li><a href="https://polar.sh/legal/master-services-terms" target="_blank" rel="noopener">Polar's Master Services Terms</a>
     (applicable to Pioneer tier subscribers)</li>
 </ul>
@@ -1460,32 +1461,43 @@ _TERMS_BODY = """
 <h2>3. Service Tiers</h2>
 <table class="legal-table">
   <thead>
-    <tr><th>Tier</th><th>Access</th><th>Price</th><th>Duration</th></tr>
+    <tr><th>Tier</th><th>Identity</th><th>Access</th><th>Price</th><th>Rate Limit</th></tr>
   </thead>
   <tbody>
     <tr>
-      <td><span class="tier-badge">Scholar</span></td>
-      <td>All 10 Trinity validation tools + templates. Open-source core (MIT).</td>
+      <td><span class="tier-badge">Anonymous</span></td>
+      <td>None (IP only)</td>
+      <td>All 10 Trinity validation tools + templates. No registration needed.</td>
       <td>Free forever</td>
-      <td>Permanent</td>
+      <td>10 req/60s per IP</td>
+    </tr>
+    <tr>
+      <td><span class="tier-badge">Scholar</span></td>
+      <td>UUID (consent)</td>
+      <td>Same tools + usage dashboard + Trinity history. Register at /register.</td>
+      <td>Free forever</td>
+      <td>30 req/60s per UUID</td>
     </tr>
     <tr>
       <td><span class="tier-badge">Early Adopter</span></td>
+      <td>UUID + email</td>
       <td>All Scholar tools + Pioneer coordination tools</td>
       <td>Free 3 months, then Pioneer pricing</td>
-      <td>3 months free</td>
+      <td>100 req/60s per UUID</td>
     </tr>
     <tr>
       <td><span class="tier-badge">PILOT</span></td>
+      <td>UUID + email</td>
       <td>All Scholar tools + Pioneer coordination tools</td>
       <td>Free 6 months, then Pioneer pricing</td>
-      <td>6 months free</td>
+      <td>100 req/60s per UUID</td>
     </tr>
     <tr>
       <td><span class="tier-badge">Pioneer</span></td>
+      <td>UUID + payment</td>
       <td>All Scholar tools + 6 coordination tools (handoff management, team status, session coordination)</td>
       <td><strong>$9/month (USD)</strong></td>
-      <td>Monthly subscription</td>
+      <td>100 req/60s per UUID</td>
     </tr>
   </tbody>
 </table>
@@ -1622,7 +1634,7 @@ def get_privacy_page() -> str:
 
 
 def get_terms_page() -> str:
-    """Return the full HTML for GET /terms — Terms &amp; Conditions v2.0."""
+    """Return the full HTML for GET /terms — Terms &amp; Conditions v2.0 (updated April 20, 2026)."""
     return _legal_shell(title="Terms &amp; Conditions", body=_TERMS_BODY)
 
 
