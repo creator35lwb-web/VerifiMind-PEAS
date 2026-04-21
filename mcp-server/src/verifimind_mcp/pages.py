@@ -1755,12 +1755,53 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 _CHANGELOG_BODY = """
 <h1>Changelog</h1>
 <div class="meta">
-  <span>Last updated: April 20, 2026</span>
+  <span>Last updated: April 21, 2026</span>
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
 </div>
 
+<div id="v0.5.19">
+<h2>v0.5.19 — UUID Tier-Aware Rate Limiter + 404 Churn Fixes <span class="live-badge">LIVE</span></h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 21, 2026</p>
+<ul>
+  <li><strong>UUID Tier-Aware Rate Limiting (P0-A)</strong> — <code>X-VerifiMind-UUID</code> header sets rate limit tier server-side: Anonymous 10 req/60s per IP &middot; Scholar 30 req/60s per UUID &middot; Pioneer 100 req/60s per UUID; tier cached 5 min; fail-open to Scholar if Firestore unavailable; <code>X-RateLimit-Tier</code> on every response</li>
+  <li><strong>404 Churn Fixed (AY COO PIN)</strong> — <code>GET /mcp</code> (no trailing slash) &rarr; <strong>308</strong> Permanent Redirect; <code>GET /mcp/sse</code> and <code>GET /sse</code> &rarr; <strong>410 Gone</strong> with actionable JSON; eliminates ~531&ndash;556 daily 404s</li>
+  <li>574 tests pass, 61.99% coverage, CodeQL clean</li>
+  <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/163" target="_blank" rel="noopener">PR #163</a> &middot; <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/164" target="_blank" rel="noopener">PR #164</a></li>
+</ul>
+</div>
+
+<div id="v0.5.18">
+<h2>v0.5.18 — Scholar Dashboard: Trinity History</h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 21, 2026</p>
+<ul>
+  <li><strong><code>GET /early-adopters/dashboard/{uuid}</code></strong> — personal Trinity validation history page; last 50 results from Firestore (<code>trinity_history/{uuid}/validations/</code>); shows score, tool, recommendation excerpt, veto flag, timestamp per row; empty state + unavailable fallback</li>
+  <li>472 tests pass, 59.74% coverage</li>
+  <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/162" target="_blank" rel="noopener">PR #162</a></li>
+</ul>
+</div>
+
+<div id="v0.5.17">
+<h2>v0.5.17 — mcp_config UUID Header Fix</h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 21, 2026</p>
+<ul>
+  <li><strong>UUID auto-flows on every MCP request</strong> — <code>mcp_config</code> args now include <code>--header X-VerifiMind-UUID:${VERIFIMIND_UUID}</code>; <code>mcp-remote</code> expands from env and sends with every request; no manual <code>user_uuid</code> per tool call needed</li>
+  <li><strong>MCP Registry updated to v2.5.0</strong> — <a href="https://registry.modelcontextprotocol.io/?q=verifimind" target="_blank" rel="noopener">registry.modelcontextprotocol.io</a></li>
+  <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/160" target="_blank" rel="noopener">PR #160</a> &middot; <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/161" target="_blank" rel="noopener">PR #161</a></li>
+</ul>
+</div>
+
+<div id="v0.5.16">
+<h2>v0.5.16 — Trinity History Persistence + Terms Hotfix</h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 21, 2026</p>
+<ul>
+  <li><strong>Trinity history persistence (P1-B)</strong> — <code>write_trinity_history(uuid, tool, result)</code> fire-and-forget async Firestore write; stores score, recommendation excerpt, veto flag, timestamp; wired into all 4 core tools when <code>user_uuid</code> provided; zero latency impact</li>
+  <li><strong>/terms page hotfix</strong> — Anonymous tier row added, Identity + Rate Limit columns explicit, Privacy Policy v2.1 link, "Updated: April 21, 2026"</li>
+  <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/158" target="_blank" rel="noopener">PR #158</a> &middot; <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/159" target="_blank" rel="noopener">PR #159</a></li>
+</ul>
+</div>
+
 <div id="v0.5.15">
-<h2>v0.5.15 — Scholar Incentives: UUID Tracer + Registration UX <span class="live-badge">LIVE</span></h2>
+<h2>v0.5.15 — Scholar Incentives: UUID Tracer + Registration UX</h2>
 <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 20, 2026</p>
 <ul>
   <li><strong>UUID Tracer on all 10 Scholar tools</strong> — optional <code>user_uuid</code> parameter; fire-and-forget <code>TRACER_UUID:</code> stdout log feeds AY GCP analytics pipeline; invalid UUIDs silently ignored (log injection prevention)</li>

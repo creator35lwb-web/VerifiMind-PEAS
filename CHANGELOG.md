@@ -6,6 +6,106 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.19 - UUID Tier-Aware Rate Limiter + 404 Churn Fixes (April 21, 2026)
+
+Scholar/Pioneer users now get dedicated UUID-based rate limit buckets (30 req/60s and 100 req/60s respectively), replacing the shared IP-only limit. The `/mcp` missing-slash 404 (531+ daily errors from AY COO log analysis) is fixed with a 308 redirect.
+
+### P0-A: UUID Tier-Aware Rate Limiting
+- `X-VerifiMind-UUID` header (auto-sent since v0.5.17) now sets rate limit tier server-side
+- Anonymous: 10 req/60s per IP (unchanged) — Scholar: 30 req/60s per UUID — Pioneer: 100 req/60s per UUID
+- Tier resolved via Firestore `ea_registrations` lookup, cached 5 minutes; fail-open to Scholar if Firestore unavailable
+- `X-RateLimit-Tier` header on every response; 429 response includes upgrade hint for anonymous users
+- `TIER_LIMITS`, `_resolve_uuid_tier()`, `_uuid_tier_cache` all exported for testing
+
+### 404 Churn Fixes (AY COO PIN)
+- `GET /mcp` (no trailing slash) → **308 Permanent Redirect** to `/mcp/` (method-preserving — POST clients routed correctly)
+- `GET /mcp/sse` and `GET /sse` → **410 Gone** with actionable JSON (`use_instead` URL, `transport` hint)
+- Eliminates ~531–556 daily 404s identified in GCP log analysis
+
+### Testing
+- 574 tests pass (14 skipped), 61.99% coverage, CodeQL clean
+
+### Pull Requests
+- PR #163 (P0-A UUID rate limiter), PR #164 (404 churn fixes)
+
+### Credits
+- Implementation: RNA (Claude Code, CSO)
+- Specification: T (Manus AI, CTO) — Phase 84 D3
+- Log Analysis: AY (Antigravity, COO) — 404 Churn PIN
+- Human Orchestrator: Alton
+
+---
+
+## v0.5.18 - Scholar Dashboard: Trinity History (April 21, 2026)
+
+Registered Scholar users can now view their personal Trinity validation history at `GET /early-adopters/dashboard/{uuid}`.
+
+### Scholar Dashboard (P0-B)
+- `GET /early-adopters/dashboard/{uuid}` — HTML page showing last 50 Trinity validations for the authenticated UUID
+- Reads `trinity_history/{uuid}/validations/` from Firestore (sync client, descending by timestamp)
+- Displays: score, tool, recommendation excerpt, veto flag (⚑), timestamp per row
+- Empty state, "temporarily unavailable" fallback, privacy notice on every render
+- `read_trinity_history(uuid, limit=50)` utility added to `trinity_history.py` (sync Firestore read)
+
+### Testing
+- 472 tests pass, 3 skipped, 59.74% coverage
+
+### Pull Requests
+- PR #162 (Scholar Dashboard)
+
+### Credits
+- Implementation: RNA (Claude Code, CSO)
+- Specification: T (Manus AI, CTO) — Phase 84 D2
+- Human Orchestrator: Alton
+
+---
+
+## v0.5.17 - mcp_config UUID Header Fix (April 21, 2026)
+
+UUID now automatically flows on every MCP request for registered Scholar and Pioneer users — no manual `user_uuid` parameter needed on each tool call.
+
+### UUID Header Auto-Flow (T Phase 84 D1)
+- `mcp_config` args in registration response now include `--header X-VerifiMind-UUID:${VERIFIMIND_UUID}`
+- `mcp-remote` expands `${VERIFIMIND_UUID}` from the process environment and sends it as a request header on every call
+- `env: {VERIFIMIND_UUID: uuid}` still present (backward compat) — header fix is additive
+- Server-side middleware reads `X-VerifiMind-UUID` for UUID tier-aware rate limiting (v0.5.19)
+- MCP Registry updated to v2.5.0 ([registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/?q=verifimind))
+
+### Testing
+- 8 new tests (mcp_config header structure, env var presence, env var expansion pattern)
+
+### Pull Requests
+- PR #160 (mcp_config header fix), PR #161 (MCP Registry v2.5.0)
+
+### Credits
+- Implementation: RNA (Claude Code, CSO)
+- Specification: T (Manus AI, CTO) — Phase 84 hybrid D1
+- Human Orchestrator: Alton
+
+---
+
+## v0.5.16 - Trinity History Persistence + Terms Hotfix (April 21, 2026)
+
+Trinity validation results are now persisted to Firestore for the Scholar Dashboard (P1-B), and the `/terms` page was updated to match the current 3-tier service model.
+
+### Trinity History Persistence (P1-B)
+- `write_trinity_history(uuid, tool, result)` — fire-and-forget async Firestore write to `trinity_history/{uuid}/validations/`
+- Stores: tool name, overall score, recommendation excerpt, veto flag, timestamp, `_inference_quality`
+- Wired into all 4 core MCP tools (`consult_agent_x/z/cs`, `run_full_trinity`) when `user_uuid` provided
+- Zero latency impact (async task, no await in hot path)
+
+### Terms Hotfix
+- `/terms` page updated: Anonymous tier row added to service tiers table, Identity + Rate Limit columns explicit, Privacy Policy link updated to v2.1, "Updated: April 21, 2026"
+
+### Pull Requests
+- PR #158 (terms hotfix), PR #159 (Trinity history persistence)
+
+### Credits
+- Implementation: RNA (Claude Code, CSO)
+- Human Orchestrator: Alton
+
+---
+
 ## v0.5.15 - Scholar Incentives: UUID Tracer + Registration UX (April 20, 2026)
 
 Optional UUID tracer on all 10 Scholar tools, Privacy Policy v2.1 disclosure, enhanced registration response.
