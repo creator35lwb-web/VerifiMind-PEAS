@@ -60,7 +60,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.18"
+SERVER_VERSION = "0.5.19"
 
 # Track server start time for uptime reporting (v0.5.0 health v2)
 _SERVER_START_TIME = time.time()
@@ -1314,6 +1314,29 @@ async def polar_webhook_handler(request):
         return JSONResponse({"status": "error", "detail": "verification_failed"}, status_code=400)
 
 
+async def mcp_no_slash_redirect(request):
+    """GET|POST /mcp → 308 to /mcp/ — fixes #1 404 churn source (AY PIN 2026-04-21)."""
+    url = str(request.url).rstrip("/") + "/"
+    return RedirectResponse(url=url, status_code=308)
+
+
+async def mcp_sse_deprecated_handler(request):
+    """GET /mcp/sse, /sse — SSE transport removed. Return actionable JSON."""
+    return JSONResponse(
+        status_code=410,
+        content={
+            "error": "transport_deprecated",
+            "message": (
+                "SSE transport (/mcp/sse) is no longer supported. "
+                "VerifiMind uses Streamable HTTP transport."
+            ),
+            "mcp_endpoint": "https://verifimind.ysenseai.org/mcp/",
+            "quick_start": "claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/",
+            "help": "https://github.com/creator35lwb-web/VerifiMind-PEAS#setup",
+        },
+    )
+
+
 # Create Starlette app with proper lifespan from MCP app
 app = Starlette(
     routes=[
@@ -1347,6 +1370,10 @@ app = Starlette(
         Route("/optout", optout_page_handler, methods=["GET"]),
         # v0.5.12 Polar: subscription lifecycle webhook
         Route("/api/webhooks/polar", polar_webhook_handler, methods=["POST"]),
+        # v0.5.19: 404 churn fixes (AY PIN — /mcp no-slash + SSE deprecated paths)
+        Route("/mcp", mcp_no_slash_redirect, methods=["GET", "POST", "HEAD"]),
+        Route("/mcp/sse", mcp_sse_deprecated_handler),
+        Route("/sse", mcp_sse_deprecated_handler),
         Mount("/mcp", app=mcp_app),
     ],
     lifespan=mcp_app.lifespan,  # CRITICAL: Pass lifespan for session initialization
