@@ -47,8 +47,9 @@ class TestMcpConfigHeader:
         assert "mcp-remote" in args
 
     def test_server_url_still_in_args(self):
+        from urllib.parse import urlparse
         args = self._extras()["mcp_config"]["mcpServers"]["verifimind"]["args"]
-        assert any("verifimind.ysenseai.org" in a for a in args)
+        assert any(urlparse(a).hostname == "verifimind.ysenseai.org" for a in args if a.startswith("http"))
 
     def test_different_uuids_produce_same_header_template(self):
         uuid_a = "019d40d6-9e84-7738-9c0c-fa85b2930600"
@@ -71,4 +72,4 @@ class TestServerVersion:
 
     def test_server_version_is_0517(self):
         from verifimind_mcp.server import SERVER_VERSION
-        assert SERVER_VERSION == "0.5.18", f"Expected 0.5.17, got {SERVER_VERSION}"
+        assert SERVER_VERSION == "0.5.19", f"Expected 0.5.17, got {SERVER_VERSION}"
