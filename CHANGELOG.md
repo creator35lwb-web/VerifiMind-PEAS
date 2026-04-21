@@ -6,9 +6,17 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
-## v0.5.19 - UUID Tier-Aware Rate Limiter + 404 Churn Fixes (April 21, 2026)
+## v0.5.19 - UUID Tier-Aware Rate Limiter + 404 Churn Fixes + Validation Paradox (April 21, 2026)
 
-Scholar/Pioneer users now get dedicated UUID-based rate limit buckets (30 req/60s and 100 req/60s respectively), replacing the shared IP-only limit. The `/mcp` missing-slash 404 (531+ daily errors from AY COO log analysis) is fixed with a 308 redirect.
+Scholar/Pioneer users now get dedicated UUID-based rate limit buckets (30 req/60s and 100 req/60s respectively), replacing the shared IP-only limit. The `/mcp` missing-slash 404 (531+ daily errors from AY COO log analysis) is fixed with a 308 redirect. The Validation Paradox research endpoint launches with all 6 FLYWHEEL TEAM independent reflections published.
+
+### Research: The Validation Paradox
+- New endpoint `GET /research/paradox` — full SEO-optimised research publication (JSON-LD ScholarlyArticle, OG, Twitter, canonical)
+- All 6 independent FLYWHEEL TEAM reflections published: Alton (Open Thesis), XV (CIO), T (CTO), L (CEO), RNA (CSO), AY (COO), AZ (CPO)
+- Research source documents at `docs/research/paradox/` — CC BY 4.0
+- Sitemap and robots.txt updated; `/research/index.json` v1.2 updated
+- AZ (CPO) is a new FLYWHEEL TEAM agent introduced in this publication
+- Key finding disclosed publicly: 38.8% of accomplished churn is 404 errors; honest user estimate 800–1,200 (not 2,433 IPs)
 
 ### P0-A: UUID Tier-Aware Rate Limiting
 - `X-VerifiMind-UUID` header (auto-sent since v0.5.17) now sets rate limit tier server-side
