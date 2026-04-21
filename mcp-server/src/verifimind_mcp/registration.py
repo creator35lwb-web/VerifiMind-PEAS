@@ -492,7 +492,10 @@ def _build_registration_extras(uuid: str, checkout: str) -> dict:
             "mcpServers": {
                 "verifimind": {
                     "command": "npx",
-                    "args": ["-y", "mcp-remote", f"{_SERVER_BASE_URL}/mcp/"],
+                    "args": [
+                        "-y", "mcp-remote", f"{_SERVER_BASE_URL}/mcp/",
+                        "--header", "X-VerifiMind-UUID:${VERIFIMIND_UUID}",
+                    ],
                     "env": {"VERIFIMIND_UUID": uuid},
                 }
             }
