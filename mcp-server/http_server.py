@@ -48,7 +48,7 @@ from verifimind_mcp.registration import (
     register_user,
 )
 from verifimind_mcp.policies import PRIVACY_POLICY, TERMS_AND_CONDITIONS
-from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_changelog_page, get_research_page, get_library_page, get_dashboard_page
+from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_changelog_page, get_research_page, get_library_page, get_dashboard_page, get_paradox_page
 from verifimind_mcp.utils.trinity_history import read_trinity_history
 from verifimind_mcp.registration import _get_firestore
 
@@ -515,6 +515,7 @@ Allow: /health
 Allow: /.well-known/
 Allow: /research
 Allow: /research/index.json
+Allow: /research/paradox
 Allow: /library
 Allow: /library/index.json
 Allow: /changelog
@@ -635,6 +636,11 @@ _SITEMAP_XML = """\
   </url>
   <url>
     <loc>https://verifimind.ysenseai.org/research</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://verifimind.ysenseai.org/research/paradox</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
@@ -1070,6 +1076,11 @@ async def research_handler(request):
     return HTMLResponse(get_research_page())
 
 
+async def paradox_handler(request):
+    """GET /research/paradox — The Validation Paradox: self-interrogation by the FLYWHEEL TEAM."""
+    return HTMLResponse(get_paradox_page())
+
+
 async def mcp_test_handler(request):
     """GET /mcp/test?key=<uuid> — Verify UUID + connection health (P0 UUID transfer UX fix)."""
     key = request.query_params.get("key", "")
@@ -1096,11 +1107,32 @@ async def mcp_test_handler(request):
 
 # Machine-readable index — enables future MCP tool + AI crawlers (Perplexity, Google SGE)
 _RESEARCH_INDEX = {
-    "version": "1.1",
-    "updated": "2026-04-17",
+    "version": "1.2",
+    "updated": "2026-04-21",
     "url": "https://verifimind.ysenseai.org/research",
     "license": "CC BY 4.0",
     "papers": [
+        {
+            "id": "validation-paradox",
+            "title": "The Validation Paradox: Can an AI-Assisted Venture Validate Itself?",
+            "authors": ["Alton Lee (YSenseAI)", "XV (CIO, Perplexity)", "RNA (CSO, Claude Code)"],
+            "date": "2026-04-21",
+            "tags": ["Epistemology", "AI Self-Validation", "Living Document", "FLYWHEEL TEAM"],
+            "url": "https://verifimind.ysenseai.org/research/paradox",
+            "github": "https://github.com/creator35lwb-web/VerifiMind-PEAS/tree/main/docs/research/paradox",
+            "status": "living-document",
+            "abstract": (
+                "Every AI-assisted venture faces a structural epistemological problem: "
+                "AI agents write research, validate strategy, and audit each other — "
+                "the loop is self-referential. This paper names that problem (the Validation Paradox), "
+                "traces its cycle (Unknown → Structure → Clarity → New Unknown → Loop → Spin → External Signal), "
+                "identifies the one exit point (External Signal: revenue, independent citation, unsolicited inbound), "
+                "and introduces two mechanisms for distinguishing productive spin from circular spin: "
+                "Latent Insight Crystallization and Tacit-to-Explicit Compression. "
+                "Includes independent reflections from 5 AI agents operating within the system being interrogated. "
+                "23 open questions. No resolved answers. CC BY 4.0."
+            ),
+        },
         {
             "id": "five-layer-stack",
             "title": "The 5-Layer Agent Protocol Stack: Where MACP Fits (and Why ANP Is Not a Competitor)",
@@ -1360,6 +1392,7 @@ app = Starlette(
         Route("/terms", terms_handler, methods=["GET"]),
         Route("/changelog", changelog_handler, methods=["GET"]),
         Route("/research", research_handler, methods=["GET"]),
+        Route("/research/paradox", paradox_handler, methods=["GET"]),
         Route("/research/index.json", research_index_handler, methods=["GET"]),
         Route("/library", library_handler, methods=["GET"]),
         Route("/library/index.json", library_index_handler, methods=["GET"]),
