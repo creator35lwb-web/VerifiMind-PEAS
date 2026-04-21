@@ -11,7 +11,7 @@
 
   > **Evolution of PEAS:** v1.x (2024): *Prompt Engineering Application Synthesis* (Zenodo DOI — immutable) · v2.x–v4.x (2025): *Prompt Engineering & AI Standardization* (Genesis Methodology era) · **v5.x (2026): *Prompt Engineering Agents Standardization* — current canonical** — AI Council vote 3/4 APPROVE (Apr 10, 2026)
 
-  [![Version](https://img.shields.io/badge/version-v0.5.15-blue.svg)](CHANGELOG.md)
+  [![Version](https://img.shields.io/badge/version-v0.5.19-blue.svg)](CHANGELOG.md)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Status](https://img.shields.io/badge/status-Operational-success.svg)](SERVER_STATUS.md)
   [![MACP](https://img.shields.io/badge/MACP-v2.2%20%22Identity%22-blueviolet)](https://doi.org/10.5281/zenodo.18504478)
@@ -31,7 +31,7 @@
 
 ## MCP Server: Production Deployed
 
-> **v0.5.15 "Scholar Incentives"** — 2,389+ verified engagement hours | 1,876+ unique endpoints (IP-based; verified users tracked via EA registration UUID) | 90.7% Value Confirmation Rate | **Pioneer Tier** ($9/mo, Polar MoR) | **UUID Tracer on all 10 Scholar tools** (optional `user_uuid` → GCP analytics) | **Privacy Policy v2.1** (UUID analytics disclosed, Z-Protocol v1.1) | **Registration UX** (mcp_config + test_url + dashboard_url in response) | **Research Library v1.0** (20+ papers at `/library`) | **Connection Test** (`/mcp/test?key=<uuid>`) | MACP v2.2 "Identity" | 515 tests | 74+ weekly COO reports. [Health Check](https://verifimind.ysenseai.org/health) | [Changelog](https://verifimind.ysenseai.org/changelog) | [Register](https://verifimind.ysenseai.org/register) | [Pioneer Tier](https://verifimind.ysenseai.org/terms)
+> **v0.5.19 "UUID Rate Limiter"** — **UUID Tier-Aware Rate Limiting** (Anonymous 10/60s · Scholar 30/60s · Pioneer 100/60s) | **Scholar Dashboard** (`/early-adopters/dashboard/{uuid}`) | **UUID Header Auto-Flow** (mcp_config `--header` fix — no manual `user_uuid` needed) | **404 Churn Eliminated** (`/mcp` → 308, `/mcp/sse` → 410) | Pioneer Tier ($9/mo, Polar MoR) | Research Library v1.0 (20+ papers at `/library`) | MACP v2.2 "Identity" | 574 tests | 74+ weekly COO reports. [Health Check](https://verifimind.ysenseai.org/health) | [Changelog](https://verifimind.ysenseai.org/changelog) | [Register](https://verifimind.ysenseai.org/register) | [Pioneer Tier](https://verifimind.ysenseai.org/terms)
 
 VerifiMind PEAS is now **live and accessible** across multiple platforms:
 
@@ -66,13 +66,16 @@ claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysense
 }
 ```
 
-**Claude Desktop (Scholar UUID — optional, enables usage dashboard):** After [registering](https://verifimind.ysenseai.org/register), pass your UUID for analytics and the dashboard at `/early-adopters/dashboard/{uuid}`:
+**Claude Desktop (Scholar UUID — recommended after registering):** After [registering](https://verifimind.ysenseai.org/register), add your UUID to auto-send on every request — enables tier-aware rate limits and your dashboard at `/early-adopters/dashboard/{uuid}`:
 ```json
 {
   "mcpServers": {
     "verifimind": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "https://verifimind.ysenseai.org/mcp/"],
+      "args": [
+        "-y", "mcp-remote", "https://verifimind.ysenseai.org/mcp/",
+        "--header", "X-VerifiMind-UUID:${VERIFIMIND_UUID}"
+      ],
       "env": {
         "VERIFIMIND_UUID": "your-uuid-here"
       }
@@ -80,7 +83,7 @@ claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysense
   }
 }
 ```
-> Pass `user_uuid` on any Scholar tool call to log to your dashboard. Anonymous tool calls (no `user_uuid`) work identically.
+> Your UUID is sent automatically on every request — no `user_uuid` parameter needed on each tool call.
 
 **Cursor / VS Code Copilot** (`.cursor/mcp.json` or `.vscode/mcp.json`):
 ```json
@@ -117,7 +120,7 @@ Based on production log analysis (February 2026), these are the most frequent co
 | Mistake | What Happens | Fix |
 |---------|-------------|-----|
 | **Visiting the URL in a browser** | You see a `406 Not Acceptable` error | This is an API, not a website. Use an MCP client (Claude Desktop, Cursor, etc.) |
-| **Missing trailing slash** `/mcp` | `405 Method Not Allowed` | Always use `/mcp/` with the trailing slash |
+| **Missing trailing slash** `/mcp` | `308 Permanent Redirect` (auto-followed by most clients) | Always use `/mcp/` with the trailing slash — POST clients are redirected correctly since v0.5.19 |
 | **Using GET instead of POST** | `400 Bad Request` | MCP protocol requires POST requests with JSON-RPC body |
 | **Using `http-sse` transport** | Connection fails | Use `streamable-http` transport (not `http-sse`) |
 | **Connecting to Smithery proxy** | Sunset completed (March 1, 2026) | Use the direct URL: `https://verifimind.ysenseai.org/mcp/` |
