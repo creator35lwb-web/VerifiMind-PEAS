@@ -48,7 +48,9 @@ from verifimind_mcp.registration import (
     register_user,
 )
 from verifimind_mcp.policies import PRIVACY_POLICY, TERMS_AND_CONDITIONS
-from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_changelog_page, get_research_page, get_library_page
+from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_changelog_page, get_research_page, get_library_page, get_dashboard_page
+from verifimind_mcp.utils.trinity_history import read_trinity_history
+from verifimind_mcp.registration import _get_firestore
 
 # Create MCP server instance
 mcp_server = create_http_server()
@@ -58,7 +60,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.17"
+SERVER_VERSION = "0.5.18"
 
 # Track server start time for uptime reporting (v0.5.0 health v2)
 _SERVER_START_TIME = time.time()
@@ -943,6 +945,20 @@ async def ea_status_handler(request):
     return JSONResponse(status.model_dump())
 
 
+async def ea_dashboard_handler(request):
+    """GET /early-adopters/dashboard/{uuid} — Scholar validation history dashboard (P0-B)."""
+    from verifimind_mcp.utils.uuid_tracer import is_valid_uuid
+    uuid = request.path_params.get("uuid", "")
+    if not is_valid_uuid(uuid):
+        return HTMLResponse(
+            get_dashboard_page("invalid", [], firestore_available=False),
+            status_code=404,
+        )
+    firestore_available = _get_firestore() is not None
+    records = read_trinity_history(uuid, limit=50)
+    return HTMLResponse(get_dashboard_page(uuid, records, firestore_available=firestore_available))
+
+
 async def ea_feedback_handler(request):
     """POST /early-adopters/feedback — submit feedback, issue, or recommendation.
 
@@ -1314,6 +1330,7 @@ app = Starlette(
         # v0.5.6 Gateway: EA registration + feedback + policy
         Route("/early-adopters/register", ea_register_handler, methods=["POST"]),
         Route("/early-adopters/status/{uuid}", ea_status_handler, methods=["GET"]),
+        Route("/early-adopters/dashboard/{uuid}", ea_dashboard_handler, methods=["GET"]),
         Route("/early-adopters/feedback", ea_feedback_handler, methods=["POST"]),
         Route("/early-adopters/optout/{uuid}", ea_optout_handler, methods=["POST"]),
         Route("/privacy", privacy_handler, methods=["GET"]),
