@@ -1638,6 +1638,118 @@ def get_terms_page() -> str:
     return _legal_shell(title="Terms &amp; Conditions", body=_TERMS_BODY)
 
 
+# ── Scholar Dashboard page ─────────────────────────────────────────────────────
+
+_TOOL_LABELS = {
+    "run_full_trinity": "Full Trinity",
+    "consult_agent_x": "Agent X (Innovation)",
+    "consult_agent_z": "Agent Z (Ethics)",
+    "consult_agent_cs": "Agent CS (Security)",
+}
+
+_REC_CLASS = {
+    "PROCEED": "rec-proceed",
+    "REVISE": "rec-revise",
+    "REJECT": "rec-reject",
+}
+
+
+def _dashboard_row(rec: dict) -> str:
+    ts = rec.get("timestamp", "")
+    tool = _TOOL_LABELS.get(rec.get("tool", ""), rec.get("tool", "—"))
+    score = rec.get("overall_score") or rec.get("score")
+    score_str = f"{score:.1f}/10" if score is not None else "—"
+    recommendation = rec.get("recommendation", "—") or "—"
+    # Trim long recommendation text
+    rec_short = recommendation[:60] + "…" if len(recommendation) > 60 else recommendation
+    rec_word = recommendation.split()[0].rstrip(".,—-") if recommendation != "—" else ""
+    rec_cls = _REC_CLASS.get(rec_word.upper(), "")
+    quality = rec.get("quality", "") or ""
+    veto = " ⚑" if rec.get("veto_triggered") else ""
+    # Format timestamp: 2026-04-21T01:23:45.000000+00:00 → Apr 21, 2026 01:23 UTC
+    try:
+        from datetime import datetime, timezone
+        dt = datetime.fromisoformat(ts)
+        ts_fmt = dt.astimezone(timezone.utc).strftime("%b %d, %Y %H:%M UTC")
+    except Exception:
+        ts_fmt = ts[:19].replace("T", " ") if ts else "—"
+    quality_badge = f'<span class="quality-badge">{quality}</span>' if quality else ""
+    return (
+        f"<tr>"
+        f"<td>{ts_fmt}</td>"
+        f"<td>{tool}{quality_badge}</td>"
+        f"<td class='score'>{score_str}</td>"
+        f'<td class="{rec_cls}">{rec_short}{veto}</td>'
+        f"</tr>"
+    )
+
+
+def get_dashboard_page(uuid: str, records: list, firestore_available: bool = True) -> str:
+    """Render Scholar validation history dashboard for GET /early-adopters/dashboard/{uuid}."""
+    uuid_display = uuid[:8] + "…" + uuid[-4:] if len(uuid) > 12 else uuid
+    total = len(records)
+
+    if not firestore_available:
+        status_block = '<div class="notice-box">History temporarily unavailable — Firestore is not reachable. Try again shortly.</div>'
+    elif total == 0:
+        status_block = (
+            '<div class="notice-box">'
+            "No validations recorded yet. Run any Trinity tool with your <code>user_uuid</code> parameter "
+            "to start building your history."
+            "</div>"
+        )
+    else:
+        last_ts = records[0].get("timestamp", "")[:10] if records else ""
+        status_block = (
+            f'<div class="meta">'
+            f"<span>{total} validation{'s' if total != 1 else ''} recorded</span>"
+            f"<span>Last: {last_ts}</span>"
+            f"</div>"
+        )
+
+    rows_html = "\n".join(_dashboard_row(r) for r in records) if records else (
+        "<tr><td colspan='4' style='text-align:center;color:var(--muted);'>No records yet</td></tr>"
+    )
+
+    body = f"""
+<h1>Scholar Dashboard</h1>
+<div class="meta">
+  <span>UUID: <code>{uuid_display}</code></span>
+  <span><a href="/register">Register / update</a></span>
+</div>
+
+{status_block}
+
+<h2>Validation History</h2>
+<table class="legal-table">
+  <thead>
+    <tr><th>Date (UTC)</th><th>Tool</th><th>Score</th><th>Recommendation</th></tr>
+  </thead>
+  <tbody>
+    {rows_html}
+  </tbody>
+</table>
+
+<div class="notice-box" style="margin-top:2rem;">
+  <strong>Privacy:</strong> No concept names or descriptions are stored — only scores,
+  recommendations, and timestamps. See <a href="/privacy">Privacy Policy v2.1</a>.
+</div>
+
+<style>
+  .score {{ font-weight:600; text-align:center; }}
+  .rec-proceed {{ color:#16a34a; }}
+  .rec-revise {{ color:#d97706; }}
+  .rec-reject {{ color:#dc2626; }}
+  .quality-badge {{
+    display:inline-block; margin-left:0.4rem; font-size:0.7rem;
+    padding:0.1rem 0.35rem; border-radius:3px;
+    background:var(--border); color:var(--muted); vertical-align:middle;
+  }}
+</style>
+"""
+    return _legal_shell(title=f"Scholar Dashboard — {uuid_display}", body=body)
+
+
 # ── Changelog page ────────────────────────────────────────────────────────────
 
 _CHANGELOG_BODY = """

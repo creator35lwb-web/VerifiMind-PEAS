@@ -83,6 +83,35 @@ async def _write_to_firestore(uuid: str, record: dict) -> None:
         logger.warning("trinity_history write skipped (non-critical): %s", type(exc).__name__)
 
 
+def read_trinity_history(uuid: str, limit: int = 50) -> list[dict]:
+    """
+    Read validation history for a Scholar UUID from Firestore.
+
+    Returns list of record dicts sorted by timestamp descending.
+    Returns [] if Firestore unavailable, UUID invalid, or no records exist.
+    """
+    if not is_valid_uuid(uuid):
+        return []
+    try:
+        from verifimind_mcp.registration import _get_firestore
+        db = _get_firestore()
+        if db is None:
+            return []
+        from google.cloud.firestore_v1 import Query  # type: ignore
+        docs = (
+            db.collection("trinity_history")
+            .document(uuid)
+            .collection("validations")
+            .order_by("timestamp", direction=Query.DESCENDING)
+            .limit(limit)
+            .get()
+        )
+        return [doc.to_dict() for doc in docs if doc.exists]
+    except Exception as exc:
+        logger.warning("trinity_history read failed (non-critical): %s", type(exc).__name__)
+        return []
+
+
 def persist_trinity_result(uuid: str | None, tool: str, raw_result: dict) -> None:
     """
     Fire-and-forget: schedule Firestore write for Scholar validation history.
