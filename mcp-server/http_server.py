@@ -88,7 +88,7 @@ async def health_handler(request):
             "changelog": "/changelog"
         },
         "resources": 4,
-        "tools": 10,
+        "tools": 13,
         "features": {
             "smart_fallback": True,
             "per_agent_providers": True,
@@ -129,7 +129,7 @@ async def mcp_config_handler(request):
                 "version": SERVER_VERSION,
                 "transport": "streamable-http",
                 "resources": 4,
-                "tools": 10,
+                "tools": 13,
                 "features": {
                     "agents": ["X (Innovation)", "Z (Ethics)", "CS (Security)"],
                     "models": ["Gemini 1.5 Flash (FREE)", "Claude 3.5 Sonnet (BYOK)", "GPT-4o (BYOK)"],
@@ -303,17 +303,31 @@ ROOT_HTML = """<!DOCTYPE html>
 <link rel="icon" type="image/png" href="/favicon.ico">
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-         max-width: 680px; margin: 40px auto; padding: 0 20px; color: #1a1a2e;
+         max-width: 720px; margin: 40px auto; padding: 0 20px; color: #1a1a2e;
          background: #f8f9fa; line-height: 1.6; }
   h1 { color: #16213e; border-bottom: 3px solid #0f3460; padding-bottom: 8px; }
+  h3 { margin-bottom: 8px; }
   code { background: #e8eaf6; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
-  pre { background: #1a1a2e; color: #e0e0e0; padding: 16px; border-radius: 8px;
-        overflow-x: auto; font-size: 0.85em; }
+  .code-wrap { position: relative; margin: 8px 0; }
+  pre { background: #1a1a2e; color: #e0e0e0; padding: 16px 50px 16px 16px; border-radius: 8px;
+        overflow-x: auto; font-size: 0.85em; margin: 0; }
+  .copy-btn { position: absolute; top: 8px; right: 8px; background: #0f3460; color: #fff;
+              border: none; border-radius: 5px; padding: 3px 10px; font-size: 0.75em;
+              cursor: pointer; opacity: 0.85; transition: opacity 0.15s; }
+  .copy-btn:hover { opacity: 1; }
+  .copy-btn.copied { background: #2ecc71; }
   .badge { display: inline-block; background: #0f3460; color: #fff; padding: 2px 10px;
            border-radius: 12px; font-size: 0.8em; }
+  .badge-free { display: inline-block; background: #2ecc71; color: #fff; padding: 2px 8px;
+                border-radius: 12px; font-size: 0.75em; margin-left: 6px; }
   a { color: #0f3460; }
   .card { background: #fff; border: 1px solid #dee2e6; border-radius: 8px;
           padding: 16px; margin: 12px 0; }
+  .card-scholar { background: #fff; border: 1px solid #0f3460; border-radius: 8px;
+                  padding: 16px; margin: 12px 0; }
+  .note { font-size: 0.82em; color: #555; margin-top: 6px; }
+  .url-tip { background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px;
+             padding: 8px 12px; font-size: 0.85em; margin: 8px 0; }
 </style>
 </head>
 <body>
@@ -321,15 +335,26 @@ ROOT_HTML = """<!DOCTYPE html>
 <p>This is an <strong>MCP (Model Context Protocol) server</strong>, not a website.
 Connect using an MCP client such as Claude Desktop, Claude Code, or Cursor.</p>
 
-<div class="card">
-<h3>Quick Start &mdash; Claude Code</h3>
-<pre>claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/</pre>
+<div class="url-tip">
+  <strong>MCP endpoint:</strong> <code>https://verifimind.ysenseai.org/mcp/</code>
+  &mdash; use this exact URL (with trailing slash) in your config.
 </div>
 
 <div class="card">
-<h3>Quick Start &mdash; Claude Desktop</h3>
+<h3>Quick Start &mdash; Claude Code <span class="badge-free">FREE</span></h3>
+<p>Run this once in your terminal:</p>
+<div class="code-wrap">
+<pre id="cc-anon">claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/</pre>
+<button class="copy-btn" onclick="copyCode('cc-anon', this)">Copy</button>
+</div>
+<p class="note">Use <code>-s project</code> instead of <code>-s user</code> for project-scoped setup.</p>
+</div>
+
+<div class="card">
+<h3>Quick Start &mdash; Claude Desktop <span class="badge-free">FREE</span></h3>
 <p>Add to your <code>claude_desktop_config.json</code>:</p>
-<pre>{
+<div class="code-wrap">
+<pre id="cd-anon">{
   "mcpServers": {
     "verifimind": {
       "command": "npx",
@@ -337,18 +362,80 @@ Connect using an MCP client such as Claude Desktop, Claude Code, or Cursor.</p>
     }
   }
 }</pre>
+<button class="copy-btn" onclick="copyCode('cd-anon', this)">Copy</button>
+</div>
+<p class="note">Config file location:
+  Windows: <code>%APPDATA%\\Claude\\claude_desktop_config.json</code> &middot;
+  macOS: <code>~/Library/Application Support/Claude/claude_desktop_config.json</code>
+</p>
+</div>
+
+<div class="card-scholar">
+<h3>Scholar Tier &mdash; Higher Rate Limits</h3>
+<p>Free to register. Scholars get <strong>30 req/60s</strong> vs anonymous 10 req/60s.
+<a href="/register">Register here &rarr;</a></p>
+
+<p><strong>Claude Code (Scholar)</strong> &mdash; after you receive your UUID:</p>
+<div class="code-wrap">
+<pre id="cc-scholar">VERIFIMIND_UUID=your-uuid-here claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/ --header "X-VerifiMind-UUID:${VERIFIMIND_UUID}"</pre>
+<button class="copy-btn" onclick="copyCode('cc-scholar', this)">Copy</button>
+</div>
+
+<p><strong>Claude Desktop (Scholar)</strong>:</p>
+<div class="code-wrap">
+<pre id="cd-scholar">{
+  "mcpServers": {
+    "verifimind": {
+      "command": "npx",
+      "args": [
+        "-y", "mcp-remote",
+        "https://verifimind.ysenseai.org/mcp/",
+        "--header", "X-VerifiMind-UUID:${VERIFIMIND_UUID}"
+      ],
+      "env": { "VERIFIMIND_UUID": "your-uuid-here" }
+    }
+  }
+}</pre>
+<button class="copy-btn" onclick="copyCode('cd-scholar', this)">Copy</button>
+</div>
+<p class="note">Replace <code>your-uuid-here</code> with the UUID from your
+<a href="/register">Scholar registration</a>.
+Verify your key: <a href="/mcp/test?key=your-uuid-here"><code>/mcp/test?key=&lt;uuid&gt;</code></a></p>
 </div>
 
 <h3>Links</h3>
 <ul>
   <li><a href="https://verifimind.io">Landing Page</a></li>
+  <li><a href="/register">Register for Scholar Tier (free)</a></li>
   <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS">GitHub Repository</a></li>
   <li><a href="/health">Health Check</a></li>
-  <li><a href="/.well-known/mcp-config">Full MCP Configuration</a></li>
+  <li><a href="/.well-known/mcp-config">Full MCP Configuration (JSON)</a></li>
   <li><a href="/setup">Setup Guide (JSON)</a></li>
+  <li><a href="/changelog">Changelog</a></li>
 </ul>
-<p><small>10 tools &middot; 4 resources &middot; X-Z-CS RefleXion Trinity &middot;
+<p><small>13 tools &middot; 4 resources &middot; X-Z-CS RefleXion Trinity &middot;
 <a href="https://doi.org/10.5281/zenodo.17972751">DOI 10.5281/zenodo.17972751</a></small></p>
+
+<script>
+function copyCode(id, btn) {
+  var text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(function() { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  }).catch(function() {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(function() { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+</script>
 </body>
 </html>"""
 
@@ -465,26 +552,46 @@ async def setup_handler(request):
         },
 
         "available_tools": {
-            "consult_agent_x": {
-                "description": "Innovation & Strategy analysis",
-                "powered_by": "Gemini 1.5 Flash (FREE) - Smart Fallback",
-                "use_for": "Evaluating market potential, competitive positioning, innovation score"
+            "_total": "13 tools (10 Trinity + 3 Coordination)",
+            "trinity": {
+                "consult_agent_x": {
+                    "description": "Innovation & Strategy analysis",
+                    "powered_by": "Gemini 1.5 Flash (FREE) - Smart Fallback",
+                    "use_for": "Evaluating market potential, competitive positioning, innovation score"
+                },
+                "consult_agent_z": {
+                    "description": "Ethics & Safety review",
+                    "powered_by": "Claude (if BYOK) or Gemini FREE - Smart Fallback",
+                    "use_for": "Privacy concerns, bias detection, social impact, Z-Protocol compliance",
+                    "special": "Has VETO POWER - can reject unethical concepts"
+                },
+                "consult_agent_cs": {
+                    "description": "Security & Feasibility validation",
+                    "powered_by": "Claude (if BYOK) or Gemini FREE - Smart Fallback",
+                    "use_for": "Security vulnerabilities, attack vectors, Socratic questioning"
+                },
+                "run_full_trinity": {
+                    "description": "Complete validation workflow with per-agent optimized providers",
+                    "flow": "X (Gemini) -> Z (Claude/Gemini) -> CS (Claude/Gemini) -> Synthesis",
+                    "use_for": "Comprehensive concept validation with all three agents"
+                }
             },
-            "consult_agent_z": {
-                "description": "Ethics & Safety review",
-                "powered_by": "Claude (if BYOK) or Gemini FREE - Smart Fallback",
-                "use_for": "Privacy concerns, bias detection, social impact, Z-Protocol compliance",
-                "special": "Has VETO POWER - can reject unethical concepts"
-            },
-            "consult_agent_cs": {
-                "description": "Security & Feasibility validation",
-                "powered_by": "Claude (if BYOK) or Gemini FREE - Smart Fallback",
-                "use_for": "Security vulnerabilities, attack vectors, Socratic questioning"
-            },
-            "run_full_trinity": {
-                "description": "Complete validation workflow with per-agent optimized providers",
-                "flow": "X (Gemini) -> Z (Claude/Gemini) -> CS (Claude/Gemini) -> Synthesis",
-                "use_for": "Comprehensive concept validation with all three agents"
+            "coordination": {
+                "coordination_handoff_create": {
+                    "description": "Create a structured agent handoff record",
+                    "tier": "Pioneer",
+                    "use_for": "Multi-agent session continuity, passing context between AI agents"
+                },
+                "coordination_handoff_read": {
+                    "description": "Read the latest handoff record for a given agent",
+                    "tier": "Pioneer",
+                    "use_for": "Retrieving previous session context, resuming multi-agent workflows"
+                },
+                "coordination_team_status": {
+                    "description": "Get the current status of all coordination agents",
+                    "tier": "Pioneer",
+                    "use_for": "Monitoring multi-agent team state and active handoffs"
+                }
             }
         },
 
@@ -1463,7 +1570,7 @@ print(f"  Health: /health")
 print(f"  Config: /.well-known/mcp-config")
 print(f"  Setup:  /setup")
 print("-" * 70)
-print("Resources: 4 | Tools: 10")
+print("Resources: 4 | Tools: 13 (10 Trinity + 3 Coordination)")
 print("Agents: X (Innovation) | Z (Ethics) | CS (Security)")
 print("-" * 70)
 print("Quick Start (Claude Code):")
