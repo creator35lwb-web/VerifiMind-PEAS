@@ -132,7 +132,7 @@ async def mcp_config_handler(request):
                 "tools": 13,
                 "features": {
                     "agents": ["X (Innovation)", "Z (Ethics)", "CS (Security)"],
-                    "models": ["Gemini 1.5 Flash (FREE)", "Claude 3.5 Sonnet (BYOK)", "GPT-4o (BYOK)"],
+                    "models": ["Gemini 2.5 Flash (FREE)", "Claude Sonnet 4.6 (BYOK)", "GPT-4.1-mini (BYOK)", "Groq Llama 3.3 (FREE)"],
                     "cost_per_validation": "$0 (FREE tier)",
                     "byok": True,
                     "smart_fallback": True,
@@ -241,7 +241,7 @@ async def mcp_config_handler(request):
         # BYOK Authentication
         "authentication": {
             "description": "Bring Your Own Key (BYOK) - provide API keys via session config",
-            "supported_providers": ["openai", "anthropic", "gemini", "groq", "mock"],
+            "supported_providers": ["gemini", "groq", "cerebras", "openai", "anthropic", "mistral", "ollama", "mock"],
             "default_provider": "mock",
             "important_note": "ONE provider is used for ALL agents (X, Z, CS). Per-agent provider selection is not supported.",
             "hosted_server_config": {
@@ -259,11 +259,13 @@ async def mcp_config_handler(request):
                 "option_2_environment_variables": {
                     "description": "Set environment variables before starting Claude Code",
                     "variables": {
-                        "LLM_PROVIDER": "gemini | anthropic | openai | groq | mock",
+                        "LLM_PROVIDER": "gemini | groq | cerebras | anthropic | openai | mistral | mock",
                         "GEMINI_API_KEY": "your-gemini-api-key",
+                        "GROQ_API_KEY": "your-groq-api-key",
+                        "CEREBRAS_API_KEY": "your-csk_-prefixed-key",
                         "ANTHROPIC_API_KEY": "your-anthropic-api-key",
                         "OPENAI_API_KEY": "your-openai-api-key",
-                        "GROQ_API_KEY": "your-groq-api-key"
+                        "MISTRAL_API_KEY": "your-mistral-api-key"
                     },
                     "example_bash": "export GEMINI_API_KEY='your-key' && export LLM_PROVIDER='gemini' && claude",
                     "example_powershell": "$env:GEMINI_API_KEY='your-key'; $env:LLM_PROVIDER='gemini'; claude"
@@ -287,8 +289,10 @@ async def mcp_config_handler(request):
             "get_free_api_keys": {
                 "gemini": "https://aistudio.google.com (FREE tier)",
                 "groq": "https://console.groq.com (FREE tier)",
+                "cerebras": "https://cloud.cerebras.ai (FREE — 1M tokens/day)",
                 "anthropic": "https://console.anthropic.com (paid)",
-                "openai": "https://platform.openai.com (paid)"
+                "openai": "https://platform.openai.com (paid)",
+                "mistral": "https://console.mistral.ai (paid)"
             },
             "security_warning": "NEVER share API keys in chat messages. Use environment variables or config files."
         }
