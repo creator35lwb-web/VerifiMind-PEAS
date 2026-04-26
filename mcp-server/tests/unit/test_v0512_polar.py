@@ -549,4 +549,4 @@ class TestStripeDocstringRemoved:
 class TestServerVersion:
     def test_server_version_is_0513(self):
         from verifimind_mcp.server import SERVER_VERSION
-        assert SERVER_VERSION == "0.5.19"
+        assert SERVER_VERSION == "0.5.20"

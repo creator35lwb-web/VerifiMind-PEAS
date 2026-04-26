@@ -588,7 +588,7 @@ class TestFreeToolRegression:
 
     def test_server_version_is_0513(self):
         from verifimind_mcp.server import SERVER_VERSION
-        assert SERVER_VERSION == "0.5.19"
+        assert SERVER_VERSION == "0.5.20"
 
     def test_wrap_response_still_works(self):
         from verifimind_mcp.server import wrap_response
