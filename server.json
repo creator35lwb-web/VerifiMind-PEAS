@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.creator35lwb-web/verifimind-genesis",
   "title": "VerifiMind PEAS - RefleXion Trinity",
-  "description": "Multi-Agent AI Validation: X-Z-CS Trinity. BYOK. Scholar UUID history. Pioneer $9/mo. v0.5.17",
-  "version": "2.5.0",
+  "description": "Multi-Agent AI Validation: X-Z-CS Trinity. BYOK, UUID tiers, Validation Paradox. v0.5.19",
+  "version": "2.6.0",
   "repository": {
     "url": "https://github.com/creator35lwb-web/VerifiMind-PEAS",
     "source": "github"

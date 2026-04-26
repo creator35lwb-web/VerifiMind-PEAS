@@ -73,11 +73,11 @@ class AgentMetrics:
                     "input": 0.80,   # $0.80 per 1M input tokens
                     "output": 4.0,   # $4.00 per 1M output tokens
                 },
-                "claude-sonnet-4-20250514": {
+                "claude-sonnet-4-6": {
                     "input": 3.0,    # $3.00 per 1M input tokens
                     "output": 15.0,  # $15.00 per 1M output tokens
                 },
-                "claude-opus-4-20250514": {
+                "claude-opus-4-7": {
                     "input": 15.0,   # $15.00 per 1M input tokens
                     "output": 75.0,  # $75.00 per 1M output tokens
                 },

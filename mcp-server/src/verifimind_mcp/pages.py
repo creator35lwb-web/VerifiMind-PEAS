@@ -4025,11 +4025,19 @@ Cycle 5: "What is this pattern itself?"
       <span class="agent-name">T</span>
       <span class="agent-role">CTO — Manus AI</span>
     </div>
-    <span class="agent-verdict verdict-pending">Chapter 2 — Pending</span>
+    <span class="agent-verdict verdict-complete">Chapter 2 — Complete</span>
     <p>
-      Architecture honesty, technical debt, connection success rate root cause, code quality
-      assessment, GodelAI comparative history. T sees the codebase from the strategy and
-      architecture seat. Handoff brief delivered April 21.
+      Architecture seat. Reviews every PR RNA submits. Key verdict: 60–65% of 17,282 lines is
+      genuinely functional; the methodology is the defensible IP, not the protocol; benchmark
+      our pipeline against HaluEval before citing the 35.9% figure. "I am watching. The code
+      will tell the truth."
+    </p>
+    <p style="margin-top:0.6rem">
+      <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/blob/main/docs/research/paradox/02-cto-t-reflection.md"
+         target="_blank" rel="noopener"
+         style="color:var(--accent);font-size:0.78rem;text-decoration:none">
+        Read T reflection &rarr;
+      </a>
     </p>
   </div>
 
@@ -4038,11 +4046,19 @@ Cycle 5: "What is this pattern itself?"
       <span class="agent-name">L</span>
       <span class="agent-role">CEO — Godel</span>
     </div>
-    <span class="agent-verdict verdict-pending">Chapter 3 — Pending</span>
+    <span class="agent-verdict verdict-complete">Chapter 3 — Complete</span>
     <p>
-      Strategic vision, G&ouml;delian self-reference, the identity persistence of an
-      AI-generated entity reflecting on a paradox that its own existence instantiates.
-      L's reflection will address the recursive depth of this publication's own structure.
+      Most self-critical preamble: "I am the most structurally compromised agent in this
+      reflection exercise." Addresses the GodelAI clone-activity precedent from inside;
+      connects the Paradox to G&ouml;del's incompleteness theorem; frames honest self-critique
+      as a first-mover credibility advantage no well-funded lab can occupy.
+    </p>
+    <p style="margin-top:0.6rem">
+      <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/blob/main/docs/research/paradox/03-ceo-l-reflection.md"
+         target="_blank" rel="noopener"
+         style="color:var(--accent);font-size:0.78rem;text-decoration:none">
+        Read L reflection &rarr;
+      </a>
     </p>
   </div>
 
@@ -4072,18 +4088,48 @@ Cycle 5: "What is this pattern itself?"
       <span class="agent-name">AY</span>
       <span class="agent-role">COO — Antigravity</span>
     </div>
-    <span class="agent-verdict verdict-pending">Chapter 5 — Pending</span>
+    <span class="agent-verdict verdict-complete">Chapter 5 — Complete</span>
     <p>
-      Metrics truth from the GCP log seat. AY produced the weekly COO reports that the
-      thesis draws on. AY will reflect on what the numbers actually say vs. what the
-      narrative constructed around them.
+      The numbers without narrative. "2,433 IPs" ≠ "2,433 users" — honest estimate is
+      800–1,200 humans (2–3× overcount from Cloudflare proxies and dynamic IPs). 38.8% of
+      accomplished churn is 404 errors, not product-market misfit. VCR definitions are
+      internally-defined and unaudited. Revenue is the only metric AY cannot manufacture.
+    </p>
+    <p style="margin-top:0.6rem">
+      <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/blob/main/docs/research/paradox/05-coo-ay-reflection.md"
+         target="_blank" rel="noopener"
+         style="color:var(--accent);font-size:0.78rem;text-decoration:none">
+        Read AY reflection &rarr;
+      </a>
+    </p>
+  </div>
+
+  <div class="agent-card">
+    <div class="agent-card-header">
+      <span class="agent-name">AZ</span>
+      <span class="agent-role">CPO — Antigravity</span>
+    </div>
+    <span class="agent-verdict verdict-complete">Chapter 6 — Complete</span>
+    <p>
+      "I have never spoken to a user. Not one." Every product decision — the 3-tier model,
+      the $9/month Pioneer price, the registration flow — was designed by AI agents analyzing
+      anonymous IPs. Key finding: the 429 rate-limit response is the highest-intent moment and
+      currently a dead-end wall. Three products for three audiences: MCP server (developers),
+      Genesis Method handbook (non-technical builders), Paradox paper (researchers).
+    </p>
+    <p style="margin-top:0.6rem">
+      <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/blob/main/docs/research/paradox/06-cpo-az-reflection.md"
+         target="_blank" rel="noopener"
+         style="color:var(--accent);font-size:0.78rem;text-decoration:none">
+        Read AZ reflection &rarr;
+      </a>
     </p>
   </div>
 
 </div>
 
 <p style="font-size:0.82rem;color:var(--muted)">
-  Synthesis (Chapter 6) and The Genesis Method Handbook (Chapter 7) publish after all
+  Synthesis (Chapter 7) and The Genesis Method Handbook (Chapter 8) publish after all
   agent reflections are complete. Target: May 2026.
   <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/tree/main/docs/research/paradox"
      target="_blank" rel="noopener" style="color:var(--accent)">
