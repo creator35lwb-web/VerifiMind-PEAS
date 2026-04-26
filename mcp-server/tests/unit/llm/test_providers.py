@@ -20,6 +20,7 @@ from verifimind_mcp.llm.provider import (
     list_free_tier_providers,
     get_provider_info,
     MockProvider,
+    CerebrasProvider,
     PROVIDER_CONFIGS,
 )
 
@@ -29,7 +30,7 @@ class TestProviderConfiguration:
 
     def test_provider_configs_has_all_providers(self):
         """Verify all expected providers are configured."""
-        expected_providers = ['gemini', 'openai', 'anthropic', 'groq', 'mistral', 'ollama', 'mock']
+        expected_providers = ['gemini', 'openai', 'anthropic', 'groq', 'cerebras', 'mistral', 'ollama', 'mock']
         for provider in expected_providers:
             assert provider in PROVIDER_CONFIGS, f"Missing provider: {provider}"
 
@@ -38,6 +39,7 @@ class TestProviderConfiguration:
         free_providers = list_free_tier_providers()
         assert 'gemini' in free_providers
         assert 'groq' in free_providers
+        assert 'cerebras' in free_providers
         assert 'ollama' in free_providers
         assert 'mock' in free_providers
         assert 'openai' not in free_providers
@@ -50,12 +52,42 @@ class TestProviderConfiguration:
         assert gemini_info['free_tier'] is True
         assert 'gemini-2.5-flash' in gemini_info['models']
 
+    def test_cerebras_provider_config(self):
+        """Verify Cerebras provider is correctly configured."""
+        info = get_provider_info('cerebras')
+        assert info['name'] == 'Cerebras'
+        assert info['free_tier'] is True
+        assert info['api_key_env'] == 'CEREBRAS_API_KEY'
+        assert 'llama3.1-70b' in info['models']
+        assert info['default_model'] == 'llama3.1-70b'
+
+    def test_anthropic_model_ids_updated(self):
+        """Verify Anthropic model IDs use Claude 4 family."""
+        info = get_provider_info('anthropic')
+        assert 'claude-sonnet-4-6' in info['models']
+        assert 'claude-opus-4-7' in info['models']
+        assert 'claude-sonnet-4-20250514' not in info['models'], "Stale model ID still present"
+
+    def test_openai_default_updated(self):
+        """Verify OpenAI default is gpt-4.1-mini."""
+        info = get_provider_info('openai')
+        assert info['default_model'] == 'gpt-4.1-mini'
+        assert 'gpt-4.1-mini' in info['models']
+        assert 'gpt-4.1-nano' in info['models']
+
+    def test_groq_mixtral_removed(self):
+        """Verify deprecated mixtral model removed from Groq."""
+        info = get_provider_info('groq')
+        assert 'mixtral-8x7b-32768' not in info['models'], "Deprecated Mixtral still listed"
+        assert 'llama-3.3-70b-versatile' in info['models']
+
     def test_list_providers_returns_all(self):
         """Test list_providers returns all configured providers."""
         providers = list_providers()
-        assert len(providers) == 7
+        assert len(providers) == 8
         provider_ids = [p['id'] for p in providers]
         assert 'gemini' in provider_ids
+        assert 'cerebras' in provider_ids
         assert 'mock' in provider_ids
 
 

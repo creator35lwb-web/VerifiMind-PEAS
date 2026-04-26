@@ -1,7 +1,7 @@
 """
 LLM Provider abstraction for VerifiMind-PEAS MCP Server.
 
-BYOK v0.3.0 - Multi-Provider Support with Fallback
+BYOK v0.4.0 - Provider Sync (model IDs + Cerebras)
 
 This module provides a unified interface for interacting with
 different LLM providers, enabling users to bring their own API keys
@@ -10,6 +10,7 @@ different LLM providers, enabling users to bring their own API keys
 Supported Providers:
 - Gemini (FREE tier available)
 - Groq (FREE tier available)
+- Cerebras (FREE tier available — 1M tokens/day)
 - OpenAI
 - Anthropic
 - Mistral
@@ -78,7 +79,7 @@ def strip_markdown_code_fences(text: str) -> str:
 
 
 # ============================================================================
-# PROVIDER CONFIGURATION (BYOK v0.3.0)
+# PROVIDER CONFIGURATION (BYOK v0.4.0 — Provider Sync)
 # ============================================================================
 
 PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
@@ -93,16 +94,16 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     },
     "openai": {
         "name": "OpenAI",
-        "default_model": "gpt-4o-mini",
-        "models": ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini"],
+        "default_model": "gpt-4.1-mini",
+        "models": ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o", "gpt-4o-mini"],
         "api_key_env": "OPENAI_API_KEY",
         "base_url": "https://api.openai.com/v1",
         "free_tier": False,
     },
     "anthropic": {
         "name": "Anthropic Claude",
-        "default_model": os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
-        "models": ["claude-sonnet-4-20250514", "claude-haiku-4-5-20251001", "claude-opus-4-20250514"],
+        "default_model": os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
+        "models": ["claude-sonnet-4-6", "claude-opus-4-7", "claude-haiku-4-5-20251001"],
         "api_key_env": "ANTHROPIC_API_KEY",
         "base_url": "https://api.anthropic.com/v1",
         "free_tier": False,
@@ -110,11 +111,24 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     "groq": {
         "name": "Groq",
         "default_model": "llama-3.3-70b-versatile",
-        "models": ["llama-3.3-70b-versatile", "mixtral-8x7b-32768"],
+        "models": [
+            "llama-3.3-70b-versatile",
+            "meta-llama/llama-4-scout-17b-16e-instruct",
+            "llama-3.1-8b-instant",
+        ],
         "api_key_env": "GROQ_API_KEY",
         "base_url": "https://api.groq.com/openai/v1",
         "free_tier": True,
         "rate_limit": 30,
+    },
+    "cerebras": {
+        "name": "Cerebras",
+        "default_model": "llama3.1-70b",
+        "models": ["llama3.1-70b", "llama3.1-8b"],
+        "api_key_env": "CEREBRAS_API_KEY",
+        "base_url": "https://api.cerebras.ai/v1",
+        "free_tier": True,
+        "rate_limit": 60,  # 1M tokens/day free; 20x GPU throughput
     },
     "mistral": {
         "name": "Mistral AI",
@@ -224,7 +238,7 @@ class OpenAIProvider(LLMProvider):
         model: str = None,
         api_key: Optional[str] = None
     ):
-        self.model = model or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+        self.model = model or os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         
         if not self.api_key:
@@ -309,7 +323,7 @@ class AnthropicProvider(LLMProvider):
         model: str = None,
         api_key: Optional[str] = None
     ):
-        self.model = model or os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+        self.model = model or os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         
         if not self.api_key:
@@ -895,6 +909,156 @@ class GroqProvider(LLMProvider):
         return f"groq/{self.model}"
 
 
+class CerebrasProvider(LLMProvider):
+    """
+    Cerebras provider implementation.
+
+    v0.4.0: OpenAI-compatible API on Cerebras wafer-scale hardware.
+    FREE tier: 1M tokens/day. 20x GPU throughput vs standard cloud.
+    Key prefix: csk_
+
+    Follows the same robust JSON extraction pipeline as GroqProvider.
+    """
+
+    def __init__(
+        self,
+        model: str = "llama3.1-70b",
+        api_key: Optional[str] = None
+    ):
+        self.model = model
+        self.api_key = api_key or os.getenv("CEREBRAS_API_KEY")
+
+        if not self.api_key:
+            raise ValueError("Cerebras API key not provided. Set CEREBRAS_API_KEY environment variable.")
+
+        try:
+            from openai import AsyncOpenAI
+            self.client = AsyncOpenAI(
+                api_key=self.api_key,
+                base_url="https://api.cerebras.ai/v1"
+            )
+        except ImportError:
+            raise ImportError("openai package not installed. Run: pip install openai")
+
+    async def generate(
+        self,
+        prompt: str,
+        output_schema: Optional[Dict[str, Any]] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4096
+    ) -> Dict[str, Any]:
+        """Generate response using Cerebras API with robust JSON extraction."""
+
+        messages = [{"role": "user", "content": prompt}]
+
+        if output_schema:
+            required = output_schema.get("required", [])
+            properties = output_schema.get("properties", {})
+            field_hints = []
+            for field_name in required:
+                prop = properties.get(field_name, {})
+                field_type = prop.get("type", "any")
+                if "items" in prop:
+                    field_type = f"array of {prop['items'].get('type', 'objects')}"
+                elif "$ref" in prop or "allOf" in prop:
+                    field_type = "object"
+                field_hints.append(f'  "{field_name}": <{field_type}>')
+            schema_example = "{\n" + ",\n".join(field_hints) + "\n}"
+            messages[0]["content"] += (
+                f"\n\nIMPORTANT: You MUST respond with EXACTLY ONE JSON object. "
+                f"The JSON object must have ALL of these top-level fields:\n"
+                f"{schema_example}\n\n"
+                f"Do NOT output multiple separate JSON objects. "
+                f"Do NOT output reasoning steps as individual JSON objects. "
+                f"Include reasoning_steps as an ARRAY inside the single JSON object.\n"
+                f"Respond ONLY with the JSON object, no other text.\n\nJSON:"
+            )
+
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+
+            content = response.choices[0].message.content
+
+            usage = {
+                "input_tokens": response.usage.prompt_tokens if hasattr(response, 'usage') else 0,
+                "output_tokens": response.usage.completion_tokens if hasattr(response, 'usage') else 0,
+                "total_tokens": response.usage.total_tokens if hasattr(response, 'usage') else 0
+            }
+
+            expected_fields = []
+            if output_schema and "required" in output_schema:
+                expected_fields = output_schema["required"]
+            elif output_schema and "properties" in output_schema:
+                expected_fields = list(output_schema["properties"].keys())
+
+            clean_content = strip_markdown_code_fences(content)
+            logger.debug(f"Cerebras cleaned content (first 300): {clean_content[:300]}...")
+
+            inference_quality = "real"
+            if expected_fields:
+                parsed_content = GeminiProvider._extract_best_json(clean_content, expected_fields)
+                if parsed_content is not None:
+                    overlap = sum(1 for f in expected_fields if f in parsed_content)
+                    if overlap < len(expected_fields) * 0.5:
+                        logger.warning(f"Cerebras: Low field overlap: {overlap}/{len(expected_fields)}, attempting merge")
+                        merged = GeminiProvider._merge_json_objects(clean_content, expected_fields)
+                        if merged:
+                            merged_overlap = sum(1 for f in expected_fields if f in merged)
+                            if merged_overlap > overlap:
+                                parsed_content = merged
+                                overlap = merged_overlap
+                        inference_quality = "partial" if overlap >= 2 else "fallback"
+                else:
+                    inference_quality = "fallback"
+                    try:
+                        parsed_content = json.loads(clean_content)
+                    except json.JSONDecodeError:
+                        parsed_content = {}
+
+                if output_schema and isinstance(parsed_content, dict):
+                    pre_fill_keys = set(parsed_content.keys())
+                    parsed_content = GeminiProvider._fill_schema_defaults(parsed_content, output_schema)
+                    filled_keys = set(parsed_content.keys()) - pre_fill_keys
+                    if filled_keys:
+                        logger.warning(f"Cerebras: Filled {len(filled_keys)} missing fields: {filled_keys}")
+                        if inference_quality == "real":
+                            inference_quality = "partial"
+            else:
+                try:
+                    if clean_content.strip().startswith("{"):
+                        parsed_content = json.loads(clean_content)
+                    else:
+                        import re
+                        json_match = re.search(r'\{[\s\S]*\}', clean_content)
+                        if json_match:
+                            parsed_content = json.loads(json_match.group())
+                        else:
+                            parsed_content = {"raw_response": content}
+                            inference_quality = "fallback"
+                except json.JSONDecodeError as e:
+                    logger.error(f"Cerebras: Failed to parse JSON: {e}")
+                    parsed_content = {"raw_response": content, "parse_error": str(e)}
+                    inference_quality = "fallback"
+
+            return {
+                "content": parsed_content,
+                "usage": usage,
+                "_inference_quality": inference_quality
+            }
+
+        except Exception as e:
+            logger.error(f"Cerebras API error: {e}")
+            raise
+
+    def get_model_name(self) -> str:
+        return f"cerebras/{self.model}"
+
+
 class MistralProvider(LLMProvider):
     """
     Mistral AI provider implementation.
@@ -1160,6 +1324,7 @@ _PROVIDERS: Dict[str, Type[LLMProvider]] = {
     "anthropic": AnthropicProvider,
     "gemini": GeminiProvider,
     "groq": GroqProvider,
+    "cerebras": CerebrasProvider,
     "mistral": MistralProvider,
     "ollama": OllamaProvider,
     "mock": MockProvider
@@ -1225,6 +1390,24 @@ def get_provider(
     return _PROVIDERS[provider_name](**kwargs)
 
 
+def _resolve_fallback_chain(exclude: str) -> List[str]:
+    """Return ordered fallback providers, preferring free tiers over mock.
+
+    v0.4.0: Cascades BYOK → Groq (if key set) → Cerebras (if key set) → mock
+    rather than falling to mock immediately when the explicit fallback isn't set.
+    """
+    explicit = os.getenv("LLM_FALLBACK_PROVIDER")
+    if explicit:
+        return [explicit, "mock"]
+    chain = []
+    if os.getenv("GROQ_API_KEY") and exclude != "groq":
+        chain.append("groq")
+    if os.getenv("CEREBRAS_API_KEY") and exclude != "cerebras":
+        chain.append("cerebras")
+    chain.append("mock")
+    return chain
+
+
 async def get_provider_with_fallback(
     provider_name: Optional[str] = None,
     fallback_provider: Optional[str] = None
@@ -1232,25 +1415,25 @@ async def get_provider_with_fallback(
     """
     Get LLM provider with automatic fallback support.
 
-    BYOK v0.3.0: If the primary provider fails to initialize or validate,
-    automatically falls back to the configured fallback provider.
+    BYOK v0.4.0: If the primary provider fails, cascades through free-tier
+    providers (Groq → Cerebras) before falling back to mock, preventing
+    silent empty responses when a BYOK key rate-limits.
 
     Args:
         provider_name: Primary provider (defaults to LLM_PROVIDER env var)
-        fallback_provider: Fallback provider (defaults to LLM_FALLBACK_PROVIDER env var or "mock")
+        fallback_provider: Explicit fallback; if None, uses smart cascade
 
     Returns:
-        Configured LLMProvider instance (primary or fallback)
+        Configured LLMProvider instance (primary or best available fallback)
 
     Environment Variables:
         LLM_PROVIDER: Primary provider to use
-        LLM_FALLBACK_PROVIDER: Fallback provider if primary fails (default: mock)
+        LLM_FALLBACK_PROVIDER: Explicit fallback (overrides smart cascade)
+        GROQ_API_KEY: If set, Groq is tried before mock in fallback cascade
+        CEREBRAS_API_KEY: If set, Cerebras is tried before mock in cascade
     """
-    # Get provider names from env if not specified
     if provider_name is None:
         provider_name = os.getenv("LLM_PROVIDER") or os.getenv("VERIFIMIND_LLM_PROVIDER", "mock")
-    if fallback_provider is None:
-        fallback_provider = os.getenv("LLM_FALLBACK_PROVIDER", "mock")
 
     # Try primary provider
     try:
@@ -1260,16 +1443,20 @@ async def get_provider_with_fallback(
     except Exception as e:
         logger.warning(f"Primary provider {provider_name} failed: {e}")
 
-    # Try fallback provider
-    if fallback_provider != provider_name:
+    # Build fallback chain
+    chain = [fallback_provider] if fallback_provider else _resolve_fallback_chain(provider_name)
+
+    for candidate in chain:
+        if not candidate or candidate == provider_name:
+            continue
         try:
-            provider = get_provider(fallback_provider)
-            logger.info(f"Using fallback provider: {fallback_provider}")
+            provider = get_provider(candidate)
+            logger.info(f"Fallback: using {candidate}")
             return provider
         except Exception as e:
-            logger.warning(f"Fallback provider {fallback_provider} failed: {e}")
+            logger.warning(f"Fallback provider {candidate} failed: {e}")
 
-    # Last resort: mock provider
+    # Guaranteed last resort
     logger.info("Using mock provider as last resort")
     return get_provider("mock")
 

@@ -21,6 +21,34 @@ claude mcp add -s user verifimind-gcp -- npx -y mcp-remote https://verifimind.ys
 
 ---
 
+## ⚠️ Important: Where to Enter Your API Key
+
+**DO NOT paste your API key into the Claude.ai web chat window.**
+
+Since Opus 4.7, Claude's safety classifier actively detects and blocks API keys,
+secrets, and credentials typed in conversation text — this is an Anthropic privacy
+protection at the conversation layer.
+
+**BYOK only works through the MCP tool parameter in Claude Code.** The key travels
+as a JSON tool argument to the VerifiMind server — a completely separate code path
+that the conversation-layer classifier does not scan.
+
+| Surface | How to use BYOK | Works? |
+|---------|-----------------|:------:|
+| **Claude Code (CLI)** | Pass `api_key` as tool argument | ✅ Correct |
+| **Claude.ai web chat** | Do NOT type key in chat window | ❌ Blocked |
+
+**In Claude Code, use it like this:**
+
+```
+run_full_trinity(
+  query="Your validation question",
+  api_key="gsk_..."   ← goes as tool argument, not chat text
+)
+```
+
+---
+
 ## Step 2: Use BYOK
 
 ### Single Agent
@@ -58,6 +86,7 @@ z_api_key: "sk-ant-..."     # Z uses your Anthropic key
 | `gsk_`    | Groq (llama-3.3-70b) |
 | `sk-`     | OpenAI (GPT) |
 | `AIza`    | Gemini |
+| `csk_`    | Cerebras |
 
 > **Note:** `sk-ant-` is checked before `sk-` to prevent Anthropic keys being misrouted to OpenAI.
 
@@ -85,6 +114,7 @@ The server runs on free-tier APIs by default — no key required:
 |----------|-----------|---------|
 | **Groq** | ✅ Free (rate limited) | [console.groq.com](https://console.groq.com) |
 | **Gemini** | ✅ Free (rate limited) | [aistudio.google.com](https://aistudio.google.com) |
+| **Cerebras** | ✅ Free (1M tokens/day) | [cloud.cerebras.ai](https://cloud.cerebras.ai) |
 
 ---
 
@@ -93,9 +123,10 @@ The server runs on free-tier APIs by default — no key required:
 | `llm_provider` value | Model Used | Notes |
 |----------------------|------------|-------|
 | `groq` | `llama-3.3-70b-versatile` | Fast, free tier available |
-| `anthropic` | `claude-3-5-haiku-20241022` | High quality, paid |
-| `openai` | `gpt-4o-mini` | Paid |
-| `gemini` | `gemini-2.0-flash` | Free tier available |
+| `anthropic` | `claude-sonnet-4-6` | High quality, paid |
+| `openai` | `gpt-4.1-mini` | Paid |
+| `gemini` | `gemini-2.5-flash` | Free tier available |
+| `cerebras` | `llama3.1-70b` | Free tier available (1M tokens/day) |
 | `mistral` | `mistral-small-latest` | Paid |
 | `mock` | `mock/test-model` | Testing only (no real inference) |
 
@@ -114,3 +145,23 @@ The server runs on free-tier APIs by default — no key required:
 
 **BYOK result looks identical to non-BYOK**
 → Check `_byok: true` in the response. If `false`, the key was not accepted (possibly empty string).
+
+---
+
+## Model Freshness
+
+VerifiMind-PEAS tracks provider model deprecations monthly. If a provider
+retires a model, the BYOK Guide and `provider.py` will be updated within
+7 days of the deprecation announcement.
+
+| Provider | Current Default | Stable Until |
+|----------|----------------|:------------:|
+| Groq | `llama-3.3-70b-versatile` | No notice issued |
+| Gemini | `gemini-2.5-flash` | Jun 17, 2026 (then → `gemini-2.5-flash-latest`) |
+| Anthropic | `claude-sonnet-4-6` | No confirmed EOL |
+| OpenAI | `gpt-4.1-mini` | No confirmed EOL |
+| Cerebras | `llama3.1-70b` | No notice issued |
+| Mistral | `mistral-small-latest` | Stable alias — auto-tracks |
+
+If you hit `model_not_found` errors, check our
+[changelog](https://verifimind.ysenseai.org/changelog) for the latest default models.
