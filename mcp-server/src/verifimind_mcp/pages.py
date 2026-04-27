@@ -1755,12 +1755,24 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 _CHANGELOG_BODY = """
 <h1>Changelog</h1>
 <div class="meta">
-  <span>Last updated: April 21, 2026</span>
+  <span>Last updated: April 27, 2026</span>
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
 </div>
 
+<div id="v0.5.20">
+<h2>v0.5.20 — Root Page UX + BYOK v0.4.0 + BYOK Guide P0 Fix <span class="live-badge">LIVE</span></h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 27, 2026</p>
+<ul>
+  <li><strong>Root Page UX</strong> — Copy buttons on all 4 config code blocks; Scholar UUID tier card with ready-to-paste <code>--header X-VerifiMind-UUID</code> config; URL tip callout for <code>/mcp/</code> trailing slash; tools count corrected to 13 throughout</li>
+  <li><strong>BYOK v0.4.0</strong> — New Cerebras provider (<code>llama3.1-70b</code>, 1M tokens/day FREE, <code>csk_</code> prefix); Anthropic default <code>claude-sonnet-4-6</code> / OpenAI default <code>gpt-4.1-mini</code>; smart fallback chain (BYOK &rarr; Groq &rarr; Cerebras &rarr; mock)</li>
+  <li><strong>BYOK Guide P0 Fix</strong> — <code>gemini-2.0-flash</code> (deprecated March 31) &rarr; <code>gemini-2.5-flash</code>; Claude.ai Opus 4.7 API key classifier warning; Model Freshness deprecation table</li>
+  <li>487 tests pass, 0 CodeQL medium+ alerts</li>
+  <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/168" target="_blank" rel="noopener">PR #168</a> &middot; <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/169" target="_blank" rel="noopener">PR #169</a></li>
+</ul>
+</div>
+
 <div id="v0.5.19">
-<h2>v0.5.19 — UUID Tier-Aware Rate Limiter + 404 Churn Fixes <span class="live-badge">LIVE</span></h2>
+<h2>v0.5.19 — UUID Tier-Aware Rate Limiter + 404 Churn Fixes</h2>
 <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 21, 2026</p>
 <ul>
   <li><strong>UUID Tier-Aware Rate Limiting (P0-A)</strong> — <code>X-VerifiMind-UUID</code> header sets rate limit tier server-side: Anonymous 10 req/60s per IP &middot; Scholar 30 req/60s per UUID &middot; Pioneer 100 req/60s per UUID; tier cached 5 min; fail-open to Scholar if Firestore unavailable; <code>X-RateLimit-Tier</code> on every response</li>
