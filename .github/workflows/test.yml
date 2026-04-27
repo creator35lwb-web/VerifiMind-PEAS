@@ -44,6 +44,13 @@ jobs:
         env:
           VERIFIMIND_TEST_MODE: "true"
 
+      - name: Run registration tests
+        run: |
+          cd mcp-server
+          pytest tests/test_registration.py tests/test_registration_ui.py -v --tb=short --no-cov
+        env:
+          VERIFIMIND_TEST_MODE: "true"
+
       - name: Run integration tests
         run: |
           cd mcp-server

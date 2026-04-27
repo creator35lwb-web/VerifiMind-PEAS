@@ -8,7 +8,7 @@
 
 **v0.5.20 "Root UX + BYOK v0.4.0" deployed successfully on April 27, 2026**
 
-The VerifiMind MCP server is fully operational. All security gates passed. 487 tests, 0 CodeQL medium+ alerts. GCP revision `verifimind-mcp-server-00369-7cf`.
+The VerifiMind MCP server is fully operational. All security gates passed. 510 tests (CI), 0 CodeQL medium+ alerts. GCP revision `verifimind-mcp-server-00369-7cf`.
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination)
 - **BYOK v0.4.0**: Cerebras provider (llama3.1-70b, 1M tokens/day FREE), `claude-sonnet-4-6` / `claude-opus-4-7` defaults, `gpt-4.1-mini` default, smart fallback chain (BYOK → Groq → Cerebras → mock)
@@ -62,7 +62,7 @@ The VerifiMind MCP server is fully operational. All security gates passed. 487 t
 | **GCP Uptime Check** | ✅ Active | 5-minute intervals, email alerts |
 | **Error Rate Alert** | ✅ Active | Threshold: >50 errors in 5 minutes |
 | **Traffic Spike Alert** | ✅ Active | Threshold: >500 requests in 1 hour |
-| **CI/CD Pipeline** | ✅ Passing | Unit tests, Bandit, Safety |
+| **CI/CD Pipeline** | ✅ Passing | 510 tests (CI), Bandit, Safety |
 
 ---
 
@@ -70,7 +70,7 @@ The VerifiMind MCP server is fully operational. All security gates passed. 487 t
 
 | Version | Blind Tests | Gate | Released |
 |---------|-------------|------|---------|
-| **v0.5.20 "Root UX + BYOK v0.4.0"** | CI gate — 487 tests, 0 CodeQL alerts; PRs #168 #169 | ✅ **PASSED** | April 27, 2026 |
+| **v0.5.20 "Root UX + BYOK v0.4.0"** | CI gate — 510 tests, 0 CodeQL alerts; PRs #168 #169 | ✅ **PASSED** | April 27, 2026 |
 | **v0.5.19 "Validation Paradox"** | UUID rate limiter + 404 fixes + research publication | ✅ **PASSED** | April 21, 2026 |
 | **v0.5.14–v0.5.18** | Coordination layer, UUID tracer, Scholar dashboard chain | ✅ **PASSED** | April 2026 |
 | **v0.5.13 "Fortify"** | Security gate — 485 tests, 0 CodeQL alerts, X-Agent 4/4 conditions met | ✅ **PASSED** | April 12, 2026 |
