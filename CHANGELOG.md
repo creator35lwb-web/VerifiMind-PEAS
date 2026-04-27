@@ -6,6 +6,42 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.20 - Root Page UX + BYOK v0.4.0 + BYOK Guide P0 Fix (April 27, 2026)
+
+New providers, refreshed model IDs, copy buttons on the root onboarding page, and a critical fix for a deprecated Gemini model in the BYOK guide.
+
+### Root Page UX
+- Copy buttons on all 4 connection config code blocks (Anonymous + Scholar, Claude Code + Claude Desktop)
+- Scholar UUID tier card with ready-to-paste `--header X-VerifiMind-UUID:${VERIFIMIND_UUID}` config
+- URL tip callout directing users to `/mcp/` with trailing slash
+- Tools count corrected to 13 throughout (was 10 in multiple locations)
+
+### BYOK v0.4.0 — Provider Sync
+- New **Cerebras** provider: `llama3.1-70b`, 1M tokens/day FREE, `csk_` key prefix
+- Anthropic default: `claude-3-5-haiku-20241022` → `claude-sonnet-4-6`; `claude-opus-4-7` added
+- OpenAI default: `gpt-4o-mini` → `gpt-4.1-mini`; `gpt-4.1-nano` added
+- Groq: removed deprecated `mixtral-8x7b-32768`, added `llama-4-scout`
+- Smart fallback chain: BYOK → Groq → Cerebras → mock
+
+### BYOK Guide P0 Fix (XV CIO handoff — April 23, 2026)
+- `gemini-2.0-flash` (deprecated March 31) → `gemini-2.5-flash` — zero stale instances remain
+- Claude.ai warning: Opus 4.7 blocks API keys in chat text; BYOK only works via MCP tool argument
+- Model Freshness table: deprecation timelines for all 6 providers
+
+### Testing
+- 487 tests pass, 0 CodeQL medium+ alerts
+
+### Pull Requests
+- PR #168 (Root UX + BYOK v0.4.0 + BYOK Guide + research reflections)
+- PR #169 (version bump v0.5.19 → v0.5.20)
+
+### Credits
+- Implementation: RNA (Claude Code, CSO)
+- Intelligence: XV (Perplexity, CIO) — BYOK model deprecation P0 handoff
+- Human Orchestrator: Alton
+
+---
+
 ## v0.5.19 - UUID Tier-Aware Rate Limiter + 404 Churn Fixes + Validation Paradox (April 21, 2026)
 
 Scholar/Pioneer users now get dedicated UUID-based rate limit buckets (30 req/60s and 100 req/60s respectively), replacing the shared IP-only limit. The `/mcp` missing-slash 404 (531+ daily errors from AY COO log analysis) is fixed with a 308 redirect. The Validation Paradox research endpoint launches with all 6 FLYWHEEL TEAM independent reflections published.

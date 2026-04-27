@@ -1,31 +1,30 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** April 12, 2026
+**Last Updated:** April 27, 2026
 
 ---
 
 ## Current Status: Operational
 
-**v0.5.13 "Fortify" deployed successfully on April 12, 2026**
+**v0.5.20 "Root UX + BYOK v0.4.0" deployed successfully on April 27, 2026**
 
-The VerifiMind MCP server is fully operational with production-hardened Polar integration (circuit breaker, fail-closed, retry). All security gates passed. 485 tests, 0 CodeQL medium+ alerts.
+The VerifiMind MCP server is fully operational. All security gates passed. 487 tests, 0 CodeQL medium+ alerts. GCP revision `verifimind-mcp-server-00369-7cf`.
 
-- 13 MCP tools (4 core validation + 6 template management + 3 coordination)
-- 19 pre-built prompt templates across 6 libraries
-- **Polar Pioneer Tier ($9/mo)**: Phase 2 tier-gate live — `_validate_pioneer_key()` calls Polar Customer State API. Cancelled subscriptions denied on next call after 5-min cache expiry.
-- **Circuit Breaker (v0.5.13)**: 5-failure/60s window → OPEN; half-open recovery after 60s. Fail-closed in production — any Polar outage = access denied (not env-var fallback).
-- **Sanitization Hardened (v0.5.13)**: `_SECRET_PATTERNS` expanded 6 → 20 providers (GitHub, AWS, Polar, Hugging Face, Replicate, SendGrid, Twilio, Mailgun, Slack, JWT, Azure + catch-all).
-- **Three-Provider Trinity (v0.5.10)**: X Agent on Gemini 2.5 Flash (FREE), Z Guardian + CS Security on Anthropic Claude (BYOK). Auto-routes when `anthropic-api-key` header present.
-- **Z Guardian Veto Hardened (v0.5.8)**: Code-enforced auto-veto at `ethics_score < 4.0` — never prompt-dilutable. EU AI Act Article 5 citations in veto decisions.
-- **Cloud Run 600s Timeout (v0.5.10)**: Anthropic Trinity chain takes ~200-300s — now completes reliably.
-- **Two-Tier Pioneer Program (v0.5.7)**: Pilot (invite-only, 6 months free, 50 slots) + Early Adopter (public, 3 months free, 100 slots).
-- **Genesis v4.2 "Sentinel-Verified"**: Forced citation patterns — Z Guardian and CS Security cite specific framework names in every reasoning step.
-- **Z-Protocol v1.1**: 21 frameworks, 4 tiers + `frameworks_cited[]` per step.
-- **CS Agent v1.1**: 6-stage, 12-dimension, OWASP Agentic AI Top 10.
-- Input sanitization active (20+ providers)
+- 13 MCP tools (4 core Trinity + 6 template management + 3 coordination)
+- **BYOK v0.4.0**: Cerebras provider (llama3.1-70b, 1M tokens/day FREE), `claude-sonnet-4-6` / `claude-opus-4-7` defaults, `gpt-4.1-mini` default, smart fallback chain (BYOK → Groq → Cerebras → mock)
+- **Root Page UX**: Copy buttons on all 4 config code blocks, Scholar UUID tier card, URL tip callout directing users to `/mcp/` with trailing slash
+- **BYOK Guide (P0 fix)**: `gemini-2.0-flash` (deprecated March 31, 2026) replaced with `gemini-2.5-flash`; Claude.ai Opus 4.7 API key classifier warning; Model Freshness deprecation table
+- **UUID Tier-Aware Rate Limiting (v0.5.19)**: Anonymous 10 req/60s / Scholar 30 req/60s / Pioneer 100 req/60s; `X-RateLimit-Tier` on every response
+- **Validation Paradox (v0.5.19)**: All 6 FLYWHEEL TEAM reflections published at `/research/paradox`
+- **Scholar Dashboard (v0.5.18)**: `GET /early-adopters/dashboard/{uuid}` — personal Trinity validation history
+- **UUID Header Auto-Flow (v0.5.17)**: `X-VerifiMind-UUID` auto-sent via mcp-remote on every call
+- **Polar Pioneer Tier ($9/mo, v0.5.13)**: Circuit breaker, fail-closed, 20+ sanitization patterns
+- **Z-Protocol v1.1**: 21 frameworks, 4 tiers + `frameworks_cited[]` per step
+- **CS Agent v1.1**: 6-stage, 12-dimension, OWASP Agentic AI Top 10
+- Input sanitization active (20+ secret patterns)
 - Rate limiting and EDoS protection active
-- GCP Cloud Run revision: `verifimind-mcp-server-00313-nrp`
-- CI/CD pipeline passing — 485 tests, 0 CodeQL medium+ alerts
+- GCP Cloud Run revision: `verifimind-mcp-server-00369-7cf`
+- CI/CD pipeline passing — 487 tests, 0 CodeQL medium+ alerts
 
 ---
 
@@ -36,10 +35,10 @@ The VerifiMind MCP server is fully operational with production-hardened Polar in
 | **Endpoint** | `https://verifimind.ysenseai.org/mcp` |
 | **Health Check** | `https://verifimind.ysenseai.org/health` |
 | **Register** | `https://verifimind.ysenseai.org/register` |
-| **Server Version** | 0.5.13 "Fortify" (deployed April 12, 2026) |
+| **Server Version** | 0.5.20 "Root UX + BYOK v0.4.0" (deployed April 27, 2026) |
 | **Transport** | Streamable HTTP (SSE) |
-| **Default Provider** | Gemini 2.5-flash (FREE) |
-| **BYOK Providers** | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama, Perplexity |
+| **Default Provider** | Gemini 2.5 Flash (FREE) / Groq Llama 3.3 (FREE fallback) |
+| **BYOK Providers** | Gemini, Groq, Cerebras (FREE), OpenAI, Anthropic, Mistral, Ollama |
 | **Monthly Cost** | ~$0 normal usage (GCP free tier + Gemini free) |
 
 ---
@@ -71,6 +70,9 @@ The VerifiMind MCP server is fully operational with production-hardened Polar in
 
 | Version | Blind Tests | Gate | Released |
 |---------|-------------|------|---------|
+| **v0.5.20 "Root UX + BYOK v0.4.0"** | CI gate — 487 tests, 0 CodeQL alerts; PRs #168 #169 | ✅ **PASSED** | April 27, 2026 |
+| **v0.5.19 "Validation Paradox"** | UUID rate limiter + 404 fixes + research publication | ✅ **PASSED** | April 21, 2026 |
+| **v0.5.14–v0.5.18** | Coordination layer, UUID tracer, Scholar dashboard chain | ✅ **PASSED** | April 2026 |
 | **v0.5.13 "Fortify"** | Security gate — 485 tests, 0 CodeQL alerts, X-Agent 4/4 conditions met | ✅ **PASSED** | April 12, 2026 |
 | **v0.5.10 "Trinity Verified"** | 3/3 (HireAI veto, Recipe Buddy proceed, Kuih proceed) — Alton, April 5, 2026 | ✅ **PASSED** | April 5, 2026 |
 | **v0.5.9 "BYOK Model Refresh"** | Anthropic BYOK unblocked | ✅ **PASSED** | April 5, 2026 |
@@ -86,6 +88,13 @@ The VerifiMind MCP server is fully operational with production-hardened Polar in
 
 | Date | Action | Version | Status |
 |------|--------|---------|--------|
+| Apr 27, 2026 | BYOK v0.4.0 (Cerebras, claude-sonnet-4-6, gpt-4.1-mini) + root UX + BYOK guide P0 fix | v0.5.20 | Complete |
+| Apr 21, 2026 | UUID tier-aware rate limiter + 404 churn fixes + Validation Paradox publication | v0.5.19 | Complete |
+| Apr 21, 2026 | Scholar Dashboard GET /early-adopters/dashboard/{uuid} | v0.5.18 | Complete |
+| Apr 21, 2026 | UUID header auto-flow via mcp-remote, MCP Registry v2.5.0 | v0.5.17 | Complete |
+| Apr 21, 2026 | Coordination layer — 3 MACP coordination tools | v0.5.16 | Complete |
+| Apr 21, 2026 | UUID tracer P1-A, Z-Guardian hardened | v0.5.15 | Complete |
+| Apr 21, 2026 | 3-tier conflict resolution, AI Council | v0.5.14 | Complete |
 | Apr 12, 2026 | Polar circuit breaker + fail-closed + 20+ sanitization patterns + 485 tests, 0 CodeQL alerts | v0.5.13 | Complete |
 | Apr 12, 2026 | /register endpoint, Phase 2 tier-gate (Polar), Firestore handoffs, sanitization active | v0.5.13 | Complete |
 | Apr 5, 2026 | Z max_tokens 8192→4096 + Cloud Run 600s timeout | v0.5.10 | Complete |
