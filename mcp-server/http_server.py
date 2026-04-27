@@ -125,6 +125,7 @@ async def mcp_config_handler(request):
         "mcpServers": {
             "verifimind-genesis": {
                 "url": f"{base_url}/mcp/",
+                "iconUrl": f"{base_url}/logo.png",
                 "description": "VerifiMind PEAS Genesis Methodology MCP Server - Multi-Model AI Validation with RefleXion Trinity",
                 "version": SERVER_VERSION,
                 "transport": "streamable-http",
