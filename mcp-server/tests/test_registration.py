@@ -75,7 +75,7 @@ class TestPolicyDocuments:
         assert "opt" in PRIVACY_POLICY.lower()
 
     def test_privacy_policy_version_set(self):
-        assert PRIVACY_POLICY_VERSION == "2.0"  # Updated v0.5.12 — Polar MOR
+        assert PRIVACY_POLICY_VERSION == "2.1"
 
     def test_terms_not_empty(self):
         assert len(TERMS_AND_CONDITIONS) > 100
