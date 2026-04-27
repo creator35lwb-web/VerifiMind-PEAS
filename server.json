@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.creator35lwb-web/verifimind-genesis",
   "title": "VerifiMind PEAS - RefleXion Trinity",
-  "description": "Multi-Agent AI Validation: X-Z-CS Trinity. BYOK, UUID tiers, Validation Paradox. v0.5.19",
-  "version": "2.6.0",
+  "description": "Multi-Agent AI Validation: X-Z-CS Trinity. BYOK, UUID tiers, Validation Paradox. v0.5.20",
+  "version": "2.7.0",
   "repository": {
     "url": "https://github.com/creator35lwb-web/VerifiMind-PEAS",
     "source": "github"
@@ -11,7 +11,7 @@
   "remotes": [
     {
       "type": "streamable-http",
-      "url": "https://verifimind.ysenseai.org/mcp"
+      "url": "https://verifimind.ysenseai.org/mcp/"
     }
   ],
   "_meta": {
@@ -71,6 +71,18 @@
         {
           "name": "get_template_statistics",
           "description": "Get statistics about the template registry including counts by agent, phase, and type"
+        },
+        {
+          "name": "coordination_handoff_create",
+          "description": "Create a structured MACP coordination handoff artifact between FLYWHEEL TEAM agents"
+        },
+        {
+          "name": "coordination_handoff_read",
+          "description": "Read the latest MACP coordination handoff for a given agent"
+        },
+        {
+          "name": "coordination_team_status",
+          "description": "Get current FLYWHEEL TEAM status — active agents, pending handoffs, last session summary"
         }
       ]
     }
