@@ -11,7 +11,7 @@
 
   > **Evolution of PEAS:** v1.x (2024): *Prompt Engineering Application Synthesis* (Zenodo DOI — immutable) · v2.x–v4.x (2025): *Prompt Engineering & AI Standardization* (Genesis Methodology era) · **v5.x (2026): *Prompt Engineering Agents Standardization* — current canonical** — AI Council vote 3/4 APPROVE (Apr 10, 2026)
 
-  [![Version](https://img.shields.io/badge/version-v0.5.19-blue.svg)](CHANGELOG.md)
+  [![Version](https://img.shields.io/badge/version-v0.5.20-blue.svg)](CHANGELOG.md)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Status](https://img.shields.io/badge/status-Operational-success.svg)](SERVER_STATUS.md)
   [![MACP](https://img.shields.io/badge/MACP-v2.2%20%22Identity%22-blueviolet)](https://doi.org/10.5281/zenodo.18504478)
@@ -31,7 +31,7 @@
 
 ## MCP Server: Production Deployed
 
-> **v0.5.19 "UUID Rate Limiter"** — **UUID Tier-Aware Rate Limiting** (Anonymous 10/60s · Scholar 30/60s · Pioneer 100/60s) | **Scholar Dashboard** (`/early-adopters/dashboard/{uuid}`) | **UUID Header Auto-Flow** (mcp_config `--header` fix — no manual `user_uuid` needed) | **404 Churn Eliminated** (`/mcp` → 308, `/mcp/sse` → 410) | Pioneer Tier ($9/mo, Polar MoR) | Research Library v1.0 (20+ papers at `/library`) | MACP v2.2 "Identity" | 574 tests | 74+ weekly COO reports. [Health Check](https://verifimind.ysenseai.org/health) | [Changelog](https://verifimind.ysenseai.org/changelog) | [Register](https://verifimind.ysenseai.org/register) | [Pioneer Tier](https://verifimind.ysenseai.org/terms)
+> **v0.5.20 "Enhanced Foundation"** — **Root Page UX** + **BYOK v0.4.0** (Cerebras support) + **BYOK Guide P0 Fix** | UUID Tier-Aware Rate Limiting (Anonymous 10/60s · Scholar 30/60s · Pioneer 100/60s) | Scholar Dashboard (`/early-adopters/dashboard/{uuid}`) | UUID Header Auto-Flow | 404 Churn Eliminated | Research Library v1.0 (20+ papers at `/library`) | MACP v2.3.1 "Market Position" | 589 tests | 99+ weekly COO reports | 2,400+ unique endpoints. [Health Check](https://verifimind.ysenseai.org/health) | [Changelog](https://verifimind.ysenseai.org/changelog) | [Register](https://verifimind.ysenseai.org/register) | [Pioneer Tier](https://verifimind.ysenseai.org/terms)
 
 VerifiMind PEAS is now **live and accessible** across multiple platforms:
 
@@ -991,7 +991,7 @@ We welcome contributions from the community!
 
 **Current Phase**: Phase 7 — Protocol Announcement & v0.6.0 (Q1–Q2 2026)
 
-**Status**: Phases 1–6 COMPLETE ✅ | v0.5.6 DEPLOYED 🎉 | v0.6.0 IN DEVELOPMENT
+**Status**: Phases 1–6 COMPLETE ✅ | v0.5.20 DEPLOYED 🎉 | v0.6.0-Beta IN PREPARATION
 
 **North Star**: Position VerifiMind-PEAS as the **trust and verification layer for the emerging Agentic Web**.
 
@@ -1031,12 +1031,13 @@ Phases 1 through 4 established the methodology framework, MCP server implementat
 
 ### **Phase 7: Protocol Announcement & v0.6.0** 🔄 CURRENT
 
-**In Progress** (March 2026):
+**In Progress** (April–May 2026):
 
-- ⏳ **v0.6.0 "Protocol"**: Service Charter, early adopter program design
-- ⏳ **MACP Skill Kit**: Generic, cross-platform skills for multi-agent teams
-- ⏳ **AI Council Skill**: One-command Genesis Methodology validation (v1.0 tested)
-- ⏳ **JOSS submission preparation**: Peer-reviewed publication for methodology
+- ✅ **v0.5.11–v0.5.20**: Coordination Foundation → Polar Integration → Research Library → UUID Tracer → Scholar Dashboard → Rate Limiter → BYOK v0.4.0
+- ✅ **Genesis Method Handbook v1.0**: 18-chapter practitioner's guide ([Patreon](https://www.patreon.com/posts/genesis-method-156398756))
+- ✅ **Validation Paradox**: Published as living document at `/research/paradox` with 6 FLYWHEEL TEAM reflections
+- ✅ **IP Security Hardening**: Malicious endpoint identification (3 threat actors identified; server-side blocklist deferred pre-commercialization)
+- ⏳ **v0.6.0-Beta**: Enhanced foundation for production-ready release
 - ⏳ **Community building**: Protocol documentation and adoption channels
 
 ### **Future Phases** 📋 PLANNED
@@ -1052,13 +1053,15 @@ Phases 1 through 4 established the methodology framework, MCP server implementat
 **Key Metrics**:
 | Metric | Value | Significance |
 |--------|-------|--------------|
-| **MCP Tools** | 10 | 4 core + 6 template management |
-| **Templates** | 19 | Pre-built across 6 libraries |
-| **Validation Reports** | 57+ | Proof of methodology at scale |
-| **Platforms Live** | 4 | GCP, MCP Registry, HuggingFace, verifimind.io |
-| **LLM Providers** | 7 | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama, Perplexity |
-| **All-Time Users** | 1,480+ | Cumulative unique users (Phase 55) |
-| **Manus AI Skills** | 8 | Complete skill composition stack including ai-council |
+| **MCP Tools** | 13 | Core validation + coordination + research |
+| **MCP Resources** | 4 | Changelog, research, library, paradox |
+| **Tests Passing** | 589 | 0 CodeQL medium+ alerts |
+| **Platforms Live** | 6 | GCP, MCP Registry, HuggingFace, verifimind.io, Patreon, MACP Research |
+| **LLM Providers** | 8 | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama, Perplexity, Cerebras |
+| **Unique Endpoints** | 2,400+ | UUID-based, conservative (AY Report 077) |
+| **Manus AI Skills** | 7 | Complete skill composition stack including ai-council |
+| **COO Weekly Reports** | 99+ | Automated production telemetry |
+| **MACP Handoffs** | 261+ | Session transition records |
 | **Cost per Validation** | ~$0.003 | Sustainable for all developers |
 
 **See Examples**: [/validation_archive/](/validation_archive/) | [Examples](/examples/)
@@ -1080,24 +1083,24 @@ VerifiMind-PEAS is supported by an **8-skill composition stack** — a layered e
 | 4 | `macp-protocol-v2` | **Primary differentiator** — free protocol driving adoption | ✅ Active |
 | 3 | `multi-agent-handoff-bridge` | Artifact delivery between sandbox and local agents | ✅ Active |
 | 2 | `internet-skill-finder` + `github-gem-seeker` | Discovery layer for skills and solutions | ✅ Active |
-| 1 | `macp-research-assistant` | **Showcase** — proves MACP v2.2 works in production | ✅ Active |
+| 1 | `macp-research-assistant` | **Showcase** — proves MACP v2.3.1 works in production | ✅ Active |
 | 0 | `skill-creator` | Foundation — creates and updates all other skills | ✅ Active |
 
 ### Protocol Landscape Positioning
 
-The multi-agent protocol landscape now has 4 major protocols. MACP v2.2 occupies a **unique gap none of them address**:
+The multi-agent protocol landscape now has 4 major protocols. MACP v2.3.1 occupies a **unique gap none of them address**:
 
-| Protocol | Maintainer | Focus | MACP v2.2 Relationship |
+| Protocol | Maintainer | Focus | MACP v2.3.1 Relationship |
 |----------|-----------|-------|----------------------|
 | **MCP** | Anthropic / Linux Foundation | Vertical: AI ↔ Tools | MACP uses MCP as transport layer |
 | **A2A** | Google | Horizontal: Agent ↔ Agent (autonomous) | Complementary — A2A lacks human orchestration |
 | **ACP** | IBM (ARCHIVED) | Enterprise agent communication (merged into A2A, Aug 2025) | N/A — absorbed into A2A |
 | **ANP** | Community | Agent identity & trust | Complementary — ANP handles identity, MACP handles workflow |
-| **MACP v2.2** | YSenseAI™ | **Human-orchestrated multi-agent coordination** | **Unique: Git-based, human-at-center, platform-agnostic** |
+| **MACP v2.3.1** | YSenseAI™ | **Human-orchestrated multi-agent coordination** | **Unique: Git-based, human-at-center, platform-agnostic** |
 
-> **MACP v2.2 occupies Layer 6** of the protocol stack — persistent human-orchestrated governance. No other protocol (MCP, A2A, ACP, ANP, AG-UI, A2H) addresses persistent handoff records, human orchestrator identity, or git-native audit trails.
+> **MACP v2.3.1 occupies Layer 6** of the protocol stack — persistent human-orchestrated governance. No other protocol (MCP, A2A, ACP, ANP, AG-UI, A2H) addresses persistent handoff records, human orchestrator identity, or git-native audit trails.
 
-> **MACP v2.2 is free forever.** The protocol drives adoption. Revenue comes from hosted orchestration services (v0.7.0+), following the HTTP/AWS, Git/GitHub model.
+> **MACP v2.3.1 is free forever.** The protocol drives adoption. Revenue comes from hosted orchestration services (v0.7.0+), following the HTTP/AWS, Git/GitHub model.
 
 ## 📖 Defensive Publication
 
@@ -1287,7 +1290,8 @@ VerifiMind-PEAS is developed through the **FLYWHEEL TEAM** multi-agent collabora
 | **Manus AI** (T/CTO) | Strategic Architecture | Documentation, roadmap, ecosystem alignment, skills, landing page, AI Council |
 | **Claude Code** (RNA) | Implementation Lead | Code, testing, deployment, CI/CD, MACP Research Assistant |
 | **Gemini** (AY/Antigravity) | COO / Operations | GCP log analysis, weekly reports, monitoring, metrics |
-| **Perplexity** | Real-Time Research | Market intelligence, competitive analysis, AI Council (X + CS) |
+| **Perplexity** (XV/CIO) | Real-Time Research | Market intelligence, competitive analysis, AI Council (X + CS) |
+| **Antigravity** (AZ/CPO) | Product Strategy | Monetization strategy, UX/conversion funnel, user analytics |
 
 ### LLM Providers
 
@@ -1302,7 +1306,7 @@ VerifiMind-PEAS is developed through the **FLYWHEEL TEAM** multi-agent collabora
 ### Special Thanks
 
 - **Open-source community**: For inspiration and collaboration
-- **Early adopters**: For feedback and validation (1,480+ users and counting)
+- **Early adopters**: For feedback and validation (2,400+ unique endpoints and counting)
 - **Academic researchers**: For theoretical foundations
 - **PHAWM (Participatory Harm Auditing Workbenches and Methodologies)**: For published research referenced in our harm auditing methodology
 - **Google Cloud Platform**: For generous free tier enabling $0/month operations
