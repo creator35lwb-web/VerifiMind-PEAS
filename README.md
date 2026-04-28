@@ -195,27 +195,27 @@ Automated testing and security scanning runs on every push to `main` via GitHub 
 >
 > **Phase 47 Ground Truth Correction (Mar 15, 2026):** COO AY's forensic audit identified duplicate session counting in earlier reports. Metrics corrected: 4,000+ → 2,100+ engagement hours, 84.5% → 63.7% VCR, 1,088 → 1,281 users (user count increased after bot session deduplication). All metrics below reflect the forensically verified Ground Truth baseline. We believe honest self-correction builds stronger credibility than inflated numbers.
 >
-> **Phase 74 Update (Apr 10, 2026):** Metrics updated to Report 074 (COO AY). 2,389+ hours, 90.7% VCR, 1,876+ unique endpoints (IP-based; verified users tracked via EA registration UUID), 312 tests. Pioneer Tier live via Polar. Coordination Layer Phase 1 deployed.
+> **Phase 84 Update (Apr 26, 2026):** Metrics updated to Report 077 (COO AY). 2,900+ hours, 79.0% VCR (48.7% of users in deep multi-turn sessions), 2,600+ unique endpoints (IP-based; verified users tracked via EA registration UUID), 589 tests. MCP Registry v2.7.0. MACP v2.3.1 "Market Position".
 
 | Metric | Value | Methodology |
 |--------|-------|-------------|
-| **Verified Engagement Hours** | **2,389+** (all-time) | Session duration: first-to-last request per user per day. Scrapers excluded. Forensic standard v2.5 applied. |
-| **Value Confirmation Rate** | **90.7%** (Phase 74) | Sessions where user sends follow-up prompt (proof of value received). Forensically verified after deduplication. |
-| **Total Unique Endpoints** | **1,876+** | Unique IP-based endpoints across all platforms (bot sessions deduplicated) |
-| **MCP Integration Rate** | **43.1% Verified** | 43.1% Verified / 36.1% Automated / 20.8% Unclassified (AY Report 056 baseline) |
-| **MCP Tools Available** | **10 Scholar + 3 Pioneer** | Scholar: 4 core + 6 template. Pioneer ($9/mo): 3 coordination tools |
+| **Verified Engagement Hours** | **2,900+** (all-time) | Session duration: first-to-last request per user per day. Scrapers excluded. Forensic standard v2.5 applied. |
+| **Value Confirmation Rate** | **79.0%** (Phase 84) | Sessions where user sends follow-up prompt (proof of value received). 48.7% in deep multi-turn (5+ prompts). Forensically verified after deduplication. |
+| **Total Unique Endpoints** | **2,600+** | Unique IP-based endpoints across all platforms (bot sessions deduplicated) |
+| **MCP Client Share** | **92.8% machine-to-machine** | 92.8% MCP Client / 6.9% Human Browser / 0.3% API Integration (AY Report 077, Phase 84) |
+| **MCP Tools Available** | **13 total — 10 Scholar + 3 Pioneer** | Scholar: 4 core + 6 template. Pioneer ($9/mo): 3 coordination tools |
 | **Multi-Model Providers** | **X=Gemini, Z=Groq, CS=Groq** | Per-agent provider routing for optimal structured output |
-| **BYOK Live** | **Per-tool-call override** | Pass own API key + provider on any call (v0.4.5+). Anthropic Claude 4 supported (v0.5.9+) |
+| **BYOK Live** | **Per-tool-call override** | Pass own API key + provider on any call (v0.4.5+). Anthropic Claude 4, Cerebras supported (v0.5.20) |
 | **Trinity Quality** | **`_overall_quality: "full"`** | All 3 agents returning real inference (v0.4.4+) |
 | **SessionContext** | **`_session_id` tracing** | 8-char correlation ID per Trinity run (v0.5.0+) |
-| **COO Weekly Reports** | **74+ automated** | GCP log-based weekly analytics reports (AY/Antigravity, forensic standard v2.5) |
-| **Test Coverage** | **515 tests** | Comprehensive test suite with CI/CD pipeline; CodeQL clean (0 medium+ alerts) |
+| **COO Weekly Reports** | **77+ automated** | GCP log-based weekly analytics reports (AY/Antigravity, forensic standard v2.5) |
+| **Test Coverage** | **589 tests** | Comprehensive test suite with CI/CD pipeline; CodeQL clean (0 medium+ alerts) |
 | **Pioneer Tier** | **[$9/month](https://verifimind.ysenseai.org/terms)** | Polar MoR, 14-day refund, coordination tools |
 | **EA Registration** | **[Register](https://verifimind.ysenseai.org/register)** | Consent-first Z-Protocol design with Privacy Policy v2.1 + T&C v2.0 |
 
 ### Adoption Trajectory (Flying Hours ✈️)
 
-> **Data through W12 (March 22, 2026). Phase 55 forensic standard applied.** W13+ collection ongoing for v0.6.0 pricing decisions.
+> **Data through W17 (April 21, 2026). Phase 84 forensic standard applied.** W02–W11 rows are pre-audit historical data. W12–W14 data available in internal COO AY reports (Reports 059–074). Post-audit trajectory (Phase 84, bot-filtered) begins W15.
 
 | Week | Period | Weekly Hours | Cumulative Hours | Users | VCR |
 |------|--------|-------------|-----------------|-------|-----|
@@ -229,19 +229,22 @@ Automated testing and security scanning runs on every push to `main` via GitHub 
 | W09 | Feb 23–Mar 1 | 198.5h | 1,755h | 46 | 90.7% |
 | W10 | Mar 02–08 | 1,647.5h | 3,402h | 260 | 88.5% |
 | W11 | Mar 09–15 | 393.0h | 3,795h | 130 | 84.5% |
+| W15 *(post-audit)* | Apr 06–12 | 264.1h | 2,535h | 349 | 86.5% |
+| W16 *(post-audit)* | Apr 13–19 | 271.1h | 2,807h | 353 | 84.1% |
+| W17 *(post-audit, partial)* | Apr 20–21 | 99.1h | 2,906h | 262 | 79.0% |
 
-> **⚠️ Phase 47 Correction Note:** The cumulative hours above reflect pre-audit figures from weekly COO reports. After Phase 47 forensic deduplication (Report 056) and Phase 74 update (Report 074), the verified all-time total is **2,389+ hours** with **1,876+ unique endpoints (IP-based; verified users tracked via EA registration UUID)** and **90.7% VCR**. The weekly breakdown will be retroactively corrected in a future report.
+> **⚠️ Phase 47 Correction Note:** The W02–W11 cumulative hours reflect pre-audit figures from weekly COO reports. After Phase 47 forensic deduplication (Report 056), Phase 84 bot-filtered tracking, and Report 077 (April 26, 2026), the verified all-time total is **2,900+ hours** with **2,600+ unique endpoints (IP-based; verified users tracked via EA registration UUID)** and **79.0% VCR**. W15–W17 rows above are post-audit Phase 84 verified figures.
 
 ### Traffic Classification Breakdown
 
 | Category | Share | Description |
 |----------|-------|-------------|
-| **Verified** | 43.1% | Confirmed human or MCP client engagement |
-| **Automated** | 36.1% | Programmatic API consumers, CI pipelines |
-| **Unclassified** | 20.8% | Unknown User-Agent patterns |
-| **Scraper** | — | Excluded from all metrics |
+| **MCP Client** | 92.8% | Machine-to-machine MCP tool calls (Claude Desktop, Claude Code, VS Code, Cursor) |
+| **Human Browser** | 6.9% | Direct web visitors (research pages, documentation, web UI) |
+| **API Integration** | 0.3% | Direct API consumers (CI pipelines, custom integrations) |
+| **Scraper/Bot** | — | Excluded from all metrics (forensic deduplication applied) |
 
-> **Source:** AY COO Report 074 (Phase 74, April 2026). Scrapers excluded. Owner/Bot excluded. Forensic deduplication applied. Forensic standard v2.5.
+> **Source:** AY COO Report 077 (Phase 84, April 26, 2026). Scrapers excluded. Owner/Bot excluded. Forensic deduplication applied. Forensic standard v2.5. Session-hour weighted classification.
 
 ### Client Integration by User-Agent
 
@@ -253,9 +256,9 @@ Automated testing and security scanning runs on every push to `main` via GitHub 
 | Claude/Anthropic | 4.5% | Claude Desktop / Claude Code native clients |
 | Other | 1.4% | Miscellaneous clients |
 
-> **Key Insight:** Over 85% of all traffic is machine-to-machine MCP integration, confirming VerifiMind PEAS is used as an integrated tool in developer workflows — not merely visited as a web demo. This traffic is invisible to traditional web analytics platforms like SimilarWeb.
+> **Key Insight:** Over 93% of all traffic is machine-to-machine MCP integration (92.8% MCP Client + 0.3% API Integration), confirming VerifiMind PEAS is used as an integrated tool in developer workflows — not merely visited as a web demo. This traffic is invisible to traditional web analytics platforms like SimilarWeb.
 
-> **Data Source:** GCP Cloud Run HTTP Load Balancer logs. Audit classification via User-Agent analysis. Owner traffic excluded. Scraper traffic excluded via conservative classification. Full methodology documented in internal COO AY reports (41 weekly reports). Last updated: 2026-03-15.
+> **Data Source:** GCP Cloud Run HTTP Load Balancer logs. Audit classification via User-Agent analysis. Owner traffic excluded. Scraper traffic excluded via conservative classification. User-agent breakdown reflects approximate Phase 84 baseline; full methodology documented in internal COO AY reports (77+ reports). Last updated: 2026-04-26 (Phase 84, Report 077).
 
 ---
 
@@ -298,6 +301,26 @@ We provide a systematic approach to **multi-model AI validation** that ensures y
 ---
 
 ## 🎯 Latest Achievements
+
+### v0.5.20 — Root Page UX + BYOK v0.4.0 + BYOK Guide Fix (April 27, 2026)
+
+Copy buttons on all 4 root-page connection code blocks, Scholar UUID tier card with ready-to-paste `--header X-VerifiMind-UUID` config, and URL tip callout directing users to `/mcp/` (trailing slash). **BYOK v0.4.0** adds Cerebras (`csk_` prefix, 1M tokens/day FREE), updates Anthropic default to `claude-sonnet-4-6`, adds `claude-opus-4-7` and `gpt-4.1-mini`/`gpt-4.1-nano`, and replaces deprecated Groq `mixtral-8x7b-32768` with `llama-4-scout`. Smart fallback chain: BYOK → Groq → Cerebras → mock. **BYOK Guide P0 fix** (XV CIO handoff): `gemini-2.0-flash` (deprecated March 31) → `gemini-2.5-flash` across all guide content. Tools count corrected to 13 throughout. 589 tests, MCP Registry v2.7.0. [PR #168](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/168), [PR #169](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/169)
+
+### v0.5.19 — Validation Paradox: UUID Rate Limiter + 404 Fixes (April 21, 2026)
+
+Scholar/Pioneer users now get dedicated UUID-based rate limit buckets (30 req/60s and 100 req/60s respectively), replacing the shared IP-only limit. `GET /mcp` (no trailing slash) now returns a **308 Permanent Redirect** to `/mcp/` — eliminating the ~531–556 daily 404s identified in AY GCP log analysis. `GET /mcp/sse` and `/sse` return **410 Gone** with actionable JSON. The **Validation Paradox** research endpoint launches at `/research/paradox` with all 6 independent FLYWHEEL TEAM reflections (Alton, XV, T, L, RNA, AY/AZ) — key finding: 38.8% of accomplished churn is 404 errors. 574 tests. [PR #163](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/163), [PR #164](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/164)
+
+### v0.5.18 — Scholar Dashboard: Trinity History (April 21, 2026)
+
+Registered Scholar users can now view their personal Trinity validation history at `GET /early-adopters/dashboard/{uuid}`. Displays the last 50 validations (score, tool, recommendation excerpt, veto flag, timestamp) from Firestore `trinity_history/{uuid}/validations/`. Empty state and privacy notice included on every render. 472 tests. [PR #162](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/162)
+
+### v0.5.17 — mcp_config UUID Header Auto-Flow (April 21, 2026)
+
+UUID now flows automatically on every MCP request for registered Scholar and Pioneer users — no manual `user_uuid` parameter needed per tool call. The `mcp_config` returned at registration now includes `--header X-VerifiMind-UUID:${VERIFIMIND_UUID}` so `mcp-remote` sends it on every connection. Server-side middleware reads `X-VerifiMind-UUID` for UUID tier-aware rate limiting (v0.5.19). MCP Registry updated to v2.5.0. [PR #160](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/160), [PR #161](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/161)
+
+### v0.5.16 — Trinity History Persistence + Terms Hotfix (April 21, 2026)
+
+Trinity validation results are now persisted to Firestore (`trinity_history/{uuid}/validations/`) for the Scholar Dashboard (P1-B). `write_trinity_history()` is a fire-and-forget async write with zero latency impact on the hot path — wired into all 4 core MCP tools when `user_uuid` is provided. **Terms hotfix**: Anonymous tier row added to the service tiers table; Identity and Rate Limit columns made explicit; Privacy Policy link updated to v2.1. [PR #158](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/158), [PR #159](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/159)
 
 ### v0.5.15 — Scholar Incentives: UUID Tracer + Registration UX (April 20, 2026)
 
