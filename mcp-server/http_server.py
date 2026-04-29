@@ -26,9 +26,12 @@ Carried forward from v0.4.1/v0.5.0:
 - Streamable HTTP transport for MCP protocol
 - Smart Fallback per-agent provider system
 """
+import logging
 import os
 import time
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
 from fastapi.responses import JSONResponse
 from starlette.applications import Starlette
 from starlette.responses import HTMLResponse, PlainTextResponse, RedirectResponse, Response
@@ -230,6 +233,22 @@ async def mcp_config_handler(request):
                 "name": "get_template_statistics",
                 "description": "Get template registry statistics",
                 "parameters": []
+            },
+            # v0.5.16 Coordination Tools (Pioneer Tier)
+            {
+                "name": "coordination_handoff_create",
+                "description": "Create a structured agent handoff record (Pioneer tier)",
+                "parameters": ["agent_id", "session_type", "completed", "decisions", "artifacts", "pending", "pioneer_key"]
+            },
+            {
+                "name": "coordination_handoff_read",
+                "description": "Read the latest handoff record for a given agent (Pioneer tier)",
+                "parameters": ["pioneer_key", "agent_id (optional)", "count (default: 1)"]
+            },
+            {
+                "name": "coordination_team_status",
+                "description": "Get current status of all coordination agents (Pioneer tier)",
+                "parameters": ["pioneer_key"]
             }
         ],
         # Resources
@@ -956,6 +975,47 @@ async def smithery_server_card_handler(request):
                 "name": "get_template_statistics",
                 "description": "Get Genesis prompt template registry statistics.",
                 "inputSchema": {"type": "object", "properties": {}}
+            },
+            {
+                "name": "coordination_handoff_create",
+                "description": "Create a structured agent handoff record for multi-agent session continuity (Pioneer tier).",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["agent_id", "session_type", "completed", "decisions", "artifacts", "pending", "pioneer_key"],
+                    "properties": {
+                        "agent_id": {"type": "string"},
+                        "session_type": {"type": "string"},
+                        "completed": {"type": "array", "items": {"type": "string"}},
+                        "decisions": {"type": "array", "items": {"type": "string"}},
+                        "artifacts": {"type": "array", "items": {"type": "string"}},
+                        "pending": {"type": "array", "items": {"type": "string"}},
+                        "pioneer_key": {"type": "string"}
+                    }
+                }
+            },
+            {
+                "name": "coordination_handoff_read",
+                "description": "Read the latest handoff record for a given agent (Pioneer tier).",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["pioneer_key"],
+                    "properties": {
+                        "pioneer_key": {"type": "string"},
+                        "agent_id": {"type": "string"},
+                        "count": {"type": "integer", "default": 1}
+                    }
+                }
+            },
+            {
+                "name": "coordination_team_status",
+                "description": "Get current status of all coordination agents and active handoffs (Pioneer tier).",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["pioneer_key"],
+                    "properties": {
+                        "pioneer_key": {"type": "string"}
+                    }
+                }
             }
         ],
         "resources": [
@@ -969,8 +1029,32 @@ async def smithery_server_card_handler(request):
 
 async def http_exception_handler(request, exc):
     """Return actionable error messages for common HTTP errors."""
+    import datetime as _dt
     status = exc.status_code
     if status == 404:
+        # Structured logging: extract tool name + UUID from MCP JSON-RPC body if present
+        tool_name = None
+        user_uuid = None
+        if request.method == "POST":
+            try:
+                body = await request.body()
+                if body:
+                    import json as _json
+                    payload = _json.loads(body)
+                    if payload.get("method") == "tools/call":
+                        tool_name = payload.get("params", {}).get("name")
+                        user_uuid = payload.get("params", {}).get("arguments", {}).get("user_uuid")
+            except Exception:
+                pass
+        client_ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "unknown")
+        ts = _dt.datetime.now(_dt.timezone.utc).isoformat()
+        if tool_name:
+            logger.warning(
+                "[TOOL_NOT_FOUND] tool=%s uuid=%s ip=%s ts=%s path=%s",
+                tool_name, user_uuid or "anonymous", client_ip, ts, request.url.path,
+            )
+        else:
+            logger.warning("[HTTP_404] ip=%s ts=%s path=%s", client_ip, ts, request.url.path)
         return JSONResponse({
             "error": "Endpoint Not Found",
             "message": (
