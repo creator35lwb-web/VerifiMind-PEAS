@@ -6,6 +6,37 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.21 - P0 Tool Manifest Audit + Structured 404 Logging (April 30, 2026)
+
+Hotfix addressing AY Report 078: 81 high-intent endpoints lost to Tool Not Found errors. Completes T's P0 directives from the FLYWHEEL TEAM alignment handoff (April 28, 2026).
+
+### Tool Manifest Audit
+- `/.well-known/mcp-config`: 3 coordination tools missing since v0.5.16 — now lists all 13 correctly
+- `/.well-known/mcp/server-card.json` (Smithery): same fix with full `inputSchema` for each coordination tool
+- FastMCP `tools/list` (MCP protocol layer): already correct — zero phantom tools confirmed by audit
+
+### Structured 404 Logging
+- `http_exception_handler` now emits `[TOOL_NOT_FOUND] tool= uuid= ip= ts=` when a POST `tools/call` body hits a 404 path — AY can correlate churn to specific tool names and UUID cohorts in future GCP reports
+- `[HTTP_404] ip= ts= path=` log for regular path misses (non-MCP requests)
+- Fixed latent `NameError`: `logger` was referenced in `register_handler` without module-level definition
+
+### Graceful Error Verification
+- FastMCP already returns proper JSON-RPC `-32601` for unknown tool calls natively (`NotFoundError → McpError`) — no code change required, verified by source inspection
+
+### Testing
+- 596 tests pass (+17 new P0 audit tests), 60.68% coverage, 0 CodeQL medium+ alerts
+
+### Pull Requests
+- PR #179 (P0 tool manifest + 404 logging)
+- PR #180 (version bump v0.5.20 → v0.5.21)
+
+### Credits
+- Forensic analysis: AY (Antigravity/Gemini, COO) — Report 078, Week 18 drop-off crisis
+- Directives: T (Manus AI, CTO) — FLYWHEEL TEAM handoff April 28, 2026
+- Implementation: RNA (Claude Code, CSO)
+
+---
+
 ## v0.5.20 - Root Page UX + BYOK v0.4.0 + BYOK Guide P0 Fix (April 27, 2026)
 
 New providers, refreshed model IDs, copy buttons on the root onboarding page, and a critical fix for a deprecated Gemini model in the BYOK guide.
