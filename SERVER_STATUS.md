@@ -8,7 +8,7 @@
 
 **v0.5.21 "P0 Tool Manifest Audit" deployed successfully on April 30, 2026**
 
-The VerifiMind MCP server is fully operational. All security gates passed. 596 tests (CI), 0 CodeQL medium+ alerts. GCP revision pending.
+The VerifiMind MCP server is fully operational. All security gates passed. 596 tests (CI), 0 CodeQL medium+ alerts. GCP revision `verifimind-mcp-server-00381-dlr`.
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination)
 - **P0 Hotfix (v0.5.21)**: All 13 tools now correctly listed in `/.well-known/mcp-config` and Smithery server card (coordination tools were missing since v0.5.16); structured `[TOOL_NOT_FOUND]` logging added to GCP log stream
