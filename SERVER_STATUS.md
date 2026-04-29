@@ -1,16 +1,17 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** April 27, 2026
+**Last Updated:** April 30, 2026
 
 ---
 
 ## Current Status: Operational
 
-**v0.5.20 "Root UX + BYOK v0.4.0" deployed successfully on April 27, 2026**
+**v0.5.21 "P0 Tool Manifest Audit" deployed successfully on April 30, 2026**
 
-The VerifiMind MCP server is fully operational. All security gates passed. 510 tests (CI), 0 CodeQL medium+ alerts. GCP revision `verifimind-mcp-server-00369-7cf`.
+The VerifiMind MCP server is fully operational. All security gates passed. 596 tests (CI), 0 CodeQL medium+ alerts. GCP revision pending.
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination)
+- **P0 Hotfix (v0.5.21)**: All 13 tools now correctly listed in `/.well-known/mcp-config` and Smithery server card (coordination tools were missing since v0.5.16); structured `[TOOL_NOT_FOUND]` logging added to GCP log stream
 - **BYOK v0.4.0**: Cerebras provider (llama3.1-70b, 1M tokens/day FREE), `claude-sonnet-4-6` / `claude-opus-4-7` defaults, `gpt-4.1-mini` default, smart fallback chain (BYOK → Groq → Cerebras → mock)
 - **Root Page UX**: Copy buttons on all 4 config code blocks, Scholar UUID tier card, URL tip callout directing users to `/mcp/` with trailing slash
 - **BYOK Guide (P0 fix)**: `gemini-2.0-flash` (deprecated March 31, 2026) replaced with `gemini-2.5-flash`; Claude.ai Opus 4.7 API key classifier warning; Model Freshness deprecation table
@@ -35,7 +36,7 @@ The VerifiMind MCP server is fully operational. All security gates passed. 510 t
 | **Endpoint** | `https://verifimind.ysenseai.org/mcp` |
 | **Health Check** | `https://verifimind.ysenseai.org/health` |
 | **Register** | `https://verifimind.ysenseai.org/register` |
-| **Server Version** | 0.5.20 "Root UX + BYOK v0.4.0" (deployed April 27, 2026) |
+| **Server Version** | 0.5.21 "P0 Tool Manifest Audit" (deployed April 30, 2026) |
 | **Transport** | Streamable HTTP (SSE) |
 | **Default Provider** | Gemini 2.5 Flash (FREE) / Groq Llama 3.3 (FREE fallback) |
 | **BYOK Providers** | Gemini, Groq, Cerebras (FREE), OpenAI, Anthropic, Mistral, Ollama |

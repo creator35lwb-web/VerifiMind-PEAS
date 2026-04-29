@@ -1759,8 +1759,20 @@ _CHANGELOG_BODY = """
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
 </div>
 
+<div id="v0.5.21">
+<h2>v0.5.21 — P0 Tool Manifest Audit + Structured 404 Logging <span class="live-badge">LIVE</span></h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 30, 2026</p>
+<ul>
+  <li><strong>Tool Manifest Audit</strong> — <code>/.well-known/mcp-config</code> and Smithery server card now list all 13 tools; 3 coordination tools (<code>coordination_handoff_create</code>, <code>coordination_handoff_read</code>, <code>coordination_team_status</code>) were missing since v0.5.16</li>
+  <li><strong>Structured 404 Logging</strong> — <code>[TOOL_NOT_FOUND] tool= uuid= ip= ts=</code> emitted in GCP logs when a POST <code>tools/call</code> body hits a 404 path; enables AY to correlate churn to specific tool names and UUID cohorts</li>
+  <li><strong>Graceful -32601 Verified</strong> — FastMCP already returns proper MCP JSON-RPC <code>-32601</code> for unknown tool calls natively; confirmed by source audit</li>
+  <li>596 tests pass, 60.68% coverage, 0 CodeQL medium+ alerts</li>
+  <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/179" target="_blank" rel="noopener">PR #179</a> &middot; <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/180" target="_blank" rel="noopener">PR #180</a></li>
+</ul>
+</div>
+
 <div id="v0.5.20">
-<h2>v0.5.20 — Root Page UX + BYOK v0.4.0 + BYOK Guide P0 Fix <span class="live-badge">LIVE</span></h2>
+<h2>v0.5.20 — Root Page UX + BYOK v0.4.0 + BYOK Guide P0 Fix</h2>
 <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 27, 2026</p>
 <ul>
   <li><strong>Root Page UX</strong> — Copy buttons on all 4 config code blocks; Scholar UUID tier card with ready-to-paste <code>--header X-VerifiMind-UUID</code> config; URL tip callout for <code>/mcp/</code> trailing slash; tools count corrected to 13 throughout</li>
