@@ -38,7 +38,7 @@ from starlette.responses import HTMLResponse, PlainTextResponse, RedirectRespons
 from starlette.routing import Mount, Route
 from starlette.middleware.cors import CORSMiddleware
 from verifimind_mcp.server import create_http_server
-from verifimind_mcp.middleware import RateLimitMiddleware, get_rate_limit_stats, check_tier
+from verifimind_mcp.middleware import RateLimitMiddleware, get_rate_limit_stats, check_tier, IPBlocklistMiddleware
 from verifimind_mcp.registration import (
     EarlyAdopterRegistration,
     FeedbackRequest,
@@ -63,7 +63,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.21"
+SERVER_VERSION = "0.5.22"
 
 # Track server start time for uptime reporting (v0.5.0 health v2)
 _SERVER_START_TIME = time.time()
@@ -1614,12 +1614,13 @@ app = Starlette(
 # (Starlette default redirect_slashes=True causes 307 HTTPS→HTTP downgrade for MCP clients)
 app.router.redirect_slashes = False
 
-# IMPORTANT: Add middleware in correct order
-# 1. Rate limiting (first, to block before any processing)
-# 2. CORS (second, for browser clients)
+# IMPORTANT: Starlette add_middleware uses insert(0) — last added runs FIRST (outermost).
+# Execution order: IPBlocklist → CORS → RateLimiting → route handlers
+# 1. IP Blocklist (outermost — rejects known rogue IPs before any processing)
+# 2. CORS (handles browser preflight OPTIONS before rate-limiting fires)
+# 3. Rate Limiting (EDoS protection for legitimate traffic)
 
 # Rate limiting middleware - EDoS protection
-# Prevents auto-scale cost attacks and API abuse
 app.add_middleware(RateLimitMiddleware)
 
 # CORS middleware for browser-based MCP clients
@@ -1632,6 +1633,10 @@ app.add_middleware(
     expose_headers=["mcp-session-id", "mcp-protocol-version", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
     max_age=86400,  # Cache preflight for 24 hours
 )
+
+# IP Blocklist middleware — outermost layer, runs first
+# Blocks 3 rogue IPs identified by AY forensic scan (T Security Directive 2026-04-27)
+app.add_middleware(IPBlocklistMiddleware)
 
 # Print server info when module is loaded
 print("=" * 70)

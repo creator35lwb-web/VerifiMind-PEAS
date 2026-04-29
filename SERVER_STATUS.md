@@ -6,11 +6,12 @@
 
 ## Current Status: Operational
 
-**v0.5.21 "P0 Tool Manifest Audit" deployed successfully on April 30, 2026**
+**v0.5.22 "IP Blocklist Security Layer" deployed successfully on April 30, 2026**
 
-The VerifiMind MCP server is fully operational. All security gates passed. 596 tests (CI), 0 CodeQL medium+ alerts. GCP revision `verifimind-mcp-server-00381-dlr`.
+The VerifiMind MCP server is fully operational. All security gates passed. 628 tests (CI), 0 CodeQL medium+ alerts. GCP revision `verifimind-mcp-server-pending`.
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination)
+- **IP Blocklist (v0.5.22)**: 3 rogue IPs blocked at application layer (T Security Directive 2026-04-27) — AWS IPv6 fuzzing bot, content scraper (2,007 AbuseIPDB reports), unauthorized YellowMCP scanner; `[IP_BLOCKED]` / `[UA_BLOCKED]` audit logging to GCP log stream
 - **P0 Hotfix (v0.5.21)**: All 13 tools now correctly listed in `/.well-known/mcp-config` and Smithery server card (coordination tools were missing since v0.5.16); structured `[TOOL_NOT_FOUND]` logging added to GCP log stream
 - **BYOK v0.4.0**: Cerebras provider (llama3.1-70b, 1M tokens/day FREE), `claude-sonnet-4-6` / `claude-opus-4-7` defaults, `gpt-4.1-mini` default, smart fallback chain (BYOK → Groq → Cerebras → mock)
 - **Root Page UX**: Copy buttons on all 4 config code blocks, Scholar UUID tier card, URL tip callout directing users to `/mcp/` with trailing slash
@@ -36,7 +37,7 @@ The VerifiMind MCP server is fully operational. All security gates passed. 596 t
 | **Endpoint** | `https://verifimind.ysenseai.org/mcp` |
 | **Health Check** | `https://verifimind.ysenseai.org/health` |
 | **Register** | `https://verifimind.ysenseai.org/register` |
-| **Server Version** | 0.5.21 "P0 Tool Manifest Audit" (deployed April 30, 2026) |
+| **Server Version** | 0.5.22 "IP Blocklist Security Layer" (deployed April 30, 2026) |
 | **Transport** | Streamable HTTP (SSE) |
 | **Default Provider** | Gemini 2.5 Flash (FREE) / Groq Llama 3.3 (FREE fallback) |
 | **BYOK Providers** | Gemini, Groq, Cerebras (FREE), OpenAI, Anthropic, Mistral, Ollama |
@@ -71,6 +72,8 @@ The VerifiMind MCP server is fully operational. All security gates passed. 596 t
 
 | Version | Blind Tests | Gate | Released |
 |---------|-------------|------|---------|
+| **v0.5.22 "IP Blocklist Security Layer"** | CI gate — 628 tests, 0 CodeQL alerts; PR #182 | ✅ **PASSED** | April 30, 2026 |
+| **v0.5.21 "P0 Tool Manifest Audit"** | CI gate — 596 tests, 0 CodeQL alerts; PRs #179 #180 #181 | ✅ **PASSED** | April 30, 2026 |
 | **v0.5.20 "Root UX + BYOK v0.4.0"** | CI gate — 510 tests, 0 CodeQL alerts; PRs #168 #169 | ✅ **PASSED** | April 27, 2026 |
 | **v0.5.19 "Validation Paradox"** | UUID rate limiter + 404 fixes + research publication | ✅ **PASSED** | April 21, 2026 |
 | **v0.5.14–v0.5.18** | Coordination layer, UUID tracer, Scholar dashboard chain | ✅ **PASSED** | April 2026 |
@@ -89,6 +92,8 @@ The VerifiMind MCP server is fully operational. All security gates passed. 596 t
 
 | Date | Action | Version | Status |
 |------|--------|---------|--------|
+| Apr 30, 2026 | IP Blocklist middleware — 3 rogue IPs blocked (T Security Directive), [IP_BLOCKED]/[UA_BLOCKED] audit logging | v0.5.22 | Complete |
+| Apr 30, 2026 | P0 Tool Manifest Audit — all 13 tools in mcp-config + Smithery; structured [TOOL_NOT_FOUND] logging | v0.5.21 | Complete |
 | Apr 27, 2026 | BYOK v0.4.0 (Cerebras, claude-sonnet-4-6, gpt-4.1-mini) + root UX + BYOK guide P0 fix | v0.5.20 | Complete |
 | Apr 21, 2026 | UUID tier-aware rate limiter + 404 churn fixes + Validation Paradox publication | v0.5.19 | Complete |
 | Apr 21, 2026 | Scholar Dashboard GET /early-adopters/dashboard/{uuid} | v0.5.18 | Complete |
