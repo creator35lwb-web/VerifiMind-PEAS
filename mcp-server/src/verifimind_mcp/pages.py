@@ -1759,8 +1759,21 @@ _CHANGELOG_BODY = """
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
 </div>
 
+<div id="v0.5.22">
+<h2>v0.5.22 — IP Blocklist Security Layer <span class="live-badge">LIVE</span></h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 30, 2026</p>
+<ul>
+  <li><strong>IP Blocklist Middleware</strong> — 3 rogue IPs blocked at application level (T Security Directive 2026-04-27): AWS IPv6 fuzzing bot (63% error rate), content scraper (2,007 AbuseIPDB reports), unauthorized YellowMCP scanner; 403 response with minimal disclosure</li>
+  <li><strong>X-Forwarded-For Chain Check</strong> — all hops inspected, not just the first (GFE proxy-aware); blocks blocked IPs anywhere in the chain</li>
+  <li><strong>User-Agent Blocklist</strong> — <code>YellowMCP-SecurityScanner</code> substring blocked (case-insensitive); legitimate MCP clients unaffected</li>
+  <li><strong>Audit Logging</strong> — <code>[IP_BLOCKED] ip= reason= path= ua= ts=</code> and <code>[UA_BLOCKED] pattern= ip= path= ua= ts=</code> in GCP log stream for AY forensic analysis</li>
+  <li>32 new tests, 574 unit tests pass, 0 CodeQL medium+ alerts</li>
+  <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/182" target="_blank" rel="noopener">PR #182</a></li>
+</ul>
+</div>
+
 <div id="v0.5.21">
-<h2>v0.5.21 — P0 Tool Manifest Audit + Structured 404 Logging <span class="live-badge">LIVE</span></h2>
+<h2>v0.5.21 — P0 Tool Manifest Audit + Structured 404 Logging</h2>
 <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 30, 2026</p>
 <ul>
   <li><strong>Tool Manifest Audit</strong> — <code>/.well-known/mcp-config</code> and Smithery server card now list all 13 tools; 3 coordination tools (<code>coordination_handoff_create</code>, <code>coordination_handoff_read</code>, <code>coordination_team_status</code>) were missing since v0.5.16</li>

@@ -6,6 +6,37 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.22 - IP Blocklist Security Layer (April 30, 2026)
+
+T Security Directive (2026-04-27): 3 rogue IPs blocked at application level following AY forensic scan (AY Report 078). IPBlocklistMiddleware runs as the outermost Starlette middleware layer.
+
+### IP Blocklist Middleware
+- `IPBlocklistMiddleware` added to `mcp-server/src/verifimind_mcp/middleware/ip_blocklist.py`
+- Blocks 3 rogue IPs: AWS IPv6 fuzzing bot (63% error rate), content scraper (2,007 AbuseIPDB reports), unauthorized YellowMCP scanner (unconsented indexing)
+- Full X-Forwarded-For chain checked — GFE proxy-aware (all hops inspected, not just first)
+- User-Agent blocklist: `YellowMCP-SecurityScanner` substring match (case-insensitive)
+- 403 response with minimal disclosure (`{"error":"Forbidden","code":403}`) — no implementation details leaked
+- Legitimate traffic unaffected: standard `python-httpx`, `node`, `mcp-remote` UAs pass through
+
+### Audit Logging
+- `[IP_BLOCKED] ip= reason= path= ua= ts=` — AY can filter GCP logs by reason code (ERRATIC_BOT / CONTENT_SCRAPER / UNAUTHORIZED_SCANNER)
+- `[UA_BLOCKED] pattern= ip= path= ua= ts=` — tracks scanner tool blocks separately from IP blocks
+
+### Architecture
+- Outermost middleware (Starlette `add_middleware` LIFO — added last, runs first)
+- Zero cost: application-level blocking requires no Cloud Armor / Load Balancer (per T's architecture ruling)
+- `BLOCKED_IPS` and `BLOCKED_UA_PATTERNS` constants are operator-maintainable without code changes
+
+### Testing
+- 32 new tests across 5 test classes: constants, `_check_ip`, `_check_ua`, middleware dispatch, audit logging
+- All X-Forwarded-For chain scenarios covered including multi-hop GFE proxy
+- 574 unit tests pass, 0 CodeQL medium+ alerts
+
+### Pull Requests
+- PR #182 (IP blocklist middleware)
+
+---
+
 ## v0.5.21 - P0 Tool Manifest Audit + Structured 404 Logging (April 30, 2026)
 
 Hotfix addressing AY Report 078: 81 high-intent endpoints lost to Tool Not Found errors. Completes T's P0 directives from the FLYWHEEL TEAM alignment handoff (April 28, 2026).

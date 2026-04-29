@@ -4,8 +4,14 @@ Middleware modules for VerifiMind MCP Server.
 v0.3.1 - Security & Sustainability
 v0.5.11 - Tier-Gating (Pioneer vs Scholar)
 v0.5.12 - Polar adapter (Pioneer payment integration)
+v0.5.22 - IP Blocklist (T Security Directive — 3 rogue IPs blocked)
 """
 
+from .ip_blocklist import (
+    IPBlocklistMiddleware,
+    BLOCKED_IPS,
+    BLOCKED_UA_PATTERNS,
+)
 from .rate_limiter import (
     RateLimitMiddleware,
     get_rate_limit_stats,
@@ -28,6 +34,9 @@ from .polar_adapter import (
 )
 
 __all__ = [
+    "IPBlocklistMiddleware",
+    "BLOCKED_IPS",
+    "BLOCKED_UA_PATTERNS",
     "RateLimitMiddleware",
     "get_rate_limit_stats",
     "get_client_ip",
