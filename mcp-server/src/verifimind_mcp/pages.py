@@ -1799,12 +1799,22 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 _CHANGELOG_BODY = """
 <h1>Changelog</h1>
 <div class="meta">
-  <span>Last updated: April 30, 2026</span>
+  <span>Last updated: April 30, 2026 (v0.5.24)</span>
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
 </div>
 
+<div id="v0.5.24">
+<h2>v0.5.24 — Cowork Research Publication <span class="live-badge">LIVE</span></h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 30, 2026</p>
+<ul>
+  <li><strong>Cowork Analysis Published</strong> — XV&rsquo;s 10-section strategic analysis of Anthropic Cowork on 3P at <a href="/research/cowork">/research/cowork</a> (L-approved); corrects v1.0 error inline, with <strong>Section 5 (Self-Correction as Substance)</strong> as the featured section — a real-time Validation Paradox case study</li>
+  <li><strong>Research Hub Navigation</strong> — Featured card on /research index, 4-pill nav strip (Published Research · The Validation Paradox · Cowork Analysis · Evidence Library) across all research pages</li>
+  <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/193" target="_blank" rel="noopener">PR #193</a></li>
+</ul>
+</div>
+
 <div id="v0.5.23">
-<h2>v0.5.23 — BYOK Provider Hardening + Research Navigation <span class="live-badge">LIVE</span></h2>
+<h2>v0.5.23 — BYOK Provider Hardening + Research Navigation</h2>
 <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 30, 2026</p>
 <ul>
   <li><strong>BYOK Fixes</strong> — Cerebras key prefix corrected (<code>csk-</code>), model updated to <code>llama-3.3-70b</code>, Anthropic JSON fence stripping added, Mistral package added to dependencies, mistralai v2.x import path updated</li>

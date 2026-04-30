@@ -6,11 +6,12 @@
 
 ## Current Status: Operational
 
-**v0.5.23 "BYOK Provider Hardening + Research Navigation" deployed successfully on April 30, 2026**
+**v0.5.24 "Cowork Research Publication" deployed successfully on April 30, 2026**
 
-The VerifiMind MCP server is fully operational. All security gates passed. 631 tests (CI), 0 CodeQL medium+ alerts. GCP revision `verifimind-mcp-server-00393-skq`.
+The VerifiMind MCP server is fully operational. All security gates passed. 631 tests (CI), 0 CodeQL medium+ alerts. GCP revision pending.
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination)
+- **Cowork Research (v0.5.24)**: XV's strategic analysis of Anthropic Cowork on 3P published at `/research/cowork` — 10 sections, self-correction as Section 5 (real-time Validation Paradox case study), L (CEO) approved; 4-pill research nav across all pages
 - **BYOK Hardening (v0.5.23)**: All 7 providers audited — Cerebras key prefix fix (`csk-`), model update (`llama-3.3-70b`), Anthropic JSON fence stripping, Mistral package added, mock transparency (`_warning` field, `"synthetic"` overall_quality)
 - **Research Navigation (v0.5.23)**: `/research`, `/library`, `/research/paradox` fully interlinked with consistent `site-nav` + section pill strips
 - **IP Blocklist (v0.5.22)**: 3 rogue IPs blocked at application layer (T Security Directive 2026-04-27) — AWS IPv6 fuzzing bot, content scraper (2,007 AbuseIPDB reports), unauthorized YellowMCP scanner; `[IP_BLOCKED]` / `[UA_BLOCKED]` audit logging to GCP log stream
@@ -39,7 +40,7 @@ The VerifiMind MCP server is fully operational. All security gates passed. 631 t
 | **Endpoint** | `https://verifimind.ysenseai.org/mcp` |
 | **Health Check** | `https://verifimind.ysenseai.org/health` |
 | **Register** | `https://verifimind.ysenseai.org/register` |
-| **Server Version** | 0.5.23 "BYOK Provider Hardening + Research Navigation" (deployed April 30, 2026) |
+| **Server Version** | 0.5.24 "Cowork Research Publication" (deployed April 30, 2026) |
 | **Transport** | Streamable HTTP (SSE) |
 | **Default Provider** | Gemini 2.5 Flash (FREE) / Groq Llama 3.3 (FREE fallback) |
 | **BYOK Providers** | Gemini, Groq, Cerebras (FREE), OpenAI, Anthropic, Mistral, Ollama |
