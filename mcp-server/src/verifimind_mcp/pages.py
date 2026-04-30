@@ -1799,12 +1799,25 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 _CHANGELOG_BODY = """
 <h1>Changelog</h1>
 <div class="meta">
-  <span>Last updated: April 27, 2026</span>
+  <span>Last updated: April 30, 2026</span>
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
 </div>
 
+<div id="v0.5.23">
+<h2>v0.5.23 — BYOK Provider Hardening + Research Navigation <span class="live-badge">LIVE</span></h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 30, 2026</p>
+<ul>
+  <li><strong>BYOK Fixes</strong> — Cerebras key prefix corrected (<code>csk-</code>), model updated to <code>llama-3.3-70b</code>, Anthropic JSON fence stripping added, Mistral package added to dependencies, mistralai v2.x import path updated</li>
+  <li><strong>Provider Audit</strong> — All 7 providers (Gemini, Groq, Cerebras, Anthropic, OpenAI, Mistral, Ollama) now consistently strip markdown code fences and return <code>_inference_quality: "real"</code></li>
+  <li><strong>Mock Transparency</strong> — <code>_warning</code> field injected when mock mode active; <code>"synthetic"</code> added as <code>overall_quality</code> state in <code>run_full_trinity</code>; MockProvider now correctly surfaces <code>_inference_quality: "mock"</code></li>
+  <li><strong>Research Navigation</strong> — <code>/research</code>, <code>/library</code>, <code>/research/paradox</code> fully interlinked with consistent site-nav headers and section pill strips</li>
+  <li>631 tests pass, 0 CodeQL medium+ alerts</li>
+  <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/189" target="_blank" rel="noopener">PR #189</a> · <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/190" target="_blank" rel="noopener">PR #190</a></li>
+</ul>
+</div>
+
 <div id="v0.5.22">
-<h2>v0.5.22 — IP Blocklist Security Layer <span class="live-badge">LIVE</span></h2>
+<h2>v0.5.22 — IP Blocklist Security Layer</h2>
 <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 30, 2026</p>
 <ul>
   <li><strong>IP Blocklist Middleware</strong> — 3 rogue IPs blocked at application level (T Security Directive 2026-04-27): AWS IPv6 fuzzing bot (63% error rate), content scraper (2,007 AbuseIPDB reports), unauthorized YellowMCP scanner; 403 response with minimal disclosure</li>

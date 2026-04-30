@@ -6,6 +6,41 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.23 - BYOK Provider Hardening + Research Navigation (April 30, 2026)
+
+Provider audit and bug fixes from live BYOK testing, plus full interconnection of the Research/Library/Paradox public pages.
+
+### BYOK Provider Fixes (v0.4.5)
+- **Cerebras key prefix**: `csk_` → `csk-` (hyphen) — auto-detection now matches real Cerebras keys
+- **Cerebras model**: `llama3.1-70b` → `llama-3.3-70b` (deprecated model removed)
+- **Anthropic JSON parsing**: `strip_markdown_code_fences()` now applied before JSON parse — Claude's ` ```json...``` ` fences no longer cause CSAgentAnalysis Pydantic validation failure (8-field error)
+- **Provider audit**: All 7 providers (Gemini, Groq, Cerebras, Anthropic, OpenAI, Mistral, Ollama) now consistently apply `strip_markdown_code_fences()` and return `_inference_quality: "real"`
+- **Mistral package**: Added `mistralai>=1.0.0` to `requirements.txt` + `pyproject.toml` (was absent)
+- **Mistral import**: Updated to `from mistralai.client import Mistral` (mistralai v2.x SDK breaking change)
+
+### Mock Mode Transparency
+- `MockProvider.generate()` now returns standard `{"content": ..., "_inference_quality": "mock"}` wrapper — `_inference_quality` field in tool responses correctly shows `"mock"` (was `"unknown"`)
+- `_warning` field injected in all tool responses when inference quality is mock
+- `"synthetic"` added as `overall_quality` state in `run_full_trinity` (all-mock run)
+- Warning framing: honest and encouraging — framework + schema fully intact, content synthetic, suitable for onboarding/demos/integration testing
+
+### Research Section Navigation
+- `site-nav`, `nav-active`, `nav-cta`, `nav-pill`, `nav-pill-active` CSS classes added to base stylesheet
+- `/research` page: full site-nav header (Research active), section pill strip, complete footer with cross-page links
+- `/library` page: consistent `site-nav` header (Library active), Paradox link, section pill strip
+- `/research/paradox` page: section pill strip (Paradox active), footer with Library + Changelog links
+- All three pages now fully interlinked — no manual URL entry required
+
+### Testing
+- All version assertions updated to v0.5.23 across 7 test files
+- 631 tests pass, 0 CodeQL medium+ alerts
+
+### Pull Requests
+- PR #189 (BYOK provider hardening + mock transparency)
+- PR #190 (Research/Library/Paradox navigation interconnect)
+
+---
+
 ## v0.5.22 - IP Blocklist Security Layer (April 30, 2026)
 
 T Security Directive (2026-04-27): 3 rogue IPs blocked at application level following AY forensic scan (AY Report 078). IPBlocklistMiddleware runs as the outermost Starlette middleware layer.
