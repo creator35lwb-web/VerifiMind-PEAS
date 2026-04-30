@@ -64,9 +64,10 @@ KEY_FORMAT_PATTERNS = [
     ("sk-", "openai"),
     ("gsk_", "groq"),
     ("AIza", "gemini"),
+    ("csk_", "cerebras"),
 ]
 
-VALID_BYOK_PROVIDERS = {"openai", "anthropic", "gemini", "groq", "mistral", "ollama", "mock"}
+VALID_BYOK_PROVIDERS = {"openai", "anthropic", "gemini", "groq", "cerebras", "mistral", "ollama", "mock"}
 
 
 def create_ephemeral_provider(
@@ -102,6 +103,7 @@ def create_ephemeral_provider(
         AnthropicProvider,
         GeminiProvider,
         GroqProvider,
+        CerebrasProvider,
         MistralProvider,
         OllamaProvider,
     )
@@ -139,6 +141,7 @@ def create_ephemeral_provider(
         "anthropic": AnthropicProvider,
         "gemini": GeminiProvider,
         "groq": GroqProvider,
+        "cerebras": CerebrasProvider,
         "mistral": MistralProvider,
         "ollama": OllamaProvider,
         "mock": MockProvider,
