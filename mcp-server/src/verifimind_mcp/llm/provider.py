@@ -289,19 +289,20 @@ class OpenAIProvider(LLMProvider):
             
             # Parse JSON response
             try:
-                parsed_content = json.loads(content)
+                clean_content = strip_markdown_code_fences(content)
+                parsed_content = json.loads(clean_content)
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse JSON response: {e}")
                 logger.debug(f"Raw response: {content}")
-                # Return raw content wrapped in dict
                 parsed_content = {"raw_response": content, "parse_error": str(e)}
-            
+
             # Return both content and usage
             return {
                 "content": parsed_content,
-                "usage": usage
+                "usage": usage,
+                "_inference_quality": "real"
             }
-                
+
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
             raise
@@ -385,9 +386,10 @@ class AnthropicProvider(LLMProvider):
             # Return both content and usage
             return {
                 "content": parsed_content,
-                "usage": usage
+                "usage": usage,
+                "_inference_quality": "real"
             }
-                
+
         except Exception as e:
             logger.error(f"Anthropic API error: {e}")
             raise
@@ -1118,11 +1120,12 @@ class MistralProvider(LLMProvider):
 
             # Parse JSON response
             try:
-                if content.strip().startswith("{"):
-                    parsed_content = json.loads(content)
+                clean_content = strip_markdown_code_fences(content)
+                if clean_content.strip().startswith("{"):
+                    parsed_content = json.loads(clean_content)
                 else:
                     import re
-                    json_match = re.search(r'\{[\s\S]*\}', content)
+                    json_match = re.search(r'\{[\s\S]*\}', clean_content)
                     if json_match:
                         parsed_content = json.loads(json_match.group())
                     else:
@@ -1133,7 +1136,8 @@ class MistralProvider(LLMProvider):
 
             return {
                 "content": parsed_content,
-                "usage": usage
+                "usage": usage,
+                "_inference_quality": "real"
             }
 
         except Exception as e:
@@ -1205,11 +1209,12 @@ class OllamaProvider(LLMProvider):
 
             # Parse JSON response
             try:
-                if content.strip().startswith("{"):
-                    parsed_content = json.loads(content)
+                clean_content = strip_markdown_code_fences(content)
+                if clean_content.strip().startswith("{"):
+                    parsed_content = json.loads(clean_content)
                 else:
                     import re
-                    json_match = re.search(r'\{[\s\S]*\}', content)
+                    json_match = re.search(r'\{[\s\S]*\}', clean_content)
                     if json_match:
                         parsed_content = json.loads(json_match.group())
                     else:
@@ -1220,7 +1225,8 @@ class OllamaProvider(LLMProvider):
 
             return {
                 "content": parsed_content,
-                "usage": usage
+                "usage": usage,
+                "_inference_quality": "real"
             }
 
         except Exception as e:
