@@ -44,8 +44,10 @@ SERVER_VERSION = "0.5.22"
 
 # Mock mode transparency — shown in every tool response when no real inference is available
 MOCK_MODE_WARNING = (
-    "Mock mode active — no API keys configured on this server. "
-    "Results are synthetic placeholders and must NOT be used for real decisions. "
+    "Mock mode active — LLM inference unavailable (no API keys configured). "
+    "The Trinity framework, chain-of-thought structure, and output schema are fully intact. "
+    "Scores and reasoning content are synthetic placeholders — suitable for onboarding, "
+    "demos, and integration testing, but not for real business decisions. "
     "Add GEMINI_API_KEY for free real inference: https://aistudio.google.com/apikey"
 )
 
