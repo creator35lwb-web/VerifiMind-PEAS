@@ -1081,7 +1081,7 @@ class MistralProvider(LLMProvider):
             raise ValueError("Mistral API key not provided. Set MISTRAL_API_KEY environment variable.")
 
         try:
-            from mistralai import Mistral
+            from mistralai.client import Mistral
             self.client = Mistral(api_key=self.api_key)
         except ImportError:
             raise ImportError("mistralai package not installed. Run: pip install mistralai")
