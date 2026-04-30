@@ -123,8 +123,8 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     },
     "cerebras": {
         "name": "Cerebras",
-        "default_model": "llama3.1-70b",
-        "models": ["llama3.1-70b", "llama3.1-8b"],
+        "default_model": "llama-3.3-70b",
+        "models": ["llama-3.3-70b", "llama-3.1-8b"],
         "api_key_env": "CEREBRAS_API_KEY",
         "base_url": "https://api.cerebras.ai/v1",
         "free_tier": True,
@@ -289,19 +289,20 @@ class OpenAIProvider(LLMProvider):
             
             # Parse JSON response
             try:
-                parsed_content = json.loads(content)
+                clean_content = strip_markdown_code_fences(content)
+                parsed_content = json.loads(clean_content)
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse JSON response: {e}")
                 logger.debug(f"Raw response: {content}")
-                # Return raw content wrapped in dict
                 parsed_content = {"raw_response": content, "parse_error": str(e)}
-            
+
             # Return both content and usage
             return {
                 "content": parsed_content,
-                "usage": usage
+                "usage": usage,
+                "_inference_quality": "real"
             }
-                
+
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
             raise
@@ -366,13 +367,14 @@ class AnthropicProvider(LLMProvider):
             
             # Parse JSON response
             try:
-                # Try to extract JSON from response
-                if content.strip().startswith("{"):
-                    parsed_content = json.loads(content)
+                # Strip markdown fences before parsing (Claude often wraps JSON in ```json...```)
+                clean_content = strip_markdown_code_fences(content)
+                if clean_content.strip().startswith("{"):
+                    parsed_content = json.loads(clean_content)
                 else:
                     # Try to find JSON in response
                     import re
-                    json_match = re.search(r'\{[\s\S]*\}', content)
+                    json_match = re.search(r'\{[\s\S]*\}', clean_content)
                     if json_match:
                         parsed_content = json.loads(json_match.group())
                     else:
@@ -384,9 +386,10 @@ class AnthropicProvider(LLMProvider):
             # Return both content and usage
             return {
                 "content": parsed_content,
-                "usage": usage
+                "usage": usage,
+                "_inference_quality": "real"
             }
-                
+
         except Exception as e:
             logger.error(f"Anthropic API error: {e}")
             raise
@@ -922,7 +925,7 @@ class CerebrasProvider(LLMProvider):
 
     def __init__(
         self,
-        model: str = "llama3.1-70b",
+        model: str = "llama-3.3-70b",
         api_key: Optional[str] = None
     ):
         self.model = model
@@ -1078,7 +1081,7 @@ class MistralProvider(LLMProvider):
             raise ValueError("Mistral API key not provided. Set MISTRAL_API_KEY environment variable.")
 
         try:
-            from mistralai import Mistral
+            from mistralai.client import Mistral
             self.client = Mistral(api_key=self.api_key)
         except ImportError:
             raise ImportError("mistralai package not installed. Run: pip install mistralai")
@@ -1117,11 +1120,12 @@ class MistralProvider(LLMProvider):
 
             # Parse JSON response
             try:
-                if content.strip().startswith("{"):
-                    parsed_content = json.loads(content)
+                clean_content = strip_markdown_code_fences(content)
+                if clean_content.strip().startswith("{"):
+                    parsed_content = json.loads(clean_content)
                 else:
                     import re
-                    json_match = re.search(r'\{[\s\S]*\}', content)
+                    json_match = re.search(r'\{[\s\S]*\}', clean_content)
                     if json_match:
                         parsed_content = json.loads(json_match.group())
                     else:
@@ -1132,7 +1136,8 @@ class MistralProvider(LLMProvider):
 
             return {
                 "content": parsed_content,
-                "usage": usage
+                "usage": usage,
+                "_inference_quality": "real"
             }
 
         except Exception as e:
@@ -1204,11 +1209,12 @@ class OllamaProvider(LLMProvider):
 
             # Parse JSON response
             try:
-                if content.strip().startswith("{"):
-                    parsed_content = json.loads(content)
+                clean_content = strip_markdown_code_fences(content)
+                if clean_content.strip().startswith("{"):
+                    parsed_content = json.loads(clean_content)
                 else:
                     import re
-                    json_match = re.search(r'\{[\s\S]*\}', content)
+                    json_match = re.search(r'\{[\s\S]*\}', clean_content)
                     if json_match:
                         parsed_content = json.loads(json_match.group())
                     else:
@@ -1219,7 +1225,8 @@ class OllamaProvider(LLMProvider):
 
             return {
                 "content": parsed_content,
-                "usage": usage
+                "usage": usage,
+                "_inference_quality": "real"
             }
 
         except Exception as e:
@@ -1251,15 +1258,15 @@ class MockProvider(LLMProvider):
     ) -> Dict[str, Any]:
         """Return mock response based on schema type."""
         self.call_count += 1
-        
+
         # Check for predefined response
         for key, response in self.responses.items():
             if key in prompt:
                 return response
-        
+
         # Determine agent type from schema
         schema_title = output_schema.get("title", "") if output_schema else ""
-        
+
         # Base reasoning steps for all agents
         reasoning_steps = [
             {
@@ -1275,10 +1282,10 @@ class MockProvider(LLMProvider):
                 "confidence": 0.80
             }
         ]
-        
-        # Return agent-specific mock response
+
+        # Build agent-specific mock content
         if "ZAgentAnalysis" in schema_title:
-            return {
+            mock_content = {
                 "reasoning_steps": reasoning_steps,
                 "ethics_score": 7.5,
                 "z_protocol_compliance": True,
@@ -1289,7 +1296,7 @@ class MockProvider(LLMProvider):
                 "confidence": 0.82
             }
         elif "CSAgentAnalysis" in schema_title:
-            return {
+            mock_content = {
                 "reasoning_steps": reasoning_steps,
                 "security_score": 6.5,
                 "vulnerabilities": ["Input validation needed", "Authentication gaps"],
@@ -1300,8 +1307,7 @@ class MockProvider(LLMProvider):
                 "confidence": 0.78
             }
         else:
-            # Default to X Agent response
-            return {
+            mock_content = {
                 "reasoning_steps": reasoning_steps,
                 "innovation_score": 7.5,
                 "strategic_value": 8.0,
@@ -1310,6 +1316,12 @@ class MockProvider(LLMProvider):
                 "recommendation": "Strong innovation potential with manageable risks.",
                 "confidence": 0.85
             }
+
+        return {
+            "content": mock_content,
+            "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
+            "_inference_quality": "mock",
+        }
     
     def get_model_name(self) -> str:
         return "mock/test-model"
