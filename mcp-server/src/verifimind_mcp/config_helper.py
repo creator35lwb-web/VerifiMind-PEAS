@@ -64,7 +64,7 @@ KEY_FORMAT_PATTERNS = [
     ("sk-", "openai"),
     ("gsk_", "groq"),
     ("AIza", "gemini"),
-    ("csk_", "cerebras"),
+    ("csk-", "cerebras"),
 ]
 
 VALID_BYOK_PROVIDERS = {"openai", "anthropic", "gemini", "groq", "cerebras", "mistral", "ollama", "mock"}

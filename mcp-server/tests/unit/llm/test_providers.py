@@ -58,8 +58,8 @@ class TestProviderConfiguration:
         assert info['name'] == 'Cerebras'
         assert info['free_tier'] is True
         assert info['api_key_env'] == 'CEREBRAS_API_KEY'
-        assert 'llama3.1-70b' in info['models']
-        assert info['default_model'] == 'llama3.1-70b'
+        assert 'llama-3.3-70b' in info['models']
+        assert info['default_model'] == 'llama-3.3-70b'
 
     def test_anthropic_model_ids_updated(self):
         """Verify Anthropic model IDs use Claude 4 family."""
@@ -442,16 +442,16 @@ class TestEphemeralProvider:
         assert result is None
 
     def test_cerebras_key_auto_detected(self):
-        """csk_... key → auto-detects Cerebras provider."""
+        """csk-... key → auto-detects Cerebras provider."""
         from verifimind_mcp.config_helper import create_ephemeral_provider
-        provider = create_ephemeral_provider(api_key="csk_test_key_1234567890abcdef")
+        provider = create_ephemeral_provider(api_key="csk-test-key-1234567890abcdef")
         assert provider is not None
         assert "cerebras" in provider.get_model_name().lower() or "llama" in provider.get_model_name().lower()
 
     def test_cerebras_explicit_provider(self):
         """Explicit cerebras provider + key works."""
         from verifimind_mcp.config_helper import create_ephemeral_provider
-        provider = create_ephemeral_provider(llm_provider="cerebras", api_key="csk_test_key_1234567890")
+        provider = create_ephemeral_provider(llm_provider="cerebras", api_key="csk-test-key-1234567890")
         assert provider is not None
 
     def test_cerebras_in_valid_providers(self):

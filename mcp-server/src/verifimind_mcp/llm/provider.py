@@ -123,8 +123,8 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     },
     "cerebras": {
         "name": "Cerebras",
-        "default_model": "llama3.1-70b",
-        "models": ["llama3.1-70b", "llama3.1-8b"],
+        "default_model": "llama-3.3-70b",
+        "models": ["llama-3.3-70b", "llama-3.1-8b"],
         "api_key_env": "CEREBRAS_API_KEY",
         "base_url": "https://api.cerebras.ai/v1",
         "free_tier": True,
@@ -366,13 +366,14 @@ class AnthropicProvider(LLMProvider):
             
             # Parse JSON response
             try:
-                # Try to extract JSON from response
-                if content.strip().startswith("{"):
-                    parsed_content = json.loads(content)
+                # Strip markdown fences before parsing (Claude often wraps JSON in ```json...```)
+                clean_content = strip_markdown_code_fences(content)
+                if clean_content.strip().startswith("{"):
+                    parsed_content = json.loads(clean_content)
                 else:
                     # Try to find JSON in response
                     import re
-                    json_match = re.search(r'\{[\s\S]*\}', content)
+                    json_match = re.search(r'\{[\s\S]*\}', clean_content)
                     if json_match:
                         parsed_content = json.loads(json_match.group())
                     else:
@@ -922,7 +923,7 @@ class CerebrasProvider(LLMProvider):
 
     def __init__(
         self,
-        model: str = "llama3.1-70b",
+        model: str = "llama-3.3-70b",
         api_key: Optional[str] = None
     ):
         self.model = model
