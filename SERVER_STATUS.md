@@ -8,7 +8,7 @@
 
 **v0.5.23 "BYOK Provider Hardening + Research Navigation" deployed successfully on April 30, 2026**
 
-The VerifiMind MCP server is fully operational. All security gates passed. 631 tests (CI), 0 CodeQL medium+ alerts. GCP revision pending.
+The VerifiMind MCP server is fully operational. All security gates passed. 631 tests (CI), 0 CodeQL medium+ alerts. GCP revision `verifimind-mcp-server-00393-skq`.
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination)
 - **BYOK Hardening (v0.5.23)**: All 7 providers audited — Cerebras key prefix fix (`csk-`), model update (`llama-3.3-70b`), Anthropic JSON fence stripping, Mistral package added, mock transparency (`_warning` field, `"synthetic"` overall_quality)
@@ -27,8 +27,8 @@ The VerifiMind MCP server is fully operational. All security gates passed. 631 t
 - **CS Agent v1.1**: 6-stage, 12-dimension, OWASP Agentic AI Top 10
 - Input sanitization active (20+ secret patterns)
 - Rate limiting and EDoS protection active
-- GCP Cloud Run revision: `verifimind-mcp-server-00387-xt7`
-- CI/CD pipeline passing — 628 tests, 0 CodeQL medium+ alerts
+- GCP Cloud Run revision: `verifimind-mcp-server-00393-skq`
+- CI/CD pipeline passing — 631 tests, 0 CodeQL medium+ alerts
 
 ---
 
