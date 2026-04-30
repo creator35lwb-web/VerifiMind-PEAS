@@ -53,6 +53,7 @@ from verifimind_mcp.registration import (
 from verifimind_mcp.policies import PRIVACY_POLICY, TERMS_AND_CONDITIONS
 from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_changelog_page, get_research_page, get_library_page, get_dashboard_page, get_paradox_page, get_cowork_page
 from verifimind_mcp.utils.trinity_history import read_trinity_history
+from verifimind_mcp.llm.provider import PROVIDER_CONFIGS
 from verifimind_mcp.registration import _get_firestore
 
 # Create MCP server instance
@@ -63,13 +64,32 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.24"
+SERVER_VERSION = "0.5.25"
 
 # Track server start time for uptime reporting (v0.5.0 health v2)
 _SERVER_START_TIME = time.time()
 _SERVER_START_ISO = datetime.now(timezone.utc).isoformat()
 
 # Custom route handlers
+def _get_inference_mode() -> str:
+    """Detect actual runtime inference mode: live / degraded / mock.
+    Surfaces the 9-day mock-mode blindspot — env var wipe is now immediately visible."""
+    primary = os.getenv("LLM_PROVIDER", "mock")
+    if primary == "mock":
+        return "mock"
+    config = PROVIDER_CONFIGS.get(primary, {})
+    api_key_env = config.get("api_key_env")
+    if api_key_env and os.getenv(api_key_env):
+        return "live"
+    # Primary key missing — check if a free-tier fallback is available
+    for fallback in ["groq", "cerebras"]:
+        cfg = PROVIDER_CONFIGS.get(fallback, {})
+        key_env = cfg.get("api_key_env")
+        if key_env and os.getenv(key_env):
+            return "degraded"
+    return "mock"
+
+
 async def health_handler(request):
     """Health check endpoint — v2 with uptime and session tracing (v0.5.0)."""
     rate_stats = get_rate_limit_stats()
@@ -80,6 +100,7 @@ async def health_handler(request):
         "server": "verifimind-genesis",
         "version": SERVER_VERSION,
         "health_version": 2,
+        "inference_mode": _get_inference_mode(),
         "transport": "streamable-http",
         "uptime_seconds": uptime_seconds,
         "server_started": _SERVER_START_ISO,

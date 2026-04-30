@@ -6,6 +6,18 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.25 - Health Transparency (May 1, 2026)
+
+Operational monitoring improvement: `/health` endpoint now reports `inference_mode` — surfaces live vs mock vs degraded inference state in real time.
+
+### New: `inference_mode` in `/health`
+- `"live"` — primary provider configured and API key present; real LLM inference active
+- `"degraded"` — primary key missing but a free-tier fallback (Groq/Cerebras) is active
+- `"mock"` — no real inference available (all keys missing or `LLM_PROVIDER=mock`)
+- Directly resolves the 9-day mock-mode blindspot: `/health` now detects env var wipe immediately
+
+---
+
 ## v0.5.24 - Cowork Research Publication (April 30, 2026)
 
 XV's strategic analysis of Anthropic Cowork on 3P, reviewed and approved by L (CEO/Godel), published as a live research document.
