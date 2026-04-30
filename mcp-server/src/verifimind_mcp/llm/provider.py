@@ -1258,15 +1258,15 @@ class MockProvider(LLMProvider):
     ) -> Dict[str, Any]:
         """Return mock response based on schema type."""
         self.call_count += 1
-        
+
         # Check for predefined response
         for key, response in self.responses.items():
             if key in prompt:
                 return response
-        
+
         # Determine agent type from schema
         schema_title = output_schema.get("title", "") if output_schema else ""
-        
+
         # Base reasoning steps for all agents
         reasoning_steps = [
             {
@@ -1282,10 +1282,10 @@ class MockProvider(LLMProvider):
                 "confidence": 0.80
             }
         ]
-        
-        # Return agent-specific mock response
+
+        # Build agent-specific mock content
         if "ZAgentAnalysis" in schema_title:
-            return {
+            mock_content = {
                 "reasoning_steps": reasoning_steps,
                 "ethics_score": 7.5,
                 "z_protocol_compliance": True,
@@ -1296,7 +1296,7 @@ class MockProvider(LLMProvider):
                 "confidence": 0.82
             }
         elif "CSAgentAnalysis" in schema_title:
-            return {
+            mock_content = {
                 "reasoning_steps": reasoning_steps,
                 "security_score": 6.5,
                 "vulnerabilities": ["Input validation needed", "Authentication gaps"],
@@ -1307,8 +1307,7 @@ class MockProvider(LLMProvider):
                 "confidence": 0.78
             }
         else:
-            # Default to X Agent response
-            return {
+            mock_content = {
                 "reasoning_steps": reasoning_steps,
                 "innovation_score": 7.5,
                 "strategic_value": 8.0,
@@ -1317,6 +1316,12 @@ class MockProvider(LLMProvider):
                 "recommendation": "Strong innovation potential with manageable risks.",
                 "confidence": 0.85
             }
+
+        return {
+            "content": mock_content,
+            "usage": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0},
+            "_inference_quality": "mock",
+        }
     
     def get_model_name(self) -> str:
         return "mock/test-model"

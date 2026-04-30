@@ -42,6 +42,13 @@ logger = logging.getLogger(__name__)
 _RAW_SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
 SERVER_VERSION = "0.5.22"
 
+# Mock mode transparency — shown in every tool response when no real inference is available
+MOCK_MODE_WARNING = (
+    "Mock mode active — no API keys configured on this server. "
+    "Results are synthetic placeholders and must NOT be used for real decisions. "
+    "Add GEMINI_API_KEY for free real inference: https://aistudio.google.com/apikey"
+)
+
 # Track C — SYSTEM_NOTICE sanitization constants
 _NOTICE_MAX_LEN = 280
 _NOTICE_ALLOWED = re.compile(r"[^A-Za-z0-9 .,!?'\"\-()\/:@#=&]")
@@ -413,6 +420,7 @@ def _create_mcp_instance():
             agent = XAgent(llm_provider=provider)
             result = await agent.analyze(concept)
 
+            _iq = getattr(result, '_inference_quality', 'unknown')
             payload = {
                 "agent": "X Intelligent",
                 "concept": concept_name,
@@ -426,10 +434,12 @@ def _create_mcp_instance():
                 "risks": result.risks,
                 "recommendation": result.recommendation,
                 "confidence": result.confidence,
-                "_inference_quality": getattr(result, '_inference_quality', 'unknown'),
+                "_inference_quality": _iq,
                 "_provider_used": provider.get_model_name(),
                 "_byok": byok_used
             }
+            if _iq == "mock":
+                payload["_warning"] = MOCK_MODE_WARNING
             persist_trinity_result(user_uuid, "consult_agent_x", payload)
             return wrap_response(payload)
 
@@ -531,6 +541,7 @@ def _create_mcp_instance():
             agent = ZAgent(llm_provider=provider)
             result = await agent.analyze(concept, prior)
 
+            _iq = getattr(result, '_inference_quality', 'unknown')
             payload = {
                 "agent": "Z Guardian",
                 "concept": concept_name,
@@ -545,10 +556,12 @@ def _create_mcp_instance():
                 "recommendation": result.recommendation,
                 "veto_triggered": result.veto_triggered,
                 "confidence": result.confidence,
-                "_inference_quality": getattr(result, '_inference_quality', 'unknown'),
+                "_inference_quality": _iq,
                 "_provider_used": provider.get_model_name(),
                 "_byok": byok_used
             }
+            if _iq == "mock":
+                payload["_warning"] = MOCK_MODE_WARNING
             persist_trinity_result(user_uuid, "consult_agent_z", payload)
             return wrap_response(payload)
 
@@ -664,6 +677,8 @@ def _create_mcp_instance():
                 "_provider_used": provider.get_model_name(),
                 "_byok": byok_used
             }
+            if payload["_inference_quality"] == "mock":
+                payload["_warning"] = MOCK_MODE_WARNING
             persist_trinity_result(user_uuid, "consult_agent_cs", payload)
             return wrap_response(payload)
 
@@ -853,6 +868,8 @@ def _create_mcp_instance():
             quality_values = list(chain_status.values())
             if all(v == "real" for v in quality_values):
                 overall_quality = "full"
+            elif any(v == "mock" for v in quality_values):
+                overall_quality = "synthetic"
             elif any(v == "fallback" for v in quality_values):
                 overall_quality = "degraded"
             else:
@@ -900,6 +917,8 @@ def _create_mcp_instance():
                     **_byok_meta,
                     **session.to_metadata(),
                 }
+                if overall_quality == "synthetic":
+                    md_payload["_warning"] = MOCK_MODE_WARNING
                 persist_trinity_result(user_uuid, "run_full_trinity", md_payload)
                 return wrap_response(md_payload)
 
@@ -943,6 +962,8 @@ def _create_mcp_instance():
                 **_byok_meta,
                 **session.to_metadata(),
             }
+            if overall_quality == "synthetic":
+                payload["_warning"] = MOCK_MODE_WARNING
             persist_trinity_result(user_uuid, "run_full_trinity", payload)
             return wrap_response(payload)
 
