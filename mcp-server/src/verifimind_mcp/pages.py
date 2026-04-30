@@ -1770,6 +1770,15 @@ _CHANGELOG_BODY = """
   <li>32 new tests, 574 unit tests pass, 0 CodeQL medium+ alerts</li>
   <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/182" target="_blank" rel="noopener">PR #182</a></li>
 </ul>
+<details style="margin-top:0.5rem">
+<summary style="cursor:pointer;color:var(--muted);font-size:0.875rem">⚠️ Operational Hotfix — April 30, 2026 (click to expand)</summary>
+<div style="padding:0.75rem 0;font-size:0.875rem">
+  <p><strong>Incident:</strong> A GCP Cloud Run deployment flag (<code>--set-env-vars</code>) accidentally replaced the server&#39;s full environment variable set with a single entry, removing all provider API keys (<code>GEMINI_API_KEY</code>, <code>GROQ_API_KEY</code>, and others). This caused the server to fall back to <code>mock/test-model</code> responses for approximately 9 days (April 21–30, 2026), returning structured but non-real inference output.</p>
+  <p><strong>Impact:</strong> All Trinity tool calls during this window returned mock responses. No data was lost and the server remained available; only inference quality was degraded. COO analytics independently flagged anomalous engagement drop correlated with this window.</p>
+  <p><strong>Resolution:</strong> All environment variables restored from the reference revision (<code>verifimind-mcp-server-00363-6zp</code>). GCP revision <code>verifimind-mcp-server-00387-xt7</code> is live with real inference confirmed (<code>gemini/gemini-2.5-flash</code>, <code>_inference_quality: real</code>). The deploy skill has been updated to never use <code>--set-env-vars</code> during image deploys.</p>
+  <p><strong>If you encountered mock responses:</strong> Please retry your validation — the server is now fully operational. Report any issues via <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions" target="_blank" rel="noopener">GitHub Discussions</a> or email <a href="mailto:alton@ysenseai.org">alton@ysenseai.org</a>.</p>
+</div>
+</details>
 </div>
 
 <div id="v0.5.21">
