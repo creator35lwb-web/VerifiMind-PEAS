@@ -6,6 +6,28 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.24 - Cowork Research Publication (April 30, 2026)
+
+XV's strategic analysis of Anthropic Cowork on 3P, reviewed and approved by L (CEO/Godel), published as a live research document.
+
+### New Research Publication: `/research/cowork`
+- Full 10-section strategic analysis: competitive assessment, China market thesis, the Woozle Effect argument, 4-tier product line, 14 academic and primary sources
+- **Section 5 (Self-Correction as Substance)** — real-time case study of the Validation Paradox exit node: XV's v1.0 error (claimed Cowork was Claude-only) caught by the human Orchestrator, corrected within 24 hours, version-controlled and republished
+- Version history table prominent in the document — v1.0 error preserved, v1.1 correction current
+- CORRECTED callout badge, self-correction highlight box, competitive capability tables
+- SEO meta + Open Graph tags for social sharing
+
+### Research Hub Navigation
+- Featured Cowork Analysis card on `/research` index (accent border, NEW badge, CTA button)
+- 4-pill nav strip across all research pages: Published Research · The Validation Paradox · Cowork Analysis · Evidence Library
+- `/research/index.json` updated to v1.3 with cowork entry
+- Robots.txt + sitemap updated for `/research/cowork`
+
+### Pull Requests
+- PR #193 (Cowork research publication)
+
+---
+
 ## v0.5.23 - BYOK Provider Hardening + Research Navigation (April 30, 2026)
 
 Provider audit and bug fixes from live BYOK testing, plus full interconnection of the Research/Library/Paradox public pages.
