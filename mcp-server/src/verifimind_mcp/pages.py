@@ -1799,12 +1799,21 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 _CHANGELOG_BODY = """
 <h1>Changelog</h1>
 <div class="meta">
-  <span>Last updated: April 30, 2026 (v0.5.24)</span>
+  <span>Last updated: May 1, 2026 (v0.5.25)</span>
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
 </div>
 
+<div id="v0.5.25">
+<h2>v0.5.25 — Health Transparency <span class="live-badge">LIVE</span></h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">May 1, 2026</p>
+<ul>
+  <li><strong>inference_mode in /health</strong> — <code>"live"</code> / <code>"degraded"</code> / <code>"mock"</code> field added; resolves 9-day mock-mode blindspot from env var wipe incident; AY monitoring and GCP uptime checks can now detect inference state changes in real time</li>
+  <li><strong>repo-owned CI/CD</strong> — <code>cloudbuild.yaml</code> added; Cloud Build trigger now uses version-controlled build config with commit SHA tagging and safe <code>--update-env-vars</code></li>
+</ul>
+</div>
+
 <div id="v0.5.24">
-<h2>v0.5.24 — Cowork Research Publication <span class="live-badge">LIVE</span></h2>
+<h2>v0.5.24 — Cowork Research Publication</h2>
 <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">April 30, 2026</p>
 <ul>
   <li><strong>Cowork Analysis Published</strong> — XV&rsquo;s 10-section strategic analysis of Anthropic Cowork on 3P at <a href="/research/cowork">/research/cowork</a> (L-approved); corrects v1.0 error inline, with <strong>Section 5 (Self-Correction as Substance)</strong> as the featured section — a real-time Validation Paradox case study</li>

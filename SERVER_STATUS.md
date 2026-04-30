@@ -1,16 +1,17 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** April 30, 2026
+**Last Updated:** May 1, 2026
 
 ---
 
 ## Current Status: Operational
 
-**v0.5.24 "Cowork Research Publication" deployed successfully on April 30, 2026**
+**v0.5.25 "Health Transparency" deployed successfully on May 1, 2026**
 
-The VerifiMind MCP server is fully operational. All security gates passed. 631 tests (CI), 0 CodeQL medium+ alerts. GCP revision `verifimind-mcp-server-00394-gcj`.
+The VerifiMind MCP server is fully operational. All security gates passed. GCP revision pending.
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination)
+- **Health Transparency (v0.5.25)**: `/health` now reports `inference_mode` — `"live"` / `"degraded"` / `"mock"` — resolves 9-day mock-mode blindspot; AY monitoring and GCP uptime checks can now detect env var wipe immediately
 - **Cowork Research (v0.5.24)**: XV's strategic analysis of Anthropic Cowork on 3P published at `/research/cowork` — 10 sections, self-correction as Section 5 (real-time Validation Paradox case study), L (CEO) approved; 4-pill research nav across all pages
 - **BYOK Hardening (v0.5.23)**: All 7 providers audited — Cerebras key prefix fix (`csk-`), model update (`llama-3.3-70b`), Anthropic JSON fence stripping, Mistral package added, mock transparency (`_warning` field, `"synthetic"` overall_quality)
 - **Research Navigation (v0.5.23)**: `/research`, `/library`, `/research/paradox` fully interlinked with consistent `site-nav` + section pill strips
@@ -95,6 +96,7 @@ The VerifiMind MCP server is fully operational. All security gates passed. 631 t
 
 | Date | Action | Version | Status |
 |------|--------|---------|--------|
+| May 1, 2026 | inference_mode in /health — live/degraded/mock; resolves 9-day mock-mode blindspot | v0.5.25 | Complete |
 | Apr 30, 2026 | IP Blocklist middleware — 3 rogue IPs blocked (T Security Directive), [IP_BLOCKED]/[UA_BLOCKED] audit logging | v0.5.22 | Complete |
 | Apr 30, 2026 | P0 Tool Manifest Audit — all 13 tools in mcp-config + Smithery; structured [TOOL_NOT_FOUND] logging | v0.5.21 | Complete |
 | Apr 27, 2026 | BYOK v0.4.0 (Cerebras, claude-sonnet-4-6, gpt-4.1-mini) + root UX + BYOK guide P0 fix | v0.5.20 | Complete |
