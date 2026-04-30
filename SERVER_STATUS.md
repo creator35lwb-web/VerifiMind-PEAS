@@ -8,7 +8,7 @@
 
 **v0.5.22 "IP Blocklist Security Layer" deployed successfully on April 30, 2026**
 
-The VerifiMind MCP server is fully operational. All security gates passed. 628 tests (CI), 0 CodeQL medium+ alerts. GCP revision `verifimind-mcp-server-00384-zg9`.
+The VerifiMind MCP server is fully operational. All security gates passed. 628 tests (CI), 0 CodeQL medium+ alerts. GCP revision `verifimind-mcp-server-00387-xt7`.
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination)
 - **IP Blocklist (v0.5.22)**: 3 rogue IPs blocked at application layer (T Security Directive 2026-04-27) — AWS IPv6 fuzzing bot, content scraper (2,007 AbuseIPDB reports), unauthorized YellowMCP scanner; `[IP_BLOCKED]` / `[UA_BLOCKED]` audit logging to GCP log stream
@@ -25,7 +25,7 @@ The VerifiMind MCP server is fully operational. All security gates passed. 628 t
 - **CS Agent v1.1**: 6-stage, 12-dimension, OWASP Agentic AI Top 10
 - Input sanitization active (20+ secret patterns)
 - Rate limiting and EDoS protection active
-- GCP Cloud Run revision: `verifimind-mcp-server-00384-zg9`
+- GCP Cloud Run revision: `verifimind-mcp-server-00387-xt7`
 - CI/CD pipeline passing — 628 tests, 0 CodeQL medium+ alerts
 
 ---
