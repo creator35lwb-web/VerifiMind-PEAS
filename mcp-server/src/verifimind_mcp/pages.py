@@ -481,6 +481,50 @@ textarea { resize: vertical; min-height: 100px; }
 .page-footer a { color: var(--muted); text-decoration: underline; }
 .page-footer a:hover { color: var(--accent); }
 
+/* ── Site Navigation ── */
+.site-nav {
+  display: flex;
+  gap: 1.25rem;
+  align-items: center;
+  margin-left: auto;
+}
+.site-nav a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.85rem;
+  transition: color 0.15s;
+}
+.site-nav a:hover { color: var(--accent); }
+.site-nav .nav-active { color: var(--text); font-weight: 500; }
+.site-nav .nav-cta {
+  background: var(--accent);
+  color: #fff !important;
+  padding: 0.3rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+.site-nav .nav-cta:hover { opacity: 0.85; }
+
+/* ── Research Section Pills ── */
+.research-section-nav {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+.nav-pill {
+  padding: 0.3rem 0.9rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  text-decoration: none;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: var(--surface-2);
+  transition: all 0.15s;
+}
+.nav-pill:hover { border-color: var(--accent); color: var(--accent); }
+.nav-pill-active { border-color: var(--accent); color: var(--accent); background: var(--surface); font-weight: 500; }
+
 /* ── Utility ── */
 .hidden { display: none !important; }
 .muted { color: var(--muted); }
@@ -2218,6 +2262,12 @@ _RESEARCH_BODY = """
   All findings are open and reproducible.
 </p>
 
+<div class="research-section-nav">
+  <a href="/research" class="nav-pill nav-pill-active">Published Research</a>
+  <a href="/research/paradox" class="nav-pill">The Validation Paradox</a>
+  <a href="/library" class="nav-pill">Evidence Library</a>
+</div>
+
 
 <!-- ================================================================ -->
 <!-- Article 1: 5-Layer Stack / ANP Analysis                          -->
@@ -2660,7 +2710,13 @@ def _research_shell(body: str) -> str:
     <a class="site-logo" href="https://verifimind.ysenseai.org">
       VerifiMind<span>-PEAS</span>
     </a>
-    <span class="version-badge">Research</span>
+    <nav class="site-nav">
+      <a href="/research" class="nav-active">Research</a>
+      <a href="/research/paradox">Paradox</a>
+      <a href="/library">Library</a>
+      <a href="/changelog">Changelog</a>
+      <a href="/register" class="nav-cta">Register</a>
+    </nav>
   </header>
 
   <div class="legal-doc research-doc">
@@ -2669,10 +2725,12 @@ def _research_shell(body: str) -> str:
 
   <footer class="page-footer">
     <p>
-      <a href="/changelog">Changelog</a> &nbsp;&middot;&nbsp;
       <a href="/research">Research</a> &nbsp;&middot;&nbsp;
-      <a href="/privacy">Privacy Policy</a> &nbsp;&middot;&nbsp;
-      <a href="/terms">Terms &amp; Conditions</a> &nbsp;&middot;&nbsp;
+      <a href="/research/paradox">Validation Paradox</a> &nbsp;&middot;&nbsp;
+      <a href="/library">Library</a> &nbsp;&middot;&nbsp;
+      <a href="/changelog">Changelog</a> &nbsp;&middot;&nbsp;
+      <a href="/privacy">Privacy</a> &nbsp;&middot;&nbsp;
+      <a href="/terms">Terms</a> &nbsp;&middot;&nbsp;
       <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS" target="_blank" rel="noopener">GitHub</a>
     </p>
     <p style="margin-top:0.5rem">MACP v2.2 &#xB7; FLYWHEEL TEAM &#xB7; Open Research (CC BY 4.0)</p>
@@ -2921,6 +2979,12 @@ _LIBRARY_BODY = """
   papers that validate, align with, or challenge the VerifiMind-PEAS methodology.
   Compiled by XV (CIO, Perplexity). Every claim is sourced. Every paper is real.
 </p>
+
+<div class="research-section-nav">
+  <a href="/research" class="nav-pill">Published Research</a>
+  <a href="/research/paradox" class="nav-pill">The Validation Paradox</a>
+  <a href="/library" class="nav-pill nav-pill-active">Evidence Library</a>
+</div>
 
 <div class="stat-bar">
   <div class="stat-item">
@@ -3403,16 +3467,14 @@ def _library_shell(body: str) -> str:
 </head>
 <body>
 <div class="research-wrapper library-wrapper">
-  <header>
+  <header class="site-header">
     <a href="/" class="site-logo">VerifiMind<span>-PEAS</span></a>
-    <nav style="margin-top:0.5rem;font-size:0.85rem;color:var(--muted)">
-      <a href="/research" style="color:var(--accent);text-decoration:none">Research</a>
-      &nbsp;&middot;&nbsp;
-      <a href="/library" style="color:var(--text);text-decoration:none">Library</a>
-      &nbsp;&middot;&nbsp;
-      <a href="/changelog" style="color:var(--muted);text-decoration:none">Changelog</a>
-      &nbsp;&middot;&nbsp;
-      <a href="/register" style="color:var(--muted);text-decoration:none">Register</a>
+    <nav class="site-nav">
+      <a href="/research">Research</a>
+      <a href="/research/paradox">Paradox</a>
+      <a href="/library" class="nav-active">Library</a>
+      <a href="/changelog">Changelog</a>
+      <a href="/register" class="nav-cta">Register</a>
     </nav>
   </header>
 
@@ -3420,13 +3482,16 @@ def _library_shell(body: str) -> str:
     {body}
   </main>
 
-  <footer style="margin-top:3rem;padding-top:1.5rem;border-top:1px solid var(--border);font-size:0.8rem;color:var(--muted)">
-    <p>Compiled by <strong>XV (CIO, Perplexity AI)</strong> &middot; MACP v2.2 "Identity" &middot; April 17, 2026 &middot; Living document</p>
-    <p style="margin-top:0.5rem">
-      <a href="/research" style="color:var(--accent);text-decoration:none">Published Research</a> &nbsp;&middot;&nbsp;
-      <a href="/library/index.json" style="color:var(--muted);text-decoration:none">library/index.json</a> &nbsp;&middot;&nbsp;
-      <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS" target="_blank" rel="noopener" style="color:var(--muted);text-decoration:none">GitHub</a>
+  <footer class="page-footer">
+    <p>
+      <a href="/research">Research</a> &nbsp;&middot;&nbsp;
+      <a href="/research/paradox">Validation Paradox</a> &nbsp;&middot;&nbsp;
+      <a href="/library">Library</a> &nbsp;&middot;&nbsp;
+      <a href="/library/index.json">library/index.json</a> &nbsp;&middot;&nbsp;
+      <a href="/changelog">Changelog</a> &nbsp;&middot;&nbsp;
+      <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS" target="_blank" rel="noopener">GitHub</a>
     </p>
+    <p style="margin-top:0.5rem">Compiled by <strong>XV (CIO, Perplexity AI)</strong> &middot; MACP v2.2 &middot; Living document &middot; CC BY 4.0</p>
   </footer>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
@@ -3741,6 +3806,12 @@ _PARADOX_BODY = """
 </script>
 
 <div class="paradox-wrapper">
+
+<div class="research-section-nav">
+  <a href="/research" class="nav-pill">Published Research</a>
+  <a href="/research/paradox" class="nav-pill nav-pill-active">The Validation Paradox</a>
+  <a href="/library" class="nav-pill">Evidence Library</a>
+</div>
 
 <!-- ============================== HEADER ============================== -->
 <div class="paradox-header" id="top">
@@ -4380,7 +4451,10 @@ def get_paradox_page() -> str:
   <footer class="page-footer">
     <p>
       <a href="/research">Research</a> &nbsp;·&nbsp;
-      <a href="/privacy">Privacy Policy</a> &nbsp;·&nbsp;
+      <a href="/research/paradox">Validation Paradox</a> &nbsp;·&nbsp;
+      <a href="/library">Library</a> &nbsp;·&nbsp;
+      <a href="/changelog">Changelog</a> &nbsp;·&nbsp;
+      <a href="/privacy">Privacy</a> &nbsp;·&nbsp;
       <a href="/terms">Terms</a> &nbsp;·&nbsp;
       <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS" target="_blank" rel="noopener">GitHub</a>
     </p>
