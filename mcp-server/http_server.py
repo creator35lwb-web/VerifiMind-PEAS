@@ -51,7 +51,7 @@ from verifimind_mcp.registration import (
     register_user,
 )
 from verifimind_mcp.policies import PRIVACY_POLICY, TERMS_AND_CONDITIONS
-from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_changelog_page, get_research_page, get_library_page, get_dashboard_page, get_paradox_page
+from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_changelog_page, get_research_page, get_library_page, get_dashboard_page, get_paradox_page, get_cowork_page
 from verifimind_mcp.utils.trinity_history import read_trinity_history
 from verifimind_mcp.registration import _get_firestore
 
@@ -647,6 +647,7 @@ Allow: /.well-known/
 Allow: /research
 Allow: /research/index.json
 Allow: /research/paradox
+Allow: /research/cowork
 Allow: /library
 Allow: /library/index.json
 Allow: /changelog
@@ -772,6 +773,9 @@ _SITEMAP_XML = """\
   </url>
   <url>
     <loc>https://verifimind.ysenseai.org/research/paradox</loc>
+</url>
+<url>
+    <loc>https://verifimind.ysenseai.org/research/cowork</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
@@ -1277,6 +1281,11 @@ async def paradox_handler(request):
     return HTMLResponse(get_paradox_page())
 
 
+async def cowork_handler(request):
+    """GET /research/cowork — XV's Cowork on 3P strategic analysis v1.1 (L-approved)."""
+    return HTMLResponse(get_cowork_page())
+
+
 async def mcp_test_handler(request):
     """GET /mcp/test?key=<uuid> — Verify UUID + connection health (P0 UUID transfer UX fix)."""
     key = request.query_params.get("key", "")
@@ -1303,11 +1312,31 @@ async def mcp_test_handler(request):
 
 # Machine-readable index — enables future MCP tool + AI crawlers (Perplexity, Google SGE)
 _RESEARCH_INDEX = {
-    "version": "1.2",
-    "updated": "2026-04-21",
+    "version": "1.3",
+    "updated": "2026-04-30",
     "url": "https://verifimind.ysenseai.org/research",
     "license": "CC BY 4.0",
     "papers": [
+        {
+            "id": "cowork-analysis",
+            "title": "Anthropic Cowork on 3P: A Strategic Analysis with Self-Correction",
+            "authors": ["XV (CIO, Perplexity)", "Reviewed by L (CEO/Godel)"],
+            "date": "2026-04-30",
+            "version": "1.1",
+            "tags": ["Strategic Intelligence", "Self-Correction", "Competitive Analysis", "China Market", "Living Document"],
+            "url": "https://verifimind.ysenseai.org/research/cowork",
+            "status": "approved-published",
+            "correction_of": "v1.0 (2026-04-22) — factual error corrected",
+            "abstract": (
+                "Anthropic's Cowork on 3P routes inference through any OpenAI-compatible LLM gateway "
+                "(confirmed April 2026) — running GPT-5, Gemini, DeepSeek, Kimi, Grok, or local models "
+                "inside Anthropic's agent harness. This narrows VerifiMind's defensible coordination territory "
+                "but the validation layer above coordination (Council Mode patterns, Woozle Effect mitigation, "
+                "China-deployable sovereign validation) remains unaddressed by Cowork. This paper corrects "
+                "its own v1.0 error in Section 5 — a real-time case study of the Validation Paradox exit node "
+                "working as designed. L (CEO) approved. CC BY 4.0."
+            ),
+        },
         {
             "id": "validation-paradox",
             "title": "The Validation Paradox: Can an AI-Assisted Venture Validate Itself?",
@@ -1589,6 +1618,7 @@ app = Starlette(
         Route("/changelog", changelog_handler, methods=["GET"]),
         Route("/research", research_handler, methods=["GET"]),
         Route("/research/paradox", paradox_handler, methods=["GET"]),
+        Route("/research/cowork", cowork_handler, methods=["GET"]),
         Route("/research/index.json", research_index_handler, methods=["GET"]),
         Route("/library", library_handler, methods=["GET"]),
         Route("/library/index.json", library_index_handler, methods=["GET"]),
