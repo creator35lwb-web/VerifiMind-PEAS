@@ -8,7 +8,7 @@
 
 **v0.5.24 "Cowork Research Publication" deployed successfully on April 30, 2026**
 
-The VerifiMind MCP server is fully operational. All security gates passed. 631 tests (CI), 0 CodeQL medium+ alerts. GCP revision pending.
+The VerifiMind MCP server is fully operational. All security gates passed. 631 tests (CI), 0 CodeQL medium+ alerts. GCP revision `verifimind-mcp-server-00394-gcj`.
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination)
 - **Cowork Research (v0.5.24)**: XV's strategic analysis of Anthropic Cowork on 3P published at `/research/cowork` — 10 sections, self-correction as Section 5 (real-time Validation Paradox case study), L (CEO) approved; 4-pill research nav across all pages
@@ -28,7 +28,7 @@ The VerifiMind MCP server is fully operational. All security gates passed. 631 t
 - **CS Agent v1.1**: 6-stage, 12-dimension, OWASP Agentic AI Top 10
 - Input sanitization active (20+ secret patterns)
 - Rate limiting and EDoS protection active
-- GCP Cloud Run revision: `verifimind-mcp-server-00393-skq`
+- GCP Cloud Run revision: `verifimind-mcp-server-00394-gcj`
 - CI/CD pipeline passing — 631 tests, 0 CodeQL medium+ alerts
 
 ---
