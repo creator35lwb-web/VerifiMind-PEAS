@@ -1,0 +1,47 @@
+steps:
+  # Build the container image and tag with commit SHA + latest
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/verifimind-mcp-server:$COMMIT_SHA'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/verifimind-mcp-server:latest'
+      - '-f'
+      - 'Dockerfile'
+      - '.'
+
+  # Push commit-pinned image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/verifimind-mcp-server:$COMMIT_SHA']
+
+  # Push latest tag
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/verifimind-mcp-server:latest']
+
+  # Deploy to Cloud Run — image update only, no env var changes (API keys persist across revisions)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'verifimind-mcp-server'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/verifimind-mcp-server:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--max-instances'
+      - '3'
+      - '--memory'
+      - '512Mi'
+      - '--allow-unauthenticated'
+      - '--update-env-vars'
+      - 'FIRESTORE_PROJECT_ID=$PROJECT_ID'
+      - '--quiet'
+
+images:
+  - 'gcr.io/$PROJECT_ID/verifimind-mcp-server:$COMMIT_SHA'
+  - 'gcr.io/$PROJECT_ID/verifimind-mcp-server:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
