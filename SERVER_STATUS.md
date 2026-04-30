@@ -8,7 +8,7 @@
 
 **v0.5.25 "Health Transparency" deployed successfully on May 1, 2026**
 
-The VerifiMind MCP server is fully operational. All security gates passed. GCP revision pending.
+The VerifiMind MCP server is fully operational. All security gates passed. GCP revision `verifimind-mcp-server-00395-762`.
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination)
 - **Health Transparency (v0.5.25)**: `/health` now reports `inference_mode` — `"live"` / `"degraded"` / `"mock"` — resolves 9-day mock-mode blindspot; AY monitoring and GCP uptime checks can now detect env var wipe immediately
@@ -41,7 +41,7 @@ The VerifiMind MCP server is fully operational. All security gates passed. GCP r
 | **Endpoint** | `https://verifimind.ysenseai.org/mcp` |
 | **Health Check** | `https://verifimind.ysenseai.org/health` |
 | **Register** | `https://verifimind.ysenseai.org/register` |
-| **Server Version** | 0.5.24 "Cowork Research Publication" (deployed April 30, 2026) |
+| **Server Version** | 0.5.25 "Health Transparency" (deployed May 1, 2026) |
 | **Transport** | Streamable HTTP (SSE) |
 | **Default Provider** | Gemini 2.5 Flash (FREE) / Groq Llama 3.3 (FREE fallback) |
 | **BYOK Providers** | Gemini, Groq, Cerebras (FREE), OpenAI, Anthropic, Mistral, Ollama |
