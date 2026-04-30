@@ -440,3 +440,21 @@ class TestEphemeralProvider:
         from verifimind_mcp.config_helper import create_ephemeral_provider
         result = create_ephemeral_provider(llm_provider="groq")
         assert result is None
+
+    def test_cerebras_key_auto_detected(self):
+        """csk_... key → auto-detects Cerebras provider."""
+        from verifimind_mcp.config_helper import create_ephemeral_provider
+        provider = create_ephemeral_provider(api_key="csk_test_key_1234567890abcdef")
+        assert provider is not None
+        assert "cerebras" in provider.get_model_name().lower() or "llama" in provider.get_model_name().lower()
+
+    def test_cerebras_explicit_provider(self):
+        """Explicit cerebras provider + key works."""
+        from verifimind_mcp.config_helper import create_ephemeral_provider
+        provider = create_ephemeral_provider(llm_provider="cerebras", api_key="csk_test_key_1234567890")
+        assert provider is not None
+
+    def test_cerebras_in_valid_providers(self):
+        """cerebras is in VALID_BYOK_PROVIDERS."""
+        from verifimind_mcp.config_helper import VALID_BYOK_PROVIDERS
+        assert "cerebras" in VALID_BYOK_PROVIDERS
