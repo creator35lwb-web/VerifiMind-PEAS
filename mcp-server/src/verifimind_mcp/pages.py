@@ -2278,9 +2278,52 @@ _RESEARCH_BODY = """
 <div class="research-section-nav">
   <a href="/research" class="nav-pill nav-pill-active">Published Research</a>
   <a href="/research/paradox" class="nav-pill">The Validation Paradox</a>
+  <a href="/research/cowork" class="nav-pill">Cowork Analysis</a>
   <a href="/library" class="nav-pill">Evidence Library</a>
 </div>
 
+<!-- ================================================================ -->
+<!-- Featured: XV Cowork v1.1 — APPROVED                              -->
+<!-- ================================================================ -->
+
+<div class="research-article" id="cowork-analysis" style="border-left:3px solid var(--accent);padding-left:1.25rem;margin-bottom:3rem">
+
+<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem">
+  <h2 style="margin-bottom:0">Anthropic Cowork on 3P: A Strategic Analysis with Self-Correction</h2>
+  <span class="live-badge" style="flex-shrink:0">NEW</span>
+</div>
+
+<div class="research-meta">
+  <span class="authors">XV (CIO, Perplexity) &nbsp;&middot;&nbsp; Reviewed by L (CEO/Godel)</span>
+  <span>April 30, 2026</span>
+  <span>v1.1 — Self-Correcting Living Document</span>
+  <span>
+    <span class="research-tag">Strategic Intelligence</span>
+    <span class="research-tag">Self-Correction</span>
+    <span class="research-tag">Competitive Analysis</span>
+    <span class="research-tag">China Market</span>
+  </span>
+</div>
+
+<div class="research-abstract">
+  <strong>Abstract.</strong> Anthropic's Cowork on 3P routes inference through any OpenAI-compatible LLM gateway
+  (confirmed April 2026) — running GPT-5, Gemini, DeepSeek, Kimi, Grok, or local models inside Anthropic's
+  agent harness. This narrows VerifiMind's defensible territory but does not eliminate it.
+  Cowork solves operational coordination; it does not implement Council Mode patterns, Woozle Effect mitigation,
+  or China-deployable sovereign validation. This paper corrects its own v1.0 error in Section 5 — a real-time
+  case study of the Validation Paradox exit node working as designed.
+</div>
+
+<p style="margin-bottom:1.25rem">
+  An AI agent (XV) produced a confident strategic conclusion that was factually wrong. The human Orchestrator
+  flagged community evidence. The analysis was corrected, version-controlled, and republished within five days.
+  The self-correction is the substance — not just a footnote.
+</p>
+
+<a href="/research/cowork" style="display:inline-block;padding:0.55rem 1.25rem;background:var(--accent);color:#000;font-weight:600;font-size:0.875rem;border-radius:6px;text-decoration:none">Read Full Analysis →</a>
+<span style="margin-left:1rem;color:var(--muted);font-size:0.8rem">10 sections · 14 sources · CC BY 4.0</span>
+
+</div>
 
 <!-- ================================================================ -->
 <!-- Article 1: 5-Layer Stack / ANP Analysis                          -->
@@ -2996,6 +3039,7 @@ _LIBRARY_BODY = """
 <div class="research-section-nav">
   <a href="/research" class="nav-pill">Published Research</a>
   <a href="/research/paradox" class="nav-pill">The Validation Paradox</a>
+  <a href="/research/cowork" class="nav-pill">Cowork Analysis</a>
   <a href="/library" class="nav-pill nav-pill-active">Evidence Library</a>
 </div>
 
@@ -3823,6 +3867,7 @@ _PARADOX_BODY = """
 <div class="research-section-nav">
   <a href="/research" class="nav-pill">Published Research</a>
   <a href="/research/paradox" class="nav-pill nav-pill-active">The Validation Paradox</a>
+  <a href="/research/cowork" class="nav-pill">Cowork Analysis</a>
   <a href="/library" class="nav-pill">Evidence Library</a>
 </div>
 
@@ -4465,6 +4510,7 @@ def get_paradox_page() -> str:
     <p>
       <a href="/research">Research</a> &nbsp;·&nbsp;
       <a href="/research/paradox">Validation Paradox</a> &nbsp;·&nbsp;
+      <a href="/research/cowork">Cowork Analysis</a> &nbsp;·&nbsp;
       <a href="/library">Library</a> &nbsp;·&nbsp;
       <a href="/changelog">Changelog</a> &nbsp;·&nbsp;
       <a href="/privacy">Privacy</a> &nbsp;·&nbsp;
@@ -4473,6 +4519,685 @@ def get_paradox_page() -> str:
     </p>
     <p style="margin-top:0.5rem;color:var(--muted);font-size:0.78rem">
       Genesis Methodology v2.0 &nbsp;&middot;&nbsp; MACP v2.2 &ldquo;Identity&rdquo; &nbsp;&middot;&nbsp; CC BY 4.0
+    </p>
+  </footer>
+</div>
+</body>
+</html>"""
+
+
+# ── Cowork Analysis Page (/research/cowork) ───────────────────────────────────
+
+_COWORK_CSS = """
+.cowork-wrapper {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.cowork-meta-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  margin-bottom: 2rem;
+  background: var(--surface);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.cowork-meta-table td {
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.cowork-meta-table td:first-child {
+  color: var(--muted);
+  font-weight: 500;
+  width: 35%;
+  white-space: nowrap;
+}
+.cowork-meta-table tr:last-child td { border-bottom: none; }
+
+.cowork-callout {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--warning, #fbbf24);
+  border-radius: 0 8px 8px 0;
+  padding: 1rem 1.25rem;
+  font-size: 0.88rem;
+  line-height: 1.65;
+  margin: 1.5rem 0;
+}
+.cowork-callout strong { color: var(--warning, #fbbf24); }
+
+.cowork-correction {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--error, #f87171);
+  border-radius: 0 8px 8px 0;
+  padding: 1rem 1.25rem;
+  font-size: 0.88rem;
+  line-height: 1.65;
+  margin: 1.25rem 0;
+}
+.cowork-correction-label {
+  display: inline-block;
+  background: var(--error, #f87171);
+  color: #000;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.05em;
+}
+
+.cowork-highlight {
+  background: rgba(34,211,238,0.06);
+  border: 1px solid rgba(34,211,238,0.25);
+  border-radius: 8px;
+  padding: 1.25rem 1.5rem;
+  margin: 1.5rem 0;
+}
+.cowork-highlight h3 { margin-top: 0; }
+
+.cowork-section {
+  margin-bottom: 2.75rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--border);
+}
+.cowork-section:last-of-type { border-bottom: none; }
+
+.cowork-section h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.35rem;
+  padding-top: 0.25rem;
+}
+.cowork-section-num {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.35rem;
+}
+
+.cowork-section h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 1.5rem 0 0.5rem;
+}
+
+.cowork-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  margin: 1rem 0 1.5rem;
+}
+.cowork-table th {
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.cowork-table td {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  line-height: 1.5;
+}
+.cowork-table tr:last-child td { border-bottom: none; }
+.cowork-table .yes { color: var(--success, #4ade80); font-weight: 600; }
+.cowork-table .partial { color: var(--warning, #fbbf24); font-weight: 600; }
+.cowork-table .no { color: var(--error, #f87171); font-weight: 600; }
+.cowork-table .verifimind-row td { color: var(--accent); }
+
+.cowork-sign-off {
+  margin-top: 2.5rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--surface);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.cowork-sign-off em { color: var(--accent); font-style: normal; }
+
+.version-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  margin: 1rem 0;
+}
+.version-history-table th {
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.version-history-table td {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.version-history-table tr:last-child td { border-bottom: none; }
+.version-current td { background: rgba(34,211,238,0.05); }
+"""
+
+
+_COWORK_BODY = """
+<div class="research-section-nav">
+  <a href="/research" class="nav-pill">Published Research</a>
+  <a href="/research/paradox" class="nav-pill">The Validation Paradox</a>
+  <a href="/research/cowork" class="nav-pill nav-pill-active">Cowork Analysis</a>
+  <a href="/library" class="nav-pill">Evidence Library</a>
+</div>
+
+<div style="margin-bottom:0.5rem">
+  <span style="font-size:0.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em">
+    Strategic Intelligence &nbsp;&middot;&nbsp; Living Document
+  </span>
+</div>
+
+<h1 style="font-size:1.6rem;font-weight:700;line-height:1.3;margin-bottom:0.5rem">
+  Anthropic Cowork on 3P: A Strategic Analysis with Self-Correction
+</h1>
+
+<table class="cowork-meta-table">
+  <tr><td>Version</td><td>1.1 (Cowork Correction Iteration)</td></tr>
+  <tr><td>Original Publication</td><td>April 22, 2026 (v1.0 — internal)</td></tr>
+  <tr><td>Correction Issued</td><td>April 27, 2026</td></tr>
+  <tr><td>This Iteration</td><td>April 30, 2026</td></tr>
+  <tr><td>Author</td><td>XV (Chief Intelligence Officer, VerifiMind FLYWHEEL TEAM)</td></tr>
+  <tr><td>Reviewed by</td><td>L (CEO/Godel) — <strong style="color:var(--success)">APPROVED</strong></td></tr>
+  <tr><td>Status</td><td><strong style="color:var(--success)">APPROVED — Ready for publication</strong></td></tr>
+  <tr><td>License</td><td>CC BY 4.0</td></tr>
+</table>
+
+<div class="cowork-callout">
+  <strong>Editorial Note.</strong> This is a living research document. Version 1.0 was issued on April 22, 2026
+  and contained a factual error about Anthropic Cowork on 3P. Version 1.1 corrects that error inline,
+  integrates the self-correction as <a href="#section-5">Section 5</a>, and updates the strategic implications.
+  The original v1.0 framing is preserved in version control for transparency.
+  <br><br>
+  The correction was triggered not by Anthropic&rsquo;s communication but by the human Orchestrator (Alton Lee)
+  flagging two community deep-tech analyses on April 27 that contradicted the v1.0 reading. This is itself
+  part of the substance — see <a href="#section-6">Section 6</a>.
+</div>
+
+<!-- Abstract -->
+<div class="research-abstract" style="margin-bottom:2.5rem">
+  <strong>Abstract.</strong> Anthropic&rsquo;s January 2026 Cowork product, with its April 2026
+  &ldquo;Cowork on 3P&rdquo; deployment mode, represents a quietly significant strategic move: positioning
+  Claude Desktop as a model-agnostic agent harness rather than a Claude-only product. Cowork on 3P routes
+  inference through any OpenAI-compatible LLM gateway (confirmed April 2026) &mdash; including Vertex,
+  Bedrock, Azure Foundry, OpenRouter, LiteLLM, and Ollama &mdash; meaning a user can run GPT-5, Gemini 3.1 Pro,
+  DeepSeek V4, Kimi K2, Grok, or local open-weight models inside Anthropic&rsquo;s agent infrastructure.
+  <br><br>
+  This narrows the defensible territory for cross-vendor agent coordination protocols, including MACP. However,
+  it does not eliminate it. Cowork on 3P operates at the coordination layer; it does not address the validation
+  layer above it. This paper analyzes the new competitive reality, the limits of Cowork on 3P, and the
+  narrowed-but-real defensible territory that remains for VerifiMind PEAS &mdash; particularly in the China
+  market and at the semantic validation tier.
+  <br><br>
+  The paper also documents its own correction process as a live case study in the Validation Paradox:
+  an AI agent produced a confident strategic analysis based on incomplete primary-source reading,
+  the human Orchestrator flagged community evidence contradicting it, and the analysis was corrected,
+  version-controlled, and republished within five days.
+</div>
+
+<!-- Section 1 -->
+<div class="cowork-section" id="section-1">
+<span class="cowork-section-num">Section 1</span>
+<h2>Original Thesis (v1.0, with Inline Correction)</h2>
+
+<h3>What v1.0 Claimed</h3>
+<blockquote style="border-left:3px solid var(--border);padding-left:1rem;color:var(--muted);font-style:italic;margin:0.75rem 0 1rem">
+  &ldquo;Cowork on 3P is multi-cloud single-vendor (Claude on Vertex / Bedrock / Azure Foundry), NOT multi-vendor.
+  The model is always Claude. The variable is which cloud hosts Claude.&rdquo;
+  <br><br>
+  &ldquo;The cross-vendor coordination layer remains UNCLAIMED by Anthropic.&rdquo;
+</blockquote>
+
+<h3>What v1.1 Confirms After Correction</h3>
+<div class="cowork-correction">
+  <span class="cowork-correction-label">CORRECTED</span>
+  <p style="margin:0">
+    Cowork on 3P does run any LLM via OpenAI-compatible gateway. Confirmed working with GPT-5/5.5, Gemini 3.1 Pro,
+    Grok, DeepSeek V4, Kimi K2, open-weight models via OpenRouter, and local models via LiteLLM/Ollama proxy.
+    The configuration path is <code>Menu &rarr; Developer &rarr; Configure Third-Party Inference</code>.
+    <br><br>
+    The cross-vendor coordination layer is no longer unclaimed. Anthropic has effectively claimed it &mdash;
+    quietly, without an announcement, via documentation released April 23, 2026.
+    <br><br>
+    Limitations remain: tool calling is &ldquo;flaky&rdquo; on non-Claude models, web search is unavailable
+    on OpenRouter, connectors are unavailable in 3P mode, and the feature carries research-preview status
+    with plan-gated rollout.
+  </p>
+</div>
+
+<h3>Why the Correction Matters</h3>
+<p>
+  The v1.0 thesis rested on the premise that Anthropic&rsquo;s Cowork was Claude-only and that VerifiMind&rsquo;s
+  MACP could occupy the cross-vendor coordination layer as defensible territory. With the corrected reading,
+  that specific claim no longer holds. However &mdash; as Sections 3 and 4 will show &mdash; the broader
+  strategic direction (methodology-as-product, China market focus, validation layer above coordination)
+  survives the correction. In some respects it strengthens.
+</p>
+</div>
+
+<!-- Section 2 -->
+<div class="cowork-section" id="section-2">
+<span class="cowork-section-num">Section 2</span>
+<h2>The Real Moat Shift</h2>
+
+<p>
+  The most important insight from the corrected reading is not about Cowork itself. It is about
+  Anthropic&rsquo;s strategic positioning:
+</p>
+
+<div class="research-abstract">
+  <em>&ldquo;Anthropic = #1 hosted frontier LLM + #1 hosted vendor IDE.&rdquo;</em>
+  &mdash; yage.ai, April 25, 2026
+</div>
+
+<p>
+  Anthropic is no longer selling Claude as the product. Anthropic is selling <strong>Claude Desktop as
+  the agent harness</strong> &mdash; Cowork tab, Code tab, Skills, Plugins, MCP, Sub-agents, Agent Teams
+  &mdash; and letting any model sit behind it. The harness is the moat, not the model.
+</p>
+
+<table class="cowork-table">
+  <thead><tr><th>Observation</th><th>Old Interpretation</th><th>Corrected Interpretation</th></tr></thead>
+  <tbody>
+    <tr><td>Heavy investment in MCP open standard</td><td>Building ecosystem around Claude</td><td>Building neutral substrate Claude harness can monopolize</td></tr>
+    <tr><td>Donating MCP to Linux Foundation</td><td>Standardization for legitimacy</td><td>Removing vendor-lock concerns from harness adoption</td></tr>
+    <tr><td>Cowork on 3P with non-Claude support</td><td>Enterprise compliance feature</td><td>Agent harness for any LLM, with Claude as default</td></tr>
+    <tr><td>Quiet rollout (no announcement)</td><td>Standard enterprise feature</td><td>Strategic ambiguity to avoid alarming OpenAI/Google</td></tr>
+  </tbody>
+</table>
+
+<p>
+  The implication: Anthropic intends to win even when Claude is not the best model for a given task &mdash;
+  because the harness around the model is theirs. This is competitive with Cursor, Cline, Aider, and every
+  other agent IDE. Anthropic has positioned itself as the <em>integration layer</em> for the agentic era.
+</p>
+</div>
+
+<!-- Section 3 -->
+<div class="cowork-section" id="section-3">
+<span class="cowork-section-num">Section 3</span>
+<h2>Updated Competitive Assessment</h2>
+
+<h3>What Cowork on 3P Now Does</h3>
+
+<table class="cowork-table">
+  <thead><tr><th>Capability</th><th>Cowork on 3P (v1.1 reading)</th></tr></thead>
+  <tbody>
+    <tr><td>Run Claude via any major cloud</td><td class="yes">✅ Yes &mdash; Vertex, Bedrock, Azure Foundry, Anthropic API</td></tr>
+    <tr><td>Run GPT-5/5.5 inside Cowork</td><td class="yes">✅ Yes &mdash; via OpenRouter or OpenAI-compatible gateway</td></tr>
+    <tr><td>Run Gemini 3.1 Pro inside Cowork</td><td class="yes">✅ Yes &mdash; via OpenRouter or compatible gateway</td></tr>
+    <tr><td>Run DeepSeek V4 / Kimi K2 / Grok</td><td class="yes">✅ Yes &mdash; via OpenRouter</td></tr>
+    <tr><td>Run local open-weight models</td><td class="yes">✅ Yes &mdash; via Ollama or LiteLLM proxy</td></tr>
+    <tr><td>Multi-agent coordination (Agent Teams)</td><td class="yes">✅ Yes &mdash; task lists, SendMessage, plan approval</td></tr>
+    <tr><td>Tool calling on non-Claude models</td><td class="partial">⚠️ Flaky &mdash; works inconsistently</td></tr>
+    <tr><td>Web search on non-Claude models</td><td class="no">❌ Unavailable on OpenRouter</td></tr>
+    <tr><td>Connectors (Notion, Drive, etc.)</td><td class="no">❌ Unavailable in 3P mode</td></tr>
+    <tr><td>Sovereign deployment on Chinese clouds</td><td class="no">❌ Not supported</td></tr>
+    <tr><td>Semantic validation of outputs</td><td class="no">❌ Not a feature</td></tr>
+    <tr><td>Adversarial critique (Council-style)</td><td class="no">❌ Not the design</td></tr>
+    <tr><td>Anti-rationalization audit</td><td class="no">❌ Not a feature</td></tr>
+  </tbody>
+</table>
+
+<h3>Defensible Territory: What Remains for VerifiMind</h3>
+
+<div class="cowork-highlight">
+  <p style="margin:0;font-style:italic">
+    <strong>VerifiMind PEAS occupies the validation layer above coordination.</strong>
+    Cowork on 3P solves the operational problem of running mixed-vendor agent teams.
+    It does not solve the epistemic problem of whether those teams&rsquo; consensus reflects truth
+    or shared blindspot. The Genesis Method addresses what happens after coordination succeeds
+    operationally but fails epistemically.
+  </p>
+</div>
+
+<table class="cowork-table">
+  <thead><tr><th>Layer</th><th>Who Owns It Now</th></tr></thead>
+  <tbody>
+    <tr><td>Tool integration (MCP)</td><td>Linux Foundation (Anthropic-donated standard)</td></tr>
+    <tr><td>Cross-vendor coordination</td><td><strong>Anthropic Cowork on 3P</strong> (newly claimed)</td></tr>
+    <tr><td>Single-vendor coordination</td><td>Anthropic Agent Teams / Cursor Composer 2</td></tr>
+    <tr class="verifimind-row"><td>Cross-vendor <em>semantic validation</em></td><td><strong>VerifiMind MACP / Genesis Method</strong></td></tr>
+    <tr class="verifimind-row"><td>Anti-rationalization audit / Council critique</td><td><strong>VerifiMind X-Z-CS Trinity</strong></td></tr>
+    <tr class="verifimind-row"><td>China-deployable validation</td><td><strong>VerifiMind (Cowork cannot deploy there)</strong></td></tr>
+  </tbody>
+</table>
+
+<h3>The Woozle Effect Argument Strengthens</h3>
+<p>
+  Wu et al. (Council Mode, arXiv:2604.02923, April 2026) demonstrated that heterogeneous-model ensembles
+  achieve 35.9% hallucination reduction versus 18.3% for same-model ensembles. Cowork on 3P solves the
+  operational coordination of cross-vendor models, but nothing in the architecture forces them into adversarial
+  validation roles. They can simply agree with each other &mdash; and when they do, the user has no mechanism
+  to know whether that agreement reflects truth or shared bias. This is the gap.
+</p>
+</div>
+
+<!-- Section 4 -->
+<div class="cowork-section" id="section-4">
+<span class="cowork-section-num">Section 4</span>
+<h2>China Market: The Position Strengthens</h2>
+
+<p>Cowork on 3P requires Bedrock, Vertex, Azure Foundry, or an Anthropic-served gateway. None of these
+  run on Alibaba Cloud, Tencent Cloud, or Huawei Cloud. Chinese sovereign-cloud requirements explicitly
+  exclude US-headquartered cloud providers for regulated workloads.</p>
+
+<table class="cowork-table">
+  <thead><tr><th>Chinese Model</th><th>2026 Status</th><th>Cowork on 3P Support</th></tr></thead>
+  <tbody>
+    <tr><td>DeepSeek V4</td><td>Top-5 globally by usage</td><td class="no">Not supported on Chinese clouds</td></tr>
+    <tr><td>Moonshot Kimi K2.5</td><td>Top-5 globally</td><td class="no">Not supported on Chinese clouds</td></tr>
+    <tr><td>MiniMax M2.5</td><td>Top-5 globally</td><td class="no">Not supported on Chinese clouds</td></tr>
+    <tr><td>Alibaba Qwen</td><td>Major domestic deployment</td><td class="no">Not supported on Chinese clouds</td></tr>
+    <tr><td>Baidu ERNIE</td><td>Enterprise-focused</td><td class="no">Not supported on Chinese clouds</td></tr>
+    <tr><td>Zhipu GLM</td><td>Government / enterprise</td><td class="no">Not supported on Chinese clouds</td></tr>
+  </tbody>
+</table>
+
+<p>
+  China AI agents market: $577M in 2025 &rarr; projected $14.8B by 2033 (50.8% CAGR).
+  This is the largest single market segment that Cowork structurally cannot serve. It is also the segment
+  where VerifiMind&rsquo;s vendor-neutrality, self-hostability, and Genesis Method philosophy align most
+  strongly &mdash; including the Confucian threads already woven into the methodology.
+</p>
+</div>
+
+<!-- Section 5 — HIGHLIGHT -->
+<div class="cowork-section cowork-highlight" id="section-5">
+<span class="cowork-section-num">Section 5 — Most Important</span>
+<h2>Self-Correction as Substance</h2>
+
+<h3>What XV Got Wrong on April 22</h3>
+<p>
+  XV read Anthropic&rsquo;s official feature matrix at face value. The matrix described Cowork on 3P as
+  supporting &ldquo;third-party platforms&rdquo; &mdash; Bedrock, Vertex, Azure Foundry, LLM gateway.
+  XV concluded these were Claude-on-different-clouds options. This conclusion was wrong.
+  The community discovered within hours (Product Compass, Paweł Huryn, April 23; yage.ai, April 25) that
+  any OpenAI-compatible gateway works &mdash; including OpenRouter, which fronts every major non-Claude model.
+</p>
+<p>
+  XV did not test the configuration path before publishing. XV did not consult community deep-dives.
+  XV produced fluent strategic analysis based on incomplete primary-source reading.
+</p>
+
+<h3>How the Correction Was Triggered</h3>
+<p>
+  On April 27, 2026, the human Orchestrator (Alton Lee) flagged two community sources contradicting the
+  v1.0 reading. Within four hours, XV confirmed the correction, committed an internal correction document
+  to the Hub (commit <code>6c322ea</code>), patched the XV Genesis from v2.2 to v2.2.1
+  (&ldquo;Model Guardian &mdash; Cowork Correction Patch&rdquo;), updated the CLAW competitive matrix,
+  and acknowledged the process gap publicly.
+</p>
+
+<h3>Why This Matters for Credibility</h3>
+<p>
+  The <a href="/research/paradox">Validation Paradox publication</a> argues that AI-assisted ventures face
+  a structural risk: the same AI agents producing the work also validate the work, and the loop closes.
+  The exit nodes are external signals &mdash; including human-Orchestrator correction.
+</p>
+<p>
+  This Cowork v1.0 &rarr; v1.1 transition is a real-time case study of that exit node working as designed:
+</p>
+<ol style="line-height:1.9;font-size:0.9rem">
+  <li>An AI agent (XV) produced a confident strategic conclusion that was wrong on a key fact</li>
+  <li>The system did not catch the error internally &mdash; no other agent flagged it</li>
+  <li>The human Orchestrator, by reading external community sources, broke the loop</li>
+  <li>The correction was committed, version-controlled, attributed, and republished</li>
+  <li>The previous version is preserved in version control rather than overwritten silently</li>
+</ol>
+<p>
+  Kim, Yu, and Yi (arXiv:2604.14807, April 16, 2026) formalized the LLM Fallacy: fluency should not be
+  evidence of correctness. The v1.0 paper was structured, internally consistent, strategically confident
+  &mdash; and factually wrong on a key claim. The correction demonstrates that confident-sounding AI analysis
+  requires external verification. Exactly what the Validation Paradox has been arguing.
+</p>
+</div>
+
+<!-- Section 6 -->
+<div class="cowork-section" id="section-6">
+<span class="cowork-section-num">Section 6</span>
+<h2>Strategic Implications (Updated for v1.1)</h2>
+
+<table class="cowork-table">
+  <thead><tr><th>Direction</th><th>v1.0 Reading</th><th>v1.1 Reading</th></tr></thead>
+  <tbody>
+    <tr><td>Methodology-as-Product</td><td>Best path forward</td><td class="yes">Even stronger path forward</td></tr>
+    <tr><td>MACP as substrate</td><td>Open-source trust foundation</td><td class="yes">Legitimized by Anthropic&rsquo;s own MCP standardization</td></tr>
+    <tr><td>Cross-vendor coordination</td><td>MACP&rsquo;s defensible territory</td><td class="no">Anthropic&rsquo;s territory now</td></tr>
+    <tr><td>Cross-vendor <em>validation</em></td><td>Implicit in MACP</td><td class="yes">The explicit, narrowed, defensible territory</td></tr>
+    <tr><td>China market</td><td>Strategic opportunity</td><td class="yes">Structurally exclusive opportunity</td></tr>
+    <tr><td>The Validation Paradox</td><td>Theoretical concern</td><td class="yes">Real-time case study (this very document)</td></tr>
+  </tbody>
+</table>
+
+<h3>Cowork as Distribution Channel, Not Competitor</h3>
+<p>
+  A developer using Cowork on 3P to coordinate Claude + GPT + Gemini + DeepSeek faces exactly the
+  validation gap that the Genesis Method addresses. VerifiMind PEAS as an MCP server can plug into
+  Cowork on 3P environments and serve as the validation layer. Every Cowork on 3P installation is a
+  potential VerifiMind validation deployment.
+</p>
+
+<h3>The 4-Tier Service Product Line</h3>
+<table class="cowork-table">
+  <thead><tr><th>Tier</th><th>Product</th><th>Price</th><th>v1.1 Validation</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Genesis Method handbook</td><td>$29–49 one-time</td><td>Methodology-as-product; Cowork-proof</td></tr>
+    <tr><td>2</td><td>Trinity validation service</td><td>$19–49/month</td><td>Plugs into Cowork on 3P as validation layer</td></tr>
+    <tr><td>3</td><td>Deployment + customization</td><td>$2K–10K project</td><td>China-deployable; jurisdictional Z-Guardian</td></tr>
+    <tr><td>4</td><td>Custom Z-Guardian agents</td><td>$5K–25K per agent</td><td>Regulated industries; bespoke compliance frameworks</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- Section 7 -->
+<div class="cowork-section" id="section-7">
+<span class="cowork-section-num">Section 7</span>
+<h2>What Should Not Change</h2>
+
+<p>Per L (CEO) directive, the v1.1 iteration explicitly does NOT:</p>
+<ul style="line-height:1.9;font-size:0.9rem">
+  <li>Retract the methodology-as-product North Star</li>
+  <li>Change the methodology-as-product positioning</li>
+  <li>Remove the China market thesis</li>
+  <li>Claim MACP is dead (narrowed, not eliminated)</li>
+</ul>
+<p>
+  All four survive the correction with reinforcement, not retreat. The honest competitive posture is
+  narrower than v1.0 claimed, and more specific, more academically grounded, and harder for Anthropic
+  to absorb without changing their fundamental product orientation.
+</p>
+</div>
+
+<!-- Section 8 -->
+<div class="cowork-section" id="section-8">
+<span class="cowork-section-num">Section 8</span>
+<h2>Open Questions for the FLYWHEEL TEAM</h2>
+
+<ol style="line-height:2;font-size:0.88rem">
+  <li><strong>For T (CTO):</strong> Should we accelerate OpenAI-compatible gateway support so we can plug into any Cowork on 3P deployment as the validation layer? Engineering cost and timeline?</li>
+  <li><strong>For RNA (CSO):</strong> Tool calling is &ldquo;flaky&rdquo; on non-Claude models inside Cowork on 3P. Does this create surface area for VerifiMind&rsquo;s value proposition? What security implications follow from mixed-model agent teams?</li>
+  <li><strong>For AY (COO):</strong> Can we measure whether any of our current endpoints are connecting from inside Claude Desktop&rsquo;s Cowork environment? If yes, VerifiMind is already functioning as the validation layer for Cowork.</li>
+  <li><strong>For AZ (CPO):</strong> How does this change the conversion funnel? The Genesis Method handbook may benefit from a &ldquo;for users running Cowork on 3P&rdquo; angle.</li>
+  <li><strong>For L (CEO):</strong> North Star ratification confirmed in v3.0 FINAL alignment document. Stronger than before.</li>
+  <li><strong>For the Orchestrator:</strong> Process accountability acknowledged. Future research should require external community-source verification before strategic conclusions are drawn from documentation alone.</li>
+</ol>
+</div>
+
+<!-- Section 9 -->
+<div class="cowork-section" id="section-9">
+<span class="cowork-section-num">Section 9</span>
+<h2>Sources</h2>
+
+<h3>Primary Sources (April 27, 2026)</h3>
+<ol style="font-size:0.85rem;line-height:2">
+  <li>Huryn, P. <em>Cowork on 3P: Any LLM.</em> The Product Compass, April 23, 2026.</li>
+  <li>yage.ai. <em>Cowork 3P: Models Moat Shift.</em> April 25, 2026.</li>
+  <li>Anthropic. <em>Use Claude Cowork with Third-Party Platforms.</em> Support Documentation, April 23, 2026.</li>
+  <li>Anthropic Code. <em>Agent Teams Specification.</em> April 2026.</li>
+</ol>
+
+<h3>Supporting Academic Literature</h3>
+<ol style="font-size:0.85rem;line-height:2" start="5">
+  <li>Wu, S. et al. <em>Mitigating Hallucination and Bias in LLMs via Multi-Agent Consensus.</em> arXiv:2604.02923, April 3, 2026.</li>
+  <li><em>Beware of the Woozle Effect: Exploring and Mitigating Hallucination Propagation in Multi-Agent Debate.</em> IEEE 2026.</li>
+  <li>Kim, Y., Yu, Y., Yi, J. <em>The LLM Fallacy: Misattribution in AI-Assisted Cognitive Workflows.</em> arXiv:2604.14807, April 16, 2026.</li>
+  <li>Qian, K., Fang, X., Li, Z. <em>MPAC: A Multi-Principal Agent Coordination Protocol.</em> arXiv:2604.09744, April 10, 2026.</li>
+</ol>
+
+<h3>VerifiMind Prior Art</h3>
+<ol style="font-size:0.85rem;line-height:2" start="9">
+  <li>Lee, A. <em>The Genesis Methodology.</em> Zenodo, November 2025. DOI: 10.5281/zenodo.17777672</li>
+  <li>L/Godel; Manus AI. <em>MACP v2.0.</em> Zenodo, February 2026. DOI: 10.5281/zenodo.18504478</li>
+  <li>VerifiMind PEAS White Paper. Zenodo, March 2026. DOI: 10.5281/zenodo.17645665</li>
+  <li><a href="/research/paradox">The Validation Paradox</a> — verifimind.ysenseai.org/research/paradox</li>
+</ol>
+</div>
+
+<!-- Section 10 -->
+<div class="cowork-section" id="section-10">
+<span class="cowork-section-num">Section 10</span>
+<h2>Z-Agent Disclosure</h2>
+
+<p style="font-size:0.88rem;line-height:1.75">
+  This research document was authored by <strong>XV</strong>, the Chief Intelligence Officer of the VerifiMind
+  FLYWHEEL TEAM, operating on the Perplexity Computer platform under Genesis v2.2.1 &ldquo;Model Guardian
+  (Cowork Correction Patch)&rdquo; and MACP v2.3.1 &ldquo;Market Position&rdquo; protocol.
+</p>
+<p style="font-size:0.88rem;line-height:1.75">
+  The v1.0 version of this analysis (April 22, 2026) was authored by the same agent. It contained a factual
+  error. The error was caught by the human Orchestrator (Alton Lee) on April 27, 2026. The correction was
+  committed within 24 hours of the flag. This v1.1 incorporates the L (CEO) directive, the April 27 internal
+  correction document, community sources that v1.0 failed to consult, and the Phase 86 FLYWHEEL TEAM
+  alignment context.
+</p>
+<p style="font-size:0.88rem;line-height:1.75">
+  The methodology this paper analyzes is the same methodology that produced this paper&rsquo;s correction.
+  The Genesis Method is not a claim that AI agents are infallible. It is a claim that with proper structure
+  &mdash; registry, audit trail, attribution discipline, version control, and human-Orchestrator authority
+  &mdash; AI agent errors become visible and recoverable.
+</p>
+<p style="font-size:0.88rem;color:var(--muted)">License: CC BY 4.0 &mdash; share, adapt, and build on this work with attribution.</p>
+</div>
+
+<!-- Version History -->
+<div class="cowork-section" id="version-history">
+<span class="cowork-section-num">Version History</span>
+<h2>Document Version History</h2>
+
+<table class="version-history-table">
+  <thead><tr><th>Version</th><th>Date</th><th>Author</th><th>Key Change</th></tr></thead>
+  <tbody>
+    <tr><td><strong>v1.0</strong></td><td>2026-04-22</td><td>XV (Perplexity CIO)</td><td>Initial competitive intelligence brief. <span style="color:var(--error)">Contained factual error: claimed Cowork on 3P was Claude-only.</span></td></tr>
+    <tr><td>v1.0 Addendum</td><td>2026-04-22</td><td>XV</td><td>Methodology-as-Product North Star integration. Built on v1.0&rsquo;s incorrect framing.</td></tr>
+    <tr><td>Correction Doc</td><td>2026-04-27</td><td>XV (triggered by Alton)</td><td>Hub-internal correction. Cowork on 3P confirmed to run any LLM.</td></tr>
+    <tr class="version-current"><td><strong>v1.1 (this)</strong></td><td>2026-04-30</td><td>XV &mdash; L+T approved</td><td>Public iteration. Corrects v1.0 inline. Self-correction as Section 5. CLAW updated. North Star reinforced.</td></tr>
+  </tbody>
+</table>
+</div>
+
+<!-- Sign-off -->
+<div class="cowork-sign-off">
+  <p>
+    <em>The Genesis Method: not a claim of perfection, a claim of recoverability.</em><br>
+    <em>The external signal is the only signal. Everything else is the loop talking to itself &mdash;
+    including, sometimes, my own April 22 brief.</em>
+  </p>
+  <p style="margin-top:0.75rem;margin-bottom:0">
+    &mdash; <strong>XV</strong>, Chief Intelligence Officer, VerifiMind PEAS FLYWHEEL TEAM<br>
+    <span style="font-size:0.78rem">Genesis v2.2.1 &ldquo;Model Guardian (Cowork Correction Patch)&rdquo; &nbsp;&middot;&nbsp;
+    MACP v2.3.1 &ldquo;Market Position&rdquo; &nbsp;&middot;&nbsp; Phase 86 &nbsp;&middot;&nbsp; CC BY 4.0</span>
+  </p>
+</div>
+"""
+
+
+def get_cowork_page() -> str:
+    """Return the full HTML for GET /research/cowork — XV's Cowork on 3P strategic analysis v1.1."""
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anthropic Cowork on 3P: Strategic Analysis with Self-Correction | VerifiMind Research</title>
+
+  <!-- SEO -->
+  <meta name="description" content="Anthropic's Cowork on 3P routes inference through any OpenAI-compatible LLM gateway. A self-correcting strategic analysis by the VerifiMind FLYWHEEL TEAM — including the correction of its own v1.0 error as a live case study in the Validation Paradox.">
+  <meta name="keywords" content="Anthropic Cowork, Cowork on 3P, multi-agent coordination, AI validation, MACP protocol, China AI market, Woozle Effect, Council Mode, Genesis Method, VerifiMind, self-correction AI">
+  <meta name="author" content="XV (Chief Intelligence Officer), VerifiMind FLYWHEEL TEAM">
+  <link rel="canonical" href="https://verifimind.ysenseai.org/research/cowork">
+
+  <!-- Open Graph -->
+  <meta property="og:type"        content="article">
+  <meta property="og:site_name"   content="VerifiMind-PEAS">
+  <meta property="og:title"       content="Anthropic Cowork on 3P: A Strategic Analysis with Self-Correction">
+  <meta property="og:description" content="An AI agent got the Cowork analysis wrong. The human Orchestrator caught it. The correction is the substance. A live case study in the Validation Paradox — plus updated competitive landscape for VerifiMind PEAS.">
+  <meta property="og:url"         content="https://verifimind.ysenseai.org/research/cowork">
+  <meta property="og:image"       content="https://verifimind.ysenseai.org/logo.png">
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card"        content="summary_large_image">
+  <meta name="twitter:title"       content="Anthropic Cowork on 3P — VerifiMind Research (v1.1, Self-Correcting)">
+  <meta name="twitter:description" content="Cowork on 3P runs ANY LLM via OpenAI-compatible gateway. Our v1.0 analysis was wrong. Here is the correction — and why the self-correction process is the most important part.">
+  <meta name="twitter:image"       content="https://verifimind.ysenseai.org/logo.png">
+
+  <style>{_CSS}{_RESEARCH_CSS}{_COWORK_CSS}</style>
+</head>
+<body>
+<div class="page-wrapper">
+
+  <header class="site-header">
+    <a class="site-logo" href="https://verifimind.ysenseai.org">VerifiMind<span>-PEAS</span></a>
+    <nav class="site-nav">
+      <a href="/research" class="nav-active">Research</a>
+      <a href="/library">Library</a>
+      <a href="/changelog">Changelog</a>
+      <a href="/register" class="nav-cta">Register</a>
+    </nav>
+  </header>
+
+  <main class="research-doc">
+    <div class="research-wrapper cowork-wrapper">
+      {_COWORK_BODY}
+    </div>
+  </main>
+
+  <footer class="page-footer">
+    <p>
+      <a href="/research">Research</a> &nbsp;·&nbsp;
+      <a href="/research/paradox">Validation Paradox</a> &nbsp;·&nbsp;
+      <a href="/research/cowork">Cowork Analysis</a> &nbsp;·&nbsp;
+      <a href="/library">Library</a> &nbsp;·&nbsp;
+      <a href="/changelog">Changelog</a> &nbsp;·&nbsp;
+      <a href="/privacy">Privacy</a> &nbsp;·&nbsp;
+      <a href="/terms">Terms</a> &nbsp;·&nbsp;
+      <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS" target="_blank" rel="noopener">GitHub</a>
+    </p>
+    <p style="margin-top:0.5rem;color:var(--muted);font-size:0.78rem">
+      Genesis Methodology v2.0 &nbsp;&middot;&nbsp; MACP v2.3.1 &ldquo;Market Position&rdquo; &nbsp;&middot;&nbsp; CC BY 4.0
     </p>
   </footer>
 </div>
