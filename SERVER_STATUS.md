@@ -8,7 +8,7 @@
 
 **v0.5.26 "Scanner Block + HTTP Compliance" deployed successfully on May 6, 2026**
 
-The VerifiMind MCP server is fully operational. All security gates passed. GCP revision pending.
+The VerifiMind MCP server is fully operational. All security gates passed. GCP revision `verifimind-mcp-server-00397-65k`.
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination)
 - **Scanner Block + HTTP Compliance (v0.5.26)**: `54.67.34.241` (AWS EC2 us-west-1 unauthorized prober, 96 hits/2d) added to IP blocklist; HEAD `/mcp/` fixed — returns 200 with proper headers (was 405)
@@ -42,7 +42,7 @@ The VerifiMind MCP server is fully operational. All security gates passed. GCP r
 | **Endpoint** | `https://verifimind.ysenseai.org/mcp` |
 | **Health Check** | `https://verifimind.ysenseai.org/health` |
 | **Register** | `https://verifimind.ysenseai.org/register` |
-| **Server Version** | 0.5.25 "Health Transparency" (deployed May 1, 2026) |
+| **Server Version** | 0.5.26 "Scanner Block + HTTP Compliance" (deployed May 6, 2026) |
 | **Transport** | Streamable HTTP (SSE) |
 | **Default Provider** | Gemini 2.5 Flash (FREE) / Groq Llama 3.3 (FREE fallback) |
 | **BYOK Providers** | Gemini, Groq, Cerebras (FREE), OpenAI, Anthropic, Mistral, Ollama |
