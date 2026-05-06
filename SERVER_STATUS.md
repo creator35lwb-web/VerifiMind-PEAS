@@ -6,9 +6,9 @@
 
 ## Current Status: Operational
 
-**v0.5.26 "Scanner Block + HTTP Compliance" deployed successfully on May 6, 2026**
+**v0.5.26 "Scanner Block + HTTP Compliance" — SonarQube patch deployed May 7, 2026**
 
-The VerifiMind MCP server is fully operational. All security gates passed. GCP revision `verifimind-mcp-server-00397-65k`.
+The VerifiMind MCP server is fully operational. All security gates passed. GCP revision `verifimind-mcp-server-00406-n8b`.
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination)
 - **Scanner Block + HTTP Compliance (v0.5.26)**: `54.67.34.241` (AWS EC2 us-west-1 unauthorized prober, 96 hits/2d) added to IP blocklist; HEAD `/mcp/` fixed — returns 200 with proper headers (was 405)
