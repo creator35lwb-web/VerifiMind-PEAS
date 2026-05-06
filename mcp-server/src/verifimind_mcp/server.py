@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 _RAW_SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.5.25"
+SERVER_VERSION = "0.5.26"
 
 # Mock mode transparency — shown in every tool response when no real inference is available
 MOCK_MODE_WARNING = (

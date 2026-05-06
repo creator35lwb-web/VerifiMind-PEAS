@@ -1799,12 +1799,21 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 _CHANGELOG_BODY = """
 <h1>Changelog</h1>
 <div class="meta">
-  <span>Last updated: May 1, 2026 (v0.5.25)</span>
+  <span>Last updated: May 6, 2026 (v0.5.26)</span>
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
 </div>
 
+<div id="v0.5.26">
+<h2>v0.5.26 — Scanner Block + HTTP Compliance <span class="live-badge">LIVE</span></h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">May 6, 2026</p>
+<ul>
+  <li><strong>IP Blocked:</strong> <code>54.67.34.241</code> — unauthorized AWS EC2 MCP prober (96 hits over 2 days, ~35-min interval, no User-Agent); added to blocklist with <code>UNAUTHORIZED_SCANNER</code> reason</li>
+  <li><strong>HEAD /mcp/ fix</strong> — added explicit HEAD handler returning 200; previously returned 405 Method Not Allowed (HTTP compliance gap in Mount routing)</li>
+</ul>
+</div>
+
 <div id="v0.5.25">
-<h2>v0.5.25 — Health Transparency <span class="live-badge">LIVE</span></h2>
+<h2>v0.5.25 — Health Transparency</h2>
 <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">May 1, 2026</p>
 <ul>
   <li><strong>inference_mode in /health</strong> — <code>"live"</code> / <code>"degraded"</code> / <code>"mock"</code> field added; resolves 9-day mock-mode blindspot from env var wipe incident; AY monitoring and GCP uptime checks can now detect inference state changes in real time</li>
