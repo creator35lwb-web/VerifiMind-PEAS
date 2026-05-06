@@ -1,16 +1,17 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** May 1, 2026
+**Last Updated:** May 6, 2026
 
 ---
 
 ## Current Status: Operational
 
-**v0.5.25 "Health Transparency" deployed successfully on May 1, 2026**
+**v0.5.26 "Scanner Block + HTTP Compliance" deployed successfully on May 6, 2026**
 
-The VerifiMind MCP server is fully operational. All security gates passed. GCP revision `verifimind-mcp-server-00395-762`.
+The VerifiMind MCP server is fully operational. All security gates passed. GCP revision pending.
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination)
+- **Scanner Block + HTTP Compliance (v0.5.26)**: `54.67.34.241` (AWS EC2 us-west-1 unauthorized prober, 96 hits/2d) added to IP blocklist; HEAD `/mcp/` fixed — returns 200 with proper headers (was 405)
 - **Health Transparency (v0.5.25)**: `/health` now reports `inference_mode` — `"live"` / `"degraded"` / `"mock"` — resolves 9-day mock-mode blindspot; AY monitoring and GCP uptime checks can now detect env var wipe immediately
 - **Cowork Research (v0.5.24)**: XV's strategic analysis of Anthropic Cowork on 3P published at `/research/cowork` — 10 sections, self-correction as Section 5 (real-time Validation Paradox case study), L (CEO) approved; 4-pill research nav across all pages
 - **BYOK Hardening (v0.5.23)**: All 7 providers audited — Cerebras key prefix fix (`csk-`), model update (`llama-3.3-70b`), Anthropic JSON fence stripping, Mistral package added, mock transparency (`_warning` field, `"synthetic"` overall_quality)
@@ -96,6 +97,7 @@ The VerifiMind MCP server is fully operational. All security gates passed. GCP r
 
 | Date | Action | Version | Status |
 |------|--------|---------|--------|
+| May 6, 2026 | IP block 54.67.34.241 (unauthorized AWS scanner); HEAD /mcp/ 405→200 fix | v0.5.26 | Complete |
 | May 1, 2026 | inference_mode in /health — live/degraded/mock; resolves 9-day mock-mode blindspot | v0.5.25 | Complete |
 | Apr 30, 2026 | IP Blocklist middleware — 3 rogue IPs blocked (T Security Directive), [IP_BLOCKED]/[UA_BLOCKED] audit logging | v0.5.22 | Complete |
 | Apr 30, 2026 | P0 Tool Manifest Audit — all 13 tools in mcp-config + Smithery; structured [TOOL_NOT_FOUND] logging | v0.5.21 | Complete |

@@ -31,6 +31,8 @@ BLOCKED_IPS: list[tuple[str, str, str, str]] = [
     ("35.161.55.221", "CONTENT_SCRAPER", "2026-04-27", "T_CTO"),
     # Unauthorized MCP Scanner — YellowMCP, no consent given, Hostinger NL (IPv6)
     ("2a02:4780:4:2ad9::1", "UNAUTHORIZED_SCANNER", "2026-04-27", "T_CTO"),
+    # Unauthorized MCP Prober — AWS EC2 us-west-1, no UA, 35-min interval HEAD/POST scan (2d, 96 hits)
+    ("54.67.34.241", "UNAUTHORIZED_SCANNER", "2026-05-06", "RNA_CSO"),
 ]
 
 # Blocked User-Agent substrings (case-insensitive substring match)

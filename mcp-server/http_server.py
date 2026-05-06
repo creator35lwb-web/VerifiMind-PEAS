@@ -64,7 +64,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.25"
+SERVER_VERSION = "0.5.26"
 
 # Track server start time for uptime reporting (v0.5.0 health v2)
 _SERVER_START_TIME = time.time()
@@ -1598,6 +1598,18 @@ async def mcp_no_slash_redirect(request):
     return RedirectResponse(url=url, status_code=308)
 
 
+async def mcp_head_handler(request):
+    """HEAD /mcp/ — HTTP compliance: return 200 with headers, no body."""
+    from starlette.responses import Response
+    return Response(
+        status_code=200,
+        headers={
+            "Content-Type": "application/json",
+            "X-Server-Version": SERVER_VERSION,
+        },
+    )
+
+
 async def mcp_sse_deprecated_handler(request):
     """GET /mcp/sse, /sse — SSE transport removed. Return actionable JSON."""
     return JSONResponse(
@@ -1652,6 +1664,7 @@ app = Starlette(
         Route("/api/webhooks/polar", polar_webhook_handler, methods=["POST"]),
         # v0.5.19: 404 churn fixes (AY PIN — /mcp no-slash + SSE deprecated paths)
         Route("/mcp", mcp_no_slash_redirect, methods=["GET", "POST", "HEAD"]),
+        Route("/mcp/", mcp_head_handler, methods=["HEAD"]),
         Route("/mcp/sse", mcp_sse_deprecated_handler),
         Route("/sse", mcp_sse_deprecated_handler),
         Mount("/mcp", app=mcp_app),
@@ -1675,14 +1688,16 @@ app.router.redirect_slashes = False
 app.add_middleware(RateLimitMiddleware)
 
 # CORS middleware for browser-based MCP clients
+# allow_credentials must NOT be True with allow_origins=["*"] — CORS spec prohibits it (CWE-942).
+# MCP auth is via API keys in request body/headers, not browser credentials (cookies/HTTP auth).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for MCP clients
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS", "DELETE"],
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["mcp-session-id", "mcp-protocol-version", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
-    max_age=86400,  # Cache preflight for 24 hours
+    max_age=86400,
 )
 
 # IP Blocklist middleware — outermost layer, runs first

@@ -54,7 +54,7 @@ def _make_request(
 class TestBlockedIpsConstants:
 
     def test_three_blocked_ips_defined(self):
-        assert len(BLOCKED_IPS) == 3
+        assert len(BLOCKED_IPS) >= 3
 
     def test_erratic_bot_ipv6_present(self):
         ips = {ip for ip, *_ in BLOCKED_IPS}

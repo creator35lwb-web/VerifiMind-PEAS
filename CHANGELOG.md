@@ -6,6 +6,18 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.26 - Scanner Block + HTTP Compliance (May 6, 2026)
+
+Security hardening: blocked new unauthorized AWS scanner, fixed HEAD method compliance on `/mcp/`.
+
+### Security
+- **IP Blocked:** `54.67.34.241` (AWS EC2 us-west-1) — unauthorized MCP prober, no User-Agent, ~35-min interval HEAD/POST scan, 96 hits over 2 days; added to IP blocklist with `UNAUTHORIZED_SCANNER` reason code
+
+### HTTP Compliance Fix
+- **HEAD `/mcp/`** — added explicit HEAD handler returning 200 with `Content-Type` and `X-Server-Version` headers; previously returned 405 (Method Not Allowed) because the MCP Mount does not register HEAD
+
+---
+
 ## v0.5.25 - Health Transparency (May 1, 2026)
 
 Operational monitoring improvement: `/health` endpoint now reports `inference_mode` — surfaces live vs mock vs degraded inference state in real time.
