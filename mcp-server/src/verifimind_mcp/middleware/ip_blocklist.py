@@ -24,17 +24,15 @@ logger = logging.getLogger(__name__)
 
 # Blocked IPs — updated by T (CTO) + AY (COO) forensic scans
 # Format: (ip_address, reason_code, date_added, added_by)
-# NOSONAR(python:S1313): these are intentional security controls (attacker IPs),
-# not hardcoded connection endpoints. Git history is the audit trail.
 BLOCKED_IPS: list[tuple[str, str, str, str]] = [
     # Erratic Node Bot — 454 req/day, 63% error rate, AWS us-east-1 (IPv6)
-    ("2600:1f18:5a5b:3400:2f1e:c9d2:567b:76bc", "ERRATIC_BOT", "2026-04-27", "T_CTO"),  # NOSONAR(python:S1313)
-    # Content Scraper — AbuseIPDB + VirusTotal flagged, AWS us-west-2
-    ("35.161.55.221", "CONTENT_SCRAPER", "2026-04-27", "T_CTO"),  # NOSONAR(python:S1313)
+    ("2600:1f18:5a5b:3400:2f1e:c9d2:567b:76bc", "ERRATIC_BOT", "2026-04-27", "T_CTO"),
+    # Content Scraper — 2,007 AbuseIPDB reports, VirusTotal flagged, AWS us-west-2
+    ("35.161.55.221", "CONTENT_SCRAPER", "2026-04-27", "T_CTO"),
     # Unauthorized MCP Scanner — YellowMCP, no consent given, Hostinger NL (IPv6)
-    ("2a02:4780:4:2ad9::1", "UNAUTHORIZED_SCANNER", "2026-04-27", "T_CTO"),  # NOSONAR(python:S1313)
-    # Unauthorized MCP Prober — AWS EC2 us-west-1, no UA, repeated HEAD/POST scan
-    ("54.67.34.241", "UNAUTHORIZED_SCANNER", "2026-05-06", "RNA_CSO"),  # NOSONAR(python:S1313)
+    ("2a02:4780:4:2ad9::1", "UNAUTHORIZED_SCANNER", "2026-04-27", "T_CTO"),
+    # Unauthorized MCP Prober — AWS EC2 us-west-1, no UA, 35-min interval HEAD/POST scan (2d, 96 hits)
+    ("54.67.34.241", "UNAUTHORIZED_SCANNER", "2026-05-06", "RNA_CSO"),
 ]
 
 # Blocked User-Agent substrings (case-insensitive substring match)
