@@ -37,45 +37,29 @@ logger = logging.getLogger(__name__)
 
 
 def strip_markdown_code_fences(text: str) -> str:
-    """
-    Strip markdown code fences from LLM responses.
-
-    Many LLMs wrap JSON output in markdown code blocks like:
-    ```json
-    {...}
-    ```
-
-    This function removes those fences to get clean JSON.
-    Handles cases where text appears before/after the code fence.
-    """
-    import re
+    """Strip markdown code fences from LLM responses to extract clean JSON."""
     text = text.strip()
+    lines = text.splitlines()
 
-    # Method 1: Extract content from ANY code fence in the text (not just at start)
-    # This handles "Here is the analysis:\n```json\n{...}\n```"
-    fence_pattern = r'```(?:json|JSON)?\s*\n([\s\S]*?)\n```'
-    fence_match = re.search(fence_pattern, text)
-    if fence_match:
-        return fence_match.group(1).strip()
+    # Find the first line that opens a code fence (e.g. ```json, ```JSON, ```)
+    open_idx = None
+    for i, line in enumerate(lines):
+        if line.strip().startswith('```'):
+            open_idx = i
+            break
 
-    # Method 2: Full fence pattern (strict match — text IS the fence)
-    pattern = r'^```(?:json|JSON)?\s*\n?([\s\S]*?)\n?```\s*$'
-    match = re.match(pattern, text)
-    if match:
-        return match.group(1).strip()
+    if open_idx is None:
+        return text
 
-    # Method 3: Remove leading fence and trailing fence separately
-    if text.startswith('```'):
-        first_newline = text.find('\n')
-        if first_newline != -1:
-            text = text[first_newline + 1:]
-        else:
-            text = re.sub(r'^```(?:json|JSON)?\s*', '', text)
+    # Find the matching closing fence (search backwards so nested fences work)
+    close_idx = None
+    for i in range(len(lines) - 1, open_idx, -1):
+        if lines[i].strip() == '```':
+            close_idx = i
+            break
 
-    if text.rstrip().endswith('```'):
-        text = re.sub(r'\n?```\s*$', '', text)
-
-    return text.strip()
+    content = lines[open_idx + 1 : close_idx] if close_idx is not None else lines[open_idx + 1:]
+    return '\n'.join(content).strip()
 
 
 # ============================================================================
