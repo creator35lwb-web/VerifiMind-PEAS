@@ -1688,14 +1688,16 @@ app.router.redirect_slashes = False
 app.add_middleware(RateLimitMiddleware)
 
 # CORS middleware for browser-based MCP clients
+# allow_credentials must NOT be True with allow_origins=["*"] — CORS spec prohibits it (CWE-942).
+# MCP auth is via API keys in request body/headers, not browser credentials (cookies/HTTP auth).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for MCP clients
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS", "DELETE"],
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["mcp-session-id", "mcp-protocol-version", "X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
-    max_age=86400,  # Cache preflight for 24 hours
+    max_age=86400,
 )
 
 # IP Blocklist middleware — outermost layer, runs first
