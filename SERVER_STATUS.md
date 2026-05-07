@@ -1,16 +1,17 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** May 6, 2026
+**Last Updated:** May 7, 2026
 
 ---
 
 ## Current Status: Operational
 
-**v0.5.26 "Scanner Block + HTTP Compliance" — SonarQube patch deployed May 7, 2026**
+**v0.5.26 "Scanner Block + HTTP Compliance" — SSRF patch deployed May 7, 2026**
 
-The VerifiMind MCP server is fully operational. All security gates passed. GCP revision `verifimind-mcp-server-00406-n8b`.
+The VerifiMind MCP server is fully operational. All security gates passed. GCP revision `verifimind-mcp-server-00407-72z`.
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination)
+- **SSRF Scanner Block (v0.5.26 patch)**: `195.178.110.157` (AS48090 Techoff SRV; 90-req scan, 18 SSRF probes targeting cloud IMDS) added as 5th IP blocklist entry — May 7, 2026
 - **Scanner Block + HTTP Compliance (v0.5.26)**: `54.67.34.241` (AWS EC2 us-west-1 unauthorized prober, 96 hits/2d) added to IP blocklist; HEAD `/mcp/` fixed — returns 200 with proper headers (was 405)
 - **Health Transparency (v0.5.25)**: `/health` now reports `inference_mode` — `"live"` / `"degraded"` / `"mock"` — resolves 9-day mock-mode blindspot; AY monitoring and GCP uptime checks can now detect env var wipe immediately
 - **Cowork Research (v0.5.24)**: XV's strategic analysis of Anthropic Cowork on 3P published at `/research/cowork` — 10 sections, self-correction as Section 5 (real-time Validation Paradox case study), L (CEO) approved; 4-pill research nav across all pages
