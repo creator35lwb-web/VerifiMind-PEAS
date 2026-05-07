@@ -37,7 +37,22 @@ class TestScannerIPBlock:
 
     def test_total_blocked_ips_is_four(self):
         from verifimind_mcp.middleware.ip_blocklist import BLOCKED_IPS
-        assert len(BLOCKED_IPS) == 4
+        assert len(BLOCKED_IPS) >= 4
+
+    def test_ssrf_scanner_ip_in_blocklist(self):
+        from verifimind_mcp.middleware.ip_blocklist import BLOCKED_IPS
+        blocked = [ip for ip, *_ in BLOCKED_IPS]
+        assert "195.178.110.157" in blocked
+
+    def test_ssrf_scanner_ip_reason(self):
+        from verifimind_mcp.middleware.ip_blocklist import BLOCKED_IPS
+        entry = next((e for e in BLOCKED_IPS if e[0] == "195.178.110.157"), None)
+        assert entry is not None
+        assert entry[1] == "SSRF_SCANNER"
+
+    def test_ssrf_scanner_ip_in_blocked_set(self):
+        from verifimind_mcp.middleware.ip_blocklist import _BLOCKED_IP_SET
+        assert "195.178.110.157" in _BLOCKED_IP_SET
 
 
 class TestMcpHeadHandler:
