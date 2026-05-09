@@ -1,16 +1,17 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** May 7, 2026
+**Last Updated:** May 10, 2026
 
 ---
 
 ## Current Status: Operational
 
-**v0.5.26 "Scanner Block + HTTP Compliance" — SSRF patch deployed May 7, 2026**
+**v0.5.27 "Version Alignment" — credibility fix deployed May 10, 2026**
 
-The VerifiMind MCP server is fully operational. All security gates passed. GCP revision `verifimind-mcp-server-00407-72z`.
+The VerifiMind MCP server is fully operational. All security gates passed. GCP revision `verifimind-mcp-server-00407-72z` (will be bumped on v0.5.27 deploy).
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination)
+- **Version Alignment (v0.5.27)**: `/mcp/` `serverInfo.version` now reports application version (0.5.27) instead of FastMCP library version (3.2.4); all four version-reporting surfaces consistent. P0 credibility fix per External Model Council review (Claude Opus 4.7 + GPT-5.5 + Gemini 3.1 Pro) — May 10, 2026
 - **SSRF Scanner Block (v0.5.26 patch)**: `195.178.110.157` (AS48090 Techoff SRV; 90-req scan, 18 SSRF probes targeting cloud IMDS) added as 5th IP blocklist entry — May 7, 2026
 - **Scanner Block + HTTP Compliance (v0.5.26)**: `54.67.34.241` (AWS EC2 us-west-1 unauthorized prober, 96 hits/2d) added to IP blocklist; HEAD `/mcp/` fixed — returns 200 with proper headers (was 405)
 - **Health Transparency (v0.5.25)**: `/health` now reports `inference_mode` — `"live"` / `"degraded"` / `"mock"` — resolves 9-day mock-mode blindspot; AY monitoring and GCP uptime checks can now detect env var wipe immediately
@@ -43,7 +44,7 @@ The VerifiMind MCP server is fully operational. All security gates passed. GCP r
 | **Endpoint** | `https://verifimind.ysenseai.org/mcp` |
 | **Health Check** | `https://verifimind.ysenseai.org/health` |
 | **Register** | `https://verifimind.ysenseai.org/register` |
-| **Server Version** | 0.5.26 "Scanner Block + HTTP Compliance" (deployed May 6, 2026) |
+| **Server Version** | 0.5.27 "Version Alignment" (deployed May 10, 2026) |
 | **Transport** | Streamable HTTP (SSE) |
 | **Default Provider** | Gemini 2.5 Flash (FREE) / Groq Llama 3.3 (FREE fallback) |
 | **BYOK Providers** | Gemini, Groq, Cerebras (FREE), OpenAI, Anthropic, Mistral, Ollama |
