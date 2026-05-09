@@ -11,10 +11,10 @@
 
   > **Evolution of PEAS:** v1.x (2024): *Prompt Engineering Application Synthesis* (Zenodo DOI — immutable) · v2.x–v4.x (2025): *Prompt Engineering & AI Standardization* (Genesis Methodology era) · **v5.x (2026): *Prompt Engineering Agents Standardization* — current canonical** — AI Council vote 3/4 APPROVE (Apr 10, 2026)
 
-  [![Version](https://img.shields.io/badge/version-v0.5.20-blue.svg)](CHANGELOG.md)
+  [![Version](https://img.shields.io/badge/version-v0.5.27-blue.svg)](CHANGELOG.md)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Status](https://img.shields.io/badge/status-Operational-success.svg)](SERVER_STATUS.md)
-  [![MACP](https://img.shields.io/badge/MACP-v2.2%20%22Identity%22-blueviolet)](https://doi.org/10.5281/zenodo.18504478)
+  [![MACP](https://img.shields.io/badge/MACP-v2.3.1%20%22Market%20Position%22-blueviolet)](https://doi.org/10.5281/zenodo.18504478)
   [![Genesis v2.0 DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17972751.svg)](https://doi.org/10.5281/zenodo.17972751)
   [![MACP & LEP DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18504478.svg)](https://doi.org/10.5281/zenodo.18504478)
 
@@ -31,7 +31,7 @@
 
 ## MCP Server: Production Deployed
 
-> **v0.5.20 "Enhanced Foundation"** — **Root Page UX** + **BYOK v0.4.0** (Cerebras support) + **BYOK Guide P0 Fix** | UUID Tier-Aware Rate Limiting (Anonymous 10/60s · Scholar 30/60s · Pioneer 100/60s) | Scholar Dashboard (`/early-adopters/dashboard/{uuid}`) | UUID Header Auto-Flow | 404 Churn Eliminated | Research Library v1.0 (20+ papers at `/library`) | MACP v2.3.1 "Market Position" | 589 tests | 99+ weekly COO reports | 2,400+ unique endpoints. [Health Check](https://verifimind.ysenseai.org/health) | [Changelog](https://verifimind.ysenseai.org/changelog) | [Register](https://verifimind.ysenseai.org/register) | [Pioneer Tier](https://verifimind.ysenseai.org/terms)
+> **v0.5.27 "Version Alignment"** (May 10, 2026) — credibility fix per External Model Council review (Claude Opus 4.7 + GPT-5.5 + Gemini 3.1 Pro): all four version-reporting surfaces now consistent. **Multi-vendor BYOK** (7 providers: Gemini, Claude, GPT, Groq, Cerebras, Mistral, Ollama) | **UUID Tier-Aware Rate Limiting** (Anonymous 10/60s · Scholar 30/60s · Pioneer 100/60s) | **Inference Mode Health Transparency** (`/health` reports `live` / `degraded` / `mock`) | **Scanner Block + IP/UA Blocklist** (v0.5.22, v0.5.26 hardening) | **Scholar Dashboard** (`/early-adopters/dashboard/{uuid}`) | MACP **v2.3.1 "Market Position"** | Genesis **v5.0 "Convergence"** | **Core Tools Always Free pledge** ratified May 9, 2026 (full free-tools refactor lands v0.5.28+). [Health Check](https://verifimind.ysenseai.org/health) | [Changelog](https://verifimind.ysenseai.org/changelog) | [Register](https://verifimind.ysenseai.org/register)
 
 VerifiMind PEAS is now **live and accessible** across multiple platforms:
 
@@ -421,7 +421,7 @@ The standardization phase generated **57 complete Trinity validation reports** a
 | **Trinity Quality** | `_overall_quality: "full"` | All agents returning real inference (v0.4.4+) |
 | **Total Users** | 1,480+ | Unique users (Phase 55, bot sessions deduplicated) |
 | **Tests** | 290 | Comprehensive test suite with CI/CD pipeline |
-| **MACP Version** | v2.2 "Identity" | Human-orchestrated multi-agent coordination protocol |
+| **MACP Version** | v2.3.1 "Market Position" | Human-orchestrated multi-agent coordination protocol |
 | **Weekly Reports** | 62 (automated) | COO AY GCP log-based analytics reports |
 | **FLYWHEEL Handoffs** | 55+ | Structured session handoffs across all agents |
 | **EA Registration** | [Live](https://verifimind.ysenseai.org/register) | Consent-first Z-Protocol design |
@@ -1027,9 +1027,9 @@ We welcome contributions from the community!
 
 **Current Phase**: Phase 7 — Protocol Announcement & v0.6.0 (Q1–Q2 2026)
 
-**Status**: Phases 1–6 COMPLETE ✅ | v0.5.20 DEPLOYED 🎉 | v0.6.0-Beta IN PREPARATION
+**Status**: Phases 1–6 COMPLETE ✅ | v0.5.27 DEPLOYED 🎉 | v0.6.0-Beta IN PREPARATION
 
-**North Star**: Position VerifiMind-PEAS as the **trust and verification layer for the emerging Agentic Web**.
+**North Star**: The **best opinionated MCP server for structured multi-LLM critique** — productize the multi-judge LLM evaluation pattern (prior art: ChatEval, MAJ-EVAL, HELM, Inspect) with three specialized judges (Innovation / Ethics / Security), exposed via MCP for direct use in developer workflows. Multi-vendor by design. Honest about what we are.
 
 ### **Phase 1–4: Foundation** ✅ COMPLETE
 
@@ -1235,11 +1235,11 @@ GitHub provides automatic citation support. Click the **"Cite this repository"**
 
 ### **Release Information**
 
-**VerifiMind-PEAS MCP Server v0.5.6** (Current):
-- **Release Date**: March 23, 2026
-- **Highlights**: Gateway — EA Registration, Privacy Policy v1.0, T&C v1.0, Phase 55 metrics, 290 tests
+**VerifiMind-PEAS MCP Server v0.5.27** (Current):
+- **Release Date**: May 10, 2026
+- **Highlights**: Version Alignment — `/mcp/` `serverInfo.version` reports application version (was reporting FastMCP library version); P0 credibility fix from External Model Council review
 - **Changelog**: [CHANGELOG.md](CHANGELOG.md)
-- **Status**: Production deployed on GCP Cloud Run
+- **Status**: Production deployed on GCP Cloud Run (revision `verifimind-mcp-server-00410-g9q`)
 
 **VerifiMind-PEAS v1.1.0** (Methodology):
 - **Release Date**: December 18, 2025
@@ -1306,7 +1306,7 @@ Forks and derivatives may use the open-source code under MIT license, but must u
 **General Inquiries**: creator35lwb@gmail.com  
 **Twitter/X**: [@creator35lwb](https://x.com/creator35lwb)  
 **GitHub Discussions**: [Join discussions](https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions)  
-**MCP Server**: [verifimind.ysenseai.org](https://verifimind.ysenseai.org) (LIVE — v0.5.6)  
+**MCP Server**: [verifimind.ysenseai.org](https://verifimind.ysenseai.org) (LIVE — v0.5.27)  
 **Early Adopter Registration**: [verifimind.ysenseai.org/register](https://verifimind.ysenseai.org/register)  
 **DFSC 2026**: [rewards.mystartr.com/projects/verifimind](https://rewards.mystartr.com/projects/verifimind)  
 **Landing Page**: [verifimind.io](https://verifimind.io)
@@ -1360,6 +1360,6 @@ VerifiMind-PEAS is developed through the **FLYWHEEL TEAM** multi-agent collabora
 
 ---
 
-**Last Updated:** March 23, 2026 | **Version:** v0.5.6 "Gateway" | **MACP:** v2.2 "Identity"
+**Last Updated:** May 10, 2026 | **Version:** v0.5.27 "Version Alignment" | **MACP:** v2.3.1 "Market Position" | **Genesis:** v5.0 "Convergence"
 
 </div>
