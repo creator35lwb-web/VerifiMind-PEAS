@@ -6,6 +6,19 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.27 - Version Alignment (May 10, 2026)
+
+Credibility fix flagged by the External Model Council: the `/mcp/` initialize response advertised the FastMCP library version (`3.2.4`) instead of our application version, creating a confusing mismatch with `/health` (`0.5.26`) and `/.well-known/mcp-config` (`0.5.26`).
+
+### Fix
+- **MCP `serverInfo.version`** — pass `SERVER_VERSION` explicitly to `FastMCP("verifimind-genesis", version=SERVER_VERSION)` so all surfaces report the same application version
+- All four version-reporting surfaces (`/`, `/health`, `/.well-known/mcp-config`, `/mcp/` initialize) now consistently report `0.5.27`
+
+### Why this matters
+External Model Council (Claude Opus 4.7, GPT-5.5, Gemini 3.1 Pro) flagged version inconsistency as a trust friction signal. P0 credibility fix per L's ruling on landing page hold.
+
+---
+
 ## v0.5.26 - Scanner Block + HTTP Compliance (May 6, 2026)
 
 Security hardening: blocked new unauthorized AWS scanner, fixed HEAD method compliance on `/mcp/`.
