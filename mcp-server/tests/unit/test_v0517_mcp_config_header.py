@@ -72,4 +72,4 @@ class TestServerVersion:
 
     def test_server_version_is_0517(self):
         from verifimind_mcp.server import SERVER_VERSION
-        assert SERVER_VERSION == "0.5.27", f"Expected 0.5.27, got {SERVER_VERSION}"
+        assert SERVER_VERSION == "0.5.28", f"Expected 0.5.28, got {SERVER_VERSION}"
