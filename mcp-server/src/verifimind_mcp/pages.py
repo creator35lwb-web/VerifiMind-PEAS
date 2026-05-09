@@ -1799,12 +1799,21 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 _CHANGELOG_BODY = """
 <h1>Changelog</h1>
 <div class="meta">
-  <span>Last updated: May 6, 2026 (v0.5.26)</span>
+  <span>Last updated: May 10, 2026 (v0.5.27)</span>
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
 </div>
 
+<div id="v0.5.27">
+<h2>v0.5.27 — Version Alignment <span class="live-badge">LIVE</span></h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">May 10, 2026</p>
+<ul>
+  <li><strong>MCP serverInfo.version fix</strong> — <code>/mcp/</code> initialize response now reports our application version (0.5.27) instead of the underlying FastMCP library version; eliminates trust-friction signal flagged by External Model Council (Claude Opus 4.7 + GPT-5.5 + Gemini 3.1 Pro)</li>
+  <li><strong>Surface alignment</strong> — all four version-reporting surfaces (<code>/</code>, <code>/health</code>, <code>/.well-known/mcp-config</code>, <code>/mcp/</code>) now consistently report 0.5.27</li>
+</ul>
+</div>
+
 <div id="v0.5.26">
-<h2>v0.5.26 — Scanner Block + HTTP Compliance <span class="live-badge">LIVE</span></h2>
+<h2>v0.5.26 — Scanner Block + HTTP Compliance</h2>
 <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">May 6, 2026</p>
 <ul>
   <li><strong>Security:</strong> blocked an unauthorized MCP prober identified via GCP forensic analysis; added to IP security layer</li>
