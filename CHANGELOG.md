@@ -6,6 +6,28 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.28 - Tools Free (May 10, 2026)
+
+Option B refactor PR1 of 3 — paywall removal. The three coordination tools (`coordination_handoff_create`, `coordination_handoff_read`, `coordination_team_status`) are now free for everyone, fulfilling the **Core Tools Always Free pledge** ratified May 9, 2026 by L (CEO) + Alton + T (CTO).
+
+### Behavior changes
+- `pioneer_key` parameter on all three coordination tools changed from required to optional (`Optional[str] = None`)
+- Tool-blocking middleware removed: `check_tier()` is now used for tier identity (analytics) only, not as a gate
+- Anonymous callers (no `pioneer_key`) are accepted; their handoffs go to a shared `"anonymous"` namespace
+- Existing pioneer_key holders unchanged: their handoffs remain privately namespaced under their key
+
+### What did NOT change
+- Rate limiting (deferred to PR2 pending T's clarification on per-hour vs per-minute units — see Issue #59)
+- Polar product structure (deferred to PR3)
+- All other 10 tools (Trinity + template management) — already free, no change
+- `tier_gate_error()` and `tier_gate.py` module retained for backward compat (now unused by tools)
+
+### Tests
+- 92/92 coordination + scholar incentives tests pass
+- `tier_gate_error()` direct-call tests still pass (function preserved)
+
+---
+
 ## v0.5.27 - Version Alignment (May 10, 2026)
 
 Credibility fix flagged by the External Model Council: the `/mcp/` initialize response advertised the FastMCP library version (`3.2.4`) instead of our application version, creating a confusing mismatch with `/health` (`0.5.26`) and `/.well-known/mcp-config` (`0.5.26`).

@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 _RAW_SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.5.27"
+SERVER_VERSION = "0.5.28"
 
 # Mock mode transparency — shown in every tool response when no real inference is available
 MOCK_MODE_WARNING = (
@@ -1402,14 +1402,14 @@ def _create_mcp_instance():
         artifacts: list,
         pending: list,
         blockers: list,
-        pioneer_key: str,
+        pioneer_key: Optional[str] = None,
         next_agent: Optional[str] = None,
         ctx: Context = None,
     ) -> dict:
         """
         Create a structured MACP v2.2 handoff record.
 
-        Pioneer tier tool — requires pioneer_key.
+        Free for everyone (Option B, May 9 2026 — Core Tools Always Free pledge).
 
         Generates a MACP v2.2 compliant handoff document and stores it in
         the coordination layer. Returns the formatted markdown content
@@ -1423,22 +1423,24 @@ def _create_mcp_instance():
             artifacts: List of artifact paths or descriptions created.
             pending: List of pending items for the next agent.
             blockers: List of current blockers (empty list if none).
-            pioneer_key: Your Pioneer tier access key.
+            pioneer_key: Optional access key. If provided, your handoffs are namespaced
+                privately under this key. If omitted, handoffs go to the shared
+                "anonymous" namespace.
             next_agent: Recommended next agent ID (optional).
 
         Returns:
             Handoff record with filename, content, and storage confirmation.
         """
-        from .middleware.tier_gate import check_tier, tier_gate_error, sanitize_handoff_content
+        from .middleware.tier_gate import check_tier, sanitize_handoff_content
         from .coordination import get_store, format_handoff_markdown
         from .coordination.handoff_store import build_handoff_record
 
-        allowed, tier = await check_tier(pioneer_key)
-        if not allowed:
-            return wrap_response(tier_gate_error())
+        # Tier identity for analytics (no longer a gate — Option B, May 9 2026)
+        _, tier = await check_tier(pioneer_key or "")
+        namespace = pioneer_key.strip() if pioneer_key and pioneer_key.strip() else "anonymous"
 
-        # AZ UUID Bridge: emit pioneer_key to stdout for AY analytics ingestion (v0.5.12)
-        print(f"TRACER_UUID: {pioneer_key} tool=coordination_handoff_create", flush=True)
+        # AZ UUID Bridge: emit namespace to stdout for AY analytics ingestion (v0.5.12)
+        print(f"TRACER_UUID: {namespace} tool=coordination_handoff_create", flush=True)
 
         try:
             record = build_handoff_record(
@@ -1456,7 +1458,7 @@ def _create_mcp_instance():
             record["content"] = content
 
             store = get_store()
-            store.add(pioneer_key, record)
+            store.add(namespace, record)
 
             return wrap_response({
                 "status": "success",
@@ -1483,7 +1485,7 @@ def _create_mcp_instance():
 
     @app.tool()
     async def coordination_handoff_read(
-        pioneer_key: str,
+        pioneer_key: Optional[str] = None,
         agent_id: Optional[str] = None,
         count: int = 1,
         ctx: Context = None,
@@ -1491,33 +1493,35 @@ def _create_mcp_instance():
         """
         Read the most recent coordination handoff record(s).
 
-        Pioneer tier tool — requires pioneer_key.
+        Free for everyone (Option B, May 9 2026 — Core Tools Always Free pledge).
 
         Retrieves handoff records previously created via coordination_handoff_create.
-        Records are namespaced by pioneer_key — you only see your own handoffs.
+        Records are namespaced by pioneer_key — you only see handoffs created with
+        the same key. Omit pioneer_key to read from the shared "anonymous" namespace.
 
         Args:
-            pioneer_key: Your Pioneer tier access key.
+            pioneer_key: Optional access key. If omitted, reads from the shared
+                "anonymous" namespace.
             agent_id: Filter to handoffs from this agent only (optional).
             count: Number of records to return (default: 1, max: 50).
 
         Returns:
             List of handoff records (most recent first) with full content.
         """
-        from .middleware.tier_gate import check_tier, tier_gate_error
+        from .middleware.tier_gate import check_tier
         from .coordination import get_store
 
-        allowed, tier = await check_tier(pioneer_key)
-        if not allowed:
-            return wrap_response(tier_gate_error())
+        # Tier identity for analytics (no longer a gate — Option B, May 9 2026)
+        _, tier = await check_tier(pioneer_key or "")
+        namespace = pioneer_key.strip() if pioneer_key and pioneer_key.strip() else "anonymous"
 
-        # AZ UUID Bridge: emit pioneer_key to stdout for AY analytics ingestion (v0.5.12)
-        print(f"TRACER_UUID: {pioneer_key} tool=coordination_handoff_read", flush=True)
+        # AZ UUID Bridge: emit namespace to stdout for AY analytics ingestion (v0.5.12)
+        print(f"TRACER_UUID: {namespace} tool=coordination_handoff_read", flush=True)
 
         try:
             count = max(1, min(int(count), 50))
             store = get_store()
-            records = store.get(pioneer_key, agent_id=agent_id, count=count)
+            records = store.get(namespace, agent_id=agent_id, count=count)
 
             return wrap_response({
                 "status": "success",
@@ -1551,13 +1555,13 @@ def _create_mcp_instance():
 
     @app.tool()
     async def coordination_team_status(
-        pioneer_key: str,
+        pioneer_key: Optional[str] = None,
         ctx: Context = None,
     ) -> dict:
         """
         Return current team coordination state and session summary.
 
-        Pioneer tier tool — requires pioneer_key.
+        Free for everyone (Option B, May 9 2026 — Core Tools Always Free pledge).
 
         Aggregates all stored handoff records to provide a snapshot of:
         - Which agents have been active
@@ -1567,24 +1571,25 @@ def _create_mcp_instance():
         - Recommended next actions
 
         Args:
-            pioneer_key: Your Pioneer tier access key.
+            pioneer_key: Optional access key. If omitted, reads from the shared
+                "anonymous" namespace.
 
         Returns:
             Team state summary with agent activity, pending actions, and blockers.
         """
-        from .middleware.tier_gate import check_tier, tier_gate_error
+        from .middleware.tier_gate import check_tier
         from .coordination import get_store
 
-        allowed, tier = await check_tier(pioneer_key)
-        if not allowed:
-            return wrap_response(tier_gate_error())
+        # Tier identity for analytics (no longer a gate — Option B, May 9 2026)
+        _, tier = await check_tier(pioneer_key or "")
+        namespace = pioneer_key.strip() if pioneer_key and pioneer_key.strip() else "anonymous"
 
-        # AZ UUID Bridge: emit pioneer_key to stdout for AY analytics ingestion (v0.5.12)
-        print(f"TRACER_UUID: {pioneer_key} tool=coordination_team_status", flush=True)
+        # AZ UUID Bridge: emit namespace to stdout for AY analytics ingestion (v0.5.12)
+        print(f"TRACER_UUID: {namespace} tool=coordination_team_status", flush=True)
 
         try:
             store = get_store()
-            all_records = store.get_all(pioneer_key)
+            all_records = store.get_all(namespace)
             total = len(all_records)
 
             if not all_records:

@@ -1799,12 +1799,22 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 _CHANGELOG_BODY = """
 <h1>Changelog</h1>
 <div class="meta">
-  <span>Last updated: May 10, 2026 (v0.5.27)</span>
+  <span>Last updated: May 10, 2026 (v0.5.28)</span>
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
 </div>
 
+<div id="v0.5.28">
+<h2>v0.5.28 — Tools Free <span class="live-badge">LIVE</span></h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">May 10, 2026</p>
+<ul>
+  <li><strong>Core Tools Always Free pledge fulfilled</strong> — the three coordination tools (<code>coordination_handoff_create</code>, <code>coordination_handoff_read</code>, <code>coordination_team_status</code>) are now free for everyone; <code>pioneer_key</code> parameter is optional and used for namespace identity only, never as a gate</li>
+  <li><strong>Anonymous callers welcome</strong> — handoffs without a <code>pioneer_key</code> go to a shared <code>"anonymous"</code> namespace; existing keyed callers unchanged</li>
+  <li><strong>Option B refactor PR1 of 3</strong> — ratified May 9, 2026 by L (CEO) + Alton + T (CTO). PR2 (rate limit table) and PR3 (Polar product reshape for L3 reports) follow.</li>
+</ul>
+</div>
+
 <div id="v0.5.27">
-<h2>v0.5.27 — Version Alignment <span class="live-badge">LIVE</span></h2>
+<h2>v0.5.27 — Version Alignment</h2>
 <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">May 10, 2026</p>
 <ul>
   <li><strong>MCP serverInfo.version fix</strong> — <code>/mcp/</code> initialize response now reports our application version (0.5.27) instead of the underlying FastMCP library version; eliminates trust-friction signal flagged by External Model Council (Claude Opus 4.7 + GPT-5.5 + Gemini 3.1 Pro)</li>
