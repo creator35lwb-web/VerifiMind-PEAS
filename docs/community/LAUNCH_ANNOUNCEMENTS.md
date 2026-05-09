@@ -534,7 +534,7 @@ I spent 87 days building two AI-assisted projects (YSenseAI™ + VerifiMind-PEAS
 ## Key innovations
 
 1. **Genesis Master Prompts**: Stateful memory system for project continuity (solves the "Orchestrator Paradox")
-2. **X-Z-CS RefleXion Trinity**: Specialized validation roles (no prior art found)
+2. **X-Z-CS RefleXion Trinity**: Specialized validation roles (Innovation, Ethics, Security) — a productized multi-judge LLM evaluation pattern (see Related Work)
 3. **Wisdom validation**: Ethics + security + cultural sensitivity as first-class concerns
 4. **Human-at-center**: You orchestrate (not just review), AI assists (not automates)
 

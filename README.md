@@ -1,7 +1,7 @@
 <div align="center">
   <img src="docs/assets/branding/VerifiMind-PEAS-Logo-transparent.png" alt="VerifiMind PEAS" width="200"/>
 
-  # VerifiMind™ PEAS
+  # VerifiMind PEAS
 
   **Prompt Engineering Agents Standardization**
 
@@ -537,20 +537,33 @@ A real-world A/B test that occurred during MarketPulse development. A sophistica
 
 ### **Honest Positioning**
 
-**Multi-model orchestration is not new.** Developers have been using multiple AI models (Claude, GPT, Gemini) together for years. What makes VerifiMind-PEAS different is **how we structure this orchestration** through the **X-Z-CS RefleXion Trinity** and **Genesis Master Prompts**.
+**Multi-model orchestration is not new.** Developers have been using multiple AI models (Claude, GPT, Gemini) together for years. What makes VerifiMind-PEAS different is **how we structure this orchestration** through the **X-Z-CS RefleXion Trinity** and **Genesis Master Prompts** — and how we expose it as an **opinionated MCP server** for direct use in developer workflows.
 
-**Our genuine novelty**:
-- ✅ **X-Z-CS RefleXion Trinity**: Specialized validation roles (Innovation, Ethics, Security) with no prior art found
+**Our contribution** (productization, not novelty):
+- ✅ **X-Z-CS RefleXion Trinity**: A productized multi-judge LLM evaluation pattern with three specialized roles (Innovation, Ethics, Security). Multi-judge LLM evaluation is well-established prior art (see Related Work below); our contribution is the productization quality and the MCP integration path.
 - ✅ **Genesis Master Prompts**: Stateful memory system for project continuity across multi-model workflows
+- ✅ **Multi-vendor architecture**: Provider-agnostic (Gemini, Claude, GPT, Groq, Cerebras, Mistral, Ollama via BYOK) — not locked to one model family
 - ✅ **Wisdom validation**: Ethical alignment and cultural sensitivity as first-class concerns
 - ✅ **Human-at-center**: You orchestrate (not just review), AI assists (not automates)
 
-**What we build on** (established practices):
+**What we build on** (established practices and prior art):
 - Multi-model usage (common practice since 2023)
 - Agent-based architectures (LangChain, AutoGen, CrewAI)
 - Human-in-the-loop validation (industry standard)
+- Multi-judge LLM evaluation (see Related Work)
 
-**Our contribution**: Transforming ad-hoc multi-model usage into **systematic validation methodology** with **wisdom validation** and **human-centered orchestration**.
+### **Related Work**
+
+VerifiMind-PEAS productizes ideas that are well-established in the AI evaluation literature. We acknowledge and build on:
+
+- **ChatEval** (Chan et al., 2023, [arXiv:2308.07201](https://arxiv.org/abs/2308.07201)) — Multi-agent debate framework where multiple LLM agents discuss to converge on quality judgments
+- **MAJ-EVAL** — Multi-Agent-as-Judge evaluation pattern; specialized judges critique candidate outputs
+- **CollabEval** — Collaborative LLM evaluation with role-based agents
+- **HELM** ([Holistic Evaluation of Language Models](https://crfm.stanford.edu/helm/), Stanford CRFM) — Comprehensive benchmark suite for LLM capabilities
+- **Inspect** ([UK AI Safety Institute](https://inspect.ai-safety-institute.org.uk/)) — Open-source evaluation framework for LLM safety and capability assessment
+- **G-Eval / GPTScore** — LLM-as-judge scoring methodologies for natural language generation tasks
+
+**Where we differ** — and where we explicitly *don't* claim novelty: the multi-judge pattern is prior art. Our contribution is (a) the productization quality of the X-Z-CS specialization, (b) MCP-native exposure for direct use in Claude Code / Cursor / VS Code workflows, (c) multi-vendor architecture (not locked to one provider), and (d) the Genesis Master Prompt continuity layer. We do not claim the underlying methodology is novel.
 
 ### **Competitive Positioning: Complementary, Not Competing**
 
@@ -651,14 +664,14 @@ VerifiMind-PEAS implements a **multi-model orchestration** architecture where:
 
 ### **About Y Agent (Innovator)**
 
-You may see **Y Agent (Innovator)** in some diagrams. This agent is part of the broader **YSenseAI™** project, which focuses on innovation and strategic vision. The complete ecosystem includes:
+You may see **Y Agent (Innovator)** in some diagrams. This agent is part of the broader **YSenseAI** project, which focuses on innovation and strategic vision. The complete ecosystem includes:
 
-- **Y Agent (YSenseAI™)**: Innovation and creative ideation
+- **Y Agent (YSenseAI)**: Innovation and creative ideation
 - **X Agent (VerifiMind-PEAS)**: Research and analytical validation
 - **Z Agent (VerifiMind-PEAS)**: Ethical compliance
 - **CS Agent (VerifiMind-PEAS)**: Security validation
 
-**VerifiMind-PEAS focuses on the X-Z-CS Trinity** (Research, Ethics, Security), while **YSenseAI™ provides the Y Agent** (Innovation). Together, they form a complete validation framework.
+**VerifiMind-PEAS focuses on the X-Z-CS Trinity** (Research, Ethics, Security), while **YSenseAI provides the Y Agent** (Innovation). Together, they form a complete validation framework.
 
 ---
 
@@ -672,12 +685,12 @@ Instead of treating AI as an opaque "black box," VerifiMind-PEAS places multiple
 
 **Each crystal ball represents a specialized AI agent with a unique perspective**:
 
-- **Y (Innovator)**: Generates creative concepts and strategic vision (from YSenseAI™)
+- **Y (Innovator)**: Generates creative concepts and strategic vision (from YSenseAI)
 - **X (Analyst)**: Researches feasibility and market intelligence (from VerifiMind-PEAS)
 - **Z (Guardian)**: Ensures ethical compliance and safety (from VerifiMind-PEAS)
 - **CS (Validator)**: Validates claims against external evidence and security best practices (from VerifiMind-PEAS)
 
-**Note**: The diagram shows the complete 4-agent system (Y-X-Z-CS). VerifiMind-PEAS specifically implements the **X-Z-CS Trinity**, while **Y Agent comes from YSenseAI™**.
+**Note**: The diagram shows the complete 4-agent system (Y-X-Z-CS). VerifiMind-PEAS specifically implements the **X-Z-CS Trinity**, while **Y Agent comes from YSenseAI**.
 
 **By orchestrating these diverse perspectives under human direction**, we achieve objective, validated results that no single AI model can provide.
 
@@ -745,7 +758,7 @@ Instead of treating AI as an opaque "black box," VerifiMind-PEAS places multiple
 
 **Example projects**:
 - Meditation timer app (tutorial example)
-- AI-powered attribution system (YSenseAI™)
+- AI-powered attribution system (YSenseAI)
 - Multi-model validation framework (VerifiMind-PEAS itself)
 
 ---
@@ -847,7 +860,7 @@ The reference implementation demonstrates how to automate the X-Z-CS Trinity:
 
 ### **Case Studies**
 
-- **[YSenseAI™ 87-Day Journey](https://journey.manus.space/)** (Landing Pages): Real-world validation of Genesis Methodology
+- **[YSenseAI 87-Day Journey](https://journey.manus.space/)** (Landing Pages): Real-world validation of Genesis Methodology
 - **[VerifiMind-PEAS Development](https://verifimind.io/)** (Landing Pages): Meta-application of methodology to itself
 - **[MarketPulse v5.0 Case Study](docs/case-studies/MarketPulse_Case_Study.md)**: From concept to production with Trinity validation
 - **[A/B Test: Intuition vs. Validation](docs/case-studies/AB_Test_Intuition_vs_Validation.md)**: Real-world proof of validation-first methodology
@@ -959,11 +972,11 @@ The server runs on GCP Cloud Run with zero minimum instances (cold start archite
 
 ## 🌍 Real-World Validation
 
-### **87-Day Journey: YSenseAI™ + VerifiMind-PEAS**
+### **87-Day Journey: YSenseAI + VerifiMind-PEAS**
 
 **Creator**: Alton Lee Wei Bin (creator35lwb)  
 **Duration**: 87 days (September - November 2025)  
-**Projects**: YSenseAI™ (AI attribution infrastructure) + VerifiMind-PEAS (validation methodology)
+**Projects**: YSenseAI (AI attribution infrastructure) + VerifiMind-PEAS (validation methodology)
 
 **Challenges**:
 - Solo builder with non-tech background
@@ -972,7 +985,7 @@ The server runs on GCP Cloud Run with zero minimum instances (cold start archite
 - Complex technical and philosophical concepts
 
 **Results**:
-- ✅ **YSenseAI™**: Fully documented AI attribution infrastructure
+- ✅ **YSenseAI**: Fully documented AI attribution infrastructure
 - ✅ **VerifiMind-PEAS**: Complete methodology framework with white paper
 - ✅ **Defensive Publication**: DOI 10.5281/zenodo.17645665
 - ✅ **Zero context loss**: Genesis Master Prompts maintained continuity
@@ -983,7 +996,7 @@ The server runs on GCP Cloud Run with zero minimum instances (cold start archite
 3. **Human-at-center is critical**: AI provides perspectives, human synthesizes and decides
 4. **Iteration is key**: Continuous refinement through 87 days led to success
 
-**Read the full case study**: [YSenseAI™ 87-Day Journey](https://journey.manus.space/)
+**Read the full case study**: [YSenseAI 87-Day Journey](https://journey.manus.space/)
 
 ---
 
@@ -1119,7 +1132,7 @@ The multi-agent protocol landscape now has 4 major protocols. MACP v2.3.1 occupi
 | **A2A** | Google | Horizontal: Agent ↔ Agent (autonomous) | Complementary — A2A lacks human orchestration |
 | **ACP** | IBM (ARCHIVED) | Enterprise agent communication (merged into A2A, Aug 2025) | N/A — absorbed into A2A |
 | **ANP** | Community | Agent identity & trust | Complementary — ANP handles identity, MACP handles workflow |
-| **MACP v2.3.1** | YSenseAI™ | **Human-orchestrated multi-agent coordination** | **Unique: Git-based, human-at-center, platform-agnostic** |
+| **MACP v2.3.1** | YSenseAI | **Human-orchestrated multi-agent coordination** | **Unique: Git-based, human-at-center, platform-agnostic** |
 
 > **MACP v2.3.1 occupies Layer 6** of the protocol stack — persistent human-orchestrated governance. No other protocol (MCP, A2A, ACP, ANP, AG-UI, A2H) addresses persistent handoff records, human orchestrator identity, or git-native audit trails.
 
@@ -1142,7 +1155,7 @@ The multi-agent protocol landscape now has 4 major protocols. MACP v2.3.1 occupi
 4. **Human-at-Center Orchestration**: Human as orchestrator (not reviewer)
 
 **Evidence of Prior Use**:
-- **YSenseAI™**: AI-powered attribution infrastructure (87-day development)
+- **YSenseAI**: AI-powered attribution infrastructure (87-day development)
 - **VerifiMind-PEAS**: Multi-model validation methodology framework
 - **Concept Scrutinizer (概念审思者)**: Socratic validation framework
 
