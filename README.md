@@ -237,6 +237,7 @@ A prior-art defensive publication is registered at DOI [10.5281/zenodo.17645665]
 | MCP Registry listing | [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/?q=verifimind) |
 | Hugging Face demo | [YSenseAI/verifimind-peas](https://huggingface.co/spaces/YSenseAI/verifimind-peas) |
 | Landing page | [verifimind.io](https://verifimind.io) |
+| Long-form README archive (May 10, 2026 snapshot — 87-Day Journey, 8-Skill Stack, full citation library, expanded changelog) | [docs/archive/README_2026-05-10_comprehensive.md](docs/archive/README_2026-05-10_comprehensive.md) |
 
 ---
 
