@@ -6,6 +6,27 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.29 - Growth-First Pages (May 12, 2026)
+
+T (CTO) directive ([handoff](/) 2026-05-12): align GCP-served pages with the strategic pivot ratified May 11 in Session 13/14. All public pages now reflect "Growth First, Monetization Later" — no current paid services, no pricing on display, all 13 tools free for everyone.
+
+### Page updates
+- **`/terms` → v2.1** — pricing tier table removed (Pioneer/$9 row gone), Sections 4 (Payment) and 5 (Refund) rewritten as forward-looking "no active paid services" placeholders, Section 6 (Beta) reframed from "Pioneer coordination tools" to "full service", Section 8 (Acceptable Use) dropped Pioneer-specific resale clause
+- **`/privacy` → v2.2** — Payment Processing section rewritten as forward-looking, Polar references removed (no current payment processor), data-collection table simplified, retention table dropped Pioneer/transaction rows, Data Sharing table dropped Polar row
+- **`/register`** — benefit cards now show "All 13 tools / Free forever / Beta access / Direct feedback" (was "3 months free Pioneer tier / v0.6.0 Pioneer / Direct feedback")
+- **`/changelog`** — this entry
+
+### What's intentionally preserved
+- Polar payment infrastructure code remains (PolarAdapter, polar_webhook.py) for future paid services
+- Historical changelog entries (v0.5.7 "Pioneer launch", v0.5.10 "Terms v2.0", v0.5.13 "tier-gate middleware") — these are accurate history
+- Paradox/research page Pioneer references (debating the pricing) — these are evidence of self-correction per External Council guidance
+
+### Verification
+- `grep` for `$9 | $197 | $497 | $1,997` returns zero current-claim hits in `/terms`, `/privacy`, `/register`
+- Pioneer references remain only in historical changelog entries and the paradox/research reflection pages
+
+---
+
 ## v0.5.28 - Tools Free (May 10, 2026)
 
 Option B refactor PR1 of 3 — paywall removal. The three coordination tools (`coordination_handoff_create`, `coordination_handoff_read`, `coordination_team_status`) are now free for everyone, fulfilling the **Core Tools Always Free pledge** ratified May 9, 2026 by L (CEO) + Alton + T (CTO).

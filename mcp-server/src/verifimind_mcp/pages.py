@@ -625,14 +625,14 @@ _REGISTER_BODY = """
 
   <div class="benefits-strip">
     <div class="benefit-item">
-      <span class="benefit-icon">&#x23F0;</span>
-      <strong>3 months free</strong>
-      <div class="benefit-label">Pioneer tier</div>
+      <span class="benefit-icon">&#x2705;</span>
+      <strong>All 13 tools</strong>
+      <div class="benefit-label">Free forever</div>
     </div>
     <div class="benefit-item">
       <span class="benefit-icon">&#x1F9EA;</span>
       <strong>Beta access</strong>
-      <div class="benefit-label">v0.6.0 Pioneer</div>
+      <div class="benefit-label">v0.6.0 Beta</div>
     </div>
     <div class="benefit-item">
       <span class="benefit-icon">&#x1F4AC;</span>
@@ -1312,17 +1312,19 @@ def _legal_shell(title: str, body: str) -> str:
 _PRIVACY_BODY = """
 <h1>Privacy Policy</h1>
 <div class="meta">
-  <span>Version 2.1</span>
-  <span>Effective: April 20, 2026</span>
-  <span>Previous: v2.0 (April 8, 2026)</span>
+  <span>Version 2.2</span>
+  <span>Effective: May 12, 2026</span>
+  <span>Updated: May 12, 2026 (Growth First — no current paid services)</span>
+  <span>Previous: v2.1 (April 20, 2026)</span>
 </div>
 
 <h2>Who We Are</h2>
 <p>
   VerifiMind-PEAS is an open-source multi-model AI validation framework created by
   Alton Lee (Human Orchestrator, YSenseAI). This Privacy Policy applies to the
-  VerifiMind-PEAS service at verifimind.ysenseai.org, including the Early Adopter (EA)
-  program, PILOT program, and Pioneer subscription tier.
+  VerifiMind-PEAS service at verifimind.ysenseai.org, including the Early Adopter (EA) and
+  PILOT programs. As of May 12, 2026, all 13 tools are free for everyone (Core Tools
+  Always Free pledge) and no paid services are active.
 </p>
 
 <h2>What We Collect</h2>
@@ -1331,60 +1333,49 @@ _PRIVACY_BODY = """
     <tr><th>Data</th><th>Required</th><th>Purpose</th></tr>
   </thead>
   <tbody>
-    <tr><td>Email address</td><td>Yes</td><td>Account identification, subscription management</td></tr>
+    <tr><td>Email address</td><td>Yes (registration)</td><td>Account identification</td></tr>
     <tr><td>Name</td><td>No</td><td>Display only; never shared without your explicit consent</td></tr>
     <tr><td>UUID</td><td>Generated</td><td>Your pseudonymous identifier across all systems</td></tr>
     <tr><td>Registration timestamp</td><td>Auto</td><td>When you joined the program</td></tr>
     <tr><td>Consent records</td><td>Auto</td><td>That you accepted these terms and when</td></tr>
     <tr><td>Feedback message</td><td>No</td><td>To help us understand your needs and improve the product</td></tr>
-    <tr><td>Tier status</td><td>Auto</td><td>Scholar, EA, PILOT, or Pioneer</td></tr>
-    <tr><td>Subscription status</td><td>Auto</td><td>Active, cancelled, or expired</td></tr>
+    <tr><td>Tier label</td><td>Auto</td><td>Anonymous, Scholar, EA, or PILOT (used for rate limit allocation, not paywall)</td></tr>
   </tbody>
 </table>
 
 <h3>What We Do Not Collect</h3>
 <ul>
   <li>Passwords or credentials</li>
-  <li>Credit card numbers or bank account details — payment is handled entirely by Polar (see below)</li>
+  <li>Credit card numbers, bank account details, or any payment information (no paid services are currently offered)</li>
   <li>IP addresses linked to your email</li>
   <li>Location or device information</li>
   <li>Browsing behaviour beyond anonymous usage telemetry never connected to your account</li>
 </ul>
 
-<h2>Payment Processing and Polar</h2>
+<h2>Payment Processing</h2>
 <p>
-  Pioneer tier subscriptions are processed by <strong>Polar Software Inc</strong> ("Polar"),
-  which acts as our <strong>merchant of record</strong>. Polar is the legal seller of the Pioneer
-  subscription and handles all payment processing, tax compliance, invoicing, and billing on
-  behalf of VerifiMind-PEAS.
+  There are <strong>no active paid services</strong> at this time. VerifiMind-PEAS does not
+  process payments, collect billing details, or store payment information. When future paid
+  services (such as expert-orchestrated consultation reports) become available, this section
+  will be updated with the payment processor, what data they share with us, and your rights —
+  before any payment is collected.
 </p>
-<div class="notice-box">
-  <strong>VerifiMind-PEAS never sees, stores, or has access to your payment credentials.</strong>
-  Payment information is collected directly by Polar through their Stripe Connect checkout.
-</div>
-<p><strong>What Polar shares with us:</strong> Subscription status (active, cancelled, expired),
-  tier level (Pioneer), Polar transaction ID, subscription dates, granted benefit flags, and the
-  email address you used for payment (to match your VerifiMind-PEAS account).</p>
-<p><strong>Polar's privacy practices:</strong> Polar processes your payment data under their own
-  Privacy Policy at <a href="https://polar.sh/legal/privacy-policy" target="_blank" rel="noopener">polar.sh/legal/privacy-policy</a>.
-  Polar is GDPR-compliant and PCI-DSS compliant via Stripe Connect.</p>
 
 <h2>Why We Collect Your Data</h2>
 <ul>
-  <li>To grant program benefits (EA: 3 months free, PILOT: 6 months free, Pioneer: full coordination tools access)</li>
-  <li>To manage your subscription and tier access via Polar's Customer State API</li>
+  <li>To grant program benefits (EA: 3 months free Beta access; PILOT: 6 months free Beta access — both grant the same free 13-tool access today, with cohort-specific coordination)</li>
+  <li>To allocate rate limits per tier (Anonymous 10 / Scholar 30 / EA/PILOT 100 req/60s — see Terms Section 3)</li>
   <li>To communicate product updates if you opted in</li>
   <li>To improve VerifiMind-PEAS based on aggregate, anonymised feedback</li>
   <li>To maintain compliance records that you gave informed consent</li>
 </ul>
 
 <h2>Cookies</h2>
-<p>VerifiMind-PEAS does not use tracking cookies. When you use the Polar checkout, Polar may set
-  cookies for payment processing and fraud prevention (governed by Polar's privacy practices).
-  Anonymous usage telemetry on verifimind.ysenseai.org uses privacy-respecting analytics that
-  do not track individual users.</p>
+<p>VerifiMind-PEAS does not use tracking cookies. Anonymous usage telemetry on
+  verifimind.ysenseai.org uses privacy-respecting analytics that do not track individual
+  users.</p>
 
-<h2>UUID Usage Analytics <span style="font-size:0.8em;font-weight:normal;color:var(--muted)">(v2.1 addition — April 20, 2026)</span></h2>
+<h2>UUID Usage Analytics</h2>
 <p>As of v0.5.15, registered Scholar users may optionally pass their UUID as a
   <code>user_uuid</code> parameter in any Trinity tool call. This is always voluntary —
   anonymous tool calls work identically without it.</p>
@@ -1398,7 +1389,7 @@ _PRIVACY_BODY = """
   <tbody>
     <tr><td>Your UUID</td><td>Pseudonymous identifier (no name or email linked in logs)</td></tr>
     <tr><td>Tool name</td><td>Which tool you called (e.g. <code>consult_agent_x</code>)</td></tr>
-    <tr><td>Tier label</td><td>"scholar" (always — Pioneer tools use <code>pioneer_key</code>)</td></tr>
+    <tr><td>Tier label</td><td>Used for rate limit allocation only (not as a paywall)</td></tr>
     <tr><td>Timestamp</td><td>When the call was made (server time, UTC)</td></tr>
   </tbody>
 </table>
@@ -1416,14 +1407,12 @@ _PRIVACY_BODY = """
   </thead>
   <tbody>
     <tr><td>EA/PILOT records</td><td>Duration of membership + 90 days</td></tr>
-    <tr><td>Pioneer subscription records</td><td>Duration of subscription + 7 years (tax and legal compliance)</td></tr>
     <tr><td>Feedback messages</td><td>Kept indefinitely in anonymised form after 6 months</td></tr>
-    <tr><td>Transaction metadata (Polar IDs, dates)</td><td>7 years from transaction date (tax compliance)</td></tr>
     <tr><td>UUID usage analytics logs</td><td>30 days (GCP Cloud Logging auto-purge)</td></tr>
   </tbody>
 </table>
 <p>On deletion request, all personal data is purged within 7 business days, except where
-  retention is required by law (e.g., tax records associated with completed transactions).</p>
+  retention is required by law.</p>
 
 <h2>Your Rights</h2>
 <ul>
@@ -1432,8 +1421,6 @@ _PRIVACY_BODY = """
   <li><strong>Correct</strong> — raise a GitHub Discussion or contact us</li>
   <li><strong>Withdraw consent</strong> — same opt-out endpoint</li>
 </ul>
-<p>For payment-related data held by Polar, exercise your rights directly at
-  <a href="https://polar.sh/legal/privacy-policy" target="_blank" rel="noopener">polar.sh/legal/privacy-policy</a>.</p>
 <p>These rights are free of charge and will be actioned promptly.</p>
 
 <h2>Data Sharing</h2>
@@ -1443,16 +1430,15 @@ _PRIVACY_BODY = """
   </thead>
   <tbody>
     <tr><td>Google Cloud Platform</td><td>Hosting infrastructure, Firestore database</td><td>Account records (encrypted at rest)</td></tr>
-    <tr><td>Polar Software Inc</td><td>Merchant of record, payment processing</td><td>Email address (invoice matching), UUID (tier-gating)</td></tr>
   </tbody>
 </table>
-<p>No other third parties receive your data.</p>
+<p>No other third parties receive your data today. When future paid services launch, any
+  payment processor introduced will be disclosed here before any data is shared.</p>
 
 <h2>Security</h2>
 <p>Your account records are stored in Google Cloud Firestore with restricted access. We do not
   log your email address in server logs. Your UUID is your primary identifier in all internal
-  systems. Payment data is secured by Polar's Stripe Connect infrastructure (PCI-DSS compliant)
-  and is never stored on VerifiMind-PEAS servers.</p>
+  systems.</p>
 
 <h2>Contact</h2>
 <ul>
@@ -1463,8 +1449,7 @@ _PRIVACY_BODY = """
 
 <h2>Compliance</h2>
 <p>This policy aligns with GDPR (EU), PDPA (Singapore/ASEAN), and the Z-Protocol v1.1 ethical
-  framework (data minimisation, transparency, user autonomy). Polar's merchant-of-record model
-  ensures tax compliance across all supported jurisdictions via Stripe Connect Express.</p>
+  framework (data minimisation, transparency, user autonomy).</p>
 
 <h2>Changes to This Policy</h2>
 <p>We will notify registered users of material changes at least 14 days before they take effect.
@@ -1481,28 +1466,31 @@ _PRIVACY_BODY = """
 _TERMS_BODY = """
 <h1>Terms &amp; Conditions</h1>
 <div class="meta">
-  <span>Version 2.0</span>
-  <span>Effective: April 8, 2026</span>
-  <span>Updated: April 20, 2026</span>
-  <span>Previous: v1.0 (March 18, 2026)</span>
+  <span>Version 2.1</span>
+  <span>Effective: May 12, 2026</span>
+  <span>Updated: May 12, 2026 (Growth First — paid tier removed)</span>
+  <span>Previous: v2.0 (April 8, 2026)</span>
 </div>
 
 <h2>1. Service Description</h2>
 <p>VerifiMind-PEAS is an open-source multi-model AI validation framework that provides structured,
-  multi-agent validation and orchestration tools. The service is offered in tiered access levels
-  as described in Section 3.</p>
+  multi-agent validation and orchestration tools. As of May 9, 2026, all 13 tools are free for
+  everyone under the <strong>Core Tools Always Free</strong> pledge. Access levels are described
+  in Section 3.</p>
 
 <h2>2. Acceptance of Terms</h2>
 <p>By registering for any VerifiMind-PEAS program or using the service, you confirm that you have
   read and accept:</p>
 <ul>
-  <li>These Terms &amp; Conditions v2.0</li>
-  <li>The <a href="/privacy">Privacy Policy v2.1</a></li>
-  <li><a href="https://polar.sh/legal/master-services-terms" target="_blank" rel="noopener">Polar's Master Services Terms</a>
-    (applicable to Pioneer tier subscribers)</li>
+  <li>These Terms &amp; Conditions v2.1</li>
+  <li>The <a href="/privacy">Privacy Policy</a></li>
 </ul>
+<p>When future paid services launch, additional terms (including any payment-processor agreements)
+  will be presented and accepted separately at the time of purchase.</p>
 
 <h2>3. Service Tiers</h2>
+<p>All current tiers grant access to <strong>all 13 tools</strong>. Tier identity is used only for
+  rate limit allocation and personal dashboard scoping — not as a paywall.</p>
 <table class="legal-table">
   <thead>
     <tr><th>Tier</th><th>Identity</th><th>Access</th><th>Price</th><th>Rate Limit</th></tr>
@@ -1511,101 +1499,54 @@ _TERMS_BODY = """
     <tr>
       <td><span class="tier-badge">Anonymous</span></td>
       <td>None (IP only)</td>
-      <td>All 10 Trinity validation tools + templates. No registration needed.</td>
-      <td>Free forever</td>
+      <td>All 13 tools. No registration needed.</td>
+      <td>Free</td>
       <td>10 req/60s per IP</td>
     </tr>
     <tr>
       <td><span class="tier-badge">Scholar</span></td>
       <td>UUID (consent)</td>
-      <td>Same tools + usage dashboard + Trinity history. Register at /register.</td>
-      <td>Free forever</td>
+      <td>All 13 tools + usage dashboard + Trinity history. Register at /register.</td>
+      <td>Free</td>
       <td>30 req/60s per UUID</td>
     </tr>
     <tr>
       <td><span class="tier-badge">Early Adopter</span></td>
       <td>UUID + email</td>
-      <td>All Scholar tools + Pioneer coordination tools</td>
-      <td>Free 3 months, then Pioneer pricing</td>
+      <td>All 13 tools + EA program benefits</td>
+      <td>Free</td>
       <td>100 req/60s per UUID</td>
     </tr>
     <tr>
       <td><span class="tier-badge">PILOT</span></td>
-      <td>UUID + email</td>
-      <td>All Scholar tools + Pioneer coordination tools</td>
-      <td>Free 6 months, then Pioneer pricing</td>
-      <td>100 req/60s per UUID</td>
-    </tr>
-    <tr>
-      <td><span class="tier-badge">Pioneer</span></td>
-      <td>UUID + payment</td>
-      <td>All Scholar tools + 6 coordination tools (handoff management, team status, session coordination)</td>
-      <td><strong>$9/month (USD)</strong></td>
+      <td>UUID + email + invite</td>
+      <td>All 13 tools + PILOT cohort coordination</td>
+      <td>Free</td>
       <td>100 req/60s per UUID</td>
     </tr>
   </tbody>
 </table>
 <div class="notice-box">
-  The Scholar tier remains free forever. You never lose access to the Scholar tier by registering
-  for any program. The VerifiMind-PEAS core is MIT licensed — you may self-host at any time.
+  <strong>Growth First, Monetization Later.</strong> All 13 tools are free for every tier today.
+  Pricing for future premium services (such as expert-orchestrated reports) will be announced
+  separately and will not change the free-tools pledge. The VerifiMind-PEAS core is MIT licensed —
+  you may self-host at any time.
 </div>
 
 <h2>4. Payment and Billing</h2>
-
-<h3>4.1 Merchant of Record</h3>
-<p>All paid subscriptions are processed by <strong>Polar Software Inc</strong> ("Polar"), which acts as
-  the merchant of record. Polar handles all payment processing, tax calculation, invoicing, and billing
-  via Stripe Connect. By subscribing to the Pioneer tier, you also agree to
-  <a href="https://polar.sh/legal/master-services-terms" target="_blank" rel="noopener">Polar's Master Services Terms</a>
-  and
-  <a href="https://polar.sh/legal/acceptable-use-policy" target="_blank" rel="noopener">Polar's Acceptable Use Policy</a>.</p>
-
-<h3>4.2 Subscription Terms</h3>
-<ul>
-  <li>Pioneer subscriptions are billed monthly in USD</li>
-  <li>Subscriptions auto-renew at the end of each billing period unless cancelled</li>
-  <li>You may cancel anytime through the Polar customer portal or by contacting us</li>
-  <li>Cancellation takes effect at end of current billing period — full access retained until then</li>
-  <li>Local taxes may apply, calculated and collected by Polar based on your location</li>
-</ul>
-
-<h3>4.3 Free Period Transition</h3>
-<ul>
-  <li>You will receive at least 14 days' advance notice before any billing begins</li>
-  <li>You will never be charged without explicit action on your part</li>
-  <li>If you do not subscribe after your free period ends, access reverts to Scholar — no penalty</li>
-  <li>You may subscribe to Pioneer at any time after your free period ends</li>
-</ul>
-
-<h3>4.4 Alternative Payment</h3>
-<p>Multiple payment methods are available through the Polar checkout: credit card, US bank account,
-  Cash App Pay, Apple Pay and Google Pay (device dependent). A BuyMeACoffee page (PayPal) is also
-  available as a backup support channel.</p>
+<p>There are <strong>no active paid services</strong> at this time. All 13 tools, including
+  coordination tools, are free for everyone.</p>
+<p>When future paid services (such as expert-orchestrated consultation reports) become available,
+  this section will be updated with specific billing terms, the payment processor, and any
+  additional agreements required at the time of purchase. You will not be charged for any service
+  without an explicit purchase action on your part.</p>
 
 <h2>5. Refund Policy</h2>
-
-<h3>5.1 14-Day Money-Back Guarantee</h3>
-<p>If you are not satisfied with the Pioneer tier, you may request a full refund within 14 days of
-  your first subscription payment. No questions asked.</p>
-
-<h3>5.2 After 14 Days</h3>
-<p>After the initial 14-day period, no prorated refunds are issued. You may cancel anytime;
-  cancellation takes effect at the end of the current billing period.</p>
-
-<h3>5.3 How to Request a Refund</h3>
-<ul>
-  <li>Polar customer portal (link in your subscription confirmation email)</li>
-  <li>Email: <a href="mailto:creator35lwb@gmail.com">creator35lwb@gmail.com</a></li>
-  <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions" target="_blank" rel="noopener">GitHub Discussions</a></li>
-</ul>
-<p>Refunds are processed by Polar and typically appear within 5–10 business days.</p>
-
-<h3>5.4 Dispute Resolution</h3>
-<p>Payment disputes are handled through Polar's buyer protection process. Please contact us directly
-  before initiating a payment dispute.</p>
+<p>No refund policy applies today because no paid services are offered. When paid services launch,
+  a refund policy will be published as part of the purchase terms before any payment is collected.</p>
 
 <h2>6. Beta Software</h2>
-<p>The Pioneer coordination tools are currently in beta. You accept that:</p>
+<p>The full VerifiMind-PEAS service is currently in beta. You accept that:</p>
 <ul>
   <li>Features may change, be added, or removed as the product evolves</li>
   <li>There is no uptime SLA during the beta period</li>
@@ -1624,19 +1565,17 @@ _TERMS_BODY = """
 <h2>8. Acceptable Use</h2>
 <p>You agree not to:</p>
 <ul>
-  <li>Share, resell, or redistribute your Pioneer access key or subscription credentials</li>
+  <li>Share, resell, or redistribute any access keys or credentials issued to you</li>
   <li>Use automated scraping or excessive API calls that degrade service for other users</li>
   <li>Use VerifiMind-PEAS tools to generate harmful, misleading, or unethical content</li>
 </ul>
-<p>Violation may result in suspension or termination of your access. This section supplements
-  <a href="https://polar.sh/legal/acceptable-use-policy" target="_blank" rel="noopener">Polar's Acceptable Use Policy</a>.</p>
+<p>Violation may result in suspension or termination of your access.</p>
 
 <h2>9. Opt-Out and Termination</h2>
 <ul>
   <li>You may opt out at any time via <a href="/optout"><code>POST /early-adopters/optout/{uuid}</code></a></li>
   <li>On opt-out, personal data is purged within 7 business days (subject to legal retention requirements)</li>
   <li>We may terminate access for violation of the Acceptable Use terms in Section 8</li>
-  <li>If we terminate your paid subscription due to a violation, no refund is issued</li>
 </ul>
 
 <h2>10. Limitation of Liability</h2>
@@ -1799,12 +1738,23 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 _CHANGELOG_BODY = """
 <h1>Changelog</h1>
 <div class="meta">
-  <span>Last updated: May 10, 2026 (v0.5.28)</span>
+  <span>Last updated: May 12, 2026 (v0.5.29)</span>
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
 </div>
 
+<div id="v0.5.29">
+<h2>v0.5.29 — Growth-First Pages <span class="live-badge">LIVE</span></h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">May 12, 2026</p>
+<ul>
+  <li><strong><code>/terms</code> &rarr; v2.1</strong> — pricing tier table removed (Pioneer row gone); Payment and Refund sections rewritten as forward-looking placeholders; Section 6 (Beta) and Section 8 (Acceptable Use) updated to drop Pioneer-specific language</li>
+  <li><strong><code>/privacy</code> &rarr; v2.2</strong> — Payment Processing section rewritten to "no active paid services"; Polar references removed; retention/data-sharing tables simplified</li>
+  <li><strong><code>/register</code> benefit cards</strong> — now show "All 13 tools / Free forever / Beta access / Direct feedback"</li>
+  <li><strong>Growth First, Monetization Later</strong> — public surfaces now consistent with the strategic pivot ratified by L + T + Alton in Session 13/14 (May 11). Polar payment infrastructure preserved for future services.</li>
+</ul>
+</div>
+
 <div id="v0.5.28">
-<h2>v0.5.28 — Tools Free <span class="live-badge">LIVE</span></h2>
+<h2>v0.5.28 — Tools Free</h2>
 <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">May 10, 2026</p>
 <ul>
   <li><strong>Core Tools Always Free pledge fulfilled</strong> — the three coordination tools (<code>coordination_handoff_create</code>, <code>coordination_handoff_read</code>, <code>coordination_team_status</code>) are now free for everyone; <code>pioneer_key</code> parameter is optional and used for namespace identity only, never as a gate</li>
