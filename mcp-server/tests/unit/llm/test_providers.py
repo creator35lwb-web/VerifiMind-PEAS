@@ -391,28 +391,28 @@ class TestEphemeralProvider:
     def test_groq_key_auto_detected(self):
         """gsk_... key → auto-detects Groq provider."""
         from verifimind_mcp.config_helper import create_ephemeral_provider
-        provider = create_ephemeral_provider(api_key="gsk_test_key_1234567890abcdef")  # NOSONAR - test fixture, not a real credential
+        provider = create_ephemeral_provider(api_key="gsk_test_key_1234567890abcdef")  # NOSONAR(python:S6418) Test fixture, mock key
         assert provider is not None
         assert "groq" in provider.get_model_name()
 
     def test_anthropic_key_not_openai(self):
         """sk-ant-... key → detects Anthropic, NOT OpenAI."""
         from verifimind_mcp.config_helper import create_ephemeral_provider
-        provider = create_ephemeral_provider(api_key="sk-ant-test_key_1234567890")  # NOSONAR - test fixture, not a real credential
+        provider = create_ephemeral_provider(api_key="sk-ant-test_key_1234567890")  # NOSONAR(python:S6418) Test fixture, mock key
         assert provider is not None
         assert "claude" in provider.get_model_name().lower() or "anthropic" in provider.get_model_name().lower()
 
     def test_openai_key_detected(self):
         """sk-... key (no ant) → detects OpenAI."""
         from verifimind_mcp.config_helper import create_ephemeral_provider
-        provider = create_ephemeral_provider(api_key="sk-test_key_1234567890abcdef")  # NOSONAR - test fixture, not a real credential
+        provider = create_ephemeral_provider(api_key="sk-test_key_1234567890abcdef")  # NOSONAR(python:S6418) Test fixture, mock key
         assert provider is not None
         assert "gpt" in provider.get_model_name().lower() or "openai" in provider.get_model_name().lower()
 
     def test_explicit_provider_and_key(self):
         """Explicit provider + key works."""
         from verifimind_mcp.config_helper import create_ephemeral_provider
-        provider = create_ephemeral_provider(llm_provider="groq", api_key="gsk_test_key_1234567890")  # NOSONAR - test fixture, not a real credential
+        provider = create_ephemeral_provider(llm_provider="groq", api_key="gsk_test_key_1234567890")  # NOSONAR(python:S6418) Test fixture, mock key
         assert provider is not None
         assert "groq" in provider.get_model_name()
 
@@ -420,7 +420,7 @@ class TestEphemeralProvider:
         """Unknown key format → ValueError."""
         from verifimind_mcp.config_helper import create_ephemeral_provider
         with pytest.raises(ValueError, match="Cannot auto-detect"):
-            create_ephemeral_provider(api_key="xyz_unknown_prefix_key")  # NOSONAR - test fixture, not a real credential
+            create_ephemeral_provider(api_key="xyz_unknown_prefix_key")  # NOSONAR(python:S6418) Test fixture, mock key
 
     def test_invalid_provider_name_raises(self):
         """Invalid provider name → ValueError."""
@@ -444,14 +444,14 @@ class TestEphemeralProvider:
     def test_cerebras_key_auto_detected(self):
         """csk-... key → auto-detects Cerebras provider."""
         from verifimind_mcp.config_helper import create_ephemeral_provider
-        provider = create_ephemeral_provider(api_key="csk-test-key-1234567890abcdef")  # NOSONAR - test fixture, not a real credential
+        provider = create_ephemeral_provider(api_key="csk-test-key-1234567890abcdef")  # NOSONAR(python:S6418) Test fixture, mock key
         assert provider is not None
         assert "cerebras" in provider.get_model_name().lower() or "llama" in provider.get_model_name().lower()
 
     def test_cerebras_explicit_provider(self):
         """Explicit cerebras provider + key works."""
         from verifimind_mcp.config_helper import create_ephemeral_provider
-        provider = create_ephemeral_provider(llm_provider="cerebras", api_key="csk-test-key-1234567890")  # NOSONAR - test fixture, not a real credential
+        provider = create_ephemeral_provider(llm_provider="cerebras", api_key="csk-test-key-1234567890")  # NOSONAR(python:S6418) Test fixture, mock key
         assert provider is not None
 
     def test_cerebras_in_valid_providers(self):

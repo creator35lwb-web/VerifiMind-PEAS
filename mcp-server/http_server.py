@@ -1751,13 +1751,12 @@ if __name__ == "__main__":
     print(f"  curl http://localhost:{port}/health")
     print(f"  curl -X POST http://localhost:{port}/mcp/ -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{{...}}'\n")
 
-    # NOSONAR(python:S104): binding to 0.0.0.0 is REQUIRED by Cloud Run —
-    # the container must accept connections from the Cloud Run proxy on any
-    # network interface inside the isolated container network. External
-    # access is controlled by Cloud Run's ingress settings, not by this bind.
+    # Binding to 0.0.0.0 is REQUIRED by Cloud Run: the container must accept
+    # connections from the Cloud Run proxy on any interface inside the isolated
+    # container network. External access is controlled by Cloud Run ingress, not by this bind.
     uvicorn.run(
         app,
-        host="0.0.0.0",  # NOSONAR — see comment above
+        host="0.0.0.0",  # NOSONAR(python:S8392) Required by Cloud Run runtime
         port=port,
         log_level="info"
     )
