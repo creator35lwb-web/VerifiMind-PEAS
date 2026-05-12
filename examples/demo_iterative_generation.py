@@ -147,14 +147,14 @@ Press Enter to start...
                 "method": "POST",
                 "path": "/api/auth/parent/register",
                 "description": "Register a new parent account",
-                "request_body": {"email": "string", "password": "string", "name": "string"},  # NOSONAR(python:S2068) API schema field type indicator
+                "request_body": {"email": "string", "password": "string", "name": "string"},  # NOSONAR
                 "response": {"token": "string", "parent_id": "string"}
             },
             {
                 "method": "POST",
                 "path": "/api/auth/parent/login",
                 "description": "Parent login",
-                "request_body": {"email": "string", "password": "string"},  # NOSONAR(python:S2068) API schema field type indicator
+                "request_body": {"email": "string", "password": "string"},  # NOSONAR
                 "response": {"token": "string"}
             },
             {
