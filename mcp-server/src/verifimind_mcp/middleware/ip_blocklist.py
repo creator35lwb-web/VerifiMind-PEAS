@@ -35,6 +35,10 @@ BLOCKED_IPS: list[tuple[str, str, str, str]] = [
     ("54.67.34.241", "UNAUTHORIZED_SCANNER", "2026-05-06", "RNA_CSO"),
     # SSRF Scanner — AS48090 Techoff SRV Ltd; 90-req automated scan, 18 SSRF probes targeting cloud IMDS
     ("195.178.110.157", "SSRF_SCANNER", "2026-05-07", "RNA_CSO"),
+    # Config / Secret Enumeration Scanner — ~25 req/sec on May 11; probed /api/env, /firebase-config.json,
+    # /swagger.json, /openapi.json, /.well-known/jwks.json, /api/v1/config, /api/account, /__env.js, etc.
+    # Rotating User-Agents (different browser/OS per request — botnet pattern). Mostly 429-rate-limited.
+    ("85.121.126.250", "CONFIG_SCANNER", "2026-05-12", "RNA_CSO"),
 ]
 
 # Blocked User-Agent substrings (case-insensitive substring match)

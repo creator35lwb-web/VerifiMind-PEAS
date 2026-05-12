@@ -6,11 +6,12 @@
 
 ## Current Status: Operational
 
-**v0.5.29 "Growth-First Pages" — public surfaces aligned with growth-first pivot, deployed May 12, 2026**
+**v0.5.30 "Config Scanner Block" — 6th IP added to blocklist, deployed May 12, 2026**
 
-The VerifiMind MCP server is fully operational. All security gates passed. GCP revision `verifimind-mcp-server-00412-6xs` (will be bumped on v0.5.29 deploy).
+The VerifiMind MCP server is fully operational. All security gates passed. GCP revision `verifimind-mcp-server-00415-5n6` (will be bumped on v0.5.30 deploy).
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination) — **all free for everyone**
+- **Config Scanner Block (v0.5.30)**: `85.121.126.250` added to IP blocklist — config/secret enumeration scanner probed ~25 secret/config paths in 1 second (`/api/env`, `/firebase-config.json`, `/swagger.json`, `/openapi.json`, `/.well-known/jwks.json`, etc.) with rotating user agents. Cost-effective defense for solo builder — Cloud Armor pricing not justified at our scale. 6 IPs blocked total — May 12, 2026
 - **Growth-First Pages (v0.5.29)**: `/terms` → v2.1, `/privacy` → v2.2, `/register` benefit cards updated. All pricing removed from public-facing pages. No current paid services. "Growth First, Monetization Later" pledge now consistent across server and landing page. Polar payment infrastructure preserved for future services — May 12, 2026
 - **Tools Free (v0.5.28)**: Option B refactor PR1 of 3 — paywall removed from the 3 coordination tools (`coordination_handoff_create`, `coordination_handoff_read`, `coordination_team_status`). `pioneer_key` is now optional; anonymous callers are namespaced under `"anonymous"`. Fulfills Core Tools Always Free pledge ratified May 9, 2026 by L + Alton + T — May 10, 2026
 - **Version Alignment (v0.5.27)**: `/mcp/` `serverInfo.version` now reports application version (0.5.27) instead of FastMCP library version (3.2.4); all four version-reporting surfaces consistent. P0 credibility fix per External Model Council review (Claude Opus 4.7 + GPT-5.5 + Gemini 3.1 Pro) — May 10, 2026
@@ -46,7 +47,7 @@ The VerifiMind MCP server is fully operational. All security gates passed. GCP r
 | **Endpoint** | `https://verifimind.ysenseai.org/mcp` |
 | **Health Check** | `https://verifimind.ysenseai.org/health` |
 | **Register** | `https://verifimind.ysenseai.org/register` |
-| **Server Version** | 0.5.29 "Growth-First Pages" (deployed May 12, 2026) |
+| **Server Version** | 0.5.30 "Config Scanner Block" (deployed May 12, 2026) |
 | **Transport** | Streamable HTTP (SSE) |
 | **Default Provider** | Gemini 2.5 Flash (FREE) / Groq Llama 3.3 (FREE fallback) |
 | **BYOK Providers** | Gemini, Groq, Cerebras (FREE), OpenAI, Anthropic, Mistral, Ollama |

@@ -6,6 +6,18 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.30 - Config Scanner Block (May 12, 2026)
+
+Security hardening: blocked a new config/secret enumeration scanner identified via GCP forensic analysis.
+
+### IP Blocklist Addition
+- **`85.121.126.250`** — Config/Secret Enumeration Scanner. ~25 req/sec on May 11; probed `/api/env`, `/firebase-config.json`, `/swagger.json`, `/openapi.json`, `/.well-known/jwks.json`, `/api/v1/config`, `/api/account`, `/__env.js`, `/__/firebase/init.json`, `/manifest.webmanifest`, and ~20 more secret/config paths. Rotating User-Agents (different browser/OS per request — botnet pattern). Mostly 429-rate-limited but adding to blocklist for defense-in-depth.
+
+### Why blocklist, not Cloud Armor
+Cloud Armor pricing (~$5/mo per policy + per-rule + per-request) is not cost-justified for a solo-builder MCP server. App-layer IP blocklist in `ip_blocklist.py` is free, deployed at the outermost middleware layer, and effective. 6 IPs blocked total.
+
+---
+
 ## v0.5.29 - Growth-First Pages (May 12, 2026)
 
 T (CTO) directive ([handoff](/) 2026-05-12): align GCP-served pages with the strategic pivot ratified May 11 in Session 13/14. All public pages now reflect "Growth First, Monetization Later" — no current paid services, no pricing on display, all 13 tools free for everyone.
