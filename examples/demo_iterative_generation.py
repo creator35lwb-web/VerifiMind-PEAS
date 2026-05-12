@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from src.generation.iterative_generator import IterativeCodeGenerationEngine
 from src.generation.core_generator import AppSpecification
 from src.llm.llm_provider import LLMProvider
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 async def main():
@@ -58,7 +58,7 @@ Press Enter to start...
 
     # Create app specification for kids meditation app
     app_spec = AppSpecification(
-        app_id="app-" + datetime.utcnow().strftime("%Y%m%d-%H%M%S"),
+        app_id="app-" + datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S"),
         app_name="KidsCalmMind",
         description="A meditation app for children aged 6-12 to help with anxiety through guided breathing exercises",
         category="Health & Wellness",
@@ -147,14 +147,14 @@ Press Enter to start...
                 "method": "POST",
                 "path": "/api/auth/parent/register",
                 "description": "Register a new parent account",
-                "request_body": {"email": "string", "password": "string", "name": "string"},
+                "request_body": {"email": "string", "password": "string", "name": "string"},  # NOSONAR
                 "response": {"token": "string", "parent_id": "string"}
             },
             {
                 "method": "POST",
                 "path": "/api/auth/parent/login",
                 "description": "Parent login",
-                "request_body": {"email": "string", "password": "string"},
+                "request_body": {"email": "string", "password": "string"},  # NOSONAR
                 "response": {"token": "string"}
             },
             {
@@ -218,7 +218,7 @@ Press Enter to start...
         custom_domain=None,
 
         metadata={
-            "created_at": datetime.utcnow().isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
             "demo_mode": True
         }
     )

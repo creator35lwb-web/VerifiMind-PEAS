@@ -117,8 +117,10 @@ async def _fetch_url_content(url: str) -> Tuple[Optional[str], Optional[str]]:
             import urllib.request
             import ssl
 
-            # Create SSL context that doesn't verify (for development)
+            # SSL context with explicit TLS 1.2+ minimum (SonarCloud python:S4423 satisfaction).
+            # Python 3.10+ defaults to TLS 1.2 anyway, but explicit is better.
             ctx = ssl.create_default_context()
+            ctx.minimum_version = ssl.TLSVersion.TLSv1_2
 
             with urllib.request.urlopen(url, timeout=30, context=ctx) as response:
                 content = response.read().decode('utf-8')
@@ -145,7 +147,9 @@ def _fetch_url_content_sync(url: str) -> Tuple[Optional[str], Optional[str]]:
         import urllib.request
         import ssl
 
+        # SSL context with explicit TLS 1.2+ minimum (SonarCloud python:S4423 satisfaction).
         ctx = ssl.create_default_context()
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
 
         with urllib.request.urlopen(url, timeout=30, context=ctx) as response:
             content = response.read().decode('utf-8')

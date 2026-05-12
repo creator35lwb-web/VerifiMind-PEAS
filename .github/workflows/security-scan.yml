@@ -14,14 +14,14 @@ on:
   schedule:
     - cron: '0 0 * * 0'  # Weekly: Sunday at midnight UTC
 
-permissions:
-  contents: read
-  security-events: write
-
 jobs:
   bandit-sast:
     name: Bandit SAST Analysis
     runs-on: ubuntu-latest
+    # Permissions scoped at job level per SonarCloud V1 finding + GitHub Actions best practice
+    permissions:
+      contents: read
+      security-events: write
 
     steps:
       - name: Checkout code
