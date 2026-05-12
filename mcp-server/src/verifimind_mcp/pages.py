@@ -1738,12 +1738,22 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 _CHANGELOG_BODY = """
 <h1>Changelog</h1>
 <div class="meta">
-  <span>Last updated: May 12, 2026 (v0.5.29)</span>
+  <span>Last updated: May 12, 2026 (v0.5.30)</span>
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
 </div>
 
+<div id="v0.5.30">
+<h2>v0.5.30 — Config Scanner Block <span class="live-badge">LIVE</span></h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">May 12, 2026</p>
+<ul>
+  <li><strong>IP blocked:</strong> <code>85.121.126.250</code> — config/secret enumeration scanner probing <code>/api/env</code>, <code>/firebase-config.json</code>, <code>/swagger.json</code>, <code>/openapi.json</code>, <code>/.well-known/jwks.json</code>, and ~20 more secret/config paths at ~25 req/sec with rotating user agents (botnet pattern)</li>
+  <li><strong>Defense-in-depth:</strong> mostly 429-rate-limited already, but adding to blocklist eliminates server-side processing entirely</li>
+  <li><strong>Cost rationale:</strong> Cloud Armor (~$5/mo + per-rule + per-request) is not cost-justified at solo-builder scale; app-layer blocklist in <code>ip_blocklist.py</code> is free and equally effective. 6 IPs blocked total.</li>
+</ul>
+</div>
+
 <div id="v0.5.29">
-<h2>v0.5.29 — Growth-First Pages <span class="live-badge">LIVE</span></h2>
+<h2>v0.5.29 — Growth-First Pages</h2>
 <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">May 12, 2026</p>
 <ul>
   <li><strong><code>/terms</code> &rarr; v2.1</strong> — pricing tier table removed (Pioneer row gone); Payment and Refund sections rewritten as forward-looking placeholders; Section 6 (Beta) and Section 8 (Acceptable Use) updated to drop Pioneer-specific language</li>
