@@ -1738,12 +1738,25 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 _CHANGELOG_BODY = """
 <h1>Changelog</h1>
 <div class="meta">
-  <span>Last updated: May 12, 2026 (v0.5.30)</span>
+  <span>Last updated: May 13, 2026 (v0.5.31)</span>
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
 </div>
 
+<div id="v0.5.31">
+<h2>v0.5.31 — SonarCloud P0 <span class="live-badge">LIVE</span></h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">May 13, 2026</p>
+<ul>
+  <li><strong>Workflow hardening:</strong> <code>.github/workflows/security-scan.yml</code> — permissions moved from workflow level to job level (least-privilege)</li>
+  <li><strong>TLS hardening:</strong> <code>templates/import_url.py</code> — explicit <code>TLSv1_2</code> minimum on both SSL contexts (lines 121, 148)</li>
+  <li><strong>Code correctness:</strong> <code>templates/library/__init__.py</code> — removed broken <code>__all__</code> referencing six YAML files as Python symbols</li>
+  <li><strong>False-positive suppressions with justification:</strong> 7× test fixture <code>api_key</code> values in <code>tests/unit/llm/test_providers.py</code> (needed for prefix-detection tests); <code>host="0.0.0.0"</code> binding in <code>http_server.py</code> (required by Cloud Run); 2× API-schema <code>"password"</code> dict keys in <code>examples/demo_iterative_generation.py</code> (field type indicators)</li>
+  <li><strong>Deprecation fix:</strong> <code>datetime.utcnow()</code> → <code>datetime.now(timezone.utc)</code> in demo file</li>
+  <li><strong>Expected SonarCloud impact:</strong> Security count 14 → 1, BLOCKER 15 → 0</li>
+</ul>
+</div>
+
 <div id="v0.5.30">
-<h2>v0.5.30 — Config Scanner Block <span class="live-badge">LIVE</span></h2>
+<h2>v0.5.30 — Config Scanner Block</h2>
 <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">May 12, 2026</p>
 <ul>
   <li><strong>IP blocked:</strong> <code>85.121.126.250</code> — config/secret enumeration scanner probing <code>/api/env</code>, <code>/firebase-config.json</code>, <code>/swagger.json</code>, <code>/openapi.json</code>, <code>/.well-known/jwks.json</code>, and ~20 more secret/config paths at ~25 req/sec with rotating user agents (botnet pattern)</li>

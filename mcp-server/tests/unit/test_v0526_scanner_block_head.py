@@ -90,4 +90,4 @@ class TestServerVersion:
 
     def test_server_version_is_0526(self):
         import http_server
-        assert http_server.SERVER_VERSION == "0.5.30"
+        assert http_server.SERVER_VERSION == "0.5.31"

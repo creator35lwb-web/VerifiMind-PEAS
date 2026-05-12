@@ -6,6 +6,36 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.31 - SonarCloud P0 (May 13, 2026)
+
+Resolves the P0 security hardening items from XV's May 12 SonarCloud audit (`.macp/handoffs/20260512_XV_sonarqube_security_audit_for_RNA.md`). Live SonarCloud state showed **14 Vulnerabilities + 15 BLOCKER severity items** — this release addresses every fixable item.
+
+### Workflow hardening (1 Vulnerability)
+- `.github/workflows/security-scan.yml` — moved `permissions: contents/security-events` from workflow level to the `bandit-sast` job level (principle of least privilege per GitHub Actions best practice)
+
+### TLS hardening (2 Vulnerabilities)
+- `templates/import_url.py:121, 148` — set `ctx.minimum_version = ssl.TLSVersion.TLSv1_2` explicitly on both SSL contexts; Python 3.10+ already defaults to TLS 1.2 but explicit is better
+
+### Code correctness (6 BUGs)
+- `templates/library/__init__.py` — removed broken `__all__` listing six YAML data files as Python symbols; replaced with an explanatory docstring (these are runtime-loaded YAML, not importable submodules)
+
+### False-positive suppressions with justification
+- `tests/unit/llm/test_providers.py:394,401,408,415,423,447,454` — added `# NOSONAR` comments to 7 lines flagged for `api_key` keyword. These are test fixtures with mock keys whose specific prefixes (`gsk_`, `sk-ant-`, `csk-`) the tests intentionally validate against; renaming would break the auto-detection tests.
+- `http_server.py:1754` — added `# NOSONAR` to the `host="0.0.0.0"` line with justification comment; this binding is REQUIRED by Cloud Run for the container to accept proxy traffic
+- `examples/demo_iterative_generation.py:150,157` — added `# NOSONAR` to API schema documentation dicts containing `"password": "string"` (these are field type indicators, not credentials)
+
+### Deprecation fix (P1 bonus)
+- `examples/demo_iterative_generation.py:61, 221` — replaced deprecated `datetime.utcnow()` with `datetime.now(timezone.utc)`; updated import accordingly
+
+### Deferred (separate concern)
+- `pyproject.toml` missing lockfile — our build uses hatchling without native lockfile support. Adding `uv.lock` or `poetry.lock` would change the package manager. Tracked as a P3 architecture decision, not a security fix.
+
+### Expected SonarCloud impact
+- Security impact: 14 → ~1 (only the lockfile question remains)
+- BLOCKER severity: 15 → 0 (all 6 BUG findings on `__all__` fixed; all 7 test_providers and 1 http_server suppressed with justification)
+
+---
+
 ## v0.5.30 - Config Scanner Block (May 12, 2026)
 
 Security hardening: blocked a new config/secret enumeration scanner identified via GCP forensic analysis.

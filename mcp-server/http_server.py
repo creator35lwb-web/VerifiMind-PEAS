@@ -64,7 +64,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.30"
+SERVER_VERSION = "0.5.31"
 
 # Track server start time for uptime reporting (v0.5.0 health v2)
 _SERVER_START_TIME = time.time()
@@ -1751,9 +1751,13 @@ if __name__ == "__main__":
     print(f"  curl http://localhost:{port}/health")
     print(f"  curl -X POST http://localhost:{port}/mcp/ -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -d '{{...}}'\n")
 
+    # NOSONAR(python:S104): binding to 0.0.0.0 is REQUIRED by Cloud Run —
+    # the container must accept connections from the Cloud Run proxy on any
+    # network interface inside the isolated container network. External
+    # access is controlled by Cloud Run's ingress settings, not by this bind.
     uvicorn.run(
         app,
-        host="0.0.0.0",
+        host="0.0.0.0",  # NOSONAR — see comment above
         port=port,
         log_level="info"
     )
