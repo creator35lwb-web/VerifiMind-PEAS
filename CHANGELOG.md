@@ -6,6 +6,31 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.32 - Secret Scanner Block + SonarCloud P1 (May 13, 2026)
+
+Two combined hardening tracks: blocks a fresh credential-enumeration scanner identified in GCP forensics (May 12 burst), and lands the SonarCloud P1 cleanup queued from XV's May 12 audit.
+
+### IP Blocklist Addition (7th)
+- **`195.178.110.199`** — Credential/Secret Enumeration Scanner. 788 requests in a single burst on 2026-05-12 ~20:26 UTC; probed `.env` variants (`/BACK/.env`, `/Be/.env`, `/Api/.env`, `/.env.old`, `/.env.test`, `/.env.sample` etc.), full `.git/*` tree (`/.git/config`, `/.git/index`, `/.git/HEAD`, hooks, refs, logs, packs), `.terraform.*`, `.stripe/`, `.s3cfg`, `.wp-config.php.swp`, `?phpinfo=1`, `?pp=env&pp=env`, CI configs (`.gitlab-ci.yml`, `.github/workflows`), Next.js/SharePoint deception paths. Static Chrome/131 UA.
+- **Defense breakdown:** 611/788 (77%) caught by rate limiter as 429; 153 caught as 302 HTTP→HTTPS redirects; 20 as 404; only 4 served 200 — all 4 were the safe public root/register response (zero sensitive leak; no PHP, no env vars, no `.git` data exists at the web root).
+
+### SonarCloud P1 cleanup (production hygiene)
+- **Module constants extracted in `http_server.py`** — `MCP_ENDPOINT_PATH`, `MCP_SERVER_URL`, `MCP_REMOTE_QUICKSTART`. Replaces ~13 duplicate string literals across JSON/dict surfaces (health response, /mcp-config, /, setup, error handlers, deprecated SSE 410 handler). URL changes now propagate from a single source. HTML page literals kept inline per XV P3-1 caveat (readability over deduplication).
+- **Cognitive complexity refactor at `http_exception_handler`** — extracted `_extract_tool_call_metadata()` and `_client_ip_from_request()` helpers. Complexity 23 → ≤15. Function shape preserved; tested 404 logging path unchanged.
+- **CodeQL `py/empty-except` × 2 resolved:**
+  - `http_server.py:1072` — bare `except Exception: pass` replaced with specific `(ValueError, UnicodeDecodeError)` catch + comment explaining why probe traffic should not log.
+  - `trinity_history.py:131` — `except RuntimeError: pass` now `logger.debug()` for visibility under verbose logging (no-running-loop case is by-design best-effort).
+- **Logging hygiene:** `http_server.py` lightweight-registration 500 path uses `logger.exception()` for full traceback rather than `logger.error("%s", e)`.
+
+### Expected impact
+- SonarCloud Critical Code Smells: 13 → ~6
+- CodeQL open: 15 → 13
+- Cognitive complexity violations (production): 1 → 0
+- SonarCloud Security: 3 → 3 (already clean from v0.5.31)
+- Blocked IPs: 6 → 7
+
+---
+
 ## v0.5.31 - SonarCloud P0 (May 13, 2026)
 
 Resolves the P0 security hardening items from XV's May 12 SonarCloud audit (`.macp/handoffs/20260512_XV_sonarqube_security_audit_for_RNA.md`). Live SonarCloud state showed **14 Vulnerabilities + 15 BLOCKER severity items** — this release addresses every fixable item.

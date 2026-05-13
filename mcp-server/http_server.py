@@ -64,7 +64,17 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.31"
+SERVER_VERSION = "0.5.32"
+
+# MCP endpoint constants — single source of truth for URL/path strings used in
+# JSON responses, quickstart commands, and HTML setup pages. Extracted in v0.5.32
+# to remove SonarCloud duplicate-literal smells in http_server.py (5–6× duplicates).
+MCP_ENDPOINT_PATH = "/mcp/"
+MCP_SERVER_URL = "https://verifimind.ysenseai.org/mcp/"
+MCP_REMOTE_QUICKSTART = (
+    "claude mcp add -s user verifimind -- npx -y mcp-remote "
+    "https://verifimind.ysenseai.org/mcp/"
+)
 
 # Track server start time for uptime reporting (v0.5.0 health v2)
 _SERVER_START_TIME = time.time()
@@ -129,7 +139,7 @@ async def health_handler(request):
             "global": f"{rate_stats['global_limit']} req/{rate_stats['window_seconds']}s",
             "current_load": f"{rate_stats['global_requests_in_window']}/{rate_stats['global_limit']}"
         },
-        "quick_start": "Run: claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/"
+        "quick_start": f"Run: {MCP_REMOTE_QUICKSTART}"
     })
 
 async def mcp_config_handler(request):
@@ -172,8 +182,8 @@ async def mcp_config_handler(request):
         "quickstart": {
             "claude_code": {
                 "description": "Run this command in your terminal to add the server",
-                "command": "claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/",
-                "project_scope": "claude mcp add -s project verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/"
+                "command": MCP_REMOTE_QUICKSTART,
+                "project_scope": f"claude mcp add -s project verifimind -- npx -y mcp-remote {MCP_SERVER_URL}"
             },
             "claude_desktop": {
                 "description": "Add this to your claude_desktop_config.json",
@@ -181,7 +191,7 @@ async def mcp_config_handler(request):
                     "mcpServers": {
                         "verifimind": {
                             "command": "npx",
-                            "args": ["-y", "mcp-remote", "https://verifimind.ysenseai.org/mcp/"]
+                            "args": ["-y", "mcp-remote", MCP_SERVER_URL]
                         }
                     }
                 },
@@ -317,7 +327,7 @@ async def mcp_config_handler(request):
                         "mcpServers": {
                             "verifimind": {
                                 "command": "npx",
-                                "args": ["-y", "mcp-remote", "https://verifimind.ysenseai.org/mcp/"],
+                                "args": ["-y", "mcp-remote", MCP_SERVER_URL],
                                 "env": {
                                     "LLM_PROVIDER": "gemini",
                                     "GEMINI_API_KEY": "your-api-key"
@@ -493,17 +503,17 @@ async def root_handler(request):
     return JSONResponse({
         "name": "VerifiMind PEAS MCP Server",
         "version": SERVER_VERSION,
-        "mcp_endpoint": "/mcp/",
+        "mcp_endpoint": MCP_ENDPOINT_PATH,
         "documentation": "https://github.com/creator35lwb-web/VerifiMind-PEAS",
         "landing_page": "https://verifimind.io",
-        "message": "Connect to /mcp/ using an MCP client (Claude Desktop, Cursor, VS Code)",
+        "message": f"Connect to {MCP_ENDPOINT_PATH} using an MCP client (Claude Desktop, Cursor, VS Code)",
         "endpoints": {
-            "mcp": "/mcp/",
+            "mcp": MCP_ENDPOINT_PATH,
             "config": "/.well-known/mcp-config",
             "health": "/health",
             "setup": "/setup"
         },
-        "quick_start": "claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/"
+        "quick_start": MCP_REMOTE_QUICKSTART
     })
 
 
@@ -534,7 +544,7 @@ async def setup_handler(request):
                 {
                     "step": 1,
                     "action": "Open terminal and run",
-                    "command": "claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/",
+                    "command": MCP_REMOTE_QUICKSTART,
                     "note": "Use '-s project' instead of '-s user' for project-specific setup"
                 },
                 {
@@ -575,7 +585,7 @@ async def setup_handler(request):
                         "mcpServers": {
                             "verifimind": {
                                 "command": "npx",
-                                "args": ["-y", "mcp-remote", "https://verifimind.ysenseai.org/mcp/"]
+                                "args": ["-y", "mcp-remote", MCP_SERVER_URL]
                             }
                         }
                     }
@@ -868,7 +878,7 @@ async def smithery_server_card_handler(request):
         "connections": [
             {
                 "type": "http",
-                "deploymentUrl": "https://verifimind.ysenseai.org/mcp/",
+                "deploymentUrl": MCP_SERVER_URL,
                 "configSchema": {
                     "type": "object",
                     "properties": {},
@@ -1052,26 +1062,47 @@ async def smithery_server_card_handler(request):
     })
 
 
+async def _extract_tool_call_metadata(request) -> tuple[str | None, str | None]:
+    """Parse MCP JSON-RPC POST body to extract (tool_name, user_uuid).
+
+    Returns (None, None) if not a POST, body is empty, body is invalid JSON,
+    or method is not 'tools/call'. Never raises — callers can rely on the
+    no-side-effects contract for structured logging in the 404 path.
+    """
+    if request.method != "POST":
+        return None, None
+    try:
+        body = await request.body()
+        if not body:
+            return None, None
+        import json as _json
+        payload = _json.loads(body)
+    except (ValueError, UnicodeDecodeError):
+        # JSON parse / decode failures are expected on probe traffic — no log noise.
+        return None, None
+    if payload.get("method") != "tools/call":
+        return None, None
+    params = payload.get("params", {}) or {}
+    tool_name = params.get("name")
+    user_uuid = (params.get("arguments", {}) or {}).get("user_uuid")
+    return tool_name, user_uuid
+
+
+def _client_ip_from_request(request) -> str:
+    """Best-effort client IP from XFF, falling back to direct client host."""
+    return request.headers.get(
+        "x-forwarded-for",
+        request.client.host if request.client else "unknown",
+    )
+
+
 async def http_exception_handler(request, exc):
     """Return actionable error messages for common HTTP errors."""
     import datetime as _dt
     status = exc.status_code
     if status == 404:
-        # Structured logging: extract tool name + UUID from MCP JSON-RPC body if present
-        tool_name = None
-        user_uuid = None
-        if request.method == "POST":
-            try:
-                body = await request.body()
-                if body:
-                    import json as _json
-                    payload = _json.loads(body)
-                    if payload.get("method") == "tools/call":
-                        tool_name = payload.get("params", {}).get("name")
-                        user_uuid = payload.get("params", {}).get("arguments", {}).get("user_uuid")
-            except Exception:
-                pass
-        client_ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "unknown")
+        tool_name, user_uuid = await _extract_tool_call_metadata(request)
+        client_ip = _client_ip_from_request(request)
         ts = _dt.datetime.now(_dt.timezone.utc).isoformat()
         if tool_name:
             logger.warning(
@@ -1084,18 +1115,18 @@ async def http_exception_handler(request, exc):
             "error": "Endpoint Not Found",
             "message": (
                 "It looks like your MCP client may be misconfigured. "
-                "The correct MCP endpoint is /mcp/ — ensure your setup URL is exact. "
+                f"The correct MCP endpoint is {MCP_ENDPOINT_PATH} — ensure your setup URL is exact. "
                 f"Visit {HELP_URL} for troubleshooting."
             ),
-            "mcp_endpoint": "/mcp/",
-            "quick_start": "claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/",
+            "mcp_endpoint": MCP_ENDPOINT_PATH,
+            "quick_start": MCP_REMOTE_QUICKSTART,
             "help": HELP_URL,
         }, status_code=404)
     if status == 405:
         return JSONResponse({
             "error": "Method Not Allowed",
-            "message": "The MCP endpoint is at /mcp/ — you may have the wrong URL path.",
-            "mcp_endpoint": "/mcp/",
+            "message": f"The MCP endpoint is at {MCP_ENDPOINT_PATH} — you may have the wrong URL path.",
+            "mcp_endpoint": MCP_ENDPOINT_PATH,
             "help": HELP_URL,
         }, status_code=405)
     if status == 400:
@@ -1270,8 +1301,8 @@ async def register_handler(request):
     try:
         result = await register_user(data)
         return JSONResponse(result.model_dump(), status_code=200)
-    except Exception as e:
-        logger.error("Lightweight registration error: %s", e)
+    except Exception:
+        logger.exception("Lightweight registration error")
         return JSONResponse({"error": "Registration failed. Please try again."}, status_code=500)
 
 
@@ -1620,8 +1651,8 @@ async def mcp_sse_deprecated_handler(request):
                 "SSE transport (/mcp/sse) is no longer supported. "
                 "VerifiMind uses Streamable HTTP transport."
             ),
-            "mcp_endpoint": "https://verifimind.ysenseai.org/mcp/",
-            "quick_start": "claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/",
+            "mcp_endpoint": MCP_SERVER_URL,
+            "quick_start": MCP_REMOTE_QUICKSTART,
             "help": "https://github.com/creator35lwb-web/VerifiMind-PEAS#setup",
         },
     )

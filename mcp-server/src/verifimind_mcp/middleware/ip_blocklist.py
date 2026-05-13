@@ -39,6 +39,11 @@ BLOCKED_IPS: list[tuple[str, str, str, str]] = [
     # /swagger.json, /openapi.json, /.well-known/jwks.json, /api/v1/config, /api/account, /__env.js, etc.
     # Rotating User-Agents (different browser/OS per request — botnet pattern). Mostly 429-rate-limited.
     ("85.121.126.250", "CONFIG_SCANNER", "2026-05-12", "RNA_CSO"),
+    # Credential / Secret Enumeration Scanner — 788 req single burst on May 12; probed .env variants,
+    # .git/* tree, .terraform.*, .stripe/, .s3cfg, .wp-config.php.swp, ?phpinfo=1, ?pp=env&pp=env,
+    # CI configs (.gitlab-ci, .github/workflows), Next.js/SharePoint paths. Static Chrome/131 UA.
+    # 611/788 (77%) caught by rate limiter as 429; 4 served 200 (safe root/register, zero leak).
+    ("195.178.110.199", "SECRET_SCANNER", "2026-05-13", "RNA_CSO"),
 ]
 
 # Blocked User-Agent substrings (case-insensitive substring match)
