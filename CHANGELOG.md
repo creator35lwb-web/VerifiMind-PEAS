@@ -4,6 +4,28 @@ All notable changes to the VerifiMind PEAS project will be documented in this fi
 
 Full version history also available at [verifimind.ysenseai.org/changelog](https://verifimind.ysenseai.org/changelog).
 
+> **Disclosure policy (since v0.5.33):** The internal `CHANGELOG.md` retains full forensic details (specific blocked IPs, probe paths, request counts, UA strings) for attribution and audit trail. The public-facing `/changelog` rendered by the server intentionally omits specific IP addresses to avoid signalling to attackers and to keep customer-facing copy clean. PRs and commits remain the canonical source for forensic detail.
+
+---
+
+## v0.5.33 - Changelog Hygiene (May 13, 2026)
+
+Disclosure policy clarification + retroactive sanitization of the public-facing `/changelog` page.
+
+### What changed
+- Sanitized the v0.5.30 and v0.5.32 entries in `mcp-server/src/verifimind_mcp/pages.py` to remove specific blocked-IP addresses from the public surface. Wording now matches the v0.5.22 / v0.5.26 pattern (attack-type only, no specific identifier).
+- Added a "Disclosure policy" header to this internal `CHANGELOG.md` documenting the split: full forensics live here and in PR history; public `/changelog` carries the security narrative without operational leakage.
+- Added a v0.5.33 entry to public `/changelog` explaining the hygiene retroactively (transparency about the fix itself).
+- Added PR# links to v0.5.30 and v0.5.32 public entries (matches v0.5.23 / v0.5.24 pattern).
+
+### Why
+Disclosing specific blocked IPs in a public changelog (a) signals to attackers what triggered the block, (b) tells the blocked actor they're caught and should rotate, (c) looks reactive in customer-facing copy. Internal records keep the full forensic record for attribution; the public surface keeps the trust signal ("we caught it, we blocked it") without operational leakage. This brings v0.5.30 and v0.5.32 in line with the existing v0.5.22 / v0.5.26 disclosure pattern.
+
+### Expected impact
+- Public `/changelog` at `verifimind.ysenseai.org/changelog` no longer surfaces `195.178.110.199` or `85.121.126.250`.
+- Internal `CHANGELOG.md`, PR #213 / #215 bodies, and commit messages continue to carry the full forensic record (these are public on GitHub but require explicit drill-in vs being rendered into the live customer-facing page).
+- No functional / API surface change. Version bump preserves the deploy-tracker convention.
+
 ---
 
 ## v0.5.32 - Secret Scanner Block + SonarCloud P1 (May 13, 2026)

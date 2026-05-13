@@ -1738,20 +1738,30 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 _CHANGELOG_BODY = """
 <h1>Changelog</h1>
 <div class="meta">
-  <span>Last updated: May 13, 2026 (v0.5.32)</span>
+  <span>Last updated: May 13, 2026 (v0.5.33)</span>
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
 </div>
 
-<div id="v0.5.32">
-<h2>v0.5.32 — Secret Scanner Block + SonarCloud P1 <span class="live-badge">LIVE</span></h2>
+<div id="v0.5.33">
+<h2>v0.5.33 — Changelog Hygiene <span class="live-badge">LIVE</span></h2>
 <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">May 13, 2026</p>
 <ul>
-  <li><strong>IP blocked (7th):</strong> <code>195.178.110.199</code> — credential/secret enumeration scanner, 788 req single burst on May 12 probing <code>.env</code> variants, <code>.git/*</code> tree, <code>.terraform.*</code>, <code>.stripe/</code>, <code>.s3cfg</code>, <code>.wp-config.php.swp</code>, <code>?phpinfo=1</code>, <code>?pp=env&amp;pp=env</code>, CI configs, Next.js/SharePoint paths. Static Chrome/131 UA. 611/788 (77%) caught by rate limiter as 429; 4 served 200 (safe root/register page, zero leak).</li>
+  <li><strong>Public surface hygiene:</strong> retroactively sanitized prior security entries (v0.5.30, v0.5.32) to remove specific blocked-IP addresses from the public-facing changelog. Forensic details (specific IPs, probe paths, request counts, UA strings) are preserved in the internal repo <code>CHANGELOG.md</code>, PR history, and audit trail for attribution and operational continuity. This brings v0.5.30 and v0.5.32 in line with the v0.5.22 / v0.5.26 disclosure pattern.</li>
+  <li><strong>Why this matters:</strong> disclosing specific blocked IPs in a public changelog signals to attackers what worked, tells the blocked actor they're caught (accelerating rotation), and looks reactive in customer-facing copy. Internal records keep the full forensics for attribution and post-mortem; the public surface keeps the security narrative without operational leakage.</li>
+</ul>
+</div>
+
+<div id="v0.5.32">
+<h2>v0.5.32 — Secret Scanner Block + SonarCloud P1</h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">May 13, 2026</p>
+<ul>
+  <li><strong>Security:</strong> blocked a credential / secret enumeration scanner identified via GCP forensic analysis; 7 rogue IPs now blocked at the application layer. 77% of the burst was already absorbed by the rate limiter as 429; zero leak verified (only the safe public root/register pages were served).</li>
   <li><strong>SonarCloud P1 cleanup:</strong> Extracted <code>MCP_ENDPOINT_PATH</code>, <code>MCP_SERVER_URL</code>, <code>MCP_REMOTE_QUICKSTART</code> as module constants in <code>http_server.py</code> — removed ~13 duplicate string literals across JSON/dict responses (URL changes now propagate from a single source).</li>
   <li><strong>Cognitive complexity refactor:</strong> <code>http_exception_handler</code> 404 branch — extracted <code>_extract_tool_call_metadata()</code> and <code>_client_ip_from_request()</code> helpers. Complexity 23 → ≤15.</li>
   <li><strong>Empty-except cleanups (CodeQL <code>py/empty-except</code>):</strong> <code>http_server.py</code> JSON parse caught specifically as <code>(ValueError, UnicodeDecodeError)</code> with rationale comment; <code>trinity_history.py</code> <code>RuntimeError</code> branch now logs at <code>debug</code> level instead of bare <code>pass</code>.</li>
   <li><strong>Logging hygiene:</strong> Lightweight-registration 500 path uses <code>logger.exception()</code> (full traceback) instead of <code>logger.error(..., e)</code>.</li>
   <li><strong>Expected impact:</strong> SonarCloud Critical Code Smells 13 → ~6, CodeQL open 15 → 13. Security count unchanged at 3 (already clean).</li>
+  <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/215" target="_blank" rel="noopener">PR #215</a></li>
 </ul>
 </div>
 
@@ -1772,9 +1782,9 @@ _CHANGELOG_BODY = """
 <h2>v0.5.30 — Config Scanner Block</h2>
 <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">May 12, 2026</p>
 <ul>
-  <li><strong>IP blocked:</strong> <code>85.121.126.250</code> — config/secret enumeration scanner probing <code>/api/env</code>, <code>/firebase-config.json</code>, <code>/swagger.json</code>, <code>/openapi.json</code>, <code>/.well-known/jwks.json</code>, and ~20 more secret/config paths at ~25 req/sec with rotating user agents (botnet pattern)</li>
-  <li><strong>Defense-in-depth:</strong> mostly 429-rate-limited already, but adding to blocklist eliminates server-side processing entirely</li>
-  <li><strong>Cost rationale:</strong> Cloud Armor (~$5/mo + per-rule + per-request) is not cost-justified at solo-builder scale; app-layer blocklist in <code>ip_blocklist.py</code> is free and equally effective. 6 IPs blocked total.</li>
+  <li><strong>Security:</strong> blocked a config / secret enumeration scanner identified via GCP forensic analysis; added to the application-layer IP filter. 6 rogue IPs blocked total at this point. Mostly absorbed by the rate limiter prior to the block; adding to the filter eliminates server-side processing entirely.</li>
+  <li><strong>Cost rationale:</strong> Cloud Armor (~$5/mo + per-rule + per-request) is not cost-justified at solo-builder scale; the app-layer blocklist in <code>ip_blocklist.py</code> is free and equally effective at this volume.</li>
+  <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/213" target="_blank" rel="noopener">PR #213</a></li>
 </ul>
 </div>
 
