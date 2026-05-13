@@ -1738,12 +1738,25 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 _CHANGELOG_BODY = """
 <h1>Changelog</h1>
 <div class="meta">
-  <span>Last updated: May 13, 2026 (v0.5.31)</span>
+  <span>Last updated: May 13, 2026 (v0.5.32)</span>
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
 </div>
 
+<div id="v0.5.32">
+<h2>v0.5.32 — Secret Scanner Block + SonarCloud P1 <span class="live-badge">LIVE</span></h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">May 13, 2026</p>
+<ul>
+  <li><strong>IP blocked (7th):</strong> <code>195.178.110.199</code> — credential/secret enumeration scanner, 788 req single burst on May 12 probing <code>.env</code> variants, <code>.git/*</code> tree, <code>.terraform.*</code>, <code>.stripe/</code>, <code>.s3cfg</code>, <code>.wp-config.php.swp</code>, <code>?phpinfo=1</code>, <code>?pp=env&amp;pp=env</code>, CI configs, Next.js/SharePoint paths. Static Chrome/131 UA. 611/788 (77%) caught by rate limiter as 429; 4 served 200 (safe root/register page, zero leak).</li>
+  <li><strong>SonarCloud P1 cleanup:</strong> Extracted <code>MCP_ENDPOINT_PATH</code>, <code>MCP_SERVER_URL</code>, <code>MCP_REMOTE_QUICKSTART</code> as module constants in <code>http_server.py</code> — removed ~13 duplicate string literals across JSON/dict responses (URL changes now propagate from a single source).</li>
+  <li><strong>Cognitive complexity refactor:</strong> <code>http_exception_handler</code> 404 branch — extracted <code>_extract_tool_call_metadata()</code> and <code>_client_ip_from_request()</code> helpers. Complexity 23 → ≤15.</li>
+  <li><strong>Empty-except cleanups (CodeQL <code>py/empty-except</code>):</strong> <code>http_server.py</code> JSON parse caught specifically as <code>(ValueError, UnicodeDecodeError)</code> with rationale comment; <code>trinity_history.py</code> <code>RuntimeError</code> branch now logs at <code>debug</code> level instead of bare <code>pass</code>.</li>
+  <li><strong>Logging hygiene:</strong> Lightweight-registration 500 path uses <code>logger.exception()</code> (full traceback) instead of <code>logger.error(..., e)</code>.</li>
+  <li><strong>Expected impact:</strong> SonarCloud Critical Code Smells 13 → ~6, CodeQL open 15 → 13. Security count unchanged at 3 (already clean).</li>
+</ul>
+</div>
+
 <div id="v0.5.31">
-<h2>v0.5.31 — SonarCloud P0 <span class="live-badge">LIVE</span></h2>
+<h2>v0.5.31 — SonarCloud P0</h2>
 <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">May 13, 2026</p>
 <ul>
   <li><strong>Workflow hardening:</strong> <code>.github/workflows/security-scan.yml</code> — permissions moved from workflow level to job level (least-privilege)</li>

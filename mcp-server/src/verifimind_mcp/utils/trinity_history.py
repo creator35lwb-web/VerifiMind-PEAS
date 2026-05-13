@@ -129,4 +129,6 @@ def persist_trinity_result(uuid: str | None, tool: str, raw_result: dict) -> Non
         loop = asyncio.get_running_loop()
         loop.create_task(_write_to_firestore(uuid, record))
     except RuntimeError:
-        pass
+        # No running event loop (e.g., called from sync test harness) — silently skip.
+        # Trinity history is best-effort, never blocks the caller. By design.
+        logger.debug("trinity_history: no running event loop; skipping async write")

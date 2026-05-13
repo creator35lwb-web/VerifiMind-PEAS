@@ -1,16 +1,17 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** May 10, 2026
+**Last Updated:** May 13, 2026
 
 ---
 
 ## Current Status: Operational
 
-**v0.5.31 "SonarCloud P0" — XV audit findings resolved, deployed May 13, 2026**
+**v0.5.32 "Secret Scanner Block + SonarCloud P1" — deployed May 13, 2026**
 
-The VerifiMind MCP server is fully operational. All security gates passed. GCP revision `verifimind-mcp-server-00417-cbq` (will be bumped on v0.5.31 deploy).
+The VerifiMind MCP server is fully operational. All security gates passed.
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination) — **all free for everyone**
+- **Secret Scanner Block + SonarCloud P1 (v0.5.32)**: 7th IP `195.178.110.199` blocked — credential/secret enumeration scanner, 788 req single burst on May 12 (probed `.env` variants, `.git/*`, `.terraform.*`, `.stripe/`, `?phpinfo=1`, CI configs). 77% caught by rate limiter; zero leak (4 served 200 = safe root response only). SonarCloud P1 cleanup: extracted `MCP_ENDPOINT_PATH`/`MCP_SERVER_URL`/`MCP_REMOTE_QUICKSTART` constants (removed 13 duplicate literals); refactored `http_exception_handler` cognitive complexity 23 → ≤15; CodeQL `py/empty-except` × 2 resolved; logger.exception() in registration 500 path — May 13, 2026
 - **SonarCloud P0 (v0.5.31)**: Resolved 14 SonarCloud Vulnerabilities + 15 BLOCKER severity items per XV's May 12 audit. Workflow permissions scoped to job level; TLS 1.2 explicit minimum; broken `__all__` in templates/library removed; 8 false-positive suppressions with NOSONAR + justification comments; deprecated `datetime.utcnow()` replaced. Expected impact: Security count 14 → 1, BLOCKER 15 → 0 — May 13, 2026
 - **Config Scanner Block (v0.5.30)**: `85.121.126.250` added to IP blocklist — config/secret enumeration scanner probed ~25 secret/config paths in 1 second (`/api/env`, `/firebase-config.json`, `/swagger.json`, `/openapi.json`, `/.well-known/jwks.json`, etc.) with rotating user agents. Cost-effective defense for solo builder — Cloud Armor pricing not justified at our scale. 6 IPs blocked total — May 12, 2026
 - **Growth-First Pages (v0.5.29)**: `/terms` → v2.1, `/privacy` → v2.2, `/register` benefit cards updated. All pricing removed from public-facing pages. No current paid services. "Growth First, Monetization Later" pledge now consistent across server and landing page. Polar payment infrastructure preserved for future services — May 12, 2026
@@ -48,7 +49,7 @@ The VerifiMind MCP server is fully operational. All security gates passed. GCP r
 | **Endpoint** | `https://verifimind.ysenseai.org/mcp` |
 | **Health Check** | `https://verifimind.ysenseai.org/health` |
 | **Register** | `https://verifimind.ysenseai.org/register` |
-| **Server Version** | 0.5.31 "SonarCloud P0" (deployed May 13, 2026) |
+| **Server Version** | 0.5.32 "Secret Scanner Block + SonarCloud P1" (deployed May 13, 2026) |
 | **Transport** | Streamable HTTP (SSE) |
 | **Default Provider** | Gemini 2.5 Flash (FREE) / Groq Llama 3.3 (FREE fallback) |
 | **BYOK Providers** | Gemini, Groq, Cerebras (FREE), OpenAI, Anthropic, Mistral, Ollama |
