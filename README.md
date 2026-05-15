@@ -7,7 +7,7 @@
 
   Three specialized agents — Innovation, Ethics, Security — review your concept before you build it. Multi-vendor (Gemini · Claude · GPT · Groq · Cerebras · Mistral · Ollama). Free, open-source, MCP-native.
 
-  [![Version](https://img.shields.io/badge/version-v0.5.29-blue.svg)](CHANGELOG.md)
+  [![Version](https://img.shields.io/badge/version-v0.5.34-blue.svg)](CHANGELOG.md)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Status](https://img.shields.io/badge/status-Operational-success.svg)](SERVER_STATUS.md)
   [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Listed-purple)](https://registry.modelcontextprotocol.io/?q=verifimind)
@@ -233,6 +233,7 @@ A prior-art defensive publication is registered at DOI [10.5281/zenodo.17645665]
 | MCP setup troubleshooting | [docs/MCP_Server_Troubleshooting_Guide.md](docs/MCP_Server_Troubleshooting_Guide.md) |
 | Research library | [/library](https://verifimind.ysenseai.org/library) · [/research](https://verifimind.ysenseai.org/research) |
 | Validation Paradox reflections | [/research/paradox](https://verifimind.ysenseai.org/research/paradox) |
+| Evaluation Roadmap (v1.0, tagged `roadmap-v1.0`) | [/research/evaluation-roadmap](https://verifimind.ysenseai.org/research/evaluation-roadmap) · [canonical source](docs/research/evaluation-roadmap/roadmap-v1.0.md) |
 | GitHub Discussions | [github.com/creator35lwb-web/VerifiMind-PEAS/discussions](https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions) |
 | MCP Registry listing | [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/?q=verifimind) |
 | Hugging Face demo | [YSenseAI/verifimind-peas](https://huggingface.co/spaces/YSenseAI/verifimind-peas) |

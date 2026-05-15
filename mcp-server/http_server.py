@@ -51,7 +51,7 @@ from verifimind_mcp.registration import (
     register_user,
 )
 from verifimind_mcp.policies import PRIVACY_POLICY, TERMS_AND_CONDITIONS
-from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_changelog_page, get_research_page, get_library_page, get_dashboard_page, get_paradox_page, get_cowork_page
+from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_changelog_page, get_research_page, get_library_page, get_dashboard_page, get_paradox_page, get_cowork_page, get_evaluation_roadmap_page
 from verifimind_mcp.utils.trinity_history import read_trinity_history
 from verifimind_mcp.llm.provider import PROVIDER_CONFIGS
 from verifimind_mcp.registration import _get_firestore
@@ -64,7 +64,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.33"
+SERVER_VERSION = "0.5.34"
 
 # MCP endpoint constants — single source of truth for URL/path strings used in
 # JSON responses, quickstart commands, and HTML setup pages. Extracted in v0.5.32
@@ -679,6 +679,7 @@ Allow: /research
 Allow: /research/index.json
 Allow: /research/paradox
 Allow: /research/cowork
+Allow: /research/evaluation-roadmap
 Allow: /library
 Allow: /library/index.json
 Allow: /changelog
@@ -809,6 +810,11 @@ _SITEMAP_XML = """\
     <loc>https://verifimind.ysenseai.org/research/cowork</loc>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://verifimind.ysenseai.org/research/evaluation-roadmap</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.95</priority>
   </url>
   <url>
     <loc>https://verifimind.ysenseai.org/research/index.json</loc>
@@ -1338,6 +1344,11 @@ async def cowork_handler(request):
     return HTMLResponse(get_cowork_page())
 
 
+async def evaluation_roadmap_handler(request):
+    """GET /research/evaluation-roadmap — Pre-registered Evaluation Roadmap v1.0 (May 2026 → April 2027)."""
+    return HTMLResponse(get_evaluation_roadmap_page())
+
+
 async def mcp_test_handler(request):
     """GET /mcp/test?key=<uuid> — Verify UUID + connection health (P0 UUID transfer UX fix)."""
     key = request.query_params.get("key", "")
@@ -1364,11 +1375,32 @@ async def mcp_test_handler(request):
 
 # Machine-readable index — enables future MCP tool + AI crawlers (Perplexity, Google SGE)
 _RESEARCH_INDEX = {
-    "version": "1.3",
-    "updated": "2026-04-30",
+    "version": "1.4",
+    "updated": "2026-05-15",
     "url": "https://verifimind.ysenseai.org/research",
     "license": "CC BY 4.0",
     "papers": [
+        {
+            "id": "evaluation-roadmap",
+            "title": "The Evaluation Roadmap (v1.0) — Pre-registered Milestones May 2026 → April 2027",
+            "authors": ["Lee Wei Bin (Alton), VerifiMind", "FLYWHEEL TEAM"],
+            "date": "2026-05-15",
+            "version": "1.0",
+            "git_tag": "roadmap-v1.0",
+            "tags": ["Pre-Registered Roadmap", "Evaluation Methodology", "Cohen kappa", "Calibration", "Kill-Conditions", "External Witnesses", "Falsifiable Claims"],
+            "url": "https://verifimind.ysenseai.org/research/evaluation-roadmap",
+            "github": "https://github.com/creator35lwb-web/VerifiMind-PEAS/blob/main/docs/research/evaluation-roadmap/roadmap-v1.0.md",
+            "companion": "https://verifimind.ysenseai.org/research/paradox",
+            "status": "published-tagged",
+            "abstract": (
+                "VerifiMind's pre-registered evaluation roadmap: 10 dated milestones (M0–M9) over 12 months, "
+                "with pre-registered thresholds (Cohen's κ ≥ 0.60, ECE ≤ 0.05, Brier, F1 lift, ESR), "
+                "pre-registered kill-conditions (8 abandonment triggers stated up front), and named external "
+                "witnesses identified before the work starts. The structural answer to The Validation Paradox: "
+                "a public clock that converts AI-validation claims from aspirational to falsifiable. "
+                "Companion to /research/paradox. Tagged roadmap-v1.0. CC BY 4.0."
+            ),
+        },
         {
             "id": "cowork-analysis",
             "title": "Anthropic Cowork on 3P: A Strategic Analysis with Self-Correction",
@@ -1683,6 +1715,7 @@ app = Starlette(
         Route("/research", research_handler, methods=["GET"]),
         Route("/research/paradox", paradox_handler, methods=["GET"]),
         Route("/research/cowork", cowork_handler, methods=["GET"]),
+        Route("/research/evaluation-roadmap", evaluation_roadmap_handler, methods=["GET"]),
         Route("/research/index.json", research_index_handler, methods=["GET"]),
         Route("/library", library_handler, methods=["GET"]),
         Route("/library/index.json", library_index_handler, methods=["GET"]),

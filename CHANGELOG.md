@@ -8,6 +8,31 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.34 - Evaluation Roadmap v1.0 (May 15, 2026)
+
+Phase 90 strategic spine: Alton's Decision #1 + #2 from the May 13 Recursive Paradox session (`.macp/handoffs/20260513_T_L_recursive_paradox_analysis_and_decisions.md`) shipped as a single bundled release.
+
+### What changed
+- **New public page `/research/evaluation-roadmap`** rendered by `get_evaluation_roadmap_page()` in `mcp-server/src/verifimind_mcp/pages.py`. Companion to `/research/paradox`; cross-linked bidirectionally. Contents: pre-registered honest-scope disclaimer, pre-registered thresholds table (Cohen's κ, ECE, Brier, F1 lift, ESR), the 10-milestone roadmap (M0–M9 across May 2026 → April 2027), 8 pre-registered kill-conditions, commitment mechanism (git tags + retrospectives + named witnesses + pre-registered failure conditions), and link out to the canonical markdown for the Section B technical RFC appendix (math, dataset spec, reproducibility checklist, co-maintainer terms).
+- **Canonical markdown** committed at `docs/research/evaluation-roadmap/roadmap-v1.0.md` (full 277-line source — Section A public + Section B technical RFC appendix with LaTeX-rendered math which GitHub renders inline).
+- **Bi-directional cross-link** added to the Validation Paradox page (`/research/paradox`) immediately after the TOC: "Our response → The Evaluation Roadmap (v1.0)" callout pointing at `/research/evaluation-roadmap`. Paradox page tells the reader what the problem is; the new callout points at the structural answer.
+- **Git tag** `roadmap-v1.0` applied to the commit landing this version of the page + canonical markdown. Future edits to milestone dates or definitions require a new tag with a public reason — `git log --tags` is the audit trail.
+- **README** version badge bumped v0.5.29 → v0.5.34; new "Evaluation Roadmap" row added under the Research library section.
+- **Wiring:** route `/research/evaluation-roadmap` registered in `http_server.py`; sitemap.xml + robots.txt entries added; `_RESEARCH_INDEX` JSON-LD bumped to v1.4 with `evaluation-roadmap` as the newest paper entry (companion of validation-paradox).
+
+### Why
+The Validation Paradox page named the problem in April: X / Z / CS are prompt-template agents with no labeled eval set, no calibration, no execution sandbox, no inter-judge agreement statistics. It ended on a single line — *the only available exit from a closed validation loop is an external signal.* The Evaluation Roadmap is that external signal: a public clock with pre-registered thresholds and pre-registered failure conditions. Publishing it (a) makes silent edits visible via git tags, (b) makes silent skips visible via milestone-keyed retrospectives, (c) makes false completions visible via named external witnesses, (d) makes rationalization visible via pre-registered failure conditions. Failure numbers ship in the same font size as success numbers.
+
+Per Alton's May 13 rulings, this is the Phase 90 strategic spine — Beta v0.6.0 is now redefined as M0 + M1 from this roadmap (NOT first paying customer). The roadmap is the credibility milestone, not a commercial milestone.
+
+### Expected impact
+- Public surface gains `/research/evaluation-roadmap` (~45KB HTML), plus `docs/research/evaluation-roadmap/roadmap-v1.0.md` on GitHub for the full Section B RFC appendix.
+- SEO: roadmap is canonicalized, added to sitemap and `/research/index.json`.
+- No API surface change. No functional change to existing tools. Trinity validation behavior unchanged.
+- Forecast (per Reasoning Evidence layer): if M0 is real, by ~Jun 1 we should see ≥ 1 external reference to this roadmap outside the VerifiMind/YSenseAI ecosystem. If not, M0 has not been hit — that becomes part of the retrospective, not silently elided.
+
+---
+
 ## v0.5.33 - Changelog Hygiene (May 13, 2026)
 
 Disclosure policy clarification + retroactive sanitization of the public-facing `/changelog` page.
