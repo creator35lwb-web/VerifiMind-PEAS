@@ -94,6 +94,18 @@ jobs:
   codeql-analysis:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
+    # Job-level permissions required to upload SARIF results to the security tab.
+    # Regression context: once any job in the workflow declared explicit permissions
+    # (bandit-sast did, per SonarCloud V1), GitHub switched the whole workflow to
+    # job-level permissioning. Jobs without an explicit block fall to a minimal
+    # default that excludes security-events:write, causing CodeQL upload to fail
+    # with "Resource not accessible by integration" on every push to main since
+    # v0.5.31. Same scopes the bandit-sast job uses, plus actions:read which the
+    # CodeQL action needs for tool-cache + workflow metadata reads.
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
 
     steps:
       - name: Checkout code
