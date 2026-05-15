@@ -1738,12 +1738,23 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 _CHANGELOG_BODY = """
 <h1>Changelog</h1>
 <div class="meta">
-  <span>Last updated: May 13, 2026 (v0.5.33)</span>
+  <span>Last updated: May 15, 2026 (v0.5.34)</span>
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
 </div>
 
+<div id="v0.5.34">
+<h2>v0.5.34 — Evaluation Roadmap v1.0 <span class="live-badge">LIVE</span></h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">May 15, 2026</p>
+<ul>
+  <li><strong>Published <a href="/research/evaluation-roadmap">/research/evaluation-roadmap</a></strong> — the pre-registered Evaluation Roadmap v1.0, year-one window May 2026 &rarr; April 2027. Ten dated milestones (M0&ndash;M9), pre-registered numerical thresholds (Cohen&rsquo;s &kappa; &ge; 0.60, ECE &le; 0.05, F1 lift &ge; 0.10), eight pre-registered kill-conditions, named external witnesses for M3 / M5 / M7 / M8. Companion document to <a href="/research/paradox">The Validation Paradox</a>; both pages link bidirectionally.</li>
+  <li><strong>Git tag <code>roadmap-v1.0</code></strong> &mdash; commits this version of the roadmap as the binding reference. Any future change to a milestone date or definition requires a new tag with a public reason; <code>git log --tags</code> is the audit trail.</li>
+  <li><strong>Canonical markdown source</strong> at <code>docs/research/evaluation-roadmap/roadmap-v1.0.md</code> in the PUBLIC repo, with full Section B technical RFC appendix (metric definitions with LaTeX, dataset spec, reproducibility checklist, co-maintainer role and compensation terms).</li>
+  <li><strong>What this is.</strong> The structural answer to the closed-validation-loop problem named on the Paradox page: a public clock. Failure numbers ship in the same font size as success numbers. We are publishing this knowing the most likely outcome is that we miss milestones &mdash; the structure is designed for that.</li>
+</ul>
+</div>
+
 <div id="v0.5.33">
-<h2>v0.5.33 — Changelog Hygiene <span class="live-badge">LIVE</span></h2>
+<h2>v0.5.33 — Changelog Hygiene</h2>
 <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">May 13, 2026</p>
 <ul>
   <li><strong>Public surface hygiene:</strong> retroactively sanitized prior security entries (v0.5.30, v0.5.32) to remove specific blocked-IP addresses from the public-facing changelog. Forensic details (specific IPs, probe paths, request counts, UA strings) are preserved in the internal repo <code>CHANGELOG.md</code>, PR history, and audit trail for attribution and operational continuity. This brings v0.5.30 and v0.5.32 in line with the v0.5.22 / v0.5.26 disclosure pattern.</li>
@@ -3965,6 +3976,19 @@ _PARADOX_BODY = """
 </div>
 
 
+<!-- Companion: Evaluation Roadmap (Decision #1 + #2, May 2026) -->
+<div style="background:var(--surface,#f8f8fc);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:0 8px 8px 0;padding:1rem 1.25rem;margin:1.5rem 0 2rem;font-size:0.9rem;line-height:1.65">
+  <strong style="color:var(--accent)">Our response &rarr; The Evaluation Roadmap (v1.0)</strong>
+  <br>
+  This page names the problem. The
+  <a href="/research/evaluation-roadmap" style="color:var(--accent);text-decoration:none;font-weight:600">Evaluation Roadmap</a>
+  is the structural answer: ten dated milestones over twelve months, pre-registered Cohen&rsquo;s &kappa; / ECE / Brier
+  thresholds, pre-registered kill-conditions, named external witnesses. Published May 2026 &middot; Tagged
+  <code style="background:rgba(0,0,0,0.06);padding:0.05rem 0.35rem;border-radius:3px;font-size:0.84em">roadmap-v1.0</code>.
+  Companion documents linked bidirectionally.
+</div>
+
+
 <!-- ============================== SECTION I ============================== -->
 <div class="paradox-section" id="the-paradox">
 <h2>I. The Validation Paradox</h2>
@@ -5242,6 +5266,623 @@ def get_cowork_page() -> str:
     </p>
     <p style="margin-top:0.5rem;color:var(--muted);font-size:0.78rem">
       Genesis Methodology v2.0 &nbsp;&middot;&nbsp; MACP v2.3.1 &ldquo;Market Position&rdquo; &nbsp;&middot;&nbsp; CC BY 4.0
+    </p>
+  </footer>
+</div>
+</body>
+</html>"""
+
+
+# ── Evaluation Roadmap Page (/research/evaluation-roadmap) ────────────────────
+# Pre-registered evaluation roadmap v1.0, tagged roadmap-v1.0, May 2026 -> April 2027.
+# Companion document to /research/paradox. Phase 90 strategic spine: evidence first.
+
+_ROADMAP_CSS = """
+.roadmap-wrapper {
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+.roadmap-meta-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  margin-bottom: 1.75rem;
+  background: var(--surface);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.roadmap-meta-table td {
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.roadmap-meta-table td:first-child {
+  color: var(--muted);
+  font-weight: 500;
+  width: 35%;
+  white-space: nowrap;
+}
+.roadmap-meta-table tr:last-child td { border-bottom: none; }
+
+.roadmap-companion {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  padding: 1rem 1.25rem;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  margin: 1.5rem 0 2rem;
+}
+.roadmap-companion strong { color: var(--accent); }
+.roadmap-companion a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+.roadmap-companion a:hover { text-decoration: underline; }
+
+.roadmap-section {
+  margin-bottom: 2.75rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--border);
+}
+.roadmap-section:last-of-type { border-bottom: none; }
+.roadmap-section h2 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.4rem;
+}
+.roadmap-section h3 {
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 1.5rem 0 0.55rem;
+}
+.roadmap-section-num {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.35rem;
+}
+.roadmap-section p {
+  line-height: 1.7;
+  margin-bottom: 0.9rem;
+  color: var(--text);
+  font-size: 0.92rem;
+}
+.roadmap-section ul, .roadmap-section ol {
+  font-size: 0.92rem;
+  line-height: 1.7;
+  margin: 0.75rem 0 1.25rem 0;
+  padding-left: 1.5rem;
+}
+.roadmap-section li { margin-bottom: 0.4rem; }
+
+.roadmap-disclaimer {
+  background: rgba(248,113,113,0.05);
+  border: 1px solid rgba(248,113,113,0.25);
+  border-left: 4px solid #f87171;
+  border-radius: 0 8px 8px 0;
+  padding: 1.1rem 1.4rem;
+  margin: 1rem 0 1.75rem;
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+.roadmap-disclaimer strong { color: #f87171; }
+.roadmap-disclaimer ul { margin-top: 0.6rem; margin-bottom: 0; }
+.roadmap-disclaimer li { margin-bottom: 0.3rem; color: var(--text); }
+.roadmap-disclaimer code {
+  background: rgba(0,0,0,0.06);
+  padding: 0.05rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.84em;
+}
+
+.roadmap-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  margin: 1rem 0 1.5rem;
+  background: var(--surface);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.roadmap-table th {
+  background: var(--surface-2, rgba(0,0,0,0.04));
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.roadmap-table td {
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  line-height: 1.55;
+}
+.roadmap-table tr:last-child td { border-bottom: none; }
+.roadmap-table .milestone-id {
+  font-weight: 700;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.roadmap-table .milestone-date {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.roadmap-kills {
+  list-style: none;
+  padding-left: 0;
+  counter-reset: kill;
+}
+.roadmap-kills li {
+  position: relative;
+  padding: 0.6rem 0.8rem 0.6rem 2.4rem;
+  margin-bottom: 0.55rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid #f87171;
+  border-radius: 0 6px 6px 0;
+  counter-increment: kill;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+.roadmap-kills li::before {
+  content: counter(kill);
+  position: absolute;
+  left: 0.75rem;
+  top: 0.55rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #f87171;
+  width: 1.25rem;
+  text-align: center;
+}
+.roadmap-kills li strong { color: var(--text); }
+
+.roadmap-commitment {
+  list-style: none;
+  padding-left: 0;
+  counter-reset: commit;
+}
+.roadmap-commitment li {
+  position: relative;
+  padding: 0.75rem 1rem 0.75rem 2.5rem;
+  margin-bottom: 0.6rem;
+  background: var(--surface);
+  border-radius: 6px;
+  counter-increment: commit;
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+.roadmap-commitment li::before {
+  content: counter(commit);
+  position: absolute;
+  left: 0.85rem;
+  top: 0.7rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--accent);
+}
+.roadmap-commitment li strong { color: var(--text); }
+
+.roadmap-rfc-callout {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  padding: 1.1rem 1.4rem;
+  margin: 1.5rem 0;
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+.roadmap-rfc-callout strong { color: var(--accent); }
+.roadmap-rfc-callout a {
+  display: inline-block;
+  margin-top: 0.55rem;
+  background: var(--accent);
+  color: #fff;
+  padding: 0.45rem 0.95rem;
+  border-radius: 6px;
+  font-size: 0.83rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.roadmap-rfc-callout a:hover { opacity: 0.9; }
+
+.roadmap-sign-off {
+  margin-top: 2.5rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--surface);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.roadmap-sign-off em { color: var(--accent); font-style: normal; }
+
+.roadmap-sources {
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+.roadmap-sources ul { padding-left: 1.25rem; }
+.roadmap-sources li { margin-bottom: 0.3rem; }
+.roadmap-sources a { color: var(--accent); text-decoration: none; }
+.roadmap-sources a:hover { text-decoration: underline; }
+"""
+
+
+_ROADMAP_BODY = """
+<div class="research-section-nav">
+  <a href="/research" class="nav-pill">Published Research</a>
+  <a href="/research/paradox" class="nav-pill">The Validation Paradox</a>
+  <a href="/research/cowork" class="nav-pill">Cowork Analysis</a>
+  <a href="/research/evaluation-roadmap" class="nav-pill nav-pill-active">Evaluation Roadmap</a>
+  <a href="/library" class="nav-pill">Evidence Library</a>
+</div>
+
+<div style="margin-bottom:0.5rem">
+  <span style="font-size:0.75rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em">
+    Pre-Registered Roadmap &nbsp;&middot;&nbsp; Year-One Window
+  </span>
+</div>
+
+<h1 style="font-size:1.7rem;font-weight:700;line-height:1.3;margin-bottom:0.5rem">
+  The Evaluation Roadmap
+</h1>
+<p style="font-size:1rem;color:var(--muted);font-style:italic;margin-bottom:1.5rem">
+  A public clock. Ten dated milestones. Pre-registered thresholds. Named external witnesses.
+  The cheapest forgery-resistant external signal a solo project can manufacture.
+</p>
+
+<table class="roadmap-meta-table">
+  <tr><td>Version</td><td>v1.0 &mdash; Published May 2026</td></tr>
+  <tr><td>Git tag</td><td><code>roadmap-v1.0</code></td></tr>
+  <tr><td>Window</td><td>May 2026 &rarr; April 2027 (year one)</td></tr>
+  <tr><td>Companion</td><td><a href="/research/paradox" style="color:var(--accent)">The Validation Paradox</a></td></tr>
+  <tr><td>Canonical source</td><td><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/blob/main/docs/research/evaluation-roadmap/roadmap-v1.0.md" target="_blank" rel="noopener" style="color:var(--accent)">docs/research/evaluation-roadmap/roadmap-v1.0.md</a></td></tr>
+  <tr><td>Author</td><td>Lee Wei Bin (Alton), VerifiMind &middot; FLYWHEEL TEAM</td></tr>
+  <tr><td>License</td><td>CC BY 4.0</td></tr>
+</table>
+
+<div class="roadmap-companion">
+  <strong>Companion document.</strong> The
+  <a href="/research/paradox">Validation Paradox</a> page named the problem:
+  X / Z / CS are prompt templates running on frontier models, with no labeled evaluation set,
+  no calibration, no execution sandbox, and no inter-judge agreement statistics. It ended on a single line:
+  <em>the only available exit from a closed validation loop is an external signal.</em>
+  <br><br>
+  This page is that external signal &mdash; a public clock, pre-registered before the data is collected,
+  with failure conditions stated up front. Failure numbers will ship in the same font size as success numbers.
+</div>
+
+<!-- Disclaimer -->
+<div class="roadmap-section">
+  <span class="roadmap-section-num">SECTION 0</span>
+  <h2>What VerifiMind is not yet</h2>
+  <p>Before the roadmap, the disclaimer block &mdash; written so an enterprise buyer who finds this page
+  through search cannot misread the paradox page as proof of certification:</p>
+  <div class="roadmap-disclaimer">
+    <strong>Honest scope statement, May 2026:</strong>
+    <ul>
+      <li>VerifiMind is <strong>not</strong> a certified safety auditor.</li>
+      <li>VerifiMind is <strong>not</strong> a validated production evaluation tool.</li>
+      <li>VerifiMind does <strong>not</strong> currently produce calibrated confidence intervals.</li>
+      <li>VerifiMind does <strong>not</strong> currently execute submitted code in an isolated sandbox.</li>
+      <li>VerifiMind has <strong>not</strong> yet established inter-judge agreement statistics against a held-out human-labeled set.</li>
+    </ul>
+  </div>
+  <p>What VerifiMind <em>is</em>, today, is a structured hypothesis about how a three-agent critique pipeline
+  (novelty / scoring / code-security) might improve on single-call frontier-model critique. This roadmap is
+  the plan to make that hypothesis falsifiable.</p>
+</div>
+
+<!-- Pre-registered thresholds -->
+<div class="roadmap-section">
+  <span class="roadmap-section-num">SECTION 1</span>
+  <h2>Pre-registered thresholds</h2>
+  <p>These are stated <em>before</em> any data is collected. Failure to clear them does not kill the project.
+  It triggers a public retrospective that names what changed and why.</p>
+  <table class="roadmap-table">
+    <thead>
+      <tr><th>Threshold</th><th>Metric</th><th>Pre-registered bar</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Inter-rater reliability</td><td>Cohen&rsquo;s &kappa; (Landis&ndash;Koch scale)</td><td>&kappa; &ge; 0.60 for usable claims; &ge; 0.80 for production-eligible language</td></tr>
+      <tr><td>Scoring calibration</td><td>Expected Calibration Error</td><td>ECE &le; 0.05 on the held-out labeled set</td></tr>
+      <tr><td>Cross-family judge validity</td><td>&kappa;<sub>cross</sub> across Anthropic / OpenAI / Google judges</td><td>&kappa;<sub>cross</sub> &ge; 0.60 (lower 95% CI)</td></tr>
+      <tr><td>Perturbation invariance</td><td>Agreement under semantics-preserving perturbations</td><td>I &gt; 0.90</td></tr>
+      <tr><td>Human-anchor agreement</td><td>Judge vs. human gold on anchor set</td><td>A<sub>H</sub> &ge; 0.80</td></tr>
+      <tr><td>&ldquo;Better than baseline&rdquo;</td><td>F1 lift vs. single-call frontier baseline</td><td>&Delta;F1 &ge; 0.10, lower 95% CI above 0</td></tr>
+      <tr><td>CS execution success</td><td>Sandbox runs on labeled vulnerability corpus</td><td>ESR &ge; 0.95 on runnable tasks</td></tr>
+    </tbody>
+  </table>
+  <p>The labeled-set size is sized to detect a 10-point F1 improvement at &alpha; = 0.05, power = 0.8:
+  <strong>800 items total</strong>, &ge; 400 positives per primary slice; <strong>400 adversarial items</strong>
+  (&ge; 100 per attack family); <strong>200 retest items</strong> for test-retest reliability;
+  <strong>200 human-anchor items</strong>.</p>
+</div>
+
+<!-- Public Roadmap -->
+<div class="roadmap-section">
+  <span class="roadmap-section-num">SECTION 2</span>
+  <h2>The Public Roadmap &mdash; 10 milestones</h2>
+  <p>Each milestone has (a) a concrete artifact, (b) a pre-registered numerical threshold for what
+  &ldquo;passes,&rdquo; and (c) a named external witness identified <em>before</em> the work starts.
+  Every milestone closes with a public retrospective. Silent edits to this page are blocked by a CI
+  workflow that fails the build if <code>roadmap-v*.md</code> is modified without a new git tag.</p>
+  <table class="roadmap-table">
+    <thead>
+      <tr><th>#</th><th>Date</th><th>Milestone</th><th>Concrete artifact</th><th>External signal required</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="milestone-id">M0</td>
+        <td class="milestone-date">May 2026</td>
+        <td>Roadmap published</td>
+        <td>This page + git tag <code>roadmap-v1.0</code> + CI workflow that fails on untagged roadmap edits</td>
+        <td>Roadmap referenced by &ge; 1 external blog, mailing list, or social post outside the VerifiMind / YSenseAI ecosystem</td>
+      </tr>
+      <tr>
+        <td class="milestone-id">M1</td>
+        <td class="milestone-date">Jun 2026</td>
+        <td>Governance fixes shipped</td>
+        <td>LLM personas renamed to <code>(model, role-in-this-reflection)</code> tuples; <code>SECURITY.md</code> (90-day disclosure window); <code>MAINTAINERS.md</code> with open second slot; <code>GOVERNANCE.md</code> (amendment process); co-maintainer post live</td>
+        <td>&ge; 1 inbound CV or &ldquo;interested&rdquo; reply to the co-maintainer post; security disclosure email reachable and monitored</td>
+      </tr>
+      <tr>
+        <td class="milestone-id">M2</td>
+        <td class="milestone-date">Jul 2026</td>
+        <td>Seed labeled eval set v0</td>
+        <td><strong>100 items</strong> under intra-annotator test-retest protocol, expanded to <strong>200 items</strong> by month-end. Stratified X / Z / CS. Published on Hugging Face Datasets with Zenodo DOI. License: MIT.</td>
+        <td>Dataset DOI minted; &ge; 1 independent download or fork logged; intra-annotator &kappa; from 2-week washout protocol published</td>
+      </tr>
+      <tr>
+        <td class="milestone-id">M3</td>
+        <td class="milestone-date">Sep 2026</td>
+        <td>First Cohen&rsquo;s &kappa; report</td>
+        <td>Pre-registered three-way &kappa;: (a) each agent vs. human gold, (b) same agent vs. itself across reruns with different seeds, (c) cross-family &kappa; across Anthropic / OpenAI / Google judges. Bootstrap 95% CIs. Class-conditional confusion matrices.</td>
+        <td>Numbers published as found &mdash; including failure cases. Named external annotator (paid via Prolific) confirms label set independently.</td>
+      </tr>
+      <tr>
+        <td class="milestone-id">M4</td>
+        <td class="milestone-date">Oct 2026</td>
+        <td>Co-maintainer onboarded <em>or</em> publicly conceded</td>
+        <td>Either second named maintainer in <code>MAINTAINERS.md</code> with merged independent PR, <strong>or</strong> a published retrospective explaining why recruitment failed and what changes next</td>
+        <td>Co-maintainer&rsquo;s first independent PR merged with passing CI, <em>or</em> timestamped + signed concession retrospective</td>
+      </tr>
+      <tr>
+        <td class="milestone-id">M5</td>
+        <td class="milestone-date">Nov 2026</td>
+        <td>CS execution sandbox v0</td>
+        <td>gVisor or Firecracker isolation; no network egress by default; explicit allow-list per evaluation; published threat model covering MCP-specific attack classes (prompt injection via repo content, SSRF, plaintext credentials, response leakage); one-command reproduction harness</td>
+        <td>One named external security researcher invited to break it; their write-up published whether positive or negative</td>
+      </tr>
+      <tr>
+        <td class="milestone-id">M6</td>
+        <td class="milestone-date">Jan 2027</td>
+        <td>Z calibration &amp; abstention</td>
+        <td>Z emits confidence + ECE + reliability diagram against the M2 labeled set. Mandatory abstention when cross-judge &kappa; on item type &lt; 0.40. Brier score reported.</td>
+        <td>Reliability diagram + ECE + Brier published with 95% bootstrap CIs and a list of high-confidence wrong answers</td>
+      </tr>
+      <tr>
+        <td class="milestone-id">M7</td>
+        <td class="milestone-date">Feb 2027</td>
+        <td>External benchmark &mdash; readiness-gated</td>
+        <td>One named benchmark per agent, pre-registered in <code>roadmap-v1.x</code> <em>before</em> running. Candidates: <strong>HaluEval</strong> (X), <strong>MLCommons AILuminate</strong> (Z), <strong>SWE-Bench Lite</strong> or <strong>PaperBench</strong> (CS). Readiness memo published first.</td>
+        <td>Full prompt logs, seeds, model identifiers, and raw outputs published. Results acknowledged by &ge; 1 external party.</td>
+      </tr>
+      <tr>
+        <td class="milestone-id">M8</td>
+        <td class="milestone-date">Mar 2027</td>
+        <td>NIST AI RMF self-attestation</td>
+        <td>Mapping of VerifiMind&rsquo;s practices to the NIST AI RMF Generative AI Profile Govern / Map / Measure / Manage functions, with honest gap statement</td>
+        <td>One external reviewer (academic, journalist, or practitioner) invited to critique; their critique published</td>
+      </tr>
+      <tr>
+        <td class="milestone-id">M9</td>
+        <td class="milestone-date">Apr 2027</td>
+        <td>Year-1 retrospective</td>
+        <td>Full retrospective covering every milestone hit, slipped, or abandoned. Decision: continue OSS-free, pivot, or sunset. Labeled set at <strong>800 items</strong>.</td>
+        <td>Retrospective signed and dated; raw progress data and all dataset versions linked</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Kill conditions -->
+<div class="roadmap-section">
+  <span class="roadmap-section-num">SECTION 3</span>
+  <h2>Kill-conditions</h2>
+  <p>The roadmap is real only if abandonment conditions are stated up front. VerifiMind-as-tool will be
+  retired and the work continued as methodology research if any of the following observable conditions
+  occurs, with a public retrospective explaining the trigger:</p>
+  <ol class="roadmap-kills">
+    <li><strong>No external human validation by day 180</strong> &mdash; fewer than 3 independent non-friend users complete a structured evaluation task and consent to be cited.</li>
+    <li><strong>No ML co-maintainer by day 120</strong> &mdash; no qualified collaborator signs a scoped RFC role or completes a substantive PR / review cycle despite a public role spec.</li>
+    <li><strong>Label reliability failure</strong> &mdash; after two label-protocol revisions, core label &kappa; remains below 0.60 on a representative sample.</li>
+    <li><strong>Calibration failure</strong> &mdash; Z cannot show materially better-than-baseline calibrated confidence on the labeled set, with high-confidence false positives remaining frequent and unexplained.</li>
+    <li><strong>Security gating failure</strong> &mdash; CS requires code execution for its advertised claims but no sandbox + threat model are shipped by day 180.</li>
+    <li><strong>Benchmark falsification without learning</strong> &mdash; external benchmark shows weak performance and no credible error taxonomy is produced within 30 days.</li>
+    <li><strong>Cost-revenue inversion</strong> &mdash; frontier-model and hosting costs exceed project revenue or committed sponsor funding for 3 consecutive months with no credible unit-cost path.</li>
+    <li><strong>Trust harm</strong> &mdash; a buyer, vendor, or public reviewer reasonably interprets VerifiMind as claiming validated ML rigor this roadmap admits it does not yet possess.</li>
+  </ol>
+  <p>A kill-condition firing produces a <em>documented decision</em>, not an automatic pivot.
+  The decision is published, dated, and signed.</p>
+</div>
+
+<!-- Commitment mechanism -->
+<div class="roadmap-section">
+  <span class="roadmap-section-num">SECTION 4</span>
+  <h2>Commitment mechanism</h2>
+  <p>A roadmap that lives only on a webpage is editable. Four mechanisms operate together to convert it
+  from aspirational to binding:</p>
+  <ol class="roadmap-commitment">
+    <li><strong>Git tags as commitments.</strong> This document is tagged <code>roadmap-v1.0</code>.
+    Any modification of a milestone date or definition requires a new tag with a diff and a public reason.
+    <code>git log --tags</code> is the audit trail.</li>
+    <li><strong>Milestone-keyed retrospectives.</strong> Each milestone closes with a public retrospective post.
+    The retrospective is the artifact; the milestone is not complete until the retrospective is published.</li>
+    <li><strong>Pre-named third-party witnesses.</strong> For M3, M5, M7, M8, the external party is named
+    <em>in advance</em>, publicly. A milestone with a named external reviewer cannot be unilaterally marked complete.</li>
+    <li><strong>Pre-registered failure conditions.</strong> Every milestone has an explicit
+    &ldquo;this counts as a miss&rdquo; definition stated now, not after the fact.
+    Post-hoc rationalization is visible because the rationalization comes after the pre-registration.</li>
+  </ol>
+  <p>Git tags make silent edits visible. Retrospectives make silent skips visible. Witnesses make false
+  completions visible. Pre-registered failure conditions make rationalization visible. Together they form
+  the cheapest available substitute for the institutional review structure VerifiMind cannot afford.</p>
+
+  <h3>What this roadmap deliberately does not promise</h3>
+  <ul>
+    <li>It does <strong>not</strong> promise revenue, users, or adoption metrics.</li>
+    <li>It does <strong>not</strong> promise that &kappa; will be high &mdash; only that &kappa; will be measured and published.</li>
+    <li>It does <strong>not</strong> promise the co-maintainer search succeeds &mdash; only that the search happens publicly and its outcome is reported.</li>
+    <li>It does <strong>not</strong> promise VerifiMind becomes a credible eval framework by April 2027.
+    It promises that by April 2027, any external reader can answer
+    &ldquo;is this project methodologically serious?&rdquo; from public evidence &mdash; in either direction.</li>
+  </ul>
+</div>
+
+<!-- Section B link -->
+<div class="roadmap-section">
+  <span class="roadmap-section-num">SECTION 5</span>
+  <h2>Technical RFC appendix</h2>
+  <p>The full technical appendix &mdash; metric definitions (Cohen&rsquo;s &kappa;, ECE, Brier, F1, ESR with
+  formulas), evaluation dataset spec, inter-rater reliability plan, cross-family judge triangulation,
+  external methodology mapping (RAGAS, ARES, G-Eval, Prometheus-Eval, SWE-Bench, HumanEval), sandbox &amp;
+  security plan, MCP version-pinning, reproducibility checklist (NeurIPS-style), co-maintainer role and
+  compensation terms, and acceptance criteria for the co-maintainer&rsquo;s first &ldquo;done&rdquo; &mdash;
+  is published as the canonical markdown source on GitHub. It is the appendix an ML-literate co-maintainer
+  needs answered before joining.</p>
+  <div class="roadmap-rfc-callout">
+    <strong>Section B &mdash; Technical RFC appendix.</strong>
+    Math, dataset spec, metric definitions, co-maintainer terms, reproducibility checklist.
+    GitHub renders LaTeX inline.
+    <br>
+    <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/blob/main/docs/research/evaluation-roadmap/roadmap-v1.0.md#section-b--technical-rfc-appendix"
+       target="_blank" rel="noopener">Read Section B on GitHub &rarr;</a>
+  </div>
+</div>
+
+<!-- Sign-off -->
+<div class="roadmap-sign-off">
+  <strong>Signed and dated.</strong> This roadmap is inside the loop it describes. We publish it anyway,
+  because the only available exit from a closed validation loop is an external signal &mdash; and a public
+  clock is one of the few external signals a solo project can manufacture honestly.
+  <br><br>
+  <em>&mdash; Lee Wei Bin (Alton), VerifiMind &middot; May 2026 &middot; Tagged <code>roadmap-v1.0</code> &middot; CC BY 4.0</em>
+</div>
+
+<!-- Cross-link to companion -->
+<div class="roadmap-companion" style="margin-top:2.5rem">
+  <strong>See also:</strong>
+  <a href="/research/paradox">The Validation Paradox</a>
+  &mdash; the problem this roadmap is the response to. Both pages are companions and link bidirectionally.
+</div>
+
+<!-- Sources -->
+<div class="roadmap-section roadmap-sources">
+  <span class="roadmap-section-num">SOURCES &amp; METHODOLOGY</span>
+  <h2 style="font-size:1rem">Selected references</h2>
+  <ul>
+    <li><a href="/research/paradox">The Validation Paradox</a> &mdash; companion document</li>
+    <li><a href="https://www.anthropic.com/news/responsible-scaling-policy-v3" target="_blank" rel="noopener">Anthropic, Responsible Scaling Policy v3</a> &mdash; public-roadmap-as-forcing-function model</li>
+    <li><a href="https://www.apolloresearch.ai/science/we-need-a-science-of-evals/" target="_blank" rel="noopener">Apollo Research &mdash; We Need A Science of Evals</a></li>
+    <li><a href="https://www.apolloresearch.ai/science/the-evals-gap/" target="_blank" rel="noopener">Apollo Research &mdash; The Evals Gap</a></li>
+    <li><a href="https://metr.org/common-elements" target="_blank" rel="noopener">METR &mdash; Common Elements of Frontier AI Safety Policies</a></li>
+    <li><a href="https://www.nist.gov/itl/ai-risk-management-framework" target="_blank" rel="noopener">NIST AI Risk Management Framework</a></li>
+    <li><a href="https://proceedings.mlr.press/v70/guo17a/guo17a.pdf" target="_blank" rel="noopener">Guo et al., On Calibration of Modern Neural Networks (ICML 2017)</a> &mdash; ECE definition</li>
+    <li><a href="https://arxiv.org/abs/2305.11747" target="_blank" rel="noopener">HaluEval</a>, <a href="https://ailuminate.mlcommons.org" target="_blank" rel="noopener">MLCommons AILuminate</a>, <a href="https://www.swebench.com/" target="_blank" rel="noopener">SWE-Bench</a>, <a href="https://github.com/openai/human-eval" target="_blank" rel="noopener">HumanEval</a>, <a href="https://openai.com/index/paperbench/" target="_blank" rel="noopener">PaperBench</a></li>
+    <li><a href="https://galileo.ai/blog/llm-judge-sme-feedback-expert-disagreement" target="_blank" rel="noopener">Galileo &mdash; Why LLM Judges Disagree With Your Experts</a></li>
+    <li><a href="https://arxiv.org/html/2406.12624v1" target="_blank" rel="noopener">Thakur et al., Evaluating Alignment and Vulnerabilities in LLMs-as-Judges (arXiv:2406.12624)</a></li>
+    <li><a href="https://modelcontextprotocol.io/specification/2025-06-18" target="_blank" rel="noopener">MCP Specification (2025-06-18)</a></li>
+    <li><a href="https://neurips.cc/public/guides/PaperChecklist" target="_blank" rel="noopener">NeurIPS Paper Checklist</a> &mdash; reproducibility template</li>
+  </ul>
+  <p style="margin-top:1rem;color:var(--muted);font-size:0.82rem">
+    Full reference list with all citations and methodology notes in the
+    <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/blob/main/docs/research/evaluation-roadmap/roadmap-v1.0.md" target="_blank" rel="noopener" style="color:var(--accent)">canonical markdown source</a>.
+  </p>
+</div>
+"""
+
+
+def get_evaluation_roadmap_page() -> str:
+    """Return the full HTML for GET /research/evaluation-roadmap — pre-registered evaluation roadmap v1.0."""
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Evaluation Roadmap (v1.0) — Pre-registered milestones May 2026 → April 2027 | VerifiMind Research</title>
+
+  <!-- SEO -->
+  <meta name="description" content="VerifiMind's pre-registered evaluation roadmap: 10 dated milestones (M0-M9), Cohen's kappa thresholds, kill-conditions, named external witnesses. The public clock that operationalizes The Validation Paradox.">
+  <meta name="keywords" content="evaluation roadmap, AI evaluation, pre-registration, Cohen kappa, calibration, ECE, Brier score, AI validation, multi-agent eval, VerifiMind, FLYWHEEL TEAM, falsifiable AI claims">
+  <meta name="author" content="Lee Wei Bin (Alton), VerifiMind — FLYWHEEL TEAM">
+  <link rel="canonical" href="https://verifimind.ysenseai.org/research/evaluation-roadmap">
+
+  <!-- Open Graph -->
+  <meta property="og:type"        content="article">
+  <meta property="og:site_name"   content="VerifiMind-PEAS">
+  <meta property="og:title"       content="The Evaluation Roadmap (v1.0) — VerifiMind">
+  <meta property="og:description" content="A public clock. 10 dated milestones over 12 months. Pre-registered thresholds (Cohen's kappa, ECE, Brier). Pre-registered kill-conditions. Named external witnesses. The structural answer to The Validation Paradox.">
+  <meta property="og:url"         content="https://verifimind.ysenseai.org/research/evaluation-roadmap">
+  <meta property="og:image"       content="https://verifimind.ysenseai.org/logo.png">
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card"        content="summary_large_image">
+  <meta name="twitter:title"       content="The Evaluation Roadmap (v1.0) — VerifiMind Research">
+  <meta name="twitter:description" content="Pre-registered milestones, pre-registered failure conditions, named external witnesses. The cheapest forgery-resistant external signal a solo project can manufacture honestly.">
+  <meta name="twitter:image"       content="https://verifimind.ysenseai.org/logo.png">
+
+  <style>{_CSS}{_RESEARCH_CSS}{_ROADMAP_CSS}</style>
+</head>
+<body>
+<div class="page-wrapper">
+
+  <header class="site-header">
+    <a class="site-logo" href="https://verifimind.ysenseai.org">VerifiMind<span>-PEAS</span></a>
+    <nav class="site-nav">
+      <a href="/research" class="nav-active">Research</a>
+      <a href="/library">Library</a>
+      <a href="/changelog">Changelog</a>
+      <a href="/register" class="nav-cta">Register</a>
+    </nav>
+  </header>
+
+  <main class="research-doc">
+    <div class="research-wrapper roadmap-wrapper">
+      {_ROADMAP_BODY}
+    </div>
+  </main>
+
+  <footer class="page-footer">
+    <p>
+      <a href="/research">Research</a> &nbsp;·&nbsp;
+      <a href="/research/paradox">Validation Paradox</a> &nbsp;·&nbsp;
+      <a href="/research/cowork">Cowork Analysis</a> &nbsp;·&nbsp;
+      <a href="/research/evaluation-roadmap">Evaluation Roadmap</a> &nbsp;·&nbsp;
+      <a href="/library">Library</a> &nbsp;·&nbsp;
+      <a href="/changelog">Changelog</a> &nbsp;·&nbsp;
+      <a href="/privacy">Privacy</a> &nbsp;·&nbsp;
+      <a href="/terms">Terms</a> &nbsp;·&nbsp;
+      <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS" target="_blank" rel="noopener">GitHub</a>
+    </p>
+    <p style="margin-top:0.5rem;color:var(--muted);font-size:0.78rem">
+      Genesis Methodology v2.0 &nbsp;&middot;&nbsp; MACP v2.3.1 &ldquo;Market Position&rdquo; &nbsp;&middot;&nbsp; Tagged <code>roadmap-v1.0</code> &nbsp;&middot;&nbsp; CC BY 4.0
     </p>
   </footer>
 </div>
