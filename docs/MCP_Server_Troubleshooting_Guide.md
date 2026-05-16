@@ -1,10 +1,11 @@
 # VerifiMind MCP Server — Troubleshooting & Multi-Client Setup Guide
 
-> **Server**: `https://verifimind.ysenseai.org`  
-> **MCP Endpoint**: `https://verifimind.ysenseai.org/mcp/`  
-> **Transport**: `streamable-http` (MCP 2025-03-26 spec)  
-> **Version**: v0.4.0  
-> **Last Updated**: February 13, 2026
+> **Server**: `https://verifimind.ysenseai.org`
+> **MCP Endpoint**: `https://verifimind.ysenseai.org/mcp/`
+> **Transport**: `streamable-http` (MCP 2025-03-26 spec)
+> **Version**: v0.5.34
+> **Last Updated**: May 17, 2026 — Phase 90 "Adoption First"
+> **Tools**: 13 free forever (4 Trinity validation + 6 template library + 3 coordination) — see [Core Tools Always Free pledge](https://github.com/creator35lwb-web/VerifiMind-PEAS#core-tools-always-free-pledge)
 
 ---
 
@@ -19,14 +20,17 @@
    - [Custom MCP Clients (Direct HTTP)](#custom-mcp-clients-direct-http)
    - [OpenAI Agents SDK (Python)](#openai-agents-sdk-python)
 3. [Common Errors & Solutions](#common-errors--solutions)
-   - [403 Forbidden / Tunnel Error](#-403-forbidden--tunnel-error)
-   - [307 Redirect Loop](#-307-redirect-loop)
-   - [Tools List Empty (Codex CLI)](#-tools-list-empty-codex-cli)
+   - [202 Accepted (NOT an error)](#-202-accepted-not-an-error)
+   - [307 Redirect on `/`](#-307-redirect-on-)
+   - [308 Permanent Redirect (most common SDK-client failure)](#-308-permanent-redirect-most-common-sdk-client-failure)
+   - [400 Bad Request / Parse Error](#-400-bad-request--parse-error)
+   - [403 Forbidden / Tunnel Error / Blocklist](#-403-forbidden--tunnel-error--blocklist)
    - [404 Not Found](#-404-not-found)
    - [405 Method Not Allowed](#-405-method-not-allowed)
-   - [400 Bad Request / Parse Error](#-400-bad-request--parse-error)
+   - [406 Not Acceptable (missing Accept header)](#-406-not-acceptable-missing-accept-header)
    - [429 Too Many Requests](#-429-too-many-requests)
    - [401 Unauthorized (Smithery)](#-401-unauthorized-smithery)
+   - [Tools List Empty (Codex CLI)](#-tools-list-empty-codex-cli)
 4. [Transport Types Explained](#transport-types-explained)
 5. [Known Client-Specific Issues](#known-client-specific-issues)
 6. [Server Endpoints Reference](#server-endpoints-reference)
@@ -223,7 +227,91 @@ asyncio.run(main())
 
 ## Common Errors & Solutions
 
-### 🚫 403 Forbidden / Tunnel Error
+### ✅ 202 Accepted (NOT an error)
+
+**Symptoms:**
+```
+HTTP 202 Accepted
+```
+
+**Root Cause**: This is the **normal streamable-http MCP acceptance response**, not an error. The server has accepted your JSON-RPC request and will stream the actual response via SSE (Server-Sent Events) on the same connection.
+
+**What to expect:**
+- Your client should continue listening on the SSE stream after the 202
+- The actual response (`tools/list`, `tools/call` result, etc.) arrives as `text/event-stream` data frames
+- Compliant MCP clients (Claude / Cursor / VS Code / Windsurf / Agents SDK) handle this automatically
+
+**Solution**: No action needed. If your client reports 202 as a failure, it's not implementing streamable-http correctly — check that you set `"transport": "streamable-http"` (NOT `"sse"` or `"http-sse"`).
+
+---
+
+### 🔄 307 Redirect on `/`
+
+**Symptoms:**
+```
+HTTP/2 307
+location: https://verifimind.ysenseai.org/...
+```
+
+**Root Cause**: Hitting the root URL `/` (not `/mcp/`) triggers a 307 to redirect to the appropriate landing surface. Some clients pointed at the bare domain (no path) will see this.
+
+**Solution**: Configure your MCP client with the full path including trailing slash:
+```
+✅ https://verifimind.ysenseai.org/mcp/
+❌ https://verifimind.ysenseai.org/
+❌ https://verifimind.ysenseai.org
+```
+
+---
+
+### 🔁 308 Permanent Redirect (most common SDK-client failure)
+
+**Symptoms:**
+```
+HTTP/2 308 Permanent Redirect
+location: https://verifimind.ysenseai.org/mcp/
+```
+
+Or in `python-httpx`, `node`, `requests`, `axios`:
+```
+RemoteProtocolError: Server disconnected without sending a response
+ConnectionError after POST to /mcp
+Empty body / no JSON response
+```
+
+**Root Cause**: This is the **#1 SDK-client failure mode**. POST request hit `/mcp` (no trailing slash). The server replies with `308 Permanent Redirect` to `/mcp/`. Per RFC 7538, programmatic HTTP clients **must NOT change the POST method** when following a 308 — but many SDKs either don't follow 308s on POST, or drop the body on redirect, causing silent failures.
+
+**Affected clients (observed in production logs):**
+- `python-httpx` (any version)
+- `node-fetch`, `axios` (depends on configuration)
+- Raw `requests` library (Python) with `allow_redirects=False`
+- Custom MCP clients that don't follow POST redirects
+
+**Solution**: Always configure your MCP client with the trailing slash:
+```
+✅ https://verifimind.ysenseai.org/mcp/
+❌ https://verifimind.ysenseai.org/mcp
+```
+
+This is the **same fix as 307** but with permanent redirect semantics. The fastest test:
+```bash
+# This succeeds with 200
+curl -X POST https://verifimind.ysenseai.org/mcp/ \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
+
+# This returns 308 (and many SDKs fail here silently)
+curl -X POST https://verifimind.ysenseai.org/mcp \  # ← missing slash
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize"}'
+```
+
+> **Production data, May 17, 2026:** 14× 308 redirect hits in 24h, all from `python-httpx` or `node`. If you're building a custom MCP client, this is the bug your users will hit first.
+
+---
+
+### 🚫 403 Forbidden / Tunnel Error / Blocklist
 
 **Symptoms:**
 ```
@@ -231,38 +319,29 @@ asyncio.run(main())
 curl: (403) Forbidden
 ```
 
-**Root Cause**: This is almost always a **network-level** issue, not a server or configuration error.
+**Root Cause**: This has **two distinct causes** — diagnose which:
 
-**Common causes:**
+**Cause A — Network-level issue (most common for new users):**
 - Corporate proxy or firewall blocking outbound HTTPS to GCP
 - VPN interfering with SSL/TLS handshake
 - ISP-level content filtering
 - China mainland network restrictions (GCP endpoints may be blocked)
 
-**Solutions:**
+**Cause B — Sentinel blocklist (production security layer):**
+- Your IP has been added to the application-layer blocklist by Sentinel (the security operations sub-agent) because it matched a known scanner / probe / credential-enumeration pattern
+- 7 IPs currently blocked (security scanners, MCP probers, secret enumeration scripts)
+- See [`mcp-server/src/verifimind_mcp/middleware/ip_blocklist.py`](https://github.com/creator35lwb-web/VerifiMind-PEAS/blob/main/mcp-server/src/verifimind_mcp/middleware/ip_blocklist.py) for the active list
+
+**Solutions for Cause A:**
 1. Try from a different network (mobile hotspot, home WiFi)
 2. Disable VPN temporarily and retry
 3. Check if your proxy requires authentication
 4. Use `curl -v https://verifimind.ysenseai.org/health` to see where the connection fails
 5. If behind corporate proxy, ask IT to whitelist `*.ysenseai.org` and `*.run.app`
 
----
-
-### 🔄 307 Redirect Loop
-
-**Symptoms:**
-```
-HTTP/2 307
-location: http://verifimind.ysenseai.org/mcp/
-```
-
-**Root Cause**: Accessing `/mcp` without trailing slash triggers a 307 redirect. Some clients don't follow redirects on POST requests, or the redirect goes to HTTP instead of HTTPS.
-
-**Solution**: Always use the URL with trailing slash:
-```
-✅ https://verifimind.ysenseai.org/mcp/
-❌ https://verifimind.ysenseai.org/mcp
-```
+**Solutions for Cause B:**
+- If you believe you've been blocked in error, file a [GitHub Issue](https://github.com/creator35lwb-web/VerifiMind-PEAS/issues) with your IP and request review
+- Note: legitimate MCP traffic from named user-agents (Claude / Cursor / Codex / Agents SDK / claude-user / mcp-remote) is never blocked
 
 ---
 
@@ -331,6 +410,38 @@ Parse error
 
 ---
 
+### 🚫 406 Not Acceptable (missing Accept header)
+
+**Symptoms:**
+```
+HTTP 406 Not Acceptable
+```
+
+**Root Cause**: streamable-http requires the client to advertise that it accepts BOTH JSON and event-stream responses. Missing or restrictive `Accept` header triggers 406.
+
+**Solution**: Always send the full dual Accept header on POST requests:
+```
+Accept: application/json, text/event-stream
+```
+
+```bash
+# ❌ Causes 406
+curl -X POST https://verifimind.ysenseai.org/mcp/ \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \           # missing event-stream
+  -d '{"jsonrpc":"2.0",...}'
+
+# ✅ Correct
+curl -X POST https://verifimind.ysenseai.org/mcp/ \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0",...}'
+```
+
+Most managed MCP clients (Claude / Cursor / VS Code / Agents SDK) handle this automatically. Custom clients must set both.
+
+---
+
 ### ⏱️ 429 Too Many Requests
 
 **Symptoms:**
@@ -393,14 +504,23 @@ Understanding transport types is critical for correct configuration:
 ## Server Endpoints Reference
 
 | Endpoint | Method | Purpose |
-|----------|--------|---------|
+|---|---|---|
 | `/` | GET | Server info and capabilities |
-| `/health` | GET | Health check (status, version, rate limits) |
+| `/health` | GET | Health check (status, version, rate limits, feature flags) |
 | `/mcp/` | POST | MCP protocol endpoint (streamable-http) |
 | `/mcp/` | GET | SSE stream (requires `mcp-session-id` header) |
 | `/mcp/` | DELETE | Session termination |
+| `/mcp/test?key=<uuid>` | GET | Verify UUID + connection health |
 | `/.well-known/mcp-config` | GET | Auto-discovery config for MCP clients |
 | `/setup` | GET | Interactive setup guide (JSON) |
+| `/changelog` | GET | Full version history |
+| `/research` | GET | Published research index |
+| `/research/paradox` | GET | The Validation Paradox publication |
+| `/research/evaluation-roadmap` | GET | Pre-registered Evaluation Roadmap v1.0 |
+| `/research/cowork` | GET | Cowork on 3P analysis |
+| `/library` | GET | Genesis Research Library (20+ papers) |
+| `/register` · `/optout` | GET / POST | Early Adopter UUID registration / opt-out |
+| `/privacy` · `/terms` | GET | Policy pages |
 
 ---
 
@@ -414,4 +534,10 @@ Understanding transport types is critical for correct configuration:
 
 ---
 
-*This guide covers VerifiMind MCP Server v0.4.0. For the latest version, check the [GitHub repository](https://github.com/creator35lwb-web/VerifiMind-PEAS).*
+*This guide covers VerifiMind MCP Server v0.5.34 (Phase 90 "Adoption First"). For the latest version, check the [GitHub repository](https://github.com/creator35lwb-web/VerifiMind-PEAS) or [/changelog](https://verifimind.ysenseai.org/changelog).*
+
+**Related docs:**
+- [MCP_SERVER_FEATURES.md](https://github.com/creator35lwb-web/VerifiMind-PEAS/blob/main/MCP_SERVER_FEATURES.md) — Full features guide (13 tools, configuration examples)
+- [Wiki Installation](https://github.com/creator35lwb-web/VerifiMind-PEAS/wiki/Installation) — Step-by-step setup
+- [Evaluation Roadmap](https://verifimind.ysenseai.org/research/evaluation-roadmap) — What we plan to measure (pre-registered milestones)
+- [Validation Paradox](https://verifimind.ysenseai.org/research/paradox) — What we are NOT (honest scope statement)
