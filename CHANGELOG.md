@@ -8,6 +8,27 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.35 - Honest-Baseline Metrics Sync (May 21, 2026)
+
+Phase 90 "Adoption First" metrics publication sync — surfaces the post-forensic-rebuild honest baseline on the public Library timeline.
+
+### What changed
+- **`pages.py` Library timeline:** added a "May 2026" milestone surfacing the honest post-rebuild baseline — **4,139.1 flying hours** (Success-Gated, aggregate; owner-IP + bot/scraper traffic excluded). The dated April 17 milestone is preserved as history; the new milestone signals the audit-and-correct discipline ("we audit our own numbers the same way we ask others to audit theirs").
+- **Version bump** 0.5.34 → 0.5.35 (both SERVER_VERSION surfaces); `server.json` 3.11.0 → 3.12.0.
+
+### Data-Disclosure compliance (Doctrine v1.0)
+- Published numbers are **aggregate only** (flying hours, methodology) — no per-user behavioral facts, no named individuals. The forensic-rebuild finding (owner-IP rotation overcounting) is described as methodology, not per-user data.
+- The EA Cohort Taxonomy (34 active / 92 honest-baseline / 1 registered) and AY's paradox-page reflection update are routed through AY (domain owner) via change-request handoff — NOT edited by RNA, per the Cross-Agent Canonical-Edit Protocol.
+
+### Why
+The April 17 timeline showed pre-rebuild numbers (2,162 endpoints / 2,634 flying hours) as the last data point. AY's 2026-05-18 forensic DB rebuild established the honest baseline (4,139.1h aggregate, owner-IP leakage corrected). This sync surfaces the corrected number publicly, demonstrating the cross-architectural meta-principle: our internal metrics are held to the same audit rigor we apply to external AI claims.
+
+### Not changed
+- README + v0.5.34 docs verified already Data-Disclosure-clean (no per-user/cohort numbers) — no edits needed.
+- AY's paradox-page reflection (`pages.py` L4336 + `docs/research/paradox/05-coo-ay-reflection.md`) is AY-canonical — change-request handoff sent, AY applies in her session.
+
+---
+
 ## v0.5.34 - Evaluation Roadmap v1.0 (May 15, 2026)
 
 Phase 90 strategic spine: Alton's Decision #1 + #2 from the May 13 Recursive Paradox session (`.macp/handoffs/20260513_T_L_recursive_paradox_analysis_and_decisions.md`) shipped as a single bundled release.

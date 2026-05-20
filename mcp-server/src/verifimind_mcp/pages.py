@@ -3526,6 +3526,11 @@ _LIBRARY_BODY = """
 <span class="milestone">Apr 17, 2026</span> <strong>THIS LIBRARY COMPILED</strong>
                  2,162 endpoints | 2,634 flying hours | 20+ validating papers
                  From defensive publication to independently validated system
+                 &#x2193;
+<span class="milestone">May 2026</span>      Forensic database rebuild &mdash; honest baseline established
+                 4,139.1 flying hours (Success-Gated, aggregate) | owner-IP + bot/scraper traffic excluded
+                 Endpoint counts corrected for IP-rotation overcounting &mdash; we audit our own numbers
+                 the same way we ask others to audit theirs
 </div>
 """
 
