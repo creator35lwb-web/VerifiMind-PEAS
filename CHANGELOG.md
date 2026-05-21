@@ -8,6 +8,26 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.36 - Changelog Endpoint Redirect (May 21, 2026)
+
+Single-sources the changelog to end dual-maintenance drift.
+
+### What changed
+- **`/changelog` endpoint now 302-redirects to GitHub Releases** (`github.com/creator35lwb-web/VerifiMind-PEAS/releases`). The hand-curated `pages.py _CHANGELOG_BODY` HTML page is retired. GitHub Releases are the single source of truth for the public changelog.
+- The JSON variant (`Accept: application/json`) returns the Releases URL + a note.
+- Removed the now-unused `get_changelog_page` import from `http_server.py`.
+- Version bump 0.5.35 → 0.5.36 (both SERVER_VERSION surfaces + 9 test files); `server.json` 3.12.0 → 3.13.0.
+
+### Why
+On 2026-05-21 the `/changelog` endpoint drifted — `CHANGELOG.md` got the v0.5.35 entry but `pages.py _CHANGELOG_BODY` did not (third two-sources-of-truth drift this month). Rather than keep dual-maintaining, the endpoint now points to GitHub Releases — the single source.
+
+**Disclosure-policy note:** redirecting to Releases (not to `CHANGELOG.md`) is deliberate. GitHub Releases are already sanitized (no forensic IPs), preserving the v0.5.33 disclosure policy. A redirect to `CHANGELOG.md` would have exposed the internal forensic IPs (v0.5.30 / v0.5.32 entries) on the customer-facing path.
+
+### Process note
+This deploy ran through the full `/verifimind-deploy` skill (v2.5) — including the Phase 2 9-test-file bump and Phase 7 full-SHA release — after v0.5.34/v0.5.35 bypassed the skill via direct `gcloud` and accumulated drift. Anti-bypass warning added to the skill.
+
+---
+
 ## v0.5.35 - Honest-Baseline Metrics Sync (May 21, 2026)
 
 Phase 90 "Adoption First" metrics publication sync — surfaces the post-forensic-rebuild honest baseline on the public Library timeline.

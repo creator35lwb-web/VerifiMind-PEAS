@@ -51,7 +51,7 @@ from verifimind_mcp.registration import (
     register_user,
 )
 from verifimind_mcp.policies import PRIVACY_POLICY, TERMS_AND_CONDITIONS
-from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_changelog_page, get_research_page, get_library_page, get_dashboard_page, get_paradox_page, get_cowork_page, get_evaluation_roadmap_page
+from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_research_page, get_library_page, get_dashboard_page, get_paradox_page, get_cowork_page, get_evaluation_roadmap_page
 from verifimind_mcp.utils.trinity_history import read_trinity_history
 from verifimind_mcp.llm.provider import PROVIDER_CONFIGS
 from verifimind_mcp.registration import _get_firestore
@@ -64,7 +64,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.35"
+SERVER_VERSION = "0.5.36"
 
 # MCP endpoint constants — single source of truth for URL/path strings used in
 # JSON responses, quickstart commands, and HTML setup pages. Extracted in v0.5.32
@@ -1317,16 +1317,27 @@ async def optout_page_handler(request):
     return HTMLResponse(get_optout_page())
 
 
+CHANGELOG_RELEASES_URL = "https://github.com/creator35lwb-web/VerifiMind-PEAS/releases"
+
+
 async def changelog_handler(request):
-    """GET /changelog — Version history (HTML by default, JSON if requested)."""
+    """GET /changelog — redirects to GitHub Releases (single source of truth).
+
+    v0.5.36: the hand-curated /changelog HTML page was retired to end
+    dual-maintenance drift (CHANGELOG.md vs pages.py _CHANGELOG_BODY).
+    GitHub Releases are already sanitized (no forensic IPs), so this also
+    preserves the v0.5.33 disclosure policy — unlike redirecting to
+    CHANGELOG.md, which retains internal forensics.
+    """
     accept = request.headers.get("accept", "")
     if "application/json" in accept:
         return JSONResponse({
             "title": "VerifiMind-PEAS Changelog",
             "current_version": SERVER_VERSION,
-            "url": "https://verifimind.ysenseai.org/changelog",
+            "url": CHANGELOG_RELEASES_URL,
+            "note": "Changelog is maintained as GitHub Releases (single source of truth).",
         })
-    return HTMLResponse(get_changelog_page())
+    return RedirectResponse(url=CHANGELOG_RELEASES_URL, status_code=302)
 
 
 async def research_handler(request):
