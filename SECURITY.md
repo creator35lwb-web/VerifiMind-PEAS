@@ -4,9 +4,9 @@
 
 | Version | Supported | Notes |
 |---------|-----------|-------|
-| v0.4.x  | ✅ Active | Current release — full security support |
-| v0.3.x  | ⚠️ Critical fixes only | Security patches only, no new features |
-| < v0.3  | ❌ End of life | No longer supported — please upgrade |
+| v0.5.x  | ✅ Active | Current release — full security support |
+| v0.4.x  | ⚠️ Critical fixes only | Security patches only, no new features |
+| < v0.4  | ❌ End of life | No longer supported — please upgrade |
 
 ## Reporting a Vulnerability
 
