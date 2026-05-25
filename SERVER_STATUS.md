@@ -1,16 +1,17 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** May 13, 2026
+**Last Updated:** May 26, 2026
 
 ---
 
 ## Current Status: Operational
 
-**v0.5.33 "Changelog Hygiene" — deployed May 13, 2026**
+**v0.5.37 "Tier Clarity" — deployed May 26, 2026**
 
-The VerifiMind MCP server is fully operational. All security gates passed.
+The VerifiMind MCP server is fully operational. All security gates passed. (Per-version public detail now lives in [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases) since the `/changelog` redirect in v0.5.36.)
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination) — **all free for everyone**
+- **Tier Clarity (v0.5.37)**: 429 rate-limit CTA now branches on `uuid_status` — a *misconfigured Scholar* (UUID header present but invalid) gets a recovery hint (`VERIFIMIND_UUID` / `/setup`), while a true anonymous caller gets the register-for-Scholar acquisition CTA (+ BYOK + dashboard, Privacy-Doctrine-v1.0 line, founder/feedback note). `uuid_status` surfaced in the body + warning log. Shipped from a tier-setup audit (T1–T6); the T3/T6 reconciliation (rate-limiter reads empty `ea_registrations` vs real `early_adopters`; single source of truth for caller tier) routed to T (CTO) — May 26, 2026
 - **Changelog Hygiene (v0.5.33)**: Retroactively sanitized public `/changelog` to remove specific blocked-IP addresses from v0.5.30 and v0.5.32 entries; matches v0.5.22 / v0.5.26 disclosure pattern. Full forensics preserved in internal `CHANGELOG.md`, PR bodies, and commit history. Added disclosure-policy header to internal CHANGELOG. PR# links added to public v0.5.30 / v0.5.32 entries — May 13, 2026
 - **Secret Scanner Block + SonarCloud P1 (v0.5.32)**: 7th IP added to application-layer blocklist — credential/secret enumeration scanner, 788 req single burst on May 12 (probed `.env` variants, `.git/*`, `.terraform.*`, `.stripe/`, `?phpinfo=1`, CI configs). 77% caught by rate limiter; zero leak (4 served 200 = safe root response only). SonarCloud P1 cleanup: extracted `MCP_ENDPOINT_PATH`/`MCP_SERVER_URL`/`MCP_REMOTE_QUICKSTART` constants (removed 13 duplicate literals); refactored `http_exception_handler` cognitive complexity 23 → ≤15; CodeQL `py/empty-except` × 2 resolved; logger.exception() in registration 500 path — May 13, 2026
 - **SonarCloud P0 (v0.5.31)**: Resolved 14 SonarCloud Vulnerabilities + 15 BLOCKER severity items per XV's May 12 audit. Workflow permissions scoped to job level; TLS 1.2 explicit minimum; broken `__all__` in templates/library removed; 8 false-positive suppressions with NOSONAR + justification comments; deprecated `datetime.utcnow()` replaced. Expected impact: Security count 14 → 1, BLOCKER 15 → 0 — May 13, 2026
