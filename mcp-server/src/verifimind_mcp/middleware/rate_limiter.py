@@ -75,6 +75,41 @@ def _resolve_uuid_tier(uuid: str) -> str:
     return tier
 
 
+def _build_rate_limit_cta(tier: str, uuid_status: str) -> Tuple[Optional[str], Optional[str]]:
+    """Build the (upgrade_hint, from_the_builder) pair for a 429 body.
+
+    Branches on why the caller is anonymous so the copy fits the situation
+    (tier-audit findings T4/T5, v0.5.37):
+      - tier != "anonymous"       → (None, None)        no pitch to registered users
+      - anonymous, uuid invalid   → RECOVERY hint       "your UUID isn't valid, fix VERIFIMIND_UUID"
+      - anonymous, uuid absent    → ACQUISITION hint     "register a free Scholar UUID"
+    The founder/feedback line accompanies any anonymous-tier 429.
+    """
+    if tier != "anonymous":
+        return None, None
+    if uuid_status == "invalid":
+        upgrade_hint = (
+            "A VerifiMind UUID was received but is not valid, so this request is on the "
+            "Anonymous tier (10 req/60s per IP). Check that VERIFIMIND_UUID is set to your "
+            "real UUID (not the 'your-uuid-here' placeholder) in your MCP config. "
+            "Setup help: https://verifimind.ysenseai.org/setup"
+        )
+    else:  # absent — no UUID header at all
+        upgrade_hint = (
+            "Anonymous tier limit reached (10 req/60s per IP). Register a free Scholar UUID "
+            "for 30 req/60s + BYOK + a usage dashboard: https://verifimind.ysenseai.org/register "
+            "— your UUID is only a quota key; BYOK keys are never logged and registration adds "
+            "no public identification (Privacy Doctrine v1.0). "
+            "MCP config: https://verifimind.ysenseai.org/setup"
+        )
+    from_the_builder = (
+        "VerifiMind is built by a solo dev keeping the lights on. "
+        "Features & feedback welcome → "
+        "https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions"
+    )
+    return upgrade_hint, from_the_builder
+
+
 class RateLimitStore:
     """In-memory rate limit tracking with automatic cleanup. Sliding window."""
 
@@ -215,19 +250,25 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         client_ip = get_client_ip(request)
 
-        # Resolve tier from X-VerifiMind-UUID header
+        # Resolve tier from X-VerifiMind-UUID header.
+        # Track WHY a request is anonymous (uuid_status) so the 429 body can tell a
+        # misconfigured Scholar (header present but invalid) apart from a true
+        # anonymous caller (no header) — tier-audit findings T1/T2/T5, v0.5.37.
         uuid_header = request.headers.get("x-verifimind-uuid", "").strip()
         tier = "anonymous"
         active_limit = TIER_LIMITS["anonymous"]
+        uuid_status = "absent"  # absent | invalid | valid
 
         if uuid_header:
+            uuid_status = "invalid"  # present until proven valid
             try:
                 from verifimind_mcp.utils.uuid_tracer import is_valid_uuid
                 if is_valid_uuid(uuid_header):
                     tier = _resolve_uuid_tier(uuid_header)
                     active_limit = TIER_LIMITS[tier]
+                    uuid_status = "valid"
             except Exception:
-                pass  # invalid header → fall back to anonymous
+                pass  # invalid header → fall back to anonymous (uuid_status="invalid")
 
         if tier == "anonymous":
             allowed, retry_after, limit_type = _rate_limit_store.check_and_record(client_ip)
@@ -238,23 +279,26 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         if not allowed:
             logger.warning(
-                "Rate limited: tier=%s key=%s type=%s path=%s retry_after=%ss",
-                tier, (uuid_header[:8] if uuid_header else client_ip), limit_type,
-                request.url.path, retry_after,
+                "Rate limited: tier=%s uuid_status=%s key=%s type=%s path=%s retry_after=%ss",
+                tier, uuid_status, (uuid_header[:8] if uuid_header else client_ip),
+                limit_type, request.url.path, retry_after,
             )
+            # Branch the CTA so a misconfigured Scholar (UUID present but invalid) gets a
+            # RECOVERY hint, while a true anonymous caller gets the acquisition pitch —
+            # tier-audit findings T4/T5, v0.5.37.
+            upgrade_hint, from_the_builder = _build_rate_limit_cta(tier, uuid_status)
             return JSONResponse(
                 status_code=429,
                 content={
                     "error": "rate_limit_exceeded",
                     "message": f"Too many requests. Please try again in {retry_after} seconds.",
                     "tier": tier,
+                    "uuid_status": uuid_status,
                     "limit": active_limit,
                     "limit_type": limit_type,
                     "retry_after": retry_after,
-                    "upgrade_hint": (
-                        "Register at verifimind.ysenseai.org/register for Scholar tier (30 req/60s). "
-                        "Pioneer tier: 100 req/60s."
-                    ) if tier == "anonymous" else None,
+                    "upgrade_hint": upgrade_hint,
+                    "from_the_builder": from_the_builder,
                     "documentation": "https://github.com/creator35lwb-web/VerifiMind-PEAS#rate-limits",
                 },
                 headers={

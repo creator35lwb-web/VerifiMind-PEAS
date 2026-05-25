@@ -8,6 +8,26 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.37 - Tier Clarity (May 26, 2026)
+
+Branches the 429 rate-limit CTA so the response fits *why* the caller is anonymous, and surfaces `uuid_status` for diagnosis. Driven by a tier-setup audit (findings T1–T6).
+
+### What changed
+- **429 response body now branches on `uuid_status` (`absent` | `invalid` | `valid`):**
+  - *No UUID header* → acquisition CTA: register a free Scholar UUID (30/60s + BYOK + dashboard), with the Privacy-Doctrine-v1.0 line and a founder/feedback note.
+  - *UUID header present but invalid* → **recovery** hint (`VERIFIMIND_UUID` unset / `your-uuid-here` placeholder → see `/setup`) instead of wrongly pitching registration to someone who already has a UUID.
+- `uuid_status` added to the 429 JSON body and the rate-limit warning log (observability for misconfigured-Scholar detection — AY funnel signal).
+- CTA logic extracted to a pure `_build_rate_limit_cta()` helper with 4 new unit tests.
+- Version bump 0.5.36 → 0.5.37 (both `SERVER_VERSION` surfaces + 9 test files); `server.json` 3.13.0 → 3.14.0.
+
+### Why
+A tier-setup audit — prompted by a Scholar-tier user being rate-limited as Anonymous — found: the rate limiter resolves tier *solely* from the `X-VerifiMind-UUID` header (T1); the downgrade to Anonymous is silent (T2); the tool-response `tier` field (from `tier_gate`, = "not Pioneer") contradicts the rate-limiter tier (T5); and the rate limiter reads an **empty** `ea_registrations` collection for Pioneer quota while real registrations live in `early_adopters` (T6 — Pioneer rate tier effectively dead). v0.5.37 ships the user-facing half (recovery CTA + diagnosis). The deeper reconciliation (T3/T6 — single source of truth for caller tier; fix the collection mismatch) is routed to T (CTO) in a forensic audit report — see PRIVATE `.macp/handoffs/`.
+
+### Evidence
+AY/AZ Report 092 (May 21–24) showed active anonymous builders hitting the IP-tier wall with 0 registrations — the exact cohort the branched CTA targets.
+
+---
+
 ## v0.5.36 - Changelog Endpoint Redirect (May 21, 2026)
 
 Single-sources the changelog to end dual-maintenance drift.

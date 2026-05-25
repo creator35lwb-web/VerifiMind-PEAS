@@ -21,6 +21,7 @@ from verifimind_mcp.middleware.rate_limiter import (
     _resolve_uuid_tier,
     _uuid_tier_cache,
     UUID_TIER_CACHE_TTL,
+    _build_rate_limit_cta,
 )
 
 VALID_UUID = "019d40d6-9e84-7738-9c0c-fa85b2930600"
@@ -170,6 +171,42 @@ class TestResolveUuidTier:
 
 
 # ---------------------------------------------------------------------------
+# v0.5.37 — 429 CTA branching (tier-audit T4/T5)
+# ---------------------------------------------------------------------------
+
+class TestBuildRateLimitCta:
+
+    def test_non_anonymous_gets_no_pitch(self):
+        # Registered users (scholar/pioneer) must never be told to "register"
+        assert _build_rate_limit_cta("scholar", "valid") == (None, None)
+        assert _build_rate_limit_cta("pioneer", "valid") == (None, None)
+
+    def test_anonymous_absent_is_acquisition_cta(self):
+        hint, builder = _build_rate_limit_cta("anonymous", "absent")
+        assert hint is not None
+        # acquisition: invites registration + states the unlock + privacy doctrine
+        assert "/register" in hint
+        assert "BYOK" in hint
+        assert "Privacy Doctrine v1.0" in hint
+        assert builder is not None and "feedback" in builder.lower()
+
+    def test_anonymous_invalid_is_recovery_not_acquisition(self):
+        hint, builder = _build_rate_limit_cta("anonymous", "invalid")
+        assert hint is not None
+        # recovery: points at the misconfig, does NOT pitch a fresh registration
+        assert "VERIFIMIND_UUID" in hint
+        assert "/setup" in hint
+        assert "Register a free Scholar UUID" not in hint
+        assert builder is not None
+
+    def test_builder_line_present_for_all_anonymous(self):
+        _, b_absent = _build_rate_limit_cta("anonymous", "absent")
+        _, b_invalid = _build_rate_limit_cta("anonymous", "invalid")
+        assert b_absent == b_invalid  # same founder voice regardless of cause
+        assert b_absent is not None
+
+
+# ---------------------------------------------------------------------------
 # Server version
 # ---------------------------------------------------------------------------
 
@@ -177,4 +214,4 @@ class TestServerVersion:
 
     def test_server_version_is_0519(self):
         from verifimind_mcp.server import SERVER_VERSION
-        assert SERVER_VERSION == "0.5.36", f"Expected 0.5.36, got {SERVER_VERSION}"
+        assert SERVER_VERSION == "0.5.37", f"Expected 0.5.37, got {SERVER_VERSION}"
