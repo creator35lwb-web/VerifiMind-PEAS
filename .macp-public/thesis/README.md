@@ -1,6 +1,8 @@
 # Thesis
 
-The full **MACP v2.4.0 thesis** — *Multi-Agent Communication Protocol: Thesis and Operational Evidence* — is being finalized for a **Zenodo deposit**. A citable **DOI will be linked here** with the v0.6.0-Beta milestone.
+The full **MACP v2.4.0 thesis** — *Multi-Agent Communication Protocol: Thesis and Operational Evidence* — is published on **Zenodo** with a permanent, citable DOI:
+
+**📄 DOI: [10.5281/zenodo.20399789](https://doi.org/10.5281/zenodo.20399789)**  ·  [Zenodo record](https://zenodo.org/record/20399789)
 
 In the meantime, the substance is already available in this folder:
 
@@ -9,7 +11,7 @@ In the meantime, the substance is already available in this folder:
 - **Real, sanitized evidence** of the protocol in action is in [`../exemplars/`](../exemplars/).
 - **The governance model** is in [`../governance/`](../governance/).
 
-> We are deliberately **not** publishing a pre-final copy of the thesis here. The deposited Zenodo version is the canonical, citable artifact — and publishing an interim copy alongside it would create exactly the kind of source-of-truth ambiguity this project works to avoid. This page will link the DOI once the deposit is live.
+> The canonical, citable version lives on **Zenodo** (DOI above) — a single source of truth. We deliberately don't duplicate the full thesis text here; please cite the DOI.
 
 ---
 
