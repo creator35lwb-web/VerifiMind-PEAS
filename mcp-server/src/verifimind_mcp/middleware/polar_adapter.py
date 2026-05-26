@@ -191,8 +191,11 @@ class PolarAdapter:
         """
         now = time.time()
 
-        # Start a fresh window if the last failure was outside the window
-        if self._first_failure_at == 0.0 or now - self._first_failure_at > _CIRCUIT_WINDOW_SECONDS:
+        # Start a fresh window if there are no recorded failures, or the last
+        # window is outside the time bound. (_consecutive_failures == 0 is the
+        # integer-equality equivalent of the _first_failure_at == 0.0 sentinel —
+        # they are always reset together — and avoids a float equality check.)
+        if self._consecutive_failures == 0 or now - self._first_failure_at > _CIRCUIT_WINDOW_SECONDS:
             self._consecutive_failures = 1
             self._first_failure_at = now
         else:

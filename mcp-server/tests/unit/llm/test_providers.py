@@ -256,8 +256,8 @@ class TestJsonExtraction:
         text = '{"innovation_score": 8.5, "confidence": 0.9}'
         result = GeminiProvider._extract_best_json(text, ["innovation_score", "confidence"])
         assert result is not None
-        assert result["innovation_score"] == 8.5
-        assert result["confidence"] == 0.9
+        assert result["innovation_score"] == pytest.approx(8.5)
+        assert result["confidence"] == pytest.approx(0.9)
 
     def test_extract_best_json_multiple_objects(self):
         """Test extracting best match from multiple JSON objects."""
@@ -265,7 +265,7 @@ class TestJsonExtraction:
         text = '{"step_number": 1, "thought": "test"} {"innovation_score": 8.5, "confidence": 0.9, "recommendation": "go"}'
         result = GeminiProvider._extract_best_json(text, ["innovation_score", "confidence", "recommendation"])
         assert result is not None
-        assert result["innovation_score"] == 8.5
+        assert result["innovation_score"] == pytest.approx(8.5)
         assert "recommendation" in result
 
     def test_extract_best_json_no_match(self):
@@ -296,8 +296,8 @@ class TestJsonExtraction:
         }
         data = {}
         result = GeminiProvider._fill_schema_defaults(data, schema)
-        assert result["score"] == 5.0
-        assert result["confidence"] == 0.5
+        assert result["score"] == pytest.approx(5.0)
+        assert result["confidence"] == pytest.approx(0.5)
 
     def test_fill_schema_defaults_preserves_existing(self):
         """Test that existing fields are not overwritten."""
@@ -311,7 +311,7 @@ class TestJsonExtraction:
         }
         data = {"score": 8.5}
         result = GeminiProvider._fill_schema_defaults(data, schema)
-        assert result["score"] == 8.5  # preserved
+        assert result["score"] == pytest.approx(8.5)  # preserved
         assert "name" in result  # filled
 
     def test_fill_schema_defaults_boolean_and_array(self):

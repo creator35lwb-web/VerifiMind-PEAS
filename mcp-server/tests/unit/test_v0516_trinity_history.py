@@ -11,6 +11,8 @@ Coverage:
 
 import inspect
 
+import pytest
+
 import verifimind_mcp.server as _srv_module
 
 _SERVER_SOURCE = inspect.getsource(_srv_module)
@@ -35,7 +37,7 @@ class TestBuildRecord:
             "_overall_quality": "full",
         }
         rec = self._build("run_full_trinity", raw)
-        assert rec["overall_score"] == 8.2
+        assert rec["overall_score"] == pytest.approx(8.2)
         assert rec["recommendation"] == "PROCEED"
         assert rec["veto_triggered"] is False
         assert rec["session_id"] == "abc12345"
@@ -56,7 +58,7 @@ class TestBuildRecord:
     def test_consult_agent_x_extracts_score(self):
         raw = {"innovation_score": 7.5, "recommendation": "PROCEED"}
         rec = self._build("consult_agent_x", raw)
-        assert rec["score"] == 7.5
+        assert rec["score"] == pytest.approx(7.5)
         assert rec["recommendation"] == "PROCEED"
         assert rec["tool"] == "consult_agent_x"
 
@@ -69,13 +71,13 @@ class TestBuildRecord:
     def test_consult_agent_z_extracts_ethics_score(self):
         raw = {"ethics_score": 8.0, "recommendation": "PROCEED", "veto_triggered": False}
         rec = self._build("consult_agent_z", raw)
-        assert rec["score"] == 8.0
+        assert rec["score"] == pytest.approx(8.0)
         assert rec["veto_triggered"] is False
 
     def test_consult_agent_cs_extracts_security_score(self):
         raw = {"security_score": 6.5, "recommendation": "REVISE"}
         rec = self._build("consult_agent_cs", raw)
-        assert rec["score"] == 6.5
+        assert rec["score"] == pytest.approx(6.5)
         assert rec["tool"] == "consult_agent_cs"
 
     def test_record_always_has_uuid_tool_timestamp(self):
