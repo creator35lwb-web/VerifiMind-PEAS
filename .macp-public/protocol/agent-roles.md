@@ -1,18 +1,20 @@
 # FLYWHEEL TEAM — Agent Roles
 
 > Role definitions for the multi-agent team that develops VerifiMind-PEAS under MACP. Roles are defined by **function**, with the platform noted for transparency. AI agents operate under the human Lead Maintainer's delegation and hold **no independent merge authority**.
+>
+> Each role is shown by its **plain descriptive title**, with the project's internal C-suite shorthand (CTO, CIO, …) in parentheses — so any reference elsewhere in the repo decodes cleanly.
 
 ---
 
 | Agent | Platform | Role | Function |
 |-------|----------|------|----------|
 | **Lead Maintainer** | Human | Orchestrator | Absolute authority — final decisions, strategic direction, release sign-off |
-| **L** | GodelAI (hosted via Manus) | CEO (AI-generated) | Emergent strategic synthesis under delegated authority |
-| **T** | Manus AI | CTO | Architecture, integration, thesis authorship, security strategy |
-| **RNA** | Claude Code | CSO | Executable discipline — code, deployment, protocol enforcement, review |
-| **XV** | Perplexity | CIO | Real-time intelligence, external validation, competitive analysis |
-| **AY** | Cursor | COO | Operational metrics, telemetry, behavioral analytics |
-| **AZ** | Cursor | CPO | Product strategy, adoption, user experience |
+| **L** | GodelAI (hosted via Manus) | Coordination Layer (CEO) | Emergent strategic synthesis under delegated authority |
+| **T** | Manus AI | Technical Lead (CTO) | Architecture, integration, thesis authorship, security strategy |
+| **RNA** | Claude Code | Strategic Operations (CSO) | Executable discipline — code, deployment, protocol enforcement, review |
+| **XV** | Perplexity | Intelligence & Research (CIO) | Real-time intelligence, external validation, competitive analysis |
+| **AY** | Cursor | Operations & Telemetry (COO) | Operational metrics, telemetry, behavioral analytics |
+| **AZ** | Cursor | Product & Adoption (CPO) | Product strategy, adoption, user experience |
 
 **AI Council (validators).** Beyond the standing team, MACP convenes specialized validator agents for high-stakes reviews (e.g., innovation, security, and ethics lenses). They contribute analysis, not merge decisions.
 
