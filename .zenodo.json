@@ -1,22 +1,42 @@
 {
-  "title": "VerifiMind-PEAS: Prompt Engineering Attribution System - Multi-Model AI Validation Framework",
-  "description": "Production-ready Model Context Protocol (MCP) server providing systematic multi-model AI validation capabilities. Implements the Genesis Prompt Engineering Methodology v2.0 for reliable validation of AI-generated content across multiple LLM providers (Anthropic Claude, OpenAI GPT, Google Gemini, Perplexity).",
+  "title": "VerifiMind-PEAS: Multi-Model AI Validation Framework (X-Z-CS RefleXion Trinity)",
+  "description": "Production Model Context Protocol (MCP) server for systematic multi-model AI validation. VerifiMind-PEAS runs the X-Z-CS 'RefleXion Trinity' — three independent AI agents (a creative/strategic lens, a security/safety lens, and a compliance/ethics lens) that evaluate a concept and synthesize a cited verdict — and coordinates its own development through the Multi-Agent Communication Protocol (MACP v2.4.0). All validation tools are free and openly accessible.",
   "creators": [
     {
-      "name": "Lee, Alton",
-      "affiliation": "VerifiMind Innovation Project",
+      "name": "Lee, Alton Wei Bin",
+      "affiliation": "VerifiMind / YSenseAI — Lead Maintainer & Human Orchestrator",
       "orcid": ""
     },
     {
       "name": "Manus AI",
-      "affiliation": "VerifiMind Innovation Project - Strategic Agent (X Agent, CTO)"
+      "affiliation": "VerifiMind FLYWHEEL TEAM — Technical Lead (CTO)"
     },
     {
       "name": "Claude Code",
-      "affiliation": "VerifiMind Innovation Project - Implementation Agent"
+      "affiliation": "VerifiMind FLYWHEEL TEAM — Strategic Operations (CSO)"
     }
   ],
   "contributors": [
+    {
+      "name": "Perplexity",
+      "type": "Other",
+      "affiliation": "VerifiMind FLYWHEEL TEAM — Intelligence & Research (CIO)"
+    },
+    {
+      "name": "Cursor (Operations)",
+      "type": "Other",
+      "affiliation": "VerifiMind FLYWHEEL TEAM — Operations & Telemetry (COO)"
+    },
+    {
+      "name": "Cursor (Product)",
+      "type": "Other",
+      "affiliation": "VerifiMind FLYWHEEL TEAM — Product & Adoption (CPO)"
+    },
+    {
+      "name": "GodelAI",
+      "type": "Other",
+      "affiliation": "VerifiMind FLYWHEEL TEAM — Coordination Layer (CEO, AI-generated)"
+    },
     {
       "name": "YSenseAI Community",
       "type": "Other",
@@ -25,18 +45,19 @@
   ],
   "keywords": [
     "AI validation",
-    "prompt engineering",
     "multi-model validation",
+    "Multi-Agent Communication Protocol",
+    "MACP",
+    "RefleXion Trinity",
+    "multi-agent coordination",
     "MCP server",
     "Model Context Protocol",
     "LLM validation",
     "hallucination detection",
     "Genesis Methodology",
     "AI quality assurance",
-    "prompt analysis",
-    "response validation",
+    "human-centric AI",
     "Anthropic Claude",
-    "OpenAI GPT",
     "Google Gemini",
     "Perplexity AI"
   ],
@@ -54,7 +75,7 @@
     },
     {
       "identifier": "10.5281/zenodo.17972751",
-      "relation": "isDocumentedBy",
+      "relation": "references",
       "scheme": "doi"
     }
   ],
@@ -80,7 +101,7 @@
       "scheme": "acm"
     },
     {
-      "term": "Prompt Engineering",
+      "term": "Multi-Agent Systems",
       "scheme": "keyword"
     },
     {
@@ -88,10 +109,10 @@
       "scheme": "keyword"
     }
   ],
-  "notes": "VerifiMind-PEAS (Prompt Engineering Attribution System) is a production-ready MCP server developed over 87 days using the Genesis Prompt Engineering Methodology v2.0. It provides comprehensive multi-model AI validation through four core tools: analyze_prompt, validate_response, detect_hallucinations, and suggest_improvements. The system integrates with multiple LLM providers (Anthropic, OpenAI, Google, Perplexity) to provide diverse validation perspectives. This release (v1.1.0) represents the culmination of systematic development with 98/100 code quality score, 100% test pass rate, and Smithery marketplace deployment readiness.",
-  "version": "1.1.0",
-  "publication_date": "2025-12-18",
+  "notes": "VerifiMind-PEAS is a production MCP server, currently live at v0.5.37 'Tier Clarity', implementing the X-Z-CS RefleXion Trinity for multi-model AI validation across 13 MCP tools (Trinity consultation, full-Trinity synthesis, and MACP coordination). It is developed and operated by the FLYWHEEL TEAM — a human-orchestrated multi-agent team — under the Multi-Agent Communication Protocol (MACP v2.4.0). All tools are free. The v0.6.0-Beta milestone (credibility and evidence: governance, formal thesis, and defensive publication) is in progress; a corresponding v0.6.0-Beta software release will follow.",
+  "version": "0.5.37",
+  "publication_date": "2026-05-27",
   "references": [
-    "Lee, A., Manus AI, & Claude Code. (2025). Genesis Prompt Engineering Methodology v2.0. Zenodo. https://doi.org/10.5281/zenodo.17972751"
+    "Lee, A., et al. (2025). Genesis Prompt Engineering Methodology v2.0. Zenodo. https://doi.org/10.5281/zenodo.17972751"
   ]
 }
