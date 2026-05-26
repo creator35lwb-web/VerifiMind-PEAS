@@ -7,12 +7,13 @@
 
   Three specialized agents — Innovation, Ethics, Security — review your concept before you build it. Multi-vendor (Gemini · Claude · GPT · Groq · Cerebras · Mistral · Ollama). Free, open-source, MCP-native.
 
-  [![Version](https://img.shields.io/badge/version-v0.5.34-blue.svg)](CHANGELOG.md)
+  [![Version](https://img.shields.io/badge/version-v0.5.37-blue.svg)](CHANGELOG.md)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Status](https://img.shields.io/badge/status-Operational-success.svg)](SERVER_STATUS.md)
   [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Listed-purple)](https://registry.modelcontextprotocol.io/?q=verifimind)
   [![Health](https://img.shields.io/badge/Health-LIVE-success)](https://verifimind.ysenseai.org/health)
   [![Genesis DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17972751.svg)](https://doi.org/10.5281/zenodo.17972751)
+  [![MACP Thesis DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20399789.svg)](https://doi.org/10.5281/zenodo.20399789)
 </div>
 
 ---
