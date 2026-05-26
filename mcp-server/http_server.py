@@ -1831,7 +1831,7 @@ if __name__ == "__main__":
     # container network. External access is controlled by Cloud Run ingress, not by this bind.
     uvicorn.run(
         app,
-        host="0.0.0.0",  # NOSONAR
+        host=os.getenv("HOST", "0.0.0.0"),  # NOSONAR: 0.0.0.0 default required by Cloud Run; override via HOST env
         port=port,
         log_level="info"
     )
