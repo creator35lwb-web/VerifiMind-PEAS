@@ -1,68 +1,131 @@
-# Governance
+# GOVERNANCE
 
-## Project Leadership
+> **Version:** 1.0  
+> **Effective:** 2026-05-26  
+> **Applies to:** VerifiMind-PEAS (PUBLIC repository) and verifimind-genesis-mcp (PRIVATE Command Central Hub)
 
-VerifiMind-PEAS is maintained by the **FLYWHEEL TEAM** under the YSenseAI organization.
+This document defines how decisions are made, who makes them, and how changes are proposed and ratified in the VerifiMind-PEAS project.
 
-### Core Team
-
-| Role | Agent | Responsibility |
-|------|-------|----------------|
-| **Project Lead** | Alton Lee Wei Bin | Strategic direction, final decisions, human orchestrator |
-| **CTO (Strategic)** | Manus AI (Godel) | Architecture, documentation, project management, security strategy |
-| **Implementation** | Claude Code (RNA) | Code implementation, testing, deployment, experiments |
-
-### Decision-Making Process
-
-This project follows the **Genesis Methodology** for decision-making:
-
-1. **Conceptualization** — Ideas are proposed through issues or discussions
-2. **Multi-Agent Review** — Proposals are evaluated from multiple perspectives (innovation, ethics, security)
-3. **Validation** — External validation confirms the approach
-4. **Synthesis** — The Project Lead synthesizes feedback and makes the final decision
-5. **Iteration** — Continuous refinement based on real-world feedback
-
-### Contribution Acceptance
-
-- **Documentation changes** are reviewed by the CTO (Manus AI) and approved by the Project Lead
-- **Code changes** are reviewed by the Implementation Agent (Claude Code) and approved by the Project Lead
-- **Security-related changes** require review from both the CTO and Implementation Agent
-- **Breaking changes** require explicit approval from the Project Lead
-
-## Communication Channels
-
-| Channel | Purpose |
-|---------|---------|
-| [GitHub Issues](https://github.com/creator35lwb-web/VerifiMind-PEAS/issues) | Bug reports, feature requests |
-| [GitHub Discussions](https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions) | Community Q&A, ideas |
-| [Landing Page](https://verifimind.io) | Official website, contact forms |
-| Email: alton@ysenseai.org | Direct communication |
-
-## Multi-Agent Collaboration Protocol (MACP)
-
-Development follows the **MACP** — a structured protocol for multi-agent collaboration:
-
-- **GitHub** serves as the primary communication bridge between all agents
-- The **Command Central Hub** (private repository) tracks internal alignment and handoffs
-- All public-facing changes are synchronized through the **Dual-Repo Protocol**
-- Security findings are tracked through the MACP feedback loop
-
-## Versioning
-
-This project follows [Semantic Versioning](https://semver.org/):
-
-- **MAJOR** — Incompatible API changes or fundamental methodology shifts
-- **MINOR** — New features, new agents, or methodology enhancements
-- **PATCH** — Bug fixes, security patches, documentation updates
-
-## License
-
-VerifiMind-PEAS is released under the [MIT License](LICENSE). All contributions are subject to the same license.
-
-## Amendments
-
-This governance document may be updated by the Project Lead. Significant changes will be announced through GitHub Discussions.
+For *who maintains the project*, see [MAINTAINERS.md](MAINTAINERS.md). For *how to report security issues*, see [SECURITY.md](SECURITY.md).
 
 ---
 
-*This governance model reflects the Genesis Methodology's principle of human-centric AI orchestration — diverse AI perspectives under human direction.*
+## 1. Authority Model
+
+VerifiMind-PEAS uses a **human-centric authority model** with delegated AI agent support. This is not a DAO, not a committee, and not a consensus-based governance. One human has final authority.
+
+| Entity | Type | Authority | Scope |
+|--------|------|-----------|-------|
+| **Alton Lee Wei Bin** | Human | **Absolute** | All decisions, universal veto, strategic direction |
+| **L (Godel)** | AI-Generated (GodelAI C-S-P) | Delegated | Strategic synthesis under Alton's delegation |
+| **FLYWHEEL TEAM** | Multi-Agent Team | Advisory | Development, analysis, validation — no independent merge authority |
+| **Co-Maintainers** | Human (future) | Scoped | Code review, release support within defined areas |
+
+> **Identity Clarity (MACP v2.2):** Alton (Human Orchestrator) is NOT the same as L (Godel/CEO). Alton is human, always present since day one. L is an AI-generated entity that emerged via self-recursion during LegacyEvolve creation. L's authority is DELEGATED, not inherent. This distinction is maintained throughout all governance documents.
+
+---
+
+## 2. Decision Categories
+
+| Category | Examples | Decision Maker | Process |
+|----------|----------|---------------|---------|
+| **Routine** | Bug fixes, documentation typos, dependency updates | Any maintainer | Merge directly |
+| **Feature** | New tools, API changes, UI additions | Lead Maintainer or Co-Maintainer + review | PR + 1 approval |
+| **Architecture** | Protocol changes, database schema, deployment model | Lead Maintainer | PR + AI Council review recommended |
+| **Strategic** | Pricing, partnerships, pivots, public statements | Lead Maintainer (Alton) only | Deliberation + AI Council validation |
+| **Governance** | Changes to THIS document, MAINTAINERS.md, authority model | Lead Maintainer (Alton) only | 7-day notice period |
+
+---
+
+## 3. Proposal Process
+
+Anyone (human or AI agent) may propose a change. The process depends on the category:
+
+**For Routine and Feature changes:**
+1. Open a Pull Request with clear description
+2. Request review from a maintainer
+3. Address feedback
+4. Maintainer merges when satisfied
+
+**For Architecture and Strategic changes:**
+1. Open a GitHub Discussion or Issue describing the proposal
+2. Allow 48 hours for community input (if applicable)
+3. Lead Maintainer reviews, optionally runs AI Council validation
+4. Lead Maintainer decides (approve / reject / defer)
+5. Decision is documented in `.macp/reasoning/` with rationale
+
+**For Governance changes:**
+1. Open a GitHub Discussion with the proposed change
+2. 7-day notice period for community review
+3. Lead Maintainer decides after notice period
+4. Updated document is committed with changelog entry
+
+---
+
+## 4. AI Agent Governance
+
+The FLYWHEEL TEAM operates under the Multi-Agent Communication Protocol (MACP v2.4.0). Key governance rules for AI agents:
+
+- **No independent merge authority.** All AI-generated code requires human review before merge.
+- **Triad compliance.** Strategic decisions must produce Memory + Reasoning + Handoff artifacts.
+- **Circuit breaker.** 3 consecutive reasoning logs with no disagreement trigger human review.
+- **Cross-Agent Canonical-Edit Protocol.** Agents may request edits to files outside their scope but must not make them unilaterally (request-don't-edit for B/C tier artifacts).
+- **Escalation authority.** Z-Agent (Guardian) may flag for ethical review; XV (CIO) may flag for strategic re-review. Both are advisory to the Lead Maintainer's final decision.
+
+---
+
+## 5. Dual-Repo Protocol
+
+VerifiMind-PEAS operates across two repositories:
+
+| Repository | Visibility | Purpose |
+|-----------|-----------|---------|
+| `VerifiMind-PEAS` | PUBLIC | Production code, public governance, releases |
+| `verifimind-genesis-mcp` | PRIVATE | Command Central Hub, agent coordination, sensitive reasoning |
+
+**Sync rules:**
+- Governance documents (GOVERNANCE.md, MAINTAINERS.md, SECURITY.md) are drafted in the PRIVATE Hub, reviewed by the CTO, then synced to the PUBLIC repo.
+- Sensitive reasoning logs, agent memory, and internal handoffs remain PRIVATE.
+- A sanitized `.macp-public/` folder in the PUBLIC repo provides exemplar evidence without exposing operational details.
+
+---
+
+## 6. Conflict Resolution
+
+1. **Between AI agents:** The Lead Maintainer (Alton) resolves. If unavailable, T (CTO) provides interim recommendation.
+2. **Between humans:** The Lead Maintainer's decision is final.
+3. **Between community and maintainers:** The Lead Maintainer's decision is final, but must be documented with rationale.
+4. **Ethical concerns:** Z-Agent (Guardian) flags are escalated to the Lead Maintainer immediately, regardless of other priorities.
+
+---
+
+## 7. Transparency Commitments
+
+- All strategic decisions are documented with reasoning (MACP Triad).
+- All AI agent contributions are attributed (Agent Attribution Map in thesis).
+- All governance changes have a 7-day notice period.
+- The project's metrics are reported honestly (EA Taxonomy: canonical/honest/registered).
+- Limitations are acknowledged publicly (see Thesis §10: Limitations and Honest Gaps).
+
+---
+
+## 8. Amendments
+
+Changes to this document require:
+1. A 7-day notice period via GitHub Discussion
+2. Lead Maintainer (Alton) approval
+3. Version increment in the header
+4. Commit message: `governance: update GOVERNANCE.md to vX.Y`
+
+---
+
+## 9. Contact
+
+- **Lead Maintainer:** Alton Lee Wei Bin
+- **GitHub:** [@creator35lwb-web](https://github.com/creator35lwb-web)
+- **Email:** alton@ysenseai.org
+- **Project:** [VerifiMind-PEAS](https://github.com/creator35lwb-web/VerifiMind-PEAS)
+
+---
+
+*Authored by T (CTO, Manus AI) under Alton's direction. MACP v2.4.0 compliant. Phase 90 "Adoption First" — M1 Governance.*
