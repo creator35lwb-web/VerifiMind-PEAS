@@ -76,6 +76,21 @@ MCP_REMOTE_QUICKSTART = (
     "https://verifimind.ysenseai.org/mcp/"
 )
 
+# Endpoint path constants — single source of truth (SonarCloud P2: dup-literal extraction).
+# Extracted in v0.5.39 from 16 occurrences across response payloads, route definitions,
+# JSON dict values, and HTML template strings.
+HEALTH_PATH = "/health"
+SETUP_PATH = "/setup"
+MCP_CONFIG_PATH = "/.well-known/mcp-config"
+
+# Content-Type constants
+CT_JSON = "application/json"
+CT_PNG = "image/png"
+
+# Common error-message constants
+ERR_INVALID_JSON = "Invalid JSON body"
+ERR_VALIDATION = "Validation error"
+
 # Track server start time for uptime reporting (v0.5.0 health v2)
 _SERVER_START_TIME = time.time()
 _SERVER_START_ISO = datetime.now(timezone.utc).isoformat()
@@ -116,9 +131,9 @@ async def health_handler(request):
         "server_started": _SERVER_START_ISO,
         "endpoints": {
             "mcp": "/mcp",
-            "config": "/.well-known/mcp-config",
-            "health": "/health",
-            "setup": "/setup",
+            "config": MCP_CONFIG_PATH,
+            "health": HEALTH_PATH,
+            "setup": SETUP_PATH,
             "changelog": "/changelog"
         },
         "resources": 4,
@@ -207,7 +222,7 @@ async def mcp_config_handler(request):
                 "transport": "streamable-http",
                 "method": "POST",
                 "headers": {
-                    "Content-Type": "application/json",
+                    "Content-Type": CT_JSON,
                     "Accept": "application/json, text/event-stream"
                 }
             }
@@ -355,7 +370,7 @@ ROOT_HTML = """<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VerifiMind-PEAS MCP Server</title>
-<link rel="icon" type="image/png" href="/favicon.ico">
+<link rel="icon" type=CT_PNG href="/favicon.ico">
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
          max-width: 720px; margin: 40px auto; padding: 0 20px; color: #1a1a2e;
@@ -463,9 +478,9 @@ Verify your key: <a href="/mcp/test?key=your-uuid-here"><code>/mcp/test?key=&lt;
   <li><a href="https://verifimind.io">Landing Page</a></li>
   <li><a href="/register">Register for Scholar Tier (free)</a></li>
   <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS">GitHub Repository</a></li>
-  <li><a href="/health">Health Check</a></li>
-  <li><a href="/.well-known/mcp-config">Full MCP Configuration (JSON)</a></li>
-  <li><a href="/setup">Setup Guide (JSON)</a></li>
+  <li><a href=HEALTH_PATH>Health Check</a></li>
+  <li><a href=MCP_CONFIG_PATH>Full MCP Configuration (JSON)</a></li>
+  <li><a href=SETUP_PATH>Setup Guide (JSON)</a></li>
   <li><a href="/changelog">Changelog</a></li>
 </ul>
 <p><small>13 tools &middot; 4 resources &middot; X-Z-CS RefleXion Trinity &middot;
@@ -509,9 +524,9 @@ async def root_handler(request):
         "message": f"Connect to {MCP_ENDPOINT_PATH} using an MCP client (Claude Desktop, Cursor, VS Code)",
         "endpoints": {
             "mcp": MCP_ENDPOINT_PATH,
-            "config": "/.well-known/mcp-config",
-            "health": "/health",
-            "setup": "/setup"
+            "config": MCP_CONFIG_PATH,
+            "health": HEALTH_PATH,
+            "setup": SETUP_PATH
         },
         "quick_start": MCP_REMOTE_QUICKSTART
     })
@@ -851,7 +866,7 @@ async def sitemap_handler(request):
 
 async def favicon_handler(request):
     """Serve the VerifiMind PEAS favicon (48x48 PNG)."""
-    return Response(content=FAVICON_BYTES, media_type="image/png")
+    return Response(content=FAVICON_BYTES, media_type=CT_PNG)
 
 
 async def logo_handler(request):
@@ -859,9 +874,9 @@ async def logo_handler(request):
     import pathlib
     logo_path = pathlib.Path(__file__).parent / "logo.png"
     if logo_path.exists():
-        return Response(content=logo_path.read_bytes(), media_type="image/png")
+        return Response(content=logo_path.read_bytes(), media_type=CT_PNG)
     # fallback to favicon if logo.png not present
-    return Response(content=FAVICON_BYTES, media_type="image/png")
+    return Response(content=FAVICON_BYTES, media_type=CT_PNG)
 
 
 async def smithery_server_card_handler(request):
@@ -1165,13 +1180,13 @@ async def ea_register_handler(request):
     try:
         body = await request.json()
     except Exception:
-        return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+        return JSONResponse({"error": ERR_INVALID_JSON}, status_code=400)
 
     try:
         data = EarlyAdopterRegistration(**body)
     except Exception:
         return JSONResponse(
-            {"error": "Validation error", "detail": "Check required fields: email, tc_accepted, privacy_acknowledged."},
+            {"error": ERR_VALIDATION, "detail": "Check required fields: email, tc_accepted, privacy_acknowledged."},
             status_code=422,
         )
 
@@ -1231,13 +1246,13 @@ async def ea_feedback_handler(request):
     try:
         body = await request.json()
     except Exception:
-        return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+        return JSONResponse({"error": ERR_INVALID_JSON}, status_code=400)
 
     try:
         data = FeedbackRequest(**body)
     except Exception:
         return JSONResponse(
-            {"error": "Validation error", "detail": "Check required fields: content, feedback_type."},
+            {"error": ERR_VALIDATION, "detail": "Check required fields: content, feedback_type."},
             status_code=422,
         )
 
@@ -1258,7 +1273,7 @@ async def ea_optout_handler(request):
 async def privacy_handler(request):
     """GET /privacy — Privacy Policy v2.0 (HTML by default, JSON if requested)."""
     accept = request.headers.get("accept", "")
-    if "application/json" in accept:
+    if CT_JSON in accept:
         return JSONResponse({
             "title": "VerifiMind-PEAS Privacy Policy",
             "version": "2.0",
@@ -1272,7 +1287,7 @@ async def privacy_handler(request):
 async def terms_handler(request):
     """GET /terms — Terms & Conditions v2.0 (HTML by default, JSON if requested)."""
     accept = request.headers.get("accept", "")
-    if "application/json" in accept:
+    if CT_JSON in accept:
         return JSONResponse({
             "title": "VerifiMind-PEAS Terms & Conditions",
             "version": "2.0",
@@ -1297,12 +1312,12 @@ async def register_handler(request):
     try:
         body = await request.json()
     except Exception:
-        return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+        return JSONResponse({"error": ERR_INVALID_JSON}, status_code=400)
 
     try:
         data = UserRegistrationRequest(**body)
     except Exception:
-        return JSONResponse({"error": "Validation error", "detail": "consent is required and must be true."}, status_code=422)
+        return JSONResponse({"error": ERR_VALIDATION, "detail": "consent is required and must be true."}, status_code=422)
 
     try:
         result = await register_user(data)
@@ -1330,7 +1345,7 @@ async def changelog_handler(request):
     CHANGELOG.md, which retains internal forensics.
     """
     accept = request.headers.get("accept", "")
-    if "application/json" in accept:
+    if CT_JSON in accept:
         return JSONResponse({
             "title": "VerifiMind-PEAS Changelog",
             "current_version": SERVER_VERSION,
@@ -1678,7 +1693,7 @@ async def mcp_head_handler(request):
     return Response(
         status_code=200,
         headers={
-            "Content-Type": "application/json",
+            "Content-Type": CT_JSON,
             "X-Server-Version": SERVER_VERSION,
         },
     )
@@ -1704,15 +1719,15 @@ async def mcp_sse_deprecated_handler(request):
 # Create Starlette app with proper lifespan from MCP app
 app = Starlette(
     routes=[
-        Route("/health", health_handler),
+        Route(HEALTH_PATH, health_handler),
         Route("/", root_handler, methods=["GET", "HEAD"]),
         Route("/", root_post_redirect, methods=["POST"]),
         Route("/robots.txt", robots_handler),
         Route("/sitemap.xml", sitemap_handler),
         Route("/favicon.ico", favicon_handler),
         Route("/logo.png", logo_handler),
-        Route("/setup", setup_handler),
-        Route("/.well-known/mcp-config", mcp_config_handler),
+        Route(SETUP_PATH, setup_handler),
+        Route(MCP_CONFIG_PATH, mcp_config_handler),
         Route("/.well-known/mcp/server-card.json", smithery_server_card_handler),
         # v0.5.6 Gateway: EA registration + feedback + policy
         Route("/early-adopters/register", ea_register_handler, methods=["POST"]),
