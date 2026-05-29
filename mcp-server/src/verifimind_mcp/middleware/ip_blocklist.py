@@ -44,6 +44,22 @@ BLOCKED_IPS: list[tuple[str, str, str, str]] = [
     # CI configs (.gitlab-ci, .github/workflows), Next.js/SharePoint paths. Static Chrome/131 UA.
     # 611/788 (77%) caught by rate limiter as 429; 4 served 200 (safe root/register, zero leak).
     ("195.178.110.199", "SECRET_SCANNER", "2026-05-13", "RNA_CSO"),
+    # CMS Webshell Scanner — Azure/Microsoft range; null UA on every request; ~310 req/7d in 2 bursts
+    # (2026-05-21 + 2026-05-26 14:40-14:42 UTC); WordPress + PHP webshell dictionary (wp-login.php,
+    # xmlrpc.php, wp-admin/alfa.php, wp-content/uploads/goods.php, wso.php, gecko.php, chosen.php,
+    # lock360.php, god4m.php, ~140 PHP webshell names incl. mixed-case randkeyword.PhP7 evasion);
+    # 50% redirected (Layer 3), 37% rate-limited (429), 13% 404; zero 200; no VerifiMind handler hit.
+    ("4.228.83.111", "CMS_WEBSHELL_SCANNER", "2026-05-29", "RNA_CSO"),
+    # Secret / Credential Scanner — IPv6; single 15-second burst 2026-05-25 19:13:03-19:13:18 UTC;
+    # 65 req @ ~4.3 req/s; rotating UA across 18+ distinct browser/OS strings per request (Windows/
+    # Chrome v145-147, Edge v146-147, macOS/Safari, Linux/Firefox v149-150, iOS/Safari — botnet/
+    # distributed-proxy pattern); 3-phase probe: (1) GCP service-account JSON files (serviceAccount
+    # Key.json was the first probe — GCP-aware attacker), (2) .env variant tree across 28 paths
+    # incl. .env.production.*/.env.local.* backup variants, (3) .git internals (HEAD/config/
+    # logs/HEAD/refs/heads/main/master); 60% rate-limited, 34% 404, 3x 200 ALL on public root /;
+    # zero leak. Same SECRET_SCANNER class as 195.178.110.199 (2026-05-13). Address-only block —
+    # /48 prefix scan returned only the base address, no multi-host rotation observed.
+    ("2602:fb54:99a::", "SECRET_SCANNER", "2026-05-29", "RNA_CSO"),
 ]
 
 # Blocked User-Agent substrings (case-insensitive substring match)

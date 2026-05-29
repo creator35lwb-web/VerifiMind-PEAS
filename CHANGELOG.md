@@ -8,6 +8,25 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.38 - Scanner Block (May 29, 2026)
+
+Adds two scanners to the application-layer IP blocklist after GCP log forensic analysis (Sentinel investigation, 2026-05-29). Defense layers caught everything; zero data leak on either actor.
+
+### What changed
+
+- **`4.228.83.111` (Azure/Microsoft)** — added as **CMS_WEBSHELL_SCANNER**. Two bursts (2026-05-21 + 2026-05-26 14:40–14:42 UTC); ~310 req/7d; **null User-Agent** on every request. WordPress and generic PHP webshell dictionary: `wp-login.php`, `xmlrpc.php`, `wp-admin/alfa.php`, `wp-content/uploads/goods.php`, `wso.php`, `gecko.php`, `chosen.php`, `lock360.php`, `god4m.php`, ~140 additional PHP webshell names (one mixed-case `randkeyword.PhP7` — extension-case evasion attempt). Defense breakdown: 50% caught by HTTP→HTTPS redirect (Layer 3), 37% rate-limited (429, Layer 2), 13% returned 404. **Zero 200 responses.** No VerifiMind handler was reached; scanner is unaware it is hitting a Python/FastAPI service — indiscriminate spray.
+
+- **`2602:fb54:99a::` (IPv6)** — added as **SECRET_SCANNER** (same class as `195.178.110.199`, blocked 2026-05-13). Single 15-second burst 2026-05-25 19:13:03–19:13:18 UTC, 65 requests at ~4.3 req/s. **Rotating User-Agent across 18+ distinct browser/OS strings** per request (Windows/Chrome v145–147, Edge v146–147, macOS/Safari, Linux/Firefox v149–150, iOS/Safari) — botnet / distributed-proxy pattern, distinguishing this actor from the static-UA SECRET_SCANNER blocked 2026-05-13. Three-phase probe: (1) GCP-specific service-account JSON files (`serviceAccountKey.json` was literally the first probe — GCP-aware attacker), then 20+ credential JSON names; (2) `.env` variant tree across 28 paths including `.env.production.*` / `.env.local.*` backup variants; (3) `.git` internals (`HEAD`, `config`, `logs/HEAD`, `refs/heads/main`, `refs/heads/master`). Defense breakdown: 60% rate-limited (429), 34% returned 404, **3× 200 — all on the public root `/`** (known-safe surface, zero leak). Address-only block, not `/48`: the prefix scan returned only the base address, no multi-host rotation evidence.
+
+- **Cross-correlation:** the two actors operated **19 hours apart** with different tooling (null UA vs rotating UA) and different target classes (CMS vs secrets) — **independent actors, not coordinated infrastructure.**
+
+- **`BLOCKED_IPS`:** 9 entries total (was 7).
+
+### Files
+- `mcp-server/src/verifimind_mcp/middleware/ip_blocklist.py` — 2 new entries with forensic comments
+
+---
+
 ## v0.5.37 - Tier Clarity (May 26, 2026)
 
 Branches the 429 rate-limit CTA so the response fits *why* the caller is anonymous, and surfaces `uuid_status` for diagnosis. Driven by a tier-setup audit (findings T1–T6).

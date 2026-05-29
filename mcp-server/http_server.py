@@ -64,7 +64,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.37"
+SERVER_VERSION = "0.5.38"
 
 # MCP endpoint constants — single source of truth for URL/path strings used in
 # JSON responses, quickstart commands, and HTML setup pages. Extracted in v0.5.32
