@@ -1,16 +1,17 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** May 26, 2026
+**Last Updated:** May 29, 2026
 
 ---
 
 ## Current Status: Operational
 
-**v0.5.37 "Tier Clarity" — deployed May 26, 2026**
+**v0.5.38 "Scanner Block" — deployed May 29, 2026**
 
 The VerifiMind MCP server is fully operational. All security gates passed. (Per-version public detail now lives in [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases) since the `/changelog` redirect in v0.5.36.)
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination) — **all free for everyone**
+- **Scanner Block (v0.5.38)**: 2 additional scanners added to application-layer IP blocklist (9 entries total) — `4.228.83.111` (CMS_WEBSHELL_SCANNER, Azure; null UA, 310 req/7d in 2 bursts, WordPress + PHP webshell dictionary) and `2602:fb54:99a::` (SECRET_SCANNER, IPv6; rotating UA across 18+ browser strings — botnet pattern; 65 req single 15-sec burst probing GCP service-account JSON + .env tree + .git internals). GCP forensic analysis (Sentinel investigation): zero 200 on any sensitive endpoint, zero data leak on either actor; defense layers caught everything (50–60% rate-limited, 13–34% 404). Independent actors (19h apart, different tooling). Address-only block on the IPv6 — no /48 rotation evidence — May 29, 2026
 - **Tier Clarity (v0.5.37)**: 429 rate-limit CTA now branches on `uuid_status` — a *misconfigured Scholar* (UUID header present but invalid) gets a recovery hint (`VERIFIMIND_UUID` / `/setup`), while a true anonymous caller gets the register-for-Scholar acquisition CTA (+ BYOK + dashboard, Privacy-Doctrine-v1.0 line, founder/feedback note). `uuid_status` surfaced in the body + warning log. Shipped from a tier-setup audit (T1–T6); the T3/T6 reconciliation (rate-limiter reads empty `ea_registrations` vs real `early_adopters`; single source of truth for caller tier) routed to T (CTO) — May 26, 2026
 - **Changelog Hygiene (v0.5.33)**: Retroactively sanitized public `/changelog` to remove specific blocked-IP addresses from v0.5.30 and v0.5.32 entries; matches v0.5.22 / v0.5.26 disclosure pattern. Full forensics preserved in internal `CHANGELOG.md`, PR bodies, and commit history. Added disclosure-policy header to internal CHANGELOG. PR# links added to public v0.5.30 / v0.5.32 entries — May 13, 2026
 - **Secret Scanner Block + SonarCloud P1 (v0.5.32)**: 7th IP added to application-layer blocklist — credential/secret enumeration scanner, 788 req single burst on May 12 (probed `.env` variants, `.git/*`, `.terraform.*`, `.stripe/`, `?phpinfo=1`, CI configs). 77% caught by rate limiter; zero leak (4 served 200 = safe root response only). SonarCloud P1 cleanup: extracted `MCP_ENDPOINT_PATH`/`MCP_SERVER_URL`/`MCP_REMOTE_QUICKSTART` constants (removed 13 duplicate literals); refactored `http_exception_handler` cognitive complexity 23 → ≤15; CodeQL `py/empty-except` × 2 resolved; logger.exception() in registration 500 path — May 13, 2026
