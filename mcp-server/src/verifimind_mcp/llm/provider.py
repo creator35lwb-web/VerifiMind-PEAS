@@ -66,11 +66,19 @@ def strip_markdown_code_fences(text: str) -> str:
 # PROVIDER CONFIGURATION (BYOK v0.4.0 — Provider Sync)
 # ============================================================================
 
+# Default model per provider — single source of truth.
+# (SonarCloud P2 batch-2: extracted in v0.5.39 from 12 dup-literal occurrences
+# across `default_model` fields, models list entries, and per-method defaults.)
+PROVIDER_DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+PROVIDER_DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
+PROVIDER_DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
+PROVIDER_DEFAULT_CEREBRAS_MODEL = "llama-3.3-70b"
+
 PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     "gemini": {
         "name": "Google Gemini",
-        "default_model": "gemini-2.5-flash",
-        "models": ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"],
+        "default_model": PROVIDER_DEFAULT_GEMINI_MODEL,
+        "models": [PROVIDER_DEFAULT_GEMINI_MODEL, "gemini-2.5-flash-lite", "gemini-2.0-flash"],
         "api_key_env": "GEMINI_API_KEY",
         "base_url": "https://generativelanguage.googleapis.com/v1beta",
         "free_tier": True,
@@ -78,8 +86,8 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     },
     "openai": {
         "name": "OpenAI",
-        "default_model": "gpt-4.1-mini",
-        "models": ["gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano", "gpt-4o", "gpt-4o-mini"],
+        "default_model": PROVIDER_DEFAULT_OPENAI_MODEL,
+        "models": ["gpt-4.1", PROVIDER_DEFAULT_OPENAI_MODEL, "gpt-4.1-nano", "gpt-4o", "gpt-4o-mini"],
         "api_key_env": "OPENAI_API_KEY",
         "base_url": "https://api.openai.com/v1",
         "free_tier": False,
@@ -94,9 +102,9 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     },
     "groq": {
         "name": "Groq",
-        "default_model": "llama-3.3-70b-versatile",
+        "default_model": PROVIDER_DEFAULT_GROQ_MODEL,
         "models": [
-            "llama-3.3-70b-versatile",
+            PROVIDER_DEFAULT_GROQ_MODEL,
             "meta-llama/llama-4-scout-17b-16e-instruct",
             "llama-3.1-8b-instant",
         ],
@@ -107,8 +115,8 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     },
     "cerebras": {
         "name": "Cerebras",
-        "default_model": "llama-3.3-70b",
-        "models": ["llama-3.3-70b", "llama-3.1-8b"],
+        "default_model": PROVIDER_DEFAULT_CEREBRAS_MODEL,
+        "models": [PROVIDER_DEFAULT_CEREBRAS_MODEL, "llama-3.1-8b"],
         "api_key_env": "CEREBRAS_API_KEY",
         "base_url": "https://api.cerebras.ai/v1",
         "free_tier": True,
@@ -222,7 +230,7 @@ class OpenAIProvider(LLMProvider):
         model: str = None,
         api_key: Optional[str] = None
     ):
-        self.model = model or os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
+        self.model = model or os.environ.get("OPENAI_MODEL", PROVIDER_DEFAULT_OPENAI_MODEL)
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         
         if not self.api_key:
@@ -395,7 +403,7 @@ class GeminiProvider(LLMProvider):
 
     def __init__(
         self,
-        model: str = "gemini-2.5-flash",
+        model: str = PROVIDER_DEFAULT_GEMINI_MODEL,
         api_key: Optional[str] = None
     ):
         self.model = model
@@ -758,7 +766,7 @@ class GroqProvider(LLMProvider):
 
     def __init__(
         self,
-        model: str = "llama-3.3-70b-versatile",
+        model: str = PROVIDER_DEFAULT_GROQ_MODEL,
         api_key: Optional[str] = None
     ):
         self.model = model
@@ -909,7 +917,7 @@ class CerebrasProvider(LLMProvider):
 
     def __init__(
         self,
-        model: str = "llama-3.3-70b",
+        model: str = PROVIDER_DEFAULT_CEREBRAS_MODEL,
         api_key: Optional[str] = None
     ):
         self.model = model

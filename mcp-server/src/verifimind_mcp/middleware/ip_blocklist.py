@@ -60,6 +60,14 @@ BLOCKED_IPS: list[tuple[str, str, str, str]] = [
     # zero leak. Same SECRET_SCANNER class as 195.178.110.199 (2026-05-13). Address-only block —
     # /48 prefix scan returned only the base address, no multi-host rotation observed.
     ("2602:fb54:99a::", "SECRET_SCANNER", "2026-05-29", "RNA_CSO"),
+    # AISEC Registry Scanner — UA `aisec-registry/0.2 (+https://sec.sqrx.io)` on 100% of 400 requests;
+    # 5-day cron-like persistence (May 23-27, ~80 req/day); MCP/OAuth surface enumeration: 89× POST /mcp +
+    # 89× GET /mcp/.well-known/oauth-{authorization-server,protected-resource,mcp}; HTTP 200 = 0 (never
+    # reached a real handler), 268× 429 (rate-limited), 88× 404 (OAuth discovery failures); not a builder,
+    # not a Scholar conversion candidate, no /register intent. AY+AZ forensics 2026-05-30 (see
+    # .macp/handoffs/20260530_AY_to_RNA_block_ip10_3_137_30_179.md). Same non-user automated-probe class as
+    # 4.228.83.111 / 2602:fb54:99a:: but with higher volume persistence; address-only block.
+    ("3.137.30.179", "AISEC_REGISTRY_SCANNER", "2026-06-01", "RNA_CSO"),
 ]
 
 # Blocked User-Agent substrings (case-insensitive substring match)
