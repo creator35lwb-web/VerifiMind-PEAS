@@ -40,7 +40,15 @@ logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 _RAW_SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.5.38"
+SERVER_VERSION = "0.5.39"
+
+# Agent role names + master prompt filename — single source of truth.
+# (SonarCloud P2 batch-2: extracted in v0.5.39 from 13 dup-literal occurrences
+# across project_info dict, agent dispatch, and path resolution.)
+AGENT_X_NAME = "X Intelligent"
+AGENT_Z_NAME = "Z Guardian"
+AGENT_CS_NAME = "CS Security"
+MASTER_PROMPT_FILENAME = "reflexion-master-prompts-v1.1.md"
 
 # Mock mode transparency — shown in every tool response when no real inference is available
 MOCK_MODE_WARNING = (
@@ -161,9 +169,9 @@ def _get_master_prompt_path() -> Path:
     # 3. Repository root (development)
 
     candidates = [
-        Path.cwd() / "reflexion-master-prompts-v1.1.md",  # Docker: /app/
-        Path(__file__).parent.parent.parent / "reflexion-master-prompts-v1.1.md",  # Package parent
-        Path(__file__).parent.parent.parent.parent / "reflexion-master-prompts-v1.1.md",  # Repo root
+        Path.cwd() / MASTER_PROMPT_FILENAME,  # Docker: /app/
+        Path(__file__).parent.parent.parent / MASTER_PROMPT_FILENAME,  # Package parent
+        Path(__file__).parent.parent.parent.parent / MASTER_PROMPT_FILENAME,  # Repo root
     ]
 
     for path in candidates:
@@ -250,18 +258,18 @@ def get_project_info() -> dict[str, Any]:
         "mcp_server_version": "0.4.5",
         "agents": {
             "X": {
-                "name": "X Intelligent",
+                "name": AGENT_X_NAME,
                 "role": "Innovation and Strategy Engine",
                 "focus": ["Innovation potential", "Strategic value", "Market opportunities"]
             },
             "Z": {
-                "name": "Z Guardian",
+                "name": AGENT_Z_NAME,
                 "role": "Ethical Review and Z-Protocol Enforcement",
                 "focus": ["Ethics", "Privacy", "Bias", "Social impact"],
                 "has_veto_power": True
             },
             "CS": {
-                "name": "CS Security",
+                "name": AGENT_CS_NAME,
                 "role": "Security Validation and Socratic Interrogation",
                 "focus": ["Security vulnerabilities", "Attack vectors", "Socratic questioning"]
             }
@@ -424,7 +432,7 @@ def _create_mcp_instance():
 
             _iq = getattr(result, '_inference_quality', 'unknown')
             payload = {
-                "agent": "X Intelligent",
+                "agent": AGENT_X_NAME,
                 "concept": concept_name,
                 "reasoning_steps": [
                     {"step": s.step_number, "thought": s.thought, "confidence": s.confidence}
@@ -447,7 +455,7 @@ def _create_mcp_instance():
 
         except Exception as e:
             return wrap_response({
-                "agent": "X Intelligent",
+                "agent": AGENT_X_NAME,
                 "status": "error",
                 "error": str(e),
                 "concept": concept_name
@@ -523,7 +531,7 @@ def _create_mcp_instance():
                 prior = PriorReasoning()
                 prior.add(ChainOfThought(
                     agent_id="X",
-                    agent_name="X Intelligent",
+                    agent_name=AGENT_X_NAME,
                     concept_name=concept_name,
                     reasoning_steps=[ReasoningStep(step_number=1, thought=prior_reasoning)],
                     final_conclusion="See prior reasoning above",
@@ -545,7 +553,7 @@ def _create_mcp_instance():
 
             _iq = getattr(result, '_inference_quality', 'unknown')
             payload = {
-                "agent": "Z Guardian",
+                "agent": AGENT_Z_NAME,
                 "concept": concept_name,
                 "reasoning_steps": [
                     {"step": s.step_number, "thought": s.thought, "confidence": s.confidence}
@@ -569,7 +577,7 @@ def _create_mcp_instance():
 
         except Exception as e:
             return wrap_response({
-                "agent": "Z Guardian",
+                "agent": AGENT_Z_NAME,
                 "status": "error",
                 "error": str(e),
                 "concept": concept_name
@@ -662,7 +670,7 @@ def _create_mcp_instance():
             result = await agent.analyze(concept, prior)
 
             payload = {
-                "agent": "CS Security",
+                "agent": AGENT_CS_NAME,
                 "concept": concept_name,
                 "reasoning_steps": [
                     {"step": s.step_number, "thought": s.thought, "confidence": s.confidence}
@@ -686,7 +694,7 @@ def _create_mcp_instance():
 
         except Exception as e:
             return wrap_response({
-                "agent": "CS Security",
+                "agent": AGENT_CS_NAME,
                 "status": "error",
                 "error": str(e),
                 "concept": concept_name

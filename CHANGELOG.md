@@ -8,6 +8,34 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.39 - Registry Scanner Block + P2 Batch-2 (June 1, 2026)
+
+Combines a security-hygiene IP block (10th entry — AY+AZ forensics 2026-05-30) with the second batch of SonarCloud P2 dup-literal constant extractions. Behavior-identical refactors; defense outcome verified zero leak on the new actor (zero handler reached in 400 prior requests).
+
+### What changed
+
+**Blocklist — 10th entry**
+
+- **`3.137.30.179`** — added as **AISEC_REGISTRY_SCANNER**. User-Agent `aisec-registry/0.2 (+https://sec.sqrx.io)` on **100% of 400 requests**; 5-day cron-like persistence (May 23–27, ~80 req/day); **MCP/OAuth surface enumeration** (89× POST `/mcp` + 89× GET `/mcp/.well-known/oauth-{authorization-server,protected-resource,mcp}`); HTTP 200 = **0** (never reached a real handler), 268× 429 (rate-limited), 88× 404 (OAuth discovery failures). Not a builder, not a Scholar conversion candidate, no `/register` intent. AY+AZ forensics 2026-05-30 (see `.macp/handoffs/20260530_AY_to_RNA_block_ip10_3_137_30_179.md`). **`BLOCKED_IPS`: 10 entries total** (was 9).
+
+**SonarCloud P2 batch-2 — 8 module-level constants extracted from 25 dup-literal occurrences**
+
+- `mcp-server/src/verifimind_mcp/llm/provider.py` — extracted **4 provider-default-model constants**: `PROVIDER_DEFAULT_GEMINI_MODEL` ("gemini-2.5-flash", 3×), `PROVIDER_DEFAULT_OPENAI_MODEL` ("gpt-4.1-mini", 3×), `PROVIDER_DEFAULT_GROQ_MODEL` ("llama-3.3-70b-versatile", 3×), `PROVIDER_DEFAULT_CEREBRAS_MODEL` ("llama-3.3-70b", 3×).
+- `mcp-server/src/verifimind_mcp/server.py` — extracted **4 agent/prompt constants**: `AGENT_X_NAME` ("X Intelligent", 4×), `AGENT_Z_NAME` ("Z Guardian", 3×), `AGENT_CS_NAME` ("CS Security", 3×), `MASTER_PROMPT_FILENAME` ("reflexion-master-prompts-v1.1.md", 3×).
+
+**Scope discipline (substance preservation per Genesis §13.X proposal)**
+
+- **Deferred (1 candidate):** `"?"` placeholder at `provider.py:361` — extracting a single-char marker to a named constant would add more cognitive load than the SonarCloud noise it removes. Alternative: mark Safe in SonarCloud UI.
+- **Out of P2 batch-2 scope:** S3776 cognitive-complexity refactors (6 in provider.py, 1 in server.py) — slated for P2 batch-3 (function-level refactors, different risk profile than mechanical extractions).
+- **False-match audit pre-flight (PASSED):** verified `"gemini-2.5-flash"` ≠ `"gemini-2.5-flash-lite"` substring and `"llama-3.3-70b"` ≠ `"llama-3.3-70b-versatile"` substring (closing-quote bracketing prevents replace_all collision).
+
+### Files
+- `mcp-server/src/verifimind_mcp/middleware/ip_blocklist.py` — +1 entry with forensic comment
+- `mcp-server/src/verifimind_mcp/llm/provider.py` — 4 constants (12 occurrences → 4 definitions)
+- `mcp-server/src/verifimind_mcp/server.py` — 4 constants (13 occurrences → 4 definitions)
+
+---
+
 ## v0.5.38 - Scanner Block (May 29, 2026)
 
 Adds two scanners to the application-layer IP blocklist after GCP log forensic analysis (Sentinel investigation, 2026-05-29). Defense layers caught everything; zero data leak on either actor.
