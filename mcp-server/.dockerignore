@@ -1,0 +1,51 @@
+# Docker build-context exclusions for the VerifiMind MCP Server image.
+#
+# Mirrors .gcloudignore so that a local `docker build` produces an image
+# IDENTICAL to the `gcloud builds submit` deploy path. Without this file the
+# Dockerfile's `COPY . .` is unguarded: a direct `docker build` would ship
+# tests/, docs/, examples/, and any local .env into the running image even
+# though the gcloud deploy path filters them. Defense-in-depth — keeps the
+# prod/non-prod boundary deploy-path-independent.
+#
+# Reference: RNA triage 2026-06-03 (.macp/reports/20260603_RNA_nonprod_critical_bleed_triage.md, PRIVATE Hub)
+
+# Version control
+.git
+.gitignore
+
+# Python build artifacts
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+
+# Test / coverage tooling
+.pytest_cache
+.coverage
+htmlcov
+.tox
+
+# Secrets / local environments (MUST NOT ship in image)
+.env
+.venv
+venv/
+ENV/
+
+# Non-production source (not imported by the ASGI app; excluded from image)
+tests/
+docs/
+examples/
+*.md
+!README.md
+
+# OS / editor cruft
+.DS_Store
+*.swp
+*.swo
+node_modules/
