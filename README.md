@@ -7,7 +7,7 @@
 
   Three specialized agents — Innovation, Ethics, Security — review your concept before you build it. Multi-vendor (Gemini · Claude · GPT · Groq · Cerebras · Mistral · Ollama). Free, open-source, MCP-native.
 
-  [![Version](https://img.shields.io/badge/version-v0.5.37-blue.svg)](CHANGELOG.md)
+  [![Version](https://img.shields.io/badge/version-v0.6.0--Beta-blue.svg)](CHANGELOG.md)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Status](https://img.shields.io/badge/status-Operational-success.svg)](SERVER_STATUS.md)
   [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Listed-purple)](https://registry.modelcontextprotocol.io/?q=verifimind)
@@ -147,11 +147,12 @@ Our contribution: **productization quality**, **MCP integration path**, **multi-
 
 ## Status & Metrics
 
-- **Server:** `v0.5.29 "Growth-First Pages"` — [verifimind.ysenseai.org](https://verifimind.ysenseai.org) · [/health](https://verifimind.ysenseai.org/health)
+- **Server:** `v0.6.0-Beta "Adoption First"` — [verifimind.ysenseai.org](https://verifimind.ysenseai.org) · [/health](https://verifimind.ysenseai.org/health)
+- **Landing Page:** [verifimind.io](https://verifimind.io)
 - **Tests:** 252+ unit/integration tests pass per release
 - **Tools:** 13 (all free)
 - **Providers:** 7 (Gemini · Claude · GPT · Groq · Cerebras · Mistral · Ollama) — pluggable via BYOK
-- **Protocols:** MACP v2.3.1 "Market Position" · Genesis v5.0 "Convergence"
+- **Protocols:** MACP v2.4.1 · Genesis v2.6.1
 
 For honest live metrics, see [`/changelog`](https://verifimind.ysenseai.org/changelog). Detailed adoption metrics (weekly cohort, return rate, conversion) are tracked internally and reviewed in [iteration handoffs](https://github.com/creator35lwb-web/verifimind-genesis-mcp). We deliberately do not display unaudited "total users" numbers — they tend to include bots and dev sessions.
 
@@ -290,4 +291,4 @@ External Model Council review (Claude Opus 4.7 + GPT-5.5 + Gemini 3.1 Pro, May 9
 
 ---
 
-**Last Updated:** May 12, 2026 · **Version:** v0.5.29 "Growth-First Pages" · **MACP:** v2.3.1 "Market Position" · **Genesis:** v5.0 "Convergence"
+**Last Updated:** June 4, 2026 · **Version:** v0.6.0-Beta "Adoption First" · **MACP:** v2.4.1 · **Genesis:** v2.6.1
