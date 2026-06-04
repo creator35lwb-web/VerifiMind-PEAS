@@ -153,7 +153,6 @@ Our contribution: **productization quality**, **MCP integration path**, **multi-
 - **Tools:** 13 (all free)
 - **Providers:** 7 (Gemini · Claude · GPT · Groq · Cerebras · Mistral · Ollama) — pluggable via BYOK
 - **Protocols:** MACP v2.4.1 · Genesis v2.6.1
-- **Engagement:** 5,308+ hours · 3,777 endpoints · 65.2% VCR
 
 For honest live metrics, see [`/changelog`](https://verifimind.ysenseai.org/changelog). Detailed adoption metrics (weekly cohort, return rate, conversion) are tracked internally and reviewed in [iteration handoffs](https://github.com/creator35lwb-web/verifimind-genesis-mcp). We deliberately do not display unaudited "total users" numbers — they tend to include bots and dev sessions.
 
