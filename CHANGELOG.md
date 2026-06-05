@@ -8,6 +8,19 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.41 - Register Page Dead-Link Fix (June 5, 2026)
+
+Patch release: fixes a dead link on the registration page that undermined the v0.5.40 funnel fix.
+
+### What changed
+
+- **`/register` dead link → `/whoami`:** The "Already registered? check your status" link pointed to `/early-adopters/status/` (bare, no UUID) which returned **HTTP 404**. Repointed to `/whoami` (the v0.5.40 self-serve tier/status endpoint, returns 200, accepts `?uuid=` or the `X-VerifiMind-UUID` header). A dead link on the conversion-critical registration page — caught by Alton, fixed same day.
+
+### Why
+The v0.5.40 funnel fix removed the structural 404 on the status endpoint itself; this removes the last dead link pointing *at* it from the registration UI. The funnel is now clean end-to-end.
+
+---
+
 ## v0.5.40 - Registration Funnel Fix + /whoami + Model Currency (June 5, 2026)
 
 Closes the Scholar UUID registration funnel leak (AY/AZ forensic audit 2026-06-05: 89 interested IPs/30d, 16/16 UUID holders 404-ing on status check, 2.2% conversion), implements `/whoami` self-service tier endpoint (D-30-3), and bumps model list to `claude-opus-4-8`.
