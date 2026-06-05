@@ -62,10 +62,11 @@ class TestProviderConfiguration:
         assert info['default_model'] == 'llama-3.3-70b'
 
     def test_anthropic_model_ids_updated(self):
-        """Verify Anthropic model IDs use Claude 4 family."""
+        """Verify Anthropic model IDs use Claude 4 family (claude-opus-4-8 current)."""
         info = get_provider_info('anthropic')
         assert 'claude-sonnet-4-6' in info['models']
-        assert 'claude-opus-4-7' in info['models']
+        assert 'claude-opus-4-8' in info['models']
+        assert 'claude-opus-4-7' not in info['models'], "Stale opus-4-7 model ID still present"
         assert 'claude-sonnet-4-20250514' not in info['models'], "Stale model ID still present"
 
     def test_openai_default_updated(self):

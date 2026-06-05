@@ -5,8 +5,8 @@ v0.5.19 - UUID Tier-Aware Rate Limiting (P0-A)
 
 Tiers (per 60s window):
   Anonymous  — no valid UUID header → 10 req/60s per IP
-  Scholar    — valid UUID, not in ea_registrations → 30 req/60s per UUID
-  EA/Pioneer — valid UUID, in ea_registrations → 100 req/60s per UUID
+  Scholar    — valid UUID, not in early_adopters → 30 req/60s per UUID
+  EA/Pioneer — valid UUID, in early_adopters → 100 req/60s per UUID
 
 UUID is read from the X-VerifiMind-UUID header (auto-sent by mcp-remote
 after v0.5.17 mcp_config header fix). Falls back to IP-based limit when
@@ -46,13 +46,14 @@ _uuid_tier_cache: Dict[str, Tuple[str, float]] = {}
 UUID_TIER_CACHE_TTL = 300  # 5 minutes — matches Firestore session TTL
 
 # Exempt paths from rate limiting
-EXEMPT_PATHS = {"/health", "/", "/.well-known/mcp-config", "/setup", "/register", "/optout", "/privacy", "/terms", "/robots.txt", "/favicon.ico", "/early-adopters/register"}
+EXEMPT_PATHS = {"/health", "/", "/.well-known/mcp-config", "/setup", "/register", "/optout", "/privacy", "/terms", "/robots.txt", "/favicon.ico", "/early-adopters/register", "/whoami"}
 
 
 def _resolve_uuid_tier(uuid: str) -> str:
     """Return tier for a valid UUID. Cached for UUID_TIER_CACHE_TTL seconds.
 
-    Checks ea_registrations Firestore collection:
+    Checks early_adopters Firestore collection (D-30-3: B3 consolidation,
+    early_adopters = single source of truth):
       - found → "pioneer"  (EA + Pioneer both get 100/60s)
       - not found → "scholar" (valid UUID, free tier, 30/60s)
       - Firestore unavailable → "scholar" (fail-open, generous)
@@ -62,10 +63,10 @@ def _resolve_uuid_tier(uuid: str) -> str:
     if cached and now < cached[1]:
         return cached[0]
     try:
-        from verifimind_mcp.registration import _get_firestore, COLLECTION_REGISTRATIONS
+        from verifimind_mcp.registration import _get_firestore, COLLECTION_EA
         db = _get_firestore()
         if db is not None:
-            doc = db.collection(COLLECTION_REGISTRATIONS).document(uuid).get()
+            doc = db.collection(COLLECTION_EA).document(uuid).get()
             tier = "pioneer" if doc.exists else "scholar"
         else:
             tier = "scholar"
