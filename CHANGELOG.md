@@ -8,6 +8,25 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.40 - Registration Funnel Fix + /whoami + Model Currency (June 5, 2026)
+
+Closes the Scholar UUID registration funnel leak (AY/AZ forensic audit 2026-06-05: 89 interested IPs/30d, 16/16 UUID holders 404-ing on status check, 2.2% conversion), implements `/whoami` self-service tier endpoint (D-30-3), and bumps model list to `claude-opus-4-8`.
+
+### What changed
+
+**Registration funnel — D-30-3 (T+L ruling 2026-06-05)**
+
+- **B3 consolidation:** `rate_limiter.py` reads `early_adopters` (single source of truth) instead of `ea_registrations`. Closes the mismatch that caused Scholar UUID holders to be tier-resolved as anonymous.
+- **`/early-adopters/status/{uuid}` fix:** Returns `200 + register CTA` for valid UUIDs without an EA record (was `404` — blocked 16/16 UUID holders per AY/AZ 30d GCP audit). `400` still returned for missing/malformed UUIDs.
+- **`/whoami` endpoint (new):** Self-serve tier/status check — reads `X-VerifiMind-UUID` header or `?uuid=` query param. Returns tier, status, rate-limit, and next-step guidance. Rate-limit-exempt. Serves D-29-2 intent-signal work.
+
+**Model currency**
+
+- `provider.py`: `claude-opus-4-7` → `claude-opus-4-8` (current Anthropic Opus, for BYOK users).
+- `skills/ai-council/run_council.py`: `claude-sonnet-4-20250514` → `claude-sonnet-4-6` (Z-Agent, unblocks 4-agent AI Council quorum — Issue #68).
+
+---
+
 ## v0.5.39 - Registry Scanner Block + P2 Batch-2 (June 1, 2026)
 
 Combines a security-hygiene IP block (10th entry — AY+AZ forensics 2026-05-30) with the second batch of SonarCloud P2 dup-literal constant extractions. Behavior-identical refactors; defense outcome verified zero leak on the new actor (zero handler reached in 400 prior requests).
