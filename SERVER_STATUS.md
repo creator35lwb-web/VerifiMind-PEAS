@@ -6,11 +6,12 @@
 
 ## Current Status: Operational
 
-**v0.5.40 "Registration Funnel Fix + /whoami + Model Currency" — deployed June 5, 2026**
+**v0.5.41 "Register Page Dead-Link Fix" — deployed June 5, 2026**
 
 The VerifiMind MCP server is fully operational. All security gates passed. (Per-version public detail now lives in [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases) since the `/changelog` redirect in v0.5.36.)
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination) — **all free for everyone**
+- **Register Page Dead-Link Fix (v0.5.41)**: `/register` "check your status" link pointed to `/early-adopters/status/` (bare, 404) — repointed to `/whoami` self-serve endpoint. Last dead link in the registration funnel, caught by Alton — June 5, 2026
 - **Registration Funnel Fix + /whoami (v0.5.40)**: Closes Scholar UUID registration funnel leak — `rate_limiter.py` now reads `early_adopters` (single source of truth, D-30-3); `/early-adopters/status/{uuid}` returns `200 + register CTA` instead of `404` for valid unregistered UUIDs; new `/whoami` endpoint for self-serve tier/status check; `claude-opus-4-8` model currency bump — June 5, 2026
 - **Registry Scanner Block + P2 Batch-2 (v0.5.39)**: 10th IP added to application-layer blocklist (BLOCKED_IPS: 10 entries total) — `3.137.30.179` (AISEC_REGISTRY_SCANNER); UA `aisec-registry/0.2 (+https://sec.sqrx.io)` on 100% of 400 requests over 5-day cron-like persistence (May 23–27, ~80 req/day); MCP/OAuth surface enumeration (89× POST `/mcp` + 89× GET `/mcp/.well-known/oauth-*` discovery); HTTP 200 = 0 (never reached a real handler), 268× 429, 88× 404. Not a builder, no `/register` intent. AY+AZ forensics 2026-05-30. + SonarCloud P2 batch-2: 8 module-level constants extracted from 25 dup-literal occurrences in `llm/provider.py` (4 provider-default-model constants) and `server.py` (4 agent/prompt constants); behavior-identical refactors; substance preservation per Genesis §13.X proposal — June 1, 2026
 - **Scanner Block (v0.5.38)**: 2 additional scanners added to application-layer IP blocklist (9 entries total) — `4.228.83.111` (CMS_WEBSHELL_SCANNER, Azure; null UA, 310 req/7d in 2 bursts, WordPress + PHP webshell dictionary) and `2602:fb54:99a::` (SECRET_SCANNER, IPv6; rotating UA across 18+ browser strings — botnet pattern; 65 req single 15-sec burst probing GCP service-account JSON + .env tree + .git internals). GCP forensic analysis (Sentinel investigation): zero 200 on any sensitive endpoint, zero data leak on either actor; defense layers caught everything (50–60% rate-limited, 13–34% 404). Independent actors (19h apart, different tooling). Address-only block on the IPv6 — no /48 rotation evidence — May 29, 2026
