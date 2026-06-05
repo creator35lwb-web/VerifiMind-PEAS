@@ -1210,18 +1210,81 @@ async def ea_register_handler(request):
 
 
 async def ea_status_handler(request):
-    """GET /early-adopters/status/{uuid} — check EA tier status."""
+    """GET /early-adopters/status/{uuid} — check EA tier status (D-30-3).
+
+    Returns 200 for any valid UUID:
+      - registered EA → full status record
+      - valid UUID without EA record → scholar tier response + register CTA
+    Only returns 400/404 for missing or invalid UUID format.
+    """
+    from verifimind_mcp.utils.uuid_tracer import is_valid_uuid
     uuid = request.path_params.get("uuid", "")
     if not uuid:
         return JSONResponse({"error": "UUID required"}, status_code=400)
+    if not is_valid_uuid(uuid):
+        return JSONResponse({"error": "Invalid UUID format"}, status_code=400)
 
     status = await get_ea_status(uuid)
     if status is None:
-        return JSONResponse(
-            {"error": "Early Adopter record not found for this UUID"},
-            status_code=404,
-        )
+        return JSONResponse({
+            "uuid": uuid,
+            "tier": "scholar",
+            "status": "unregistered",
+            "message": (
+                "You have a valid Scholar UUID. Register as an Early Adopter to unlock "
+                "full benefits and help shape the v0.6.0-Beta roadmap."
+            ),
+            "register_url": "https://verifimind.ysenseai.org/register",
+        }, status_code=200)
     return JSONResponse(status.model_dump())
+
+
+async def whoami_handler(request):
+    """GET /whoami — self-serve UUID tier and registration status (D-30-3).
+
+    Reads UUID from X-VerifiMind-UUID header or ?uuid= query param.
+    Returns tier, registration state, and next-step guidance.
+    No auth required — privacy-safe (UUID is user's own identifier).
+    """
+    from verifimind_mcp.utils.uuid_tracer import is_valid_uuid
+    uuid = (
+        request.headers.get("x-verifimind-uuid", "").strip()
+        or request.query_params.get("uuid", "").strip()
+    )
+    if not uuid or not is_valid_uuid(uuid):
+        return JSONResponse({
+            "tier": "anonymous",
+            "status": "no_uuid",
+            "message": (
+                "No valid UUID provided. Set VERIFIMIND_UUID in your MCP config or "
+                "pass ?uuid=<your-uuid> to check your status."
+            ),
+            "setup_url": "https://verifimind.ysenseai.org/setup",
+            "register_url": "https://verifimind.ysenseai.org/register",
+        }, status_code=200)
+
+    ea_status = await get_ea_status(uuid)
+    if ea_status is not None:
+        return JSONResponse({
+            "uuid": uuid,
+            "tier": ea_status.tier,
+            "status": ea_status.status,
+            "registered_at": ea_status.registered_at,
+            "benefits_free_until": ea_status.benefits_free_until,
+            "rate_limit": "100 req/60s",
+        }, status_code=200)
+
+    return JSONResponse({
+        "uuid": uuid,
+        "tier": "scholar",
+        "status": "unregistered",
+        "rate_limit": "30 req/60s",
+        "message": (
+            "You have a valid Scholar UUID (30 req/60s, BYOK enabled). "
+            "Register as an Early Adopter for higher limits and v0.6.0-Beta benefits."
+        ),
+        "register_url": "https://verifimind.ysenseai.org/register",
+    }, status_code=200)
 
 
 async def ea_dashboard_handler(request):
@@ -1730,6 +1793,7 @@ app = Starlette(
         Route(MCP_CONFIG_PATH, mcp_config_handler),
         Route("/.well-known/mcp/server-card.json", smithery_server_card_handler),
         # v0.5.6 Gateway: EA registration + feedback + policy
+        Route("/whoami", whoami_handler, methods=["GET"]),
         Route("/early-adopters/register", ea_register_handler, methods=["POST"]),
         Route("/early-adopters/status/{uuid}", ea_status_handler, methods=["GET"]),
         Route("/early-adopters/dashboard/{uuid}", ea_dashboard_handler, methods=["GET"]),

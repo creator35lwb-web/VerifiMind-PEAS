@@ -95,7 +95,7 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     "anthropic": {
         "name": "Anthropic Claude",
         "default_model": os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
-        "models": ["claude-sonnet-4-6", "claude-opus-4-7", "claude-haiku-4-5-20251001"],
+        "models": ["claude-sonnet-4-6", "claude-opus-4-8", "claude-haiku-4-5-20251001"],
         "api_key_env": "ANTHROPIC_API_KEY",
         "base_url": "https://api.anthropic.com/v1",
         "free_tier": False,
