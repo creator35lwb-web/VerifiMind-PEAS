@@ -758,10 +758,10 @@ _REGISTER_BODY = """
 <div class="card" style="padding: 1rem 1.5rem;">
   <p class="text-sm muted">
     Already registered?
-    Use <a href="/early-adopters/status/" style="color: var(--accent)">
-      /early-adopters/status/{uuid}
-    </a>
-    to check your status.
+    Check your tier and status at
+    <a href="/whoami" style="color: var(--accent)">/whoami</a>
+    (pass <code style="font-size:0.85em">?uuid=&lt;your-uuid&gt;</code>, or set
+    <code style="font-size:0.85em">VERIFIMIND_UUID</code> in your MCP client).
     &nbsp;&middot;&nbsp;
     <a href="/optout" style="color: var(--muted)">Opt out</a>
   </p>
