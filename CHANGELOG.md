@@ -8,6 +8,20 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.42 - Server-Card Description Refresh (June 9, 2026)
+
+Patch release: refreshes the `/.well-known/mcp/server-card.json` MCP discovery surface, which carried stale copy.
+
+### What changed
+- **Server-card description refreshed:** removed stale "Genesis v4.2 Sentinel-Verified / Z-Protocol v1.1 (21 frameworks)" marketing; replaced with current accurate descriptors — **13 free MCP tools** (Trinity + prompt-template library + coordination), **BYOK across 6 providers** (Gemini, Anthropic, OpenAI, Groq, Cerebras, Mistral), free tier on Gemini 2.5 Flash.
+- **Docstring corrected:** server-card handler is a general MCP discovery card (Smithery listing sunset 2026-03-01), not Smithery-specific.
+- **BYOK provider list** in the config schema corrected to the full 6 key-based providers.
+
+### Why
+Pre-submission accuracy pass (Google Challenge): the public MCP discovery surface should reflect the current v0.5.41+ feature set, not pre-rebuild marketing copy.
+
+---
+
 ## v0.5.41 - Register Page Dead-Link Fix (June 5, 2026)
 
 Patch release: fixes a dead link on the registration page that undermined the v0.5.40 funnel fix.
