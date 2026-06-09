@@ -64,7 +64,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.41"
+SERVER_VERSION = "0.5.42"
 
 # MCP endpoint constants — single source of truth for URL/path strings used in
 # JSON responses, quickstart commands, and HTML setup pages. Extracted in v0.5.32
@@ -880,19 +880,21 @@ async def logo_handler(request):
 
 
 async def smithery_server_card_handler(request):
-    """Smithery server-card.json — skips auto-scan during publish.
+    """MCP server-card.json — general MCP discovery surface.
 
-    Advertised at /.well-known/mcp/server-card.json per Smithery publish spec:
-    https://smithery.ai/docs/build/publish#troubleshooting
+    Advertised at /.well-known/mcp/server-card.json. Originally per the Smithery
+    publish spec; the Smithery listing sunset 2026-03-01, but this endpoint
+    remains a valid MCP discovery card served directly at the deployment URL.
     """
     return JSONResponse({
         "displayName": "VerifiMind-PEAS",
         "description": (
             "Multi-model AI validation framework. Validate concepts end-to-end across "
             "innovation (X Agent), ethics & compliance (Z Agent), and security (CS Agent) "
-            "using the X-Z-CS RefleXion Trinity. Genesis v4.2 Sentinel-Verified — forced "
-            "citation patterns, Z-Protocol v1.1 (21 frameworks, 4 tiers), CS Security v1.1 "
-            "(6-stage, 12-dimension, OWASP Agentic AI). Free tier powered by Gemini 2.5 Flash."
+            "via the X-Z-CS RefleXion Trinity. 13 free MCP tools (Trinity validation, "
+            "prompt-template library, and cross-session coordination). BYOK across 6 "
+            "providers (Gemini, Anthropic, OpenAI, Groq, Cerebras, Mistral). Free tier "
+            "powered by Gemini 2.5 Flash."
         ),
         "version": SERVER_VERSION,
         "iconUrl": "https://verifimind.ysenseai.org/logo.png",
@@ -903,7 +905,7 @@ async def smithery_server_card_handler(request):
                 "configSchema": {
                     "type": "object",
                     "properties": {},
-                    "description": "No configuration required. Free tier uses developer-hosted Gemini 2.5 Flash. Optional: set LLM_PROVIDER + API key headers for BYOK (groq, anthropic, openai, gemini)."
+                    "description": "No configuration required. Free tier uses developer-hosted Gemini 2.5 Flash. Optional: set LLM_PROVIDER + API key headers for BYOK (gemini, anthropic, openai, groq, cerebras, mistral)."
                 }
             }
         ],
