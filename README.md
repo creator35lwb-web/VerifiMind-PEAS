@@ -130,6 +130,14 @@ We do not claim the underlying methodology is novel.
 
 ---
 
+## Architecture
+
+The full system architecture — from the foundational X / Z / CS multi-agent validation design through the Phase 90 production deployment (MCP transport, BYOK provider layer, security hardening, FLYWHEEL coordination) — is documented in a single comprehensive, fact-checked diagram:
+
+**→ [VerifiMind-PEAS Architecture Diagram](docs/architecture/VerifiMind-PEAS-Architecture-Diagram.md)** (v0.6.0-Beta, June 2026)
+
+---
+
 ## Related Work
 
 VerifiMind PEAS builds on and acknowledges:
@@ -228,6 +236,7 @@ A prior-art defensive publication is registered at DOI [10.5281/zenodo.17645665]
 
 | Resource | Where |
 |---|---|
+| Architecture diagram | [docs/architecture/VerifiMind-PEAS-Architecture-Diagram.md](docs/architecture/VerifiMind-PEAS-Architecture-Diagram.md) |
 | Live server health | [verifimind.ysenseai.org/health](https://verifimind.ysenseai.org/health) |
 | Server changelog | [verifimind.ysenseai.org/changelog](https://verifimind.ysenseai.org/changelog) · [CHANGELOG.md](CHANGELOG.md) |
 | Server status | [SERVER_STATUS.md](SERVER_STATUS.md) |
