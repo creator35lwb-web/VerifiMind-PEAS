@@ -1742,7 +1742,6 @@ async def polar_webhook_handler(request):
     except Exception as e:
         # Signature verification failure or parse error
         # Return 400 so Polar retries; don't expose internal details
-        import logging
         logging.getLogger(__name__).warning("Polar webhook error: %s", type(e).__name__)
         return JSONResponse({"status": "error", "detail": "verification_failed"}, status_code=400)
 

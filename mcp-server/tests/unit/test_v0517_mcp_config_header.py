@@ -8,13 +8,6 @@ Coverage:
   - Server version assertion
 """
 
-import inspect
-
-import verifimind_mcp.server as _srv_module
-
-_SERVER_SOURCE = inspect.getsource(_srv_module)
-
-
 class TestMcpConfigHeader:
 
     def _extras(self, uuid: str = "019d40d6-9e84-7738-9c0c-fa85b2930600"):
