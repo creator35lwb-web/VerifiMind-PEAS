@@ -8,6 +8,26 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.43 - Foundation Integrity (June 11, 2026)
+
+Patch release hardening the verification core and the MCP resource surface — three integrity fixes surfaced by a foundation-effectiveness audit (Issue #68), plus two currency fixes.
+
+### What changed
+
+- **Ethics veto fail-safe (P0):** The Z Guardian veto and ethics score could previously be read off *degraded* inference — if the Z model's JSON was truncated and repaired with schema defaults, the veto flag defaulted to "not triggered" and the ethics score to a midpoint, so a concept that should have been stopped could surface a clean recommendation. The synthesis layer now detects degraded ethics inference (`partial`/`fallback`), caps the recommendation at REVISE, holds the overall score out of the proceed range, and returns an explicit `inference_warning` requiring human review. Genuine (`real`) and test (`mock`) inference are unaffected.
+- **Validation-history privacy (P0):** `save_to_history` now defaults to **off**, and the `genesis://history/latest` and `genesis://history/all` resources return only non-identifying summaries / aggregate statistics. Previously the history store was shared per server instance and the resources could surface one caller's concept text to another; concept names and descriptions are no longer exposed through these resources.
+- **Methodology resource accuracy (P0):** The `genesis://config/master_prompt` resource is now generated directly from the live agent configuration, so it always reflects the exact X / Z / CS prompts the agents run. It previously served an outdated prompt collection that no longer matched production.
+- **Current-date awareness (P1):** Every agent prompt is now anchored to the real current date, so market-recency reasoning and regulatory-deadline checks no longer drift toward the model's training cutoff.
+- **Version currency (P1):** `genesis://state/project_info` now reports the live server version.
+
+### Why
+
+A live-tested audit of the flagship `run_full_trinity` tool confirmed the core is effective (the ethics veto fires; production runs genuinely multi-model; scoring is proportional) but found the verdict could rest on synthesized defaults in the degraded path, and that the resource surface had drifted from production. Fail-safe-first behavior and resource accuracy are foundational to an epistemic-verification product.
+
+**PR:** #254
+
+---
+
 ## v0.5.42 - Server-Card Description Refresh (June 9, 2026)
 
 Patch release: refreshes the `/.well-known/mcp/server-card.json` MCP discovery surface, which carried stale copy.
