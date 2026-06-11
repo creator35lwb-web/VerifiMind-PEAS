@@ -1,16 +1,17 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** June 9, 2026
+**Last Updated:** June 11, 2026
 
 ---
 
 ## Current Status: Operational
 
-**v0.5.42 "Server-Card Description Refresh" — deployed June 9, 2026**
+**v0.5.43 "Foundation Integrity" — deployed June 11, 2026**
 
 The VerifiMind MCP server is fully operational. All security gates passed. (Per-version public detail now lives in [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases) since the `/changelog` redirect in v0.5.36.)
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination) — **all free for everyone**
+- **Foundation Integrity (v0.5.43)**: three integrity fixes from the Issue #68 foundation audit — (1) ethics-veto fail-safe: degraded Z inference (`partial`/`fallback`) now caps the recommendation at REVISE + emits `inference_warning` instead of allowing a clean pass on synthesized defaults; (2) validation-history privacy: `save_to_history` defaults off and `genesis://history/*` resources return non-identifying aggregates only (no cross-instance concept-text exposure); (3) `genesis://config/master_prompt` now generated from live agent config (was serving a stale prompt collection). Plus current-date injection into agent prompts and `project_info` version currency. 10 new regression tests — June 11, 2026
 - **Server-Card Description Refresh (v0.5.42)**: `/.well-known/mcp/server-card.json` refreshed — stale "Genesis v4.2" copy → current descriptors (13 free tools, BYOK 6 providers); docstring de-Smithery'd (listing sunset 2026-03-01); pre-submission accuracy pass — June 9, 2026
 - **Register Page Dead-Link Fix (v0.5.41)**: `/register` "check your status" link pointed to `/early-adopters/status/` (bare, 404) — repointed to `/whoami` self-serve endpoint. Last dead link in the registration funnel, caught by Alton — June 5, 2026
 - **Registration Funnel Fix + /whoami (v0.5.40)**: Closes Scholar UUID registration funnel leak — `rate_limiter.py` now reads `early_adopters` (single source of truth, D-30-3); `/early-adopters/status/{uuid}` returns `200 + register CTA` instead of `404` for valid unregistered UUIDs; new `/whoami` endpoint for self-serve tier/status check; `claude-opus-4-8` model currency bump — June 5, 2026
@@ -44,8 +45,8 @@ The VerifiMind MCP server is fully operational. All security gates passed. (Per-
 - **CS Agent v1.1**: 6-stage, 12-dimension, OWASP Agentic AI Top 10
 - Input sanitization active (20+ secret patterns)
 - Rate limiting and EDoS protection active
-- GCP Cloud Run revision: `verifimind-mcp-server-00394-gcj`
-- CI/CD pipeline passing — 631 tests, 0 CodeQL medium+ alerts
+- GCP Cloud Run revision: `verifimind-mcp-server-00450-qjb`
+- CI/CD pipeline passing — 666 tests passing (680 collected, 14 skipped), 0 CodeQL medium+ alerts
 
 ---
 
