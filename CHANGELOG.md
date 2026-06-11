@@ -8,6 +8,29 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.44 - Reasoning Visible (June 12, 2026)
+
+Makes the auditable reasoning layer — the core of the product — visible in tool responses by default. The X/Z/CS agents already generated per-step reasoning, framework citations, an ethics scoring breakdown, and Socratic questions on every call; previously the flagship `run_full_trinity` JSON response trimmed all of it and returned only scores. This is serialization, not new inference — no added cost or latency.
+
+### What changed
+
+- **New `reasoning` block on `run_full_trinity`** via a `detail` parameter:
+  - `detail="standard"` (**new default**) — returns the reasoning block: per-agent reasoning steps, Z's 5-dimension ethics scoring breakdown + framework citations + detected jurisdictions, CS's threat level + Socratic questions + attack vectors, and the per-agent inference quality (with the v0.5.43 `inference_warning`).
+  - `detail="full"` — adds per-step evidence and the heaviest structured fields (12-dimension security matrix, 6-stage record, MACP assessment, market-competition analysis).
+  - `detail="summary"` — omits the reasoning block, reproducing the exact pre-v0.5.44 response shape (opt-out for cost/context-tight clients).
+- **The block is strictly additive** — every existing response field is unchanged at every level; a `summary` call is byte-compatible with prior releases.
+- **`consult_agent_x/z/cs`** gain the same `detail` ladder — they previously dropped per-step evidence and the structured fields (scoring breakdown, jurisdictions, threat level, etc.).
+- **Markdown report** (`Accept: text/markdown`) now renders the ethics scoring breakdown, detected jurisdictions, CS threat level, and the degraded-inference warning; its generator-version stamp is sourced from the live server version (was pinned at a stale `0.4.1`).
+- **Discovery surfaces** (server-card, `/setup`) updated to advertise auditable-reasoning-by-default and the corrected `save_to_history` default.
+
+### Why
+
+VerifiMind's differentiator is auditable, multi-model verification reasoning — and it was being computed, then discarded before reaching the caller. A skeptic received a bare score indistinguishable from any rubric API. Returning the reasoning by default is the proof surface for the epistemic-verification positioning, and the object downstream evaluation scores. Approved by T+L Session 41 (default `standard`; `full` stays free).
+
+**PR:** #256
+
+---
+
 ## v0.5.43 - Foundation Integrity (June 11, 2026)
 
 Patch release hardening the verification core and the MCP resource surface — three integrity fixes surfaced by a foundation-effectiveness audit (Issue #68), plus two currency fixes.
