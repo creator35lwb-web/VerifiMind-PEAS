@@ -91,8 +91,19 @@ class BaseAgent(ABC):
             context=concept.context or "No additional context provided.",
             prior_reasoning=prior_context
         )
-        
-        return prompt
+
+        # v0.5.43: anchor the model to the real current date. Without this, agents
+        # default to their training-cutoff year (research prompts said "2024") and
+        # Z's "upcoming deadline" reasoning silently rots as regulations take effect.
+        from datetime import date
+        today = date.today()
+        date_header = (
+            f"CURRENT DATE: {today.isoformat()} ({today.strftime('%B %d, %Y')}). "
+            "Treat this as today when assessing market timing, recency, and whether "
+            "any cited regulatory deadline is upcoming or already in effect.\n\n"
+        )
+
+        return date_header + prompt
     
     async def analyze(
         self,

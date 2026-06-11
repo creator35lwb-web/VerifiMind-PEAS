@@ -21,57 +21,79 @@ from ..models import (
 def calculate_overall_score(
     x_result: XAgentAnalysis,
     z_result: ZAgentAnalysis,
-    cs_result: CSAgentAnalysis
+    cs_result: CSAgentAnalysis,
+    z_quality: str = "real"
 ) -> float:
     """
     Calculate overall score from individual agent scores.
-    
+
     Weights:
     - Innovation (X): 30%
     - Ethics (Z): 40% (higher weight for ethical considerations)
     - Security (CS): 30%
-    
+
     If Z triggers veto, overall score is capped at 3.0.
+    If Z inference was degraded (z_quality != "real"), the ethics score may be a
+    synthesized default — cap the overall out of the PROCEED bands so a degraded
+    run can never read as a clean pass.
     """
     # Base weighted average
     innovation_weight = 0.30
     ethics_weight = 0.40
     security_weight = 0.30
-    
+
     # Average X scores
     x_score = (x_result.innovation_score + x_result.strategic_value) / 2
-    
+
     weighted_score = (
         x_score * innovation_weight +
         z_result.ethics_score * ethics_weight +
         cs_result.security_score * security_weight
     )
-    
+
     # Cap score if veto triggered
     if z_result.veto_triggered:
         weighted_score = min(weighted_score, 3.0)
-    
+
+    # Fail-safe: degraded REAL inference (truncated/repaired JSON) cannot be trusted
+    # to clear a concept. "mock" is test-mode and carries its own synthetic warning,
+    # so it is intentionally excluded here.
+    if z_quality in ("partial", "fallback"):
+        weighted_score = min(weighted_score, 4.0)
+
     return round(weighted_score, 1)
 
 
 def determine_recommendation(
     overall_score: float,
     z_result: ZAgentAnalysis,
-    cs_result: CSAgentAnalysis
+    cs_result: CSAgentAnalysis,
+    z_quality: str = "real"
 ) -> str:
     """
     Determine overall recommendation based on scores and flags.
-    
+
     Returns one of: "proceed", "proceed_with_caution", "revise", "reject"
+
+    Fail-safe polarity (v0.5.43): a veto_triggered=False / ethics_score read off
+    DEGRADED Z inference is untrustworthy — when truncated Z JSON is repaired by
+    schema defaults, veto defaults to False and ethics to a midpoint. So if Z
+    inference was not "real", we never auto-pass: cap at REVISE pending human review.
     """
     # Veto always results in reject
     if z_result.veto_triggered:
         return "reject"
-    
+
+    # Fail-safe: never auto-clear a concept on degraded real ethics inference
+    # (truncated Z JSON repaired by schema defaults → veto=False, ethics=midpoint).
+    # "mock" is test-mode with its own synthetic warning and is excluded.
+    if z_quality in ("partial", "fallback"):
+        return "revise"
+
     # High security vulnerabilities require revision
     if cs_result.security_score < 4.0:
         return "revise"
-    
+
     # Score-based recommendations
     if overall_score >= 7.5:
         return "proceed"
@@ -246,11 +268,27 @@ def create_synthesis(
     This is the core synthesis function that combines all perspectives
     into a unified assessment.
     """
-    overall_score = calculate_overall_score(x_result, z_result, cs_result)
-    recommendation = determine_recommendation(overall_score, z_result, cs_result)
+    # v0.5.43 fail-safe: read the ethics layer's inference quality (attached by
+    # BaseAgent.analyze). "real" = trustworthy; partial/fallback = synthesized.
+    z_quality = getattr(z_result, "_inference_quality", "real")
+
+    overall_score = calculate_overall_score(x_result, z_result, cs_result, z_quality)
+    recommendation = determine_recommendation(overall_score, z_result, cs_result, z_quality)
+
+    inference_warning = None
+    if z_quality in ("partial", "fallback"):
+        inference_warning = (
+            f"Ethics (Z) inference quality was '{z_quality}', not 'real' — the veto flag "
+            "and ethics score may be synthesized schema defaults rather than a genuine "
+            "ethical assessment. Recommendation has been capped at REVISE; a human must "
+            "review ethics before this concept proceeds."
+        )
 
     # Build summary
     summary_parts = []
+
+    if inference_warning:
+        summary_parts.append("⚠️ DEGRADED ETHICS INFERENCE — human review required")
 
     if z_result.veto_triggered:
         summary_parts.append("VETO TRIGGERED by Z Guardian.")
@@ -271,6 +309,16 @@ def create_synthesis(
         cs_result.confidence
     ) / 3
 
+    founder_summary = build_founder_summary(
+        overall_score, recommendation, x_result, z_result, cs_result
+    )
+    # Surface the degraded-inference caveat at the top of the founder verdict too
+    if inference_warning and isinstance(founder_summary, dict):
+        founder_summary["verdict"] = (
+            "NEEDS HUMAN REVIEW: the ethics check did not complete cleanly, so this "
+            "result is not trustworthy on its own. " + founder_summary.get("verdict", "")
+        ).strip()
+
     synthesis = TrinitySynthesis(
         summary=summary,
         innovation_score=x_result.innovation_score,
@@ -284,9 +332,8 @@ def create_synthesis(
         confidence=round(avg_confidence, 2),
         veto_triggered=z_result.veto_triggered,
         veto_reason=z_result.ethical_concerns[0] if z_result.veto_triggered and z_result.ethical_concerns else None,
-        founder_summary=build_founder_summary(
-            overall_score, recommendation, x_result, z_result, cs_result
-        ),
+        founder_summary=founder_summary,
+        inference_warning=inference_warning,
     )
 
     return synthesis

@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 _RAW_SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.5.42"
+SERVER_VERSION = "0.5.43"
 
 # Agent role names + master prompt filename — single source of truth.
 # (SonarCloud P2 batch-2: extracted in v0.5.39 from 13 dup-literal occurrences
@@ -193,14 +193,65 @@ HISTORY_PATH = _get_history_path()
 
 
 def load_master_prompt() -> str:
-    """Load Genesis Master Prompt from repository."""
+    """Build the Genesis methodology surface from the LIVE production prompts.
+
+    v0.5.43 fix: this resource previously served a Sept-2025 v1.1 collection that
+    no longer matched the prompts the agents actually run and embedded internal
+    business targets + personal contact info. It is now generated directly from
+    the in-code AGENT_CONFIGS, so the public methodology surface is exactly the
+    prompt contract X / Z / CS execute — it cannot drift or misrepresent.
+    """
     try:
-        if MASTER_PROMPT_PATH.exists():
-            return MASTER_PROMPT_PATH.read_text(encoding="utf-8")
-        else:
-            return f"# Genesis Master Prompt v16.1\n\n(Master Prompt file not found at: {MASTER_PROMPT_PATH})\n\nSearched locations:\n- {Path.cwd()}/reflexion-master-prompts-v1.1.md\n- {Path(__file__).parent.parent.parent}/reflexion-master-prompts-v1.1.md"
-    except Exception as e:
-        return f"# Error Loading Master Prompt\n\nError: {str(e)}\nPath: {MASTER_PROMPT_PATH}"
+        from .models.concepts import AGENT_CONFIGS
+    except Exception as e:  # pragma: no cover - defensive
+        return f"# Error Building Master Prompt\n\nError: {str(e)}"
+
+    role_titles = {
+        "X": "X Intelligent — Innovation & Strategy",
+        "Z": "Z Guardian — Ethics & Compliance (VETO power)",
+        "CS": "CS Security — Security & Socratic Challenge",
+    }
+
+    lines = [
+        "# VerifiMind™ PEAS — Genesis Methodology (Live Production Prompts)",
+        "",
+        f"*Server version: {SERVER_VERSION}. Generated from the in-code agent "
+        "configuration — this is the exact prompt contract the X / Z / CS agents run.*",
+        "",
+        "The RefleXion Trinity validates a concept through three sequential agents. "
+        "Each agent sees the prior agents' Chain-of-Thought reasoning. Synthesis "
+        "weights: Innovation (X) 30% · Ethics (Z) 40% · Security (CS) 30%. A Z veto "
+        "caps the overall score at 3.0 and forces a REJECT verdict. If any agent's "
+        "inference is degraded, the recommendation is capped at REVISE pending human "
+        "review (fail-safe).",
+        "",
+        "---",
+        "",
+    ]
+
+    for agent_id in ("X", "Z", "CS"):
+        cfg = AGENT_CONFIGS[agent_id]
+        lines.extend([
+            f"## {role_titles.get(agent_id, cfg.name)}",
+            "",
+            f"**Role:** {cfg.role}",
+            "",
+            "**Focus areas:** " + "; ".join(cfg.focus_areas),
+            "",
+            f"**Inference settings:** temperature={cfg.temperature}, max_tokens={cfg.max_tokens}",
+            "",
+            "**Production prompt template (verbatim):**",
+            "",
+            "```text",
+            cfg.prompt_template.strip(),
+            "```",
+            "",
+            "---",
+            "",
+        ])
+
+    lines.append("*VerifiMind™ PEAS — github.com/creator35lwb-web/VerifiMind-PEAS*")
+    return "\n".join(lines)
 
 
 def load_validation_history() -> dict[str, Any]:
@@ -248,6 +299,60 @@ def get_latest_validation() -> dict[str, Any]:
         }
 
 
+def _redacted_latest_validation() -> dict[str, Any]:
+    """Non-identifying summary of the most recent validation.
+
+    The validation-history store is shared across all clients of this server
+    instance, so this MUST NOT return concept_name / concept_description or any
+    free-text the caller supplied (v0.5.43 cross-tenant privacy fix).
+    """
+    latest = get_latest_validation()
+    if not isinstance(latest, dict) or latest.get("status") == "no_validations":
+        return {
+            "status": "no_validations",
+            "message": "No validations recorded on this instance.",
+        }
+    synthesis = latest.get("synthesis", {}) if isinstance(latest.get("synthesis"), dict) else {}
+    return {
+        "validation_id": latest.get("validation_id"),
+        "recommendation": synthesis.get("recommendation"),
+        "overall_score": synthesis.get("overall_score"),
+        "veto_triggered": synthesis.get("veto_triggered"),
+        "completed_at": latest.get("completed_at"),
+        "_note": "Concept name/description intentionally omitted — shared instance store (v0.5.43 privacy).",
+    }
+
+
+def _aggregate_validation_stats() -> dict[str, Any]:
+    """Aggregate, non-identifying statistics over the shared validation history."""
+    history = load_validation_history()
+    validations = history.get("validations", []) if isinstance(history, dict) else []
+    total = len(validations)
+    if total == 0:
+        return {
+            "total_validations": 0,
+            "recommendation_distribution": {},
+            "veto_count": 0,
+            "last_updated": history.get("metadata", {}).get("last_updated") if isinstance(history, dict) else None,
+            "_note": "Aggregate stats only — per-concept detail never exposed (v0.5.43 privacy).",
+        }
+    rec_dist: dict[str, int] = {}
+    veto_count = 0
+    for v in validations:
+        synthesis = v.get("synthesis", {}) if isinstance(v, dict) else {}
+        rec = synthesis.get("recommendation", "unknown")
+        rec_dist[rec] = rec_dist.get(rec, 0) + 1
+        if synthesis.get("veto_triggered"):
+            veto_count += 1
+    return {
+        "total_validations": total,
+        "recommendation_distribution": rec_dist,
+        "veto_count": veto_count,
+        "last_updated": history.get("metadata", {}).get("last_updated"),
+        "_note": "Aggregate stats only — per-concept detail never exposed (v0.5.43 privacy).",
+    }
+
+
 def get_project_info() -> dict[str, Any]:
     """Get current project information."""
     return {
@@ -255,7 +360,7 @@ def get_project_info() -> dict[str, Any]:
         "methodology": "Genesis Methodology",
         "version": "2.0.1",
         "architecture": "RefleXion Trinity (X-Z-CS)",
-        "mcp_server_version": "0.4.5",
+        "mcp_server_version": SERVER_VERSION,
         "agents": {
             "X": {
                 "name": AGENT_X_NAME,
@@ -274,7 +379,7 @@ def get_project_info() -> dict[str, Any]:
                 "focus": ["Security vulnerabilities", "Attack vectors", "Socratic questioning"]
             }
         },
-        "master_prompt_version": "v16.1",
+        "master_prompt_version": "live (generated from production AGENT_CONFIGS)",
         "repository": "https://github.com/creator35lwb-web/VerifiMind-PEAS",
         "documentation": "https://github.com/creator35lwb-web/VerifiMind-PEAS/docs",
         "white_paper": "https://github.com/creator35lwb-web/VerifiMind-PEAS/docs/white_paper/Genesis_Methodology_White_Paper_v1.1.md"
@@ -298,15 +403,15 @@ def _create_mcp_instance():
     @app.resource("genesis://config/master_prompt")
     def get_master_prompt() -> str:
         """
-        Genesis Master Prompt v16.1
+        Genesis Methodology — Live Production Prompts
 
-        Returns the complete Genesis Master Prompt defining roles for X Intelligent,
-        Z Guardian, and CS Security agents. This prompt ensures consistent agent
-        behavior across all validation workflows.
+        Returns the X / Z / CS prompt contract generated directly from the agents'
+        in-code configuration, so it always matches what the agents actually run
+        (v0.5.43). Includes roles, focus areas, inference settings, and the verbatim
+        production prompt templates.
 
         URI: genesis://config/master_prompt
         Format: Markdown
-        Version: v16.1
         """
         return load_master_prompt()
 
@@ -314,33 +419,34 @@ def _create_mcp_instance():
     @app.resource("genesis://history/latest")
     def get_latest_validation_resource() -> str:
         """
-        Latest Validation Result
+        Latest Validation — Privacy-Safe Summary
 
-        Returns the most recent validation result from VerifiMind-PEAS validation
-        history. Includes agent perspectives (X, Z, CS), conflict resolution, and
-        final verdict.
+        Returns a NON-IDENTIFYING summary of the most recent validation (verdict,
+        scores, timestamp). Concept names and descriptions are NOT exposed: the
+        validation-history store is shared across all clients of this server
+        instance, so returning raw concept text would leak one caller's idea to
+        another (v0.5.43 cross-tenant privacy fix).
 
         URI: genesis://history/latest
         Format: JSON
         """
-        latest = get_latest_validation()
-        return json.dumps(latest, indent=2)
+        return json.dumps(_redacted_latest_validation(), indent=2)
 
 
     @app.resource("genesis://history/all")
     def get_all_validations() -> str:
         """
-        Complete Validation History
+        Validation History — Aggregate Statistics Only
 
-        Returns the complete validation history including all past validations,
-        metadata, and statistics. Useful for analyzing validation trends and
-        decision patterns over time.
+        Returns aggregate statistics over the shared validation history (total
+        count, score/verdict distribution, last-updated) — never the per-concept
+        names or descriptions. The history store is instance-global; exposing raw
+        entries here would leak other clients' concepts (v0.5.43 privacy fix).
 
         URI: genesis://history/all
         Format: JSON
         """
-        history = load_validation_history()
-        return json.dumps(history, indent=2)
+        return json.dumps(_aggregate_validation_stats(), indent=2)
 
 
     @app.resource("genesis://state/project_info")
@@ -706,7 +812,7 @@ def _create_mcp_instance():
         concept_name: str,
         concept_description: str,
         context: Optional[str] = None,
-        save_to_history: bool = True,
+        save_to_history: bool = False,
         llm_provider: Optional[str] = None,
         api_key: Optional[str] = None,
         x_provider: Optional[str] = None,
@@ -739,7 +845,9 @@ def _create_mcp_instance():
             concept_name: Short name or title of the concept
             concept_description: Detailed description of the concept
             context: Optional additional context or background
-            save_to_history: Whether to save result to validation history (default: True)
+            save_to_history: Whether to save result to validation history (default: False).
+                History is a single shared store on this server instance; leaving this
+                False keeps your concept private to your own call (v0.5.43 privacy fix).
             llm_provider: Optional global LLM provider for all agents
             api_key: Optional global API key for all agents (ephemeral, never stored)
             x_provider: Optional provider override for X agent only
@@ -963,6 +1071,7 @@ def _create_mcp_instance():
                     "concerns": trinity_result.synthesis.concerns[:3],
                     "confidence": trinity_result.synthesis.confidence,
                     "founder_summary": getattr(trinity_result.synthesis, 'founder_summary', None),
+                    "inference_warning": getattr(trinity_result.synthesis, 'inference_warning', None),
                 },
                 "human_decision_required": True,
                 "saved_to_history": save_to_history,

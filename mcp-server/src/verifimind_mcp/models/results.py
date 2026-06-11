@@ -57,6 +57,14 @@ class TrinitySynthesis(BaseModel):
         description="Plain-language summary for non-technical founders: verdict, score_plain, what_works, things_to_address, next_steps, research_continuation"
     )
 
+    # v0.5.43 — fail-safe transparency: set when an agent's inference was degraded
+    # (partial/fallback/synthetic). Surfaces that the verdict rests on synthesized
+    # defaults so a caller never reads a clean PROCEED off untrustworthy ethics data.
+    inference_warning: Optional[str] = Field(
+        None,
+        description="Non-null when Trinity inference was degraded; explains why the recommendation was capped and human review is required"
+    )
+
 
 class TrinityResult(BaseModel):
     """

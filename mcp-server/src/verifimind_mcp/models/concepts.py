@@ -52,8 +52,10 @@ class ValidationRequest(BaseModel):
         description="Whether to pass reasoning between agents"
     )
     save_to_history: bool = Field(
-        default=True,
-        description="Whether to save result to validation history"
+        default=False,
+        description="Whether to save result to the shared validation history store. "
+                    "Default False (v0.5.43): the history file is instance-global, so "
+                    "opting in exposes the concept to other clients of this server."
     )
     
     

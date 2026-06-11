@@ -161,4 +161,4 @@ class TestServerWiring:
 
     def test_server_version_is_0516(self):
         from verifimind_mcp.server import SERVER_VERSION
-        assert SERVER_VERSION == "0.5.42", f"Expected 0.5.40, got {SERVER_VERSION}"
+        assert SERVER_VERSION == "0.5.43", f"Expected 0.5.43, got {SERVER_VERSION}"
