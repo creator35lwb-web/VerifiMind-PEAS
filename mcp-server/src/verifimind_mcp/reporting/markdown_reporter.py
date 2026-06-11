@@ -19,8 +19,17 @@ from ..models.reasoning import (
     ReasoningStep,
 )
 
-SERVER_VERSION = "0.4.1"
 FORMAT_VERSION = "markdown-first/1.0"
+
+
+def _server_version() -> str:
+    """Source the live server version lazily (avoids a hardcoded 3rd constant
+    drifting out of sync — v0.5.44 fix; was pinned at a stale "0.4.1")."""
+    try:
+        from ..server import SERVER_VERSION as _SV
+        return _SV
+    except Exception:  # pragma: no cover - defensive
+        return "unknown"
 
 
 def generate_yaml_frontmatter(result: TrinityResult) -> str:
@@ -43,7 +52,7 @@ def generate_yaml_frontmatter(result: TrinityResult) -> str:
         f"veto_triggered: {'true' if result.synthesis.veto_triggered else 'false'}",
         f"confidence: {result.synthesis.confidence:.2f}",
         f"timestamp: {iso_ts}",
-        f"generator: verifimind-peas/{SERVER_VERSION}",
+        f"generator: verifimind-peas/{_server_version()}",
         f"format: {FORMAT_VERSION}",
         "---",
     ]
@@ -153,6 +162,14 @@ def _section_executive_summary(s: TrinitySynthesis) -> str:
             "",
         ])
 
+    # v0.5.44: surface the degraded-inference fail-safe (if set)
+    inference_warning = getattr(s, "inference_warning", None)
+    if inference_warning:
+        lines.extend([
+            f"> ⚠️ **DEGRADED INFERENCE — HUMAN REVIEW REQUIRED:** {inference_warning}",
+            "",
+        ])
+
     lines.extend([
         "| Agent | Score | Role |",
         "|-------|-------|------|",
@@ -212,6 +229,24 @@ def _section_z_agent(z: ZAgentAnalysis) -> str:
         "",
     ]
 
+    # v0.5.44: jurisdiction + framework citations (the auditable ethics layer)
+    jurisdiction = getattr(z, "jurisdiction_detected", None)
+    if jurisdiction:
+        lines.append(f"**Jurisdictions detected:** {', '.join(jurisdiction)}")
+        lines.append("")
+    breakdown = getattr(z, "scoring_breakdown", None)
+    if isinstance(breakdown, dict) and breakdown:
+        lines.append("### Ethics Scoring Breakdown")
+        lines.append("")
+        lines.append("| Dimension | Score | Weight | Frameworks |")
+        lines.append("|-----------|------:|-------:|------------|")
+        for dim, d in breakdown.items():
+            if isinstance(d, dict):
+                fw = d.get("frameworks", [])
+                fw_str = ", ".join(fw) if isinstance(fw, list) else str(fw)
+                lines.append(f"| {dim.replace('_', ' ').title()} | {d.get('score', '?')} | {d.get('weight', '?')} | {fw_str} |")
+        lines.append("")
+
     lines.extend(_format_reasoning_chain(z.reasoning_steps))
 
     if z.ethical_concerns:
@@ -236,11 +271,13 @@ def _section_z_agent(z: ZAgentAnalysis) -> str:
 def _section_cs_agent(cs: CSAgentAnalysis) -> str:
     conf_pct = int(cs.confidence * 100)
 
+    threat = getattr(cs, "threat_level", None)
+    threat_str = f" | **Threat Level:** {threat}" if threat else ""
     lines = [
         f"## {cs.agent} — Security & Socratic Scrutiny",
         "",
         f"**Security Score:** {cs.security_score:.1f}/10 | "
-        f"**Confidence:** {conf_pct}%",
+        f"**Confidence:** {conf_pct}%{threat_str}",
         "",
     ]
 

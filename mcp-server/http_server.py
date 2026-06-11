@@ -64,7 +64,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.43"
+SERVER_VERSION = "0.5.44"
 
 # MCP endpoint constants — single source of truth for URL/path strings used in
 # JSON responses, quickstart commands, and HTML setup pages. Extracted in v0.5.32
@@ -246,8 +246,8 @@ async def mcp_config_handler(request):
             },
             {
                 "name": "run_full_trinity",
-                "description": "Complete X → Z → CS validation with per-agent optimized providers",
-                "parameters": ["concept_name", "concept_description", "context (optional)", "save_to_history (default: true)"]
+                "description": "Complete X → Z → CS validation with per-agent optimized providers; returns auditable reasoning by default",
+                "parameters": ["concept_name", "concept_description", "context (optional)", "save_to_history (default: false)", "detail (summary|standard|full, default: standard)"]
             },
             # v0.4.0 Template Tools
             {
@@ -299,7 +299,7 @@ async def mcp_config_handler(request):
         ],
         # Resources
         "resources": [
-            {"uri": "genesis://config/master_prompt", "description": "Genesis Master Prompt v16.1"},
+            {"uri": "genesis://config/master_prompt", "description": "Genesis methodology — live X/Z/CS production prompts"},
             {"uri": "genesis://history/latest", "description": "Most recent validation result"},
             {"uri": "genesis://history/all", "description": "Complete validation history"},
             {"uri": "genesis://state/project_info", "description": "Project metadata and agent info"}
@@ -892,9 +892,10 @@ async def smithery_server_card_handler(request):
             "Multi-model AI validation framework. Validate concepts end-to-end across "
             "innovation (X Agent), ethics & compliance (Z Agent), and security (CS Agent) "
             "via the X-Z-CS RefleXion Trinity. 13 free MCP tools (Trinity validation, "
-            "prompt-template library, and cross-session coordination). BYOK across 6 "
-            "providers (Gemini, Anthropic, OpenAI, Groq, Cerebras, Mistral). Free tier "
-            "powered by Gemini 2.5 Flash."
+            "prompt-template library, and cross-session coordination). Auditable reasoning "
+            "returned by default — per-step reasoning, framework citations, ethics scoring "
+            "breakdown, and Socratic questions. BYOK across 6 providers (Gemini, Anthropic, "
+            "OpenAI, Groq, Cerebras, Mistral). Free tier powered by Gemini 2.5 Flash."
         ),
         "version": SERVER_VERSION,
         "iconUrl": "https://verifimind.ysenseai.org/logo.png",

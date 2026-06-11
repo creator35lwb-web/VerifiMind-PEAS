@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 _RAW_SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.5.43"
+SERVER_VERSION = "0.5.44"
 
 # Agent role names + master prompt filename — single source of truth.
 # (SonarCloud P2 batch-2: extracted in v0.5.39 from 13 dup-literal occurrences
@@ -471,6 +471,7 @@ def _create_mcp_instance():
         concept_name: str,
         concept_description: str,
         context: Optional[str] = None,
+        detail: str = "standard",
         llm_provider: Optional[str] = None,
         api_key: Optional[str] = None,
         user_uuid: Optional[str] = None,
@@ -537,13 +538,12 @@ def _create_mcp_instance():
             result = await agent.analyze(concept)
 
             _iq = getattr(result, '_inference_quality', 'unknown')
+            from .utils.reasoning_view import normalize_detail, consult_steps
+            detail = normalize_detail(detail)
             payload = {
                 "agent": AGENT_X_NAME,
                 "concept": concept_name,
-                "reasoning_steps": [
-                    {"step": s.step_number, "thought": s.thought, "confidence": s.confidence}
-                    for s in result.reasoning_steps
-                ],
+                "reasoning_steps": consult_steps(result.reasoning_steps, detail),
                 "innovation_score": result.innovation_score,
                 "strategic_value": result.strategic_value,
                 "opportunities": result.opportunities,
@@ -554,6 +554,13 @@ def _create_mcp_instance():
                 "_provider_used": provider.get_model_name(),
                 "_byok": byok_used
             }
+            # v0.5.44: structured fields at standard+; heaviest at full
+            if detail in ("standard", "full"):
+                payload["next_steps"] = getattr(result, "next_steps", None) or []
+                payload["research_prompts"] = getattr(result, "research_prompts", None) or []
+            if detail == "full":
+                payload["market_competition"] = getattr(result, "market_competition", None)
+                payload["competitive_analysis"] = getattr(result, "competitive_analysis", None)
             if _iq == "mock":
                 payload["_warning"] = MOCK_MODE_WARNING
             persist_trinity_result(user_uuid, "consult_agent_x", payload)
@@ -574,6 +581,7 @@ def _create_mcp_instance():
         concept_description: str,
         context: Optional[str] = None,
         prior_reasoning: Optional[str] = None,
+        detail: str = "standard",
         llm_provider: Optional[str] = None,
         api_key: Optional[str] = None,
         user_uuid: Optional[str] = None,
@@ -658,13 +666,12 @@ def _create_mcp_instance():
             result = await agent.analyze(concept, prior)
 
             _iq = getattr(result, '_inference_quality', 'unknown')
+            from .utils.reasoning_view import normalize_detail, consult_steps
+            detail = normalize_detail(detail)
             payload = {
                 "agent": AGENT_Z_NAME,
                 "concept": concept_name,
-                "reasoning_steps": [
-                    {"step": s.step_number, "thought": s.thought, "confidence": s.confidence}
-                    for s in result.reasoning_steps
-                ],
+                "reasoning_steps": consult_steps(result.reasoning_steps, detail),
                 "ethics_score": result.ethics_score,
                 "z_protocol_compliance": result.z_protocol_compliance,
                 "ethical_concerns": result.ethical_concerns,
@@ -676,6 +683,14 @@ def _create_mcp_instance():
                 "_provider_used": provider.get_model_name(),
                 "_byok": byok_used
             }
+            # v0.5.44: framework citations + scoring breakdown at standard+
+            if detail in ("standard", "full"):
+                payload["scoring_breakdown"] = getattr(result, "scoring_breakdown", None)
+                payload["jurisdiction_detected"] = getattr(result, "jurisdiction_detected", None)
+                payload["applicable_frameworks"] = getattr(result, "applicable_frameworks", None)
+                payload["compliance_timeline"] = getattr(result, "compliance_timeline", None)
+            if detail == "full":
+                payload["total_frameworks_evaluated"] = getattr(result, "total_frameworks_evaluated", None)
             if _iq == "mock":
                 payload["_warning"] = MOCK_MODE_WARNING
             persist_trinity_result(user_uuid, "consult_agent_z", payload)
@@ -696,6 +711,7 @@ def _create_mcp_instance():
         concept_description: str,
         context: Optional[str] = None,
         prior_reasoning: Optional[str] = None,
+        detail: str = "standard",
         llm_provider: Optional[str] = None,
         api_key: Optional[str] = None,
         user_uuid: Optional[str] = None,
@@ -775,13 +791,12 @@ def _create_mcp_instance():
             agent = CSAgent(llm_provider=provider)
             result = await agent.analyze(concept, prior)
 
+            from .utils.reasoning_view import normalize_detail, consult_steps
+            detail = normalize_detail(detail)
             payload = {
                 "agent": AGENT_CS_NAME,
                 "concept": concept_name,
-                "reasoning_steps": [
-                    {"step": s.step_number, "thought": s.thought, "confidence": s.confidence}
-                    for s in result.reasoning_steps
-                ],
+                "reasoning_steps": consult_steps(result.reasoning_steps, detail),
                 "security_score": result.security_score,
                 "vulnerabilities": result.vulnerabilities,
                 "attack_vectors": result.attack_vectors,
@@ -793,6 +808,16 @@ def _create_mcp_instance():
                 "_provider_used": provider.get_model_name(),
                 "_byok": byok_used
             }
+            # v0.5.44: threat assessment at standard+; 12-dim/6-stage/MACP at full
+            if detail in ("standard", "full"):
+                payload["threat_level"] = getattr(result, "threat_level", None)
+                payload["agentic_threats"] = getattr(result, "agentic_threats", None)
+                payload["reasoning_layer_findings"] = getattr(result, "reasoning_layer_findings", None)
+            if detail == "full":
+                payload["dimensions_evaluated"] = getattr(result, "dimensions_evaluated", None)
+                payload["stages_completed"] = getattr(result, "stages_completed", None)
+                payload["macp_security_assessment"] = getattr(result, "macp_security_assessment", None)
+                payload["standards_referenced"] = getattr(result, "standards_referenced", None)
             if payload["_inference_quality"] == "mock":
                 payload["_warning"] = MOCK_MODE_WARNING
             persist_trinity_result(user_uuid, "consult_agent_cs", payload)
@@ -813,6 +838,7 @@ def _create_mcp_instance():
         concept_description: str,
         context: Optional[str] = None,
         save_to_history: bool = False,
+        detail: str = "standard",
         llm_provider: Optional[str] = None,
         api_key: Optional[str] = None,
         x_provider: Optional[str] = None,
@@ -848,6 +874,13 @@ def _create_mcp_instance():
             save_to_history: Whether to save result to validation history (default: False).
                 History is a single shared store on this server instance; leaving this
                 False keeps your concept private to your own call (v0.5.43 privacy fix).
+            detail: Reasoning verbosity (v0.5.44) — "standard" (default) returns the
+                auditable `reasoning` block (per-step reasoning, ethics scoring breakdown
+                + framework citations, Socratic questions, threat assessment) alongside
+                the scores; "full" adds per-step evidence and the heaviest structured
+                fields (12-dimension matrix, 6-stage record, MACP assessment); "summary"
+                omits the reasoning block for the smallest payload. The block is additive —
+                existing response fields are unchanged at every level.
             llm_provider: Optional global LLM provider for all agents
             api_key: Optional global API key for all agents (ephemeral, never stored)
             x_provider: Optional provider override for X agent only
@@ -862,6 +895,9 @@ def _create_mcp_instance():
         """
         if user_uuid:
             emit_tracer(user_uuid, "run_full_trinity")
+        # v0.5.44: normalize reasoning verbosity (invalid → "standard")
+        from .utils.reasoning_view import normalize_detail
+        detail = normalize_detail(detail)
         # Check Accept header for markdown content negotiation
         output_format = "json"
         if ctx and hasattr(ctx, 'request_context'):
@@ -1081,6 +1117,16 @@ def _create_mcp_instance():
                 **_byok_meta,
                 **session.to_metadata(),
             }
+            # v0.5.44: attach the auditable reasoning block (additive). "summary"
+            # callers opt out and receive the exact pre-0.5.44 shape.
+            if detail in ("standard", "full"):
+                from .utils.reasoning_view import build_reasoning_block
+                payload["reasoning"] = build_reasoning_block(
+                    x_result, z_result, cs_result,
+                    chain_status, overall_quality,
+                    getattr(trinity_result.synthesis, 'inference_warning', None),
+                    detail,
+                )
             if overall_quality == "synthetic":
                 payload["_warning"] = MOCK_MODE_WARNING
             persist_trinity_result(user_uuid, "run_full_trinity", payload)
