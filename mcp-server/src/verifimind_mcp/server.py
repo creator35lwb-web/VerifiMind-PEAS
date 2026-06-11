@@ -215,15 +215,19 @@ def load_master_prompt() -> str:
     lines = [
         "# VerifiMind™ PEAS — Genesis Methodology (Live Production Prompts)",
         "",
-        f"*Server version: {SERVER_VERSION}. Generated from the in-code agent "
-        "configuration — this is the exact prompt contract the X / Z / CS agents run.*",
+        (
+            f"*Server version: {SERVER_VERSION}. Generated from the in-code agent "
+            "configuration — this is the exact prompt contract the X / Z / CS agents run.*"
+        ),
         "",
-        "The RefleXion Trinity validates a concept through three sequential agents. "
-        "Each agent sees the prior agents' Chain-of-Thought reasoning. Synthesis "
-        "weights: Innovation (X) 30% · Ethics (Z) 40% · Security (CS) 30%. A Z veto "
-        "caps the overall score at 3.0 and forces a REJECT verdict. If any agent's "
-        "inference is degraded, the recommendation is capped at REVISE pending human "
-        "review (fail-safe).",
+        (
+            "The RefleXion Trinity validates a concept through three sequential agents. "
+            "Each agent sees the prior agents' Chain-of-Thought reasoning. Synthesis "
+            "weights: Innovation (X) 30% · Ethics (Z) 40% · Security (CS) 30%. A Z veto "
+            "caps the overall score at 3.0 and forces a REJECT verdict. If any agent's "
+            "inference is degraded, the recommendation is capped at REVISE pending human "
+            "review (fail-safe)."
+        ),
         "",
         "---",
         "",

@@ -20,7 +20,6 @@ from verifimind_mcp.llm.provider import (
     list_free_tier_providers,
     get_provider_info,
     MockProvider,
-    CerebrasProvider,
     PROVIDER_CONFIGS,
 )
 

@@ -18,10 +18,8 @@ from verifimind_mcp.middleware.ip_blocklist import (
     IPBlocklistMiddleware,
     BLOCKED_IPS,
     BLOCKED_UA_PATTERNS,
-    _BLOCKED_IP_SET,
     _check_ip,
     _check_ua,
-    _get_all_ips,
 )
 
 

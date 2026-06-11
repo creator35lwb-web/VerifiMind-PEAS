@@ -10,9 +10,7 @@ Coverage:
   - Server version is 0.5.25
 """
 
-import os
 import importlib
-import pytest
 
 
 def _reload_http_server():

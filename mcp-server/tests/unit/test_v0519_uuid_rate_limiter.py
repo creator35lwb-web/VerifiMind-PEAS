@@ -20,7 +20,6 @@ from verifimind_mcp.middleware.rate_limiter import (
     RateLimitStore,
     _resolve_uuid_tier,
     _uuid_tier_cache,
-    UUID_TIER_CACHE_TTL,
     _build_rate_limit_cta,
 )
 
@@ -152,7 +151,7 @@ class TestResolveUuidTier:
     def test_result_is_cached(self):
         test_uuid = "019aaaaa-0000-7000-0000-000000000001"
         _uuid_tier_cache.pop(test_uuid, None)
-        tier1 = _resolve_uuid_tier(test_uuid)
+        _resolve_uuid_tier(test_uuid)  # first resolve — result intentionally unused; populates cache
         # Inject fake cache entry to prove it's used
         _uuid_tier_cache[test_uuid] = ("pioneer", time.time() + 9999)
         tier2 = _resolve_uuid_tier(test_uuid)

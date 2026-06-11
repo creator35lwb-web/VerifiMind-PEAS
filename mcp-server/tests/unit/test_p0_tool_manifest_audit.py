@@ -262,7 +262,6 @@ class TestLoggerDefined:
 
     def test_http_server_has_module_logger(self):
         import http_server
-        import logging
         assert hasattr(http_server, "logger")
         assert isinstance(http_server.logger, logging.Logger)
 
