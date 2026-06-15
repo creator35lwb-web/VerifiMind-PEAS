@@ -68,11 +68,41 @@ BLOCKED_IPS: list[tuple[str, str, str, str]] = [
     # .macp/handoffs/20260530_AY_to_RNA_block_ip10_3_137_30_179.md). Same non-user automated-probe class as
     # 4.228.83.111 / 2602:fb54:99a:: but with higher volume persistence; address-only block.
     ("3.137.30.179", "AISEC_REGISTRY_SCANNER", "2026-06-01", "RNA_CSO"),
+    # AgentSure MCP Scanner — UA `Mozilla/5.0 (compatible; AgentSure-MCPScan/0.1; +https://agentsure.tech)`;
+    # primary IP 152.55.176.35 = 20×200 POST /mcp/ Jun 5-10 with a 39,779s (~11h) engagement window on
+    # Jun 5 alone (daily cron ~21:37 UTC) — polluted ~11h of "flying hours" as if verified engagement.
+    # 8 rotating Azure-range IPs share the same UA (low individual duration, but WAU/endpoint inflation).
+    # Not a builder, zero /register intent. AY+AZ forensics 2026-06-12 (honest-metrics gate held Report 097).
+    ("152.55.176.35", "AGENTSURE_MCP_SCANNER", "2026-06-16", "RNA_CSO"),
+    ("20.119.41.196", "AGENTSURE_MCP_SCANNER", "2026-06-16", "RNA_CSO"),
+    ("64.236.140.200", "AGENTSURE_MCP_SCANNER", "2026-06-16", "RNA_CSO"),
+    ("52.233.87.81", "AGENTSURE_MCP_SCANNER", "2026-06-16", "RNA_CSO"),
+    ("152.55.176.88", "AGENTSURE_MCP_SCANNER", "2026-06-16", "RNA_CSO"),
+    ("172.172.87.67", "AGENTSURE_MCP_SCANNER", "2026-06-16", "RNA_CSO"),
+    ("48.211.211.35", "AGENTSURE_MCP_SCANNER", "2026-06-16", "RNA_CSO"),
+    ("52.234.42.34", "AGENTSURE_MCP_SCANNER", "2026-06-16", "RNA_CSO"),
+    ("52.159.245.161", "AGENTSURE_MCP_SCANNER", "2026-06-16", "RNA_CSO"),
+    # LeakIX l9scan — UA `l9scan/2.0 (+https://leakix.net)`; internet background path-enumeration scanner.
+    # Jun 9 burst: 28 reqs sweeping /console/, /server-status, /about and similar (all 302/legacy). Block
+    # for metrics cleanliness (minimal hour impact). AY+AZ forensics 2026-06-12.
+    ("146.190.242.161", "LEAKIX_L9SCAN", "2026-06-16", "RNA_CSO"),
+    ("64.23.218.208", "LEAKIX_L9SCAN", "2026-06-16", "RNA_CSO"),
+    # MCP Endpoint Scanner — UA `MCP-Inspector/1.8.0 (security-scan)` on 100% of 330 req; single 100-second
+    # burst 2026-06-15 12:22:34-12:24:14 UTC @ ~3.3 req/s; systematic 23-path MCP transport dictionary sweep
+    # (/mcp, /sse, /stream, /events, /jsonrpc, /rpc, /api/sse, /api/mcp, /messages, /v1/mcp, /mcp/v1/sse,
+    # /.well-known/mcp, /.well-known/oauth-authorization-server, nested variants) with embedded JSON-RPC
+    # capability-enum payloads (initialize, tools/list, resources/list, prompts/list); AS45820 TATAIDC
+    # Bengaluru IN; 86% rate-limited (429), 8% 404, 6% redirects; ZERO 200; zero leak; no /register intent.
+    # Alton-flagged 2026-06-16; Sentinel investigation confirmed BLOCK.
+    ("14.194.11.238", "MCP_ENDPOINT_SCANNER", "2026-06-16", "RNA_CSO"),
 ]
 
 # Blocked User-Agent substrings (case-insensitive substring match)
 BLOCKED_UA_PATTERNS: list[str] = [
     "YellowMCP-SecurityScanner",
+    "AgentSure-MCPScan",   # AgentSure MCP scanner — rotation-proof block across its Azure IP family
+    "l9scan",              # LeakIX internet background scanner
+    "(security-scan)",     # self-declared scanner suffix (e.g. MCP-Inspector/1.8.0 (security-scan)); surgical — does not collide with standard MCP Inspector usage
 ]
 
 # Pre-computed lookup structures (module-level, built once at import)

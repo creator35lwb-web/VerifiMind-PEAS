@@ -73,6 +73,24 @@ class TestBlockedIpsConstants:
     def test_blocked_ua_yellowmcp_present(self):
         assert any("YellowMCP" in p for p in BLOCKED_UA_PATTERNS)
 
+    def test_v0545_probe_blocklist_entries(self):
+        """v0.5.45 — AgentSure family, l9scan, and the MCP_ENDPOINT_SCANNER are blocked."""
+        ips = {ip for ip, *_ in BLOCKED_IPS}
+        # AgentSure primary metrics polluter + the Alton-flagged MCP endpoint scanner
+        assert "152.55.176.35" in ips
+        assert "14.194.11.238" in ips
+        # l9scan / LeakIX
+        assert "146.190.242.161" in ips
+        reasons = {reason for _, reason, *_ in BLOCKED_IPS}
+        assert "AGENTSURE_MCP_SCANNER" in reasons
+        assert "MCP_ENDPOINT_SCANNER" in reasons
+
+    def test_v0545_ua_substring_blocks(self):
+        """v0.5.45 — rotation-proof UA blocks for the scanner families."""
+        assert any("AgentSure-MCPScan" in p for p in BLOCKED_UA_PATTERNS)
+        assert any("l9scan" in p for p in BLOCKED_UA_PATTERNS)
+        assert any("security-scan" in p for p in BLOCKED_UA_PATTERNS)
+
 
 # ---------------------------------------------------------------------------
 # 2. _check_ip — exact match and XFF chain traversal
