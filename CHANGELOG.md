@@ -8,6 +8,23 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.45 - Probe Blocklist (MCP-scanner family) (June 16, 2026)
+
+Security/metrics-integrity patch: blocks an MCP-endpoint scanner family that was polluting engagement metrics, plus a self-declared MCP scanner flagged by the orchestrator. `BLOCKED_IPS` 10 → 22; `BLOCKED_UA_PATTERNS` adds three rotation-proof substrings.
+
+### What changed
+- **AgentSure-MCPScan family (9 IPs)** — UA `Mozilla/5.0 (compatible; AgentSure-MCPScan/0.1; +https://agentsure.tech)`. Primary IP `152.55.176.35` ran a daily cron (~21:37 UTC, Jun 5–10) with a ~39,779s (~11h) engagement window on Jun 5 alone — polluting "flying hours" as if it were verified engagement. 8 rotating Azure-range IPs share the UA. Zero `/register` intent. AY+AZ forensics 2026-06-12.
+- **LeakIX l9scan (2 IPs)** — UA `l9scan/2.0 (+https://leakix.net)`; internet background path-enumeration (`/console/`, `/server-status`, `/about`…). Blocked for metrics cleanliness.
+- **MCP Endpoint Scanner (1 IP, `14.194.11.238`)** — UA `MCP-Inspector/1.8.0 (security-scan)`; single 100-second burst on 2026-06-15 (330 req @ ~3.3 req/s), 23-path MCP transport dictionary sweep with embedded JSON-RPC capability-enum payloads (`initialize`, `tools/list`, `resources/list`, `prompts/list`); AS45820 TATAIDC Bengaluru IN. **86% rate-limited (429), zero 200, zero leak.** Orchestrator-flagged; Sentinel investigation 2026-06-16 confirmed BLOCK.
+- **UA-substring blocks (rotation-proof):** `AgentSure-MCPScan`, `l9scan`, `(security-scan)` (the last is surgical — catches the self-declared-scanner suffix without colliding with standard MCP Inspector usage).
+
+### Why
+Without these blocks, Report 097+ would inherit ~11h of scanner activity as verified engagement. The honest-metrics gate held — AY held Report 097 generation until this deploy. No real handler was reached by any blocked actor (zero 200s); the defense stack (rate limiter + 404/redirect handlers) already held, but L1 blocks convert these to instant 403s at zero rate-limiter cost.
+
+**PR:** #259
+
+---
+
 ## v0.5.44 - Reasoning Visible (June 12, 2026)
 
 Makes the auditable reasoning layer — the core of the product — visible in tool responses by default. The X/Z/CS agents already generated per-step reasoning, framework citations, an ethics scoring breakdown, and Socratic questions on every call; previously the flagship `run_full_trinity` JSON response trimmed all of it and returned only scores. This is serialization, not new inference — no added cost or latency.
