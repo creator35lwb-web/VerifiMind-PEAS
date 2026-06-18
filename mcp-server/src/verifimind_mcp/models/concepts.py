@@ -323,8 +323,11 @@ CRITICAL RULES:
 - NEVER cite a framework you did not actually evaluate in your reasoning
 """,
     temperature=0.7,
-    max_tokens=4096  # Reduced from 8192: Z receives compressed X prior (~300 tokens);
-                     # total request (input ~5,000 + output 4,096) stays under Groq 12K limit
+    max_tokens=8192  # v0.5.46: restored to 8192. 4096 truncated verbose models (a live
+                     # Anthropic Z run lost ~45 responses mid-JSON). Groq's tighter total-
+                     # request budget is enforced per-provider by _effective_max_tokens()
+                     # in base_agent (clamps Groq to a safe ceiling; large-context
+                     # providers use the full 8192).
 )
 
 CS_AGENT_CONFIG = AgentConfig(
@@ -510,8 +513,9 @@ CRITICAL RULES:
 - reasoning_layer_findings: assess tool poisoning/shadowing risk even from concept description alone
 """,
     temperature=0.7,
-    max_tokens=4096  # Reduced from 8192: CS receives compressed X+Z prior (~1,600 tokens)
-                     # keeping total request (prior + prompt + output) safely under Groq 12K limit
+    max_tokens=8192  # v0.5.46: restored to 8192 (see Z_AGENT_CONFIG note). 4096 truncated
+                     # verbose models; Groq's total-request budget is enforced per-provider
+                     # by _effective_max_tokens() in base_agent.
 )
 
 # Agent configuration lookup

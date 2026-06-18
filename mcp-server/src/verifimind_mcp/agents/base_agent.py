@@ -28,6 +28,13 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Groq free-tier carries a tighter total-request budget (~12K tokens input+output)
+# than large-context providers. Agent configs request 8192 output tokens so verbose
+# models (Claude, GPT) don't truncate mid-JSON; for Groq we clamp output back to a
+# safe ceiling so the full request stays under the budget. Large-context providers
+# (Anthropic, OpenAI, Gemini, Mistral, Cerebras) use the configured value unchanged.
+GROQ_SAFE_MAX_OUTPUT_TOKENS = 4096
+
 
 class BaseAgent(ABC):
     """
@@ -104,7 +111,21 @@ class BaseAgent(ABC):
         )
 
         return date_header + prompt
-    
+
+    def _effective_max_tokens(self) -> int:
+        """
+        Resolve the output-token budget for the active provider.
+
+        Configs request 8192 so verbose models don't truncate; Groq's tighter
+        total-request budget is honored by clamping to a safe ceiling. Detected
+        by provider class name to avoid importing every provider type here.
+        """
+        configured = self.config.max_tokens
+        provider_name = type(self.llm).__name__.lower()
+        if "groq" in provider_name:
+            return min(configured, GROQ_SAFE_MAX_OUTPUT_TOKENS)
+        return configured
+
     async def analyze(
         self,
         concept: Concept,
@@ -144,7 +165,7 @@ class BaseAgent(ABC):
                 prompt=prompt,
                 output_schema=output_schema,
                 temperature=self.config.temperature,
-                max_tokens=self.config.max_tokens
+                max_tokens=self._effective_max_tokens()
             )
             
             # Extract content, usage, and inference quality from response
@@ -163,6 +184,12 @@ class BaseAgent(ABC):
 
             # v0.4.3.1 C-S-P State: attach inference quality marker to result
             result._inference_quality = inference_quality
+
+            # v0.5.46 (P2-2 repair): expose API-reported output tokens on the result so
+            # the Z-Agent token-ceiling monitor (server.py) reads a real count. Previously
+            # `_output_tokens` was never populated → the monitor always saw 0 and never
+            # fired, masking truncation since v0.5.3.
+            result._output_tokens = usage.get("output_tokens", 0) if usage else 0
 
             # Update metrics if provided
             if metrics:
