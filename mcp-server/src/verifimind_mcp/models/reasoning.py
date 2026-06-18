@@ -6,9 +6,10 @@ enabling agents to share their thought processes with each other
 and with humans for full auditability.
 """
 
+import json
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ReasoningStep(BaseModel):
@@ -27,7 +28,27 @@ class ReasoningStep(BaseModel):
         le=1.0,
         description="Confidence in this reasoning step (0.0 to 1.0)"
     )
-    
+
+    @field_validator("thought", "evidence", mode="before")
+    @classmethod
+    def _coerce_text_fields(cls, v):
+        """Coerce structured (dict/list) values to a string (v0.5.46 BYOK robustness).
+
+        Some BYOK providers (e.g. mistral-small) return per-step `evidence` (or
+        `thought`) as a nested object — e.g. {"prove": ..., "disprove": ...} — instead
+        of a string. Rather than fail Pydantic validation (which crashes the whole
+        agent for that caller), serialize the structure to a JSON string so the
+        reasoning is preserved and validation succeeds. Strings/None pass through.
+        """
+        if v is None or isinstance(v, str):
+            return v
+        if isinstance(v, (dict, list)):
+            try:
+                return json.dumps(v, ensure_ascii=False)
+            except Exception:
+                return str(v)
+        return str(v)
+
     class Config:
         json_schema_extra = {
             "example": {
