@@ -97,6 +97,17 @@ def create_ephemeral_provider(
     if not llm_provider and not api_key:
         return None
 
+    # D-AZ-0618-1: accept the "provider/model" shorthand (e.g. "anthropic/claude-opus-4-8").
+    # Real users pass the combined slug they see in model docs; a June-17 prod request
+    # (anthropic/claude-opus-4-8) was rejected as "Invalid provider" because we only
+    # accepted a bare provider. Split it server-side so a valid provider is honored, and
+    # carry the model part through to the constructor.
+    byok_model = None
+    if llm_provider and "/" in llm_provider:
+        provider_part, _, model_part = llm_provider.partition("/")
+        llm_provider = provider_part.strip()
+        byok_model = model_part.strip() or None
+
     from .llm import (
         MockProvider,
         OpenAIProvider,
@@ -133,7 +144,10 @@ def create_ephemeral_provider(
     if llm_provider not in VALID_BYOK_PROVIDERS:
         raise ValueError(
             f"Invalid provider '{llm_provider}'. "
-            f"Supported: {', '.join(sorted(VALID_BYOK_PROVIDERS))}"
+            f"Supported: {', '.join(sorted(VALID_BYOK_PROVIDERS))}. "
+            f"To target a specific model, pass the provider and model separately "
+            f"(llm_provider='anthropic', model='claude-opus-4-8') or use the "
+            f"'provider/model' shorthand (e.g. 'anthropic/claude-opus-4-8')."
         )
 
     provider_map = {
@@ -150,9 +164,13 @@ def create_ephemeral_provider(
     provider_class = provider_map[llm_provider]
 
     if llm_provider in ("mock", "ollama"):
+        if byok_model and llm_provider == "ollama":
+            return provider_class(model=byok_model)
         return provider_class()
 
     # Keys are NEVER logged
+    if byok_model:
+        return provider_class(model=byok_model, api_key=api_key)
     return provider_class(api_key=api_key)
 
 

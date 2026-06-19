@@ -8,6 +8,23 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.46 - BYOK Robustness (June 19, 2026)
+
+Production-hardening bundle surfaced by dogfooding our own M2 P3 evaluation — every fix serves real BYOK users *and* unblocked the clean 100/100 critique-quality baseline run. Strictly additive: no behavior change on the default free-tier path. 698 tests pass (690 + 8 new), 0 regressions.
+
+### What changed
+- **Provider-format normalization** — `config_helper.py` now accepts `provider/model` shorthand (e.g. `anthropic/claude-opus-4-8`), splitting it server-side, honoring the model, and returning an actionable error on a bad provider. Fixes the June-17 production rejection of valid `provider/model` BYOK configs.
+- **max_tokens** — Z/CS agents raised 4096 → 8192 (`concepts.py`); Groq clamped per-provider via new `_effective_max_tokens()` (`base_agent.py`). The 4096 ceiling was truncating verbose models mid-JSON.
+- **Token-monitor repair** — `_output_tokens` is now populated on agent results (`base_agent.py`); the Z-ceiling monitor had silently read 0 since v0.5.3, leaving us blind to truncation.
+- **Evidence-coercion** — structured `evidence`/`thought` (dict/list) returned by some providers (e.g. mistral-small) is coerced to a JSON string in `ReasoningStep`, fixing schema-conformance failures in multi-provider runs.
+
+### Why
+The M2 P3 evaluation exercised non-default BYOK providers for the first time, surfacing latent gaps that never bit the working default (Gemini X + Groq Z/CS) path. Fixing them ships value to BYOK users (a minority we couldn't previously see, because the monitor was dark) and produced the clean baseline measurement. T+L Session 46 D-46-1/D-46-2 concurred; deploy ratified S47 D-47-1 + Alton.
+
+**PR:** #262
+
+---
+
 ## v0.5.45 - Probe Blocklist (MCP-scanner family) (June 16, 2026)
 
 Security/metrics-integrity patch: blocks an MCP-endpoint scanner family that was polluting engagement metrics, plus a self-declared MCP scanner flagged by the orchestrator. `BLOCKED_IPS` 10 → 22; `BLOCKED_UA_PATTERNS` adds three rotation-proof substrings.
