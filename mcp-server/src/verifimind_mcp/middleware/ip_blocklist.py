@@ -95,6 +95,12 @@ BLOCKED_IPS: list[tuple[str, str, str, str]] = [
     # Bengaluru IN; 86% rate-limited (429), 8% 404, 6% redirects; ZERO 200; zero leak; no /register intent.
     # Alton-flagged 2026-06-16; Sentinel investigation confirmed BLOCK.
     ("14.194.11.238", "MCP_ENDPOINT_SCANNER", "2026-06-16", "RNA_CSO"),
+    # Config/Secret Scanner #23 — spoofed Chrome UA (81/81 identical); 81 hits/14d; CI/CD + cloud-config +
+    # credential enumeration sweep (/.firebase/hosting.json, /firebase.json, /amplify.yml, /vite.config.js,
+    # /.gitlab-ci.yml, /Jenkinsfile, /.github/workflows/*, /.vscode/settings.json, /.pypirc, /composer.json);
+    # 59x429, 20x404, 2x200 (root / only); ZERO sensitive 200s, ZERO /mcp success, ZERO /register, 0 flying
+    # hours. Alton-flagged during adoption review; AY+AZ GCP forensics 2026-06-18 (D-45-3). Hygiene block.
+    ("45.148.10.15", "CONFIG_SECRET_SCANNER", "2026-06-18", "AY_AZ_COO_CPO"),
 ]
 
 # Blocked User-Agent substrings (case-insensitive substring match)
