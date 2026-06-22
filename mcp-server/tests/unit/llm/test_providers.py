@@ -69,11 +69,11 @@ class TestProviderConfiguration:
         assert 'claude-sonnet-4-20250514' not in info['models'], "Stale model ID still present"
 
     def test_openai_default_updated(self):
-        """Verify OpenAI default is gpt-4.1-mini."""
+        """Verify OpenAI default is gpt-5.5 (v0.5.47 model currency, R-S51-B, live-verified)."""
         info = get_provider_info('openai')
-        assert info['default_model'] == 'gpt-4.1-mini'
-        assert 'gpt-4.1-mini' in info['models']
-        assert 'gpt-4.1-nano' in info['models']
+        assert info['default_model'] == 'gpt-5.5'
+        assert 'gpt-5.5' in info['models']
+        assert 'gpt-4.1' in info['models']
 
     def test_groq_mixtral_removed(self):
         """Verify deprecated mixtral model removed from Groq."""
