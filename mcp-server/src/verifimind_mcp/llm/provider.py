@@ -77,8 +77,11 @@ PROVIDER_DEFAULT_CEREBRAS_MODEL = "llama-3.3-70b"
 PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     "gemini": {
         "name": "Google Gemini",
+        # default stays gemini-2.5-flash (free-tier, fast) — preserves the default free-tier path.
+        # gemini-3.1-pro-preview added as a BYOK/frontier option (live-verified 2026-06-22, R-S51-A);
+        # not made default — a preview model isn't a safe free-tier default (flagged to XV/T+L).
         "default_model": PROVIDER_DEFAULT_GEMINI_MODEL,
-        "models": [PROVIDER_DEFAULT_GEMINI_MODEL, "gemini-2.5-flash-lite", "gemini-2.0-flash"],
+        "models": [PROVIDER_DEFAULT_GEMINI_MODEL, "gemini-3.1-pro-preview", "gemini-3.5-flash", "gemini-2.5-flash-lite"],
         "api_key_env": "GEMINI_API_KEY",
         "base_url": "https://generativelanguage.googleapis.com/v1beta",
         "free_tier": True,
@@ -401,13 +404,13 @@ class AnthropicProvider(LLMProvider):
 
 class GeminiProvider(LLMProvider):
     """
-    Google Gemini provider implementation.
+    Google Gemini provider implementation (google.genai SDK — v0.5.47 R-S51-G).
 
-    Supports Gemini 2.5 Flash, Gemini 2.0 Flash, and other Gemini models.
+    Supports Gemini 3.x (gemini-3.1-pro-preview, gemini-3.5-flash) and the 2.5 line.
     Uses prompt engineering for structured JSON output.
 
-    Default: gemini-2.5-flash (FREE tier, reliable, fast)
-    Note: Gemini 1.5 models retired in 2026
+    Default: gemini-2.5-flash (FREE tier, reliable, fast). gemini-3.1-pro-preview
+    available as a BYOK/frontier option. Note: Gemini 1.5 models retired in 2026.
     """
 
     def __init__(
@@ -422,11 +425,14 @@ class GeminiProvider(LLMProvider):
             raise ValueError("Gemini API key not provided. Set GEMINI_API_KEY environment variable.")
         
         try:
-            import google.generativeai as genai
-            genai.configure(api_key=self.api_key)
+            # v0.5.47 (R-S51-G): migrated from the deprecated `google.generativeai` to the
+            # current `google.genai` SDK — required to serve Gemini 3.x (e.g. gemini-3.1-pro-preview),
+            # which 404s on the old SDK. Client-based API; same usage_metadata field names.
+            from google import genai
+            self.client = genai.Client(api_key=self.api_key)
             self.genai = genai
         except ImportError:
-            raise ImportError("google-generativeai package not installed. Run: pip install google-generativeai")
+            raise ImportError("google-genai package not installed. Run: pip install google-genai")
     
     def _build_response_schema(self, output_schema: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
@@ -652,13 +658,11 @@ class GeminiProvider(LLMProvider):
                     f"Respond ONLY with the JSON object, no other text.\n\nJSON:"
                 )
 
-            # Create model instance
-            model = self.genai.GenerativeModel(self.model)
-
-            # Generate response
-            response = model.generate_content(
-                prompt,
-                generation_config=gen_config
+            # Generate response (google.genai client API — v0.5.47 R-S51-G)
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=prompt,
+                config=gen_config,
             )
 
             content = response.text
