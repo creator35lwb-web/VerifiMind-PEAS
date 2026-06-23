@@ -8,6 +8,23 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.47 - Model Currency (June 23, 2026)
+
+Keeps the BYOK frontier-model menu current and migrates the Gemini integration to the supported SDK. All model IDs were live-verified against each provider before listing (no aspirational names). The default free-tier path (Gemini 2.5 Flash + Groq) is unchanged — cost and stability preserved. 699 tests pass; pre-deploy live Trinity smoke green on both the default and a frontier BYOK config.
+
+### What changed
+- **Gemini SDK migration** — `GeminiProvider` moved from the deprecated `google-generativeai` to the current `google-genai` client SDK, required to serve Gemini 3.x. `gemini-3.1-pro-preview` and `gemini-3.5-flash` added as BYOK/frontier options (live-verified end-to-end). The default stays `gemini-2.5-flash` (free-tier, fast, stable).
+- **OpenAI → GPT-5.5** — BYOK default updated to `gpt-5.5`; added a gpt-5.x request-contract fix (`max_completion_tokens` instead of `max_tokens`; default-temperature only). gpt-4.x behavior unchanged.
+- **Mistral → Medium 3** — BYOK default updated to `mistral-medium-3`.
+- **Probe #23** — config/secret scanner `45.148.10.15` added to the IP blocklist (CI/CD + cloud-config + credential enumeration sweep; zero leak).
+
+### Why
+Verification quality scales with model quality — keeping the curated BYOK menu current is a user value-add ("models as features"). The Gemini SDK migration was a hard prerequisite for Gemini 3.x (the old SDK 404s on `gemini-3.1-pro-preview`). Live-verifying every ID first caught that `gemini-3.1-pro` is not a real id (the listable id is `gemini-3.1-pro-preview`). Qwen deferred to v0.5.48 (pending an API key). R-S51 (XV-verified) + T+L S45/S46/S51.
+
+**PR:** _pending_
+
+---
+
 ## v0.5.46 - BYOK Robustness (June 19, 2026)
 
 Production-hardening bundle surfaced by dogfooding our own M2 P3 evaluation — every fix serves real BYOK users *and* unblocked the clean 100/100 critique-quality baseline run. Strictly additive: no behavior change on the default free-tier path. 698 tests pass (690 + 8 new), 0 regressions.

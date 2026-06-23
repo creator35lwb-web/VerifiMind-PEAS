@@ -91,6 +91,13 @@ class TestBlockedIpsConstants:
         assert any("l9scan" in p for p in BLOCKED_UA_PATTERNS)
         assert any("security-scan" in p for p in BLOCKED_UA_PATTERNS)
 
+    def test_v0547_probe23_config_secret_scanner(self):
+        """v0.5.47 — probe #23: config/secret scanner 45.148.10.15 (AY+AZ D-45-3)."""
+        ips = {ip for ip, *_ in BLOCKED_IPS}
+        assert "45.148.10.15" in ips
+        reasons = {reason for _, reason, *_ in BLOCKED_IPS}
+        assert "CONFIG_SECRET_SCANNER" in reasons
+
 
 # ---------------------------------------------------------------------------
 # 2. _check_ip — exact match and XFF chain traversal

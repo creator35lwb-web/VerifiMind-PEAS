@@ -70,15 +70,18 @@ def strip_markdown_code_fences(text: str) -> str:
 # (SonarCloud P2 batch-2: extracted in v0.5.39 from 12 dup-literal occurrences
 # across `default_model` fields, models list entries, and per-method defaults.)
 PROVIDER_DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
-PROVIDER_DEFAULT_OPENAI_MODEL = "gpt-4.1-mini"
+PROVIDER_DEFAULT_OPENAI_MODEL = "gpt-5.5"  # v0.5.47 model currency (R-S51-B; live-verified 2026-06-22)
 PROVIDER_DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
 PROVIDER_DEFAULT_CEREBRAS_MODEL = "llama-3.3-70b"
 
 PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     "gemini": {
         "name": "Google Gemini",
+        # default stays gemini-2.5-flash (free-tier, fast) — preserves the default free-tier path.
+        # gemini-3.1-pro-preview added as a BYOK/frontier option (live-verified 2026-06-22, R-S51-A);
+        # not made default — a preview model isn't a safe free-tier default (flagged to XV/T+L).
         "default_model": PROVIDER_DEFAULT_GEMINI_MODEL,
-        "models": [PROVIDER_DEFAULT_GEMINI_MODEL, "gemini-2.5-flash-lite", "gemini-2.0-flash"],
+        "models": [PROVIDER_DEFAULT_GEMINI_MODEL, "gemini-3.1-pro-preview", "gemini-3.5-flash", "gemini-2.5-flash-lite"],
         "api_key_env": "GEMINI_API_KEY",
         "base_url": "https://generativelanguage.googleapis.com/v1beta",
         "free_tier": True,
@@ -87,7 +90,7 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     "openai": {
         "name": "OpenAI",
         "default_model": PROVIDER_DEFAULT_OPENAI_MODEL,
-        "models": ["gpt-4.1", PROVIDER_DEFAULT_OPENAI_MODEL, "gpt-4.1-nano", "gpt-4o", "gpt-4o-mini"],
+        "models": [PROVIDER_DEFAULT_OPENAI_MODEL, "gpt-5.4", "gpt-5.4-mini", "gpt-4.1", "gpt-4.1-mini"],
         "api_key_env": "OPENAI_API_KEY",
         "base_url": "https://api.openai.com/v1",
         "free_tier": False,
@@ -124,8 +127,8 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     },
     "mistral": {
         "name": "Mistral AI",
-        "default_model": "mistral-small-latest",
-        "models": ["mistral-small-latest", "mistral-large-latest"],
+        "default_model": "mistral-medium-3",  # v0.5.47 model currency (R-S51-D; live-verified 2026-06-22)
+        "models": ["mistral-medium-3", "mistral-small-latest", "mistral-large-latest"],
         "api_key_env": "MISTRAL_API_KEY",
         "base_url": "https://api.mistral.ai/v1",
         "free_tier": False,
@@ -261,15 +264,24 @@ class OpenAIProvider(LLMProvider):
             # Add schema hint to prompt
             messages[0]["content"] += f"\n\nRespond with valid JSON matching this schema:\n{json.dumps(output_schema, indent=2)}"
         
+        # gpt-5.x contract differs from gpt-4.x (verified live 2026-06-22): it requires
+        # `max_completion_tokens` (rejects `max_tokens` with 400) and supports ONLY the default
+        # temperature (a custom `temperature` 400s). Branch so gpt-4.x behavior is unchanged.
+        is_gpt5 = self.model.startswith("gpt-5")
+        create_kwargs = {
+            "model": self.model,
+            "messages": messages,
+            "response_format": response_format,
+        }
+        if is_gpt5:
+            create_kwargs["max_completion_tokens"] = max_tokens
+        else:
+            create_kwargs["max_tokens"] = max_tokens
+            create_kwargs["temperature"] = temperature
+
         try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                response_format=response_format
-            )
-            
+            response = await self.client.chat.completions.create(**create_kwargs)
+
             content = response.choices[0].message.content
             
             # Extract token usage
@@ -392,13 +404,13 @@ class AnthropicProvider(LLMProvider):
 
 class GeminiProvider(LLMProvider):
     """
-    Google Gemini provider implementation.
+    Google Gemini provider implementation (google.genai SDK — v0.5.47 R-S51-G).
 
-    Supports Gemini 2.5 Flash, Gemini 2.0 Flash, and other Gemini models.
+    Supports Gemini 3.x (gemini-3.1-pro-preview, gemini-3.5-flash) and the 2.5 line.
     Uses prompt engineering for structured JSON output.
 
-    Default: gemini-2.5-flash (FREE tier, reliable, fast)
-    Note: Gemini 1.5 models retired in 2026
+    Default: gemini-2.5-flash (FREE tier, reliable, fast). gemini-3.1-pro-preview
+    available as a BYOK/frontier option. Note: Gemini 1.5 models retired in 2026.
     """
 
     def __init__(
@@ -413,11 +425,14 @@ class GeminiProvider(LLMProvider):
             raise ValueError("Gemini API key not provided. Set GEMINI_API_KEY environment variable.")
         
         try:
-            import google.generativeai as genai
-            genai.configure(api_key=self.api_key)
+            # v0.5.47 (R-S51-G): migrated from the deprecated `google.generativeai` to the
+            # current `google.genai` SDK — required to serve Gemini 3.x (e.g. gemini-3.1-pro-preview),
+            # which 404s on the old SDK. Client-based API; same usage_metadata field names.
+            from google import genai
+            self.client = genai.Client(api_key=self.api_key)
             self.genai = genai
         except ImportError:
-            raise ImportError("google-generativeai package not installed. Run: pip install google-generativeai")
+            raise ImportError("google-genai package not installed. Run: pip install google-genai")
     
     def _build_response_schema(self, output_schema: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
@@ -643,13 +658,11 @@ class GeminiProvider(LLMProvider):
                     f"Respond ONLY with the JSON object, no other text.\n\nJSON:"
                 )
 
-            # Create model instance
-            model = self.genai.GenerativeModel(self.model)
-
-            # Generate response
-            response = model.generate_content(
-                prompt,
-                generation_config=gen_config
+            # Generate response (google.genai client API — v0.5.47 R-S51-G)
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=prompt,
+                config=gen_config,
             )
 
             content = response.text

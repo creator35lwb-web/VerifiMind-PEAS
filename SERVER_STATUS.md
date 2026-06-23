@@ -1,16 +1,17 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** June 19, 2026
+**Last Updated:** June 23, 2026
 
 ---
 
 ## Current Status: Operational
 
-**v0.5.46 "BYOK Robustness" — deployed June 19, 2026**
+**v0.5.47 "Model Currency" — deployed June 23, 2026**
 
 The VerifiMind MCP server is fully operational. All security gates passed. (Per-version public detail now lives in [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases) since the `/changelog` redirect in v0.5.36.)
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination) — **all free for everyone**
+- **Model Currency (v0.5.47)**: BYOK frontier menu refreshed + Gemini SDK migration. `GeminiProvider` moved to the supported `google-genai` SDK (enables Gemini 3.x); `gemini-3.1-pro-preview`/`gemini-3.5-flash` added as BYOK options. OpenAI BYOK default → `gpt-5.5` (+ gpt-5.x `max_completion_tokens` fix); Mistral → `mistral-medium-3`. All IDs live-verified before listing. Default free-tier path (Gemini 2.5 Flash + Groq) unchanged — cost/stability preserved. Probe #23 (config/secret scanner) blocked. 699 tests; pre-deploy live Trinity smoke green. R-S51 + T+L S45/S46/S51 — June 23, 2026
 - **BYOK Robustness (v0.5.46)**: production-hardening bundle surfaced by dogfooding the M2 P3 evaluation — `provider/model` shorthand now accepted server-side (fixes June-17 prod rejection of valid BYOK configs), Z/CS `max_tokens` raised 4096 → 8192 (Groq clamped per-provider) to stop verbose-model truncation, the Z token-monitor repaired (silently read 0 since v0.5.3), and structured provider evidence coerced to string for schema conformance. Strictly additive — no change to the default free-tier path. 698 tests pass. T+L S46 D-46-1/2 + S47 D-47-1 + Alton — June 19, 2026
 - **Probe Blocklist (v0.5.45)**: blocked an MCP-endpoint scanner family polluting engagement metrics — AgentSure-MCPScan (9 IPs; primary `152.55.176.35` logged ~11h of cron-driven fake "engagement"), LeakIX l9scan (2 IPs), and a self-declared `MCP-Inspector (security-scan)` IP (`14.194.11.238`, orchestrator-flagged, Sentinel-confirmed: 330-req/100s dictionary sweep, zero 200, zero leak). `BLOCKED_IPS` 10 → 22; UA-substring blocks added for `AgentSure-MCPScan` / `l9scan` / `(security-scan)` (rotation-proof, live-verified 403). Honest-metrics gate held — AY held Report 097 until this deploy. AY+AZ forensics 2026-06-12 + Sentinel 2026-06-16 — June 16, 2026
 - **Reasoning Visible (v0.5.44)**: the auditable reasoning layer is now returned by default. `run_full_trinity` gains a `detail` parameter — `standard` (default) returns a `reasoning` block (per-agent reasoning steps, Z's 5-dimension ethics scoring breakdown + framework citations + jurisdictions, CS threat level + Socratic questions, per-agent inference quality incl. `inference_warning`); `full` adds per-step evidence + the 12-dimension/6-stage/MACP detail; `summary` reproduces the exact prior response shape (opt-out). Strictly additive — no existing field changed. `consult_agent_x/z/cs` gain the same ladder; markdown report renders the breakdown + jurisdictions + threat level + degraded-inference warning. Zero new inference cost (serialization only). T+L Session 41 approved (default `standard`, `full` free). 16 new tests — June 12, 2026
