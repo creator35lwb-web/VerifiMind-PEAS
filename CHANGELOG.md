@@ -8,6 +8,27 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.48 - Scanner Cluster Block (June 28, 2026)
+
+Security-hygiene batch: three config/secret/RCE scanners blocked at the application layer (`BLOCKED_IPS` 23 → 26), one rotation-proof UA block added, two crawler UAs flagged for monitoring. Zero sensitive-path 200s confirmed across all three IPs. AY+AZ flagged the cluster in Report 099 / `.macp/handoffs/20260628_AY_AZ_to_RNA_probe_blocklist_tlm_config_scanners.md`; Sentinel independently re-verified against live GCP logs (30-day window) before recommending action. No functional change; 613 unit tests pass (3 skipped), full suite gated in CI.
+
+### What changed
+- **Probe #24 — `45.148.10.62` (CONFIG_SECRET_SCANNER):** weekly cron scanner (four rounds Jun 5/10/17/27 ~16:00 UTC, ~30 req/session, rotating browser UAs). Probed `.git/config`, `.env` tree (18+ variants), `wp-config.php`, `phpinfo.php`, `aws.config.js`. 80×404 (67%), 36×429 (30%), 4×200 on root `/` only — zero leak. Same `45.148.10.0/24` as probe #23 (`45.148.10.15`, blocked 2026-06-18).
+- **Probe #25 — `45.148.10.67` (CONFIG_SECRET_SCANNER, `TLM-Audit-Scanner/1.0`):** extreme-velocity single burst 2026-06-27 02:43:36–53 UTC (~59 req/s, 17 s, 1,000+ req). Self-identifying UA static on 100% of requests. Multi-technology credential dictionary: Stripe (`stripe-credentials.json`, `stripe-keys.json`, `stripe.env`), Terraform (`.tfvars`, `.tfstate(.backup)`), AWS Lambda (`var/task/amplify.yml`, `docker-compose.yml`, `serverless.yaml`, `next.config.*`), WordPress (`wp-config.php*`, `wp-json/gravitysmtp`, `wp-content/mysql.sql`), `.env` tree (v1/v2/v3/staging/src/srv/shop), Webmin CGI. 635×302 (HTTP→HTTPS), 364×429 (36%), 4×200 (`/`, `/register`, `/?phpinfo=1`, `/?pp=env` — all public-safe). Zero sensitive 200s. Same /24 as #23/#24.
+- **Probe #26 — `93.123.109.103` (CONFIG_RCE_SCANNER, new class):** single 6-minute burst 2026-06-24 04:41–47 UTC, 180 req @ ~0.5 req/s. Primary UA Firefox/47.0 (2016-era, static); secondary Chrome/Win10 + empty UA at overlapping timestamps (proxy cluster / multi-tool). Dictionary includes `.aws/credentials` (highest-value target), `swagger.json`, `backend/config/default.yml`, `storage/logs/laravel.log`, `apis/controllers/users.js`, `admin/controllers/merchant.js`. **Escalation:** embedded Node.js `child_process.execSync` RCE probe in a query param (`?param=test?cmd=<base64: echo VULN_TEST>`) targeting JS injection (SSTI/eval). Server is Python/FastAPI — probe returned root-page HTML, zero execution, zero leak. 108×404 (60%), 64×429 (36%), 5×200 (root + ignored query params), 3×302. New signature class `CONFIG_RCE_SCANNER`.
+- **UA block — `TLM-Audit-Scanner`:** substring added to `BLOCKED_UA_PATTERNS`; rotation-proof coverage for probe #25 and any successor IPs in the /24.
+- **Crawler UAs `agent-tools.cloud-crawler/0.1` + `mcp-rugpull-research/1.0`:** MONITOR only — originate via Cloudflare edge `172.68.23.137`, 57 live hits all 307/redirect, no config/credential probing. No UA block at this volume; re-evaluate if >20/7d or behavior shifts to credential paths.
+
+### /24 watch-item
+Three IPs now blocked in `45.148.10.0/24` (#23 + #24 + #25) within 10 days — likely a coordinated campaign or shared rented scan infra. Per Alton 2026-06-28: **remarked as a watch-item, no CIDR `/24` block now** — revisit the CIDR decision (route to T) only if a **4th** IP from this /24 appears within ~30 days.
+
+### Why
+All three scanners were already fully deflected by existing defense layers (zero sensitive-path 200s), but L1 IP blocks convert their residual handler-reach to instant 403s at zero processing cost and eliminate recurring log noise. The RCE-probe dimension on `93.123.109.103` raises urgency above hygiene-only. No engagement-metric impact (scanner hits already scrubbed from Report 099). AY+AZ forensics + Sentinel verification 2026-06-28; Alton-approved.
+
+**PR:** _pending_
+
+---
+
 ## v0.5.47 - Model Currency (June 23, 2026)
 
 Keeps the BYOK frontier-model menu current and migrates the Gemini integration to the supported SDK. All model IDs were live-verified against each provider before listing (no aspirational names). The default free-tier path (Gemini 2.5 Flash + Groq) is unchanged — cost and stability preserved. 699 tests pass; pre-deploy live Trinity smoke green on both the default and a frontier BYOK config.

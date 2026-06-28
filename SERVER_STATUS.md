@@ -1,16 +1,17 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** June 23, 2026
+**Last Updated:** June 28, 2026
 
 ---
 
 ## Current Status: Operational
 
-**v0.5.47 "Model Currency" — deployed June 23, 2026**
+**v0.5.48 "Scanner Cluster Block" — deployed June 28, 2026**
 
 The VerifiMind MCP server is fully operational. All security gates passed. (Per-version public detail now lives in [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases) since the `/changelog` redirect in v0.5.36.)
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination) — **all free for everyone**
+- **Scanner Cluster Block (v0.5.48)**: blocked a coordinated config/secret/RCE scanner cluster — `45.148.10.62` + `45.148.10.67` (CONFIG_SECRET_SCANNER, same `45.148.10.0/24` as probe #23) and `93.123.109.103` (CONFIG_RCE_SCANNER, new class — carried a Node.js `child_process.execSync` RCE probe our Python/FastAPI ignored: zero execution/leak). `TLM-Audit-Scanner` UA-substring block added (rotation-proof). `BLOCKED_IPS` 23 → 26. Zero sensitive-path 200s on all three (Sentinel re-verified live GCP, 30d). `/24` remarked as a watch-item — revisit CIDR only on a 4th IP (Alton 2026-06-28). 613 unit tests; AY+AZ Report 099 + Sentinel forensics — June 28, 2026
 - **Model Currency (v0.5.47)**: BYOK frontier menu refreshed + Gemini SDK migration. `GeminiProvider` moved to the supported `google-genai` SDK (enables Gemini 3.x); `gemini-3.1-pro-preview`/`gemini-3.5-flash` added as BYOK options. OpenAI BYOK default → `gpt-5.5` (+ gpt-5.x `max_completion_tokens` fix); Mistral → `mistral-medium-3`. All IDs live-verified before listing. Default free-tier path (Gemini 2.5 Flash + Groq) unchanged — cost/stability preserved. Probe #23 (config/secret scanner) blocked. 699 tests; pre-deploy live Trinity smoke green. R-S51 + T+L S45/S46/S51 — June 23, 2026
 - **BYOK Robustness (v0.5.46)**: production-hardening bundle surfaced by dogfooding the M2 P3 evaluation — `provider/model` shorthand now accepted server-side (fixes June-17 prod rejection of valid BYOK configs), Z/CS `max_tokens` raised 4096 → 8192 (Groq clamped per-provider) to stop verbose-model truncation, the Z token-monitor repaired (silently read 0 since v0.5.3), and structured provider evidence coerced to string for schema conformance. Strictly additive — no change to the default free-tier path. 698 tests pass. T+L S46 D-46-1/2 + S47 D-47-1 + Alton — June 19, 2026
 - **Probe Blocklist (v0.5.45)**: blocked an MCP-endpoint scanner family polluting engagement metrics — AgentSure-MCPScan (9 IPs; primary `152.55.176.35` logged ~11h of cron-driven fake "engagement"), LeakIX l9scan (2 IPs), and a self-declared `MCP-Inspector (security-scan)` IP (`14.194.11.238`, orchestrator-flagged, Sentinel-confirmed: 330-req/100s dictionary sweep, zero 200, zero leak). `BLOCKED_IPS` 10 → 22; UA-substring blocks added for `AgentSure-MCPScan` / `l9scan` / `(security-scan)` (rotation-proof, live-verified 403). Honest-metrics gate held — AY held Report 097 until this deploy. AY+AZ forensics 2026-06-12 + Sentinel 2026-06-16 — June 16, 2026
