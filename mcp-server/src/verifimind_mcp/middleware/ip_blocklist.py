@@ -106,7 +106,7 @@ BLOCKED_IPS: list[tuple[str, str, str, str]] = [
     # .git/config (high-value), .env tree (18+ variants incl. admin/.env, backend/.env), wp-config.php, phpinfo.php,
     # aws.config.js; 80x404 (67%), 36x429 (30%), 4x200 all on public root / ; ZERO sensitive 200s. Same /24 as #23
     # (45.148.10.15, 2026-06-18) and #25 (45.148.10.67, this batch). AY+AZ flagged, Sentinel-verified 2026-06-28.
-    ("45.148.10.62", "CONFIG_SECRET_SCANNER", "2026-06-28", "RNA_CSO"),  # NOSONAR: blocklist data — hardcoded scanner IP is the intended security control
+    ("45.148.10.62", "CONFIG_SECRET_SCANNER", "2026-06-28", "RNA_CSO"),  # NOSONAR
     # Config/Secret Scanner #25 (45.148.10.0/24) — UA TLM-Audit-Scanner/1.0 (self-identifying, 100% static); single
     # extreme-velocity burst 2026-06-27 02:43:36-53 UTC (~59 req/s, 17s, 1000+ req); multi-tech credential dictionary:
     # Stripe (stripe-credentials.json/keys.json/.env), Terraform (.tfvars/.tfstate(.backup)), AWS Lambda (var/task/
@@ -114,7 +114,7 @@ BLOCKED_IPS: list[tuple[str, str, str, str]] = [
     # wp-content/mysql.sql), .env tree (v1/v2/v3/staging/src/srv/shop/services/website), Webmin CGI; 635x302
     # (HTTP->HTTPS), 364x429 (36%), 4x200 (/, /register, /?phpinfo=1, /?pp=env&pp=env — all public-safe); ZERO
     # sensitive 200s. UA `TLM-Audit-Scanner` added to BLOCKED_UA_PATTERNS for rotation-proof /24 coverage.
-    ("45.148.10.67", "CONFIG_SECRET_SCANNER", "2026-06-28", "RNA_CSO"),  # NOSONAR: blocklist data — hardcoded scanner IP is the intended security control
+    ("45.148.10.67", "CONFIG_SECRET_SCANNER", "2026-06-28", "RNA_CSO"),  # NOSONAR
     # Config/RCE Scanner #26 (NEW class) — primary UA Firefox/47.0 (2016-era static); secondary Chrome/Win10 + empty
     # UA at overlapping timestamps = proxy cluster / multi-tool orchestration; single 6-min burst 2026-06-24
     # 04:41-47 UTC, 180 req @ ~0.5 req/s; probed .aws/credentials (high-value), swagger.json, backend/config/
@@ -123,7 +123,7 @@ BLOCKED_IPS: list[tuple[str, str, str, str]] = [
     # ESCALATION: embedded Node.js child_process.execSync RCE probe via query param (?param=test?cmd=<base64:echo
     # VULN_TEST>) — returned 200 root page (Python/FastAPI ignores query params; zero execution, zero leak);
     # 108x404 (60%), 64x429 (36%), 5x200 (root + ignored-query paths), 3x302; ZERO sensitive 200s. Sentinel 2026-06-28.
-    ("93.123.109.103", "CONFIG_RCE_SCANNER", "2026-06-28", "RNA_CSO"),  # NOSONAR: blocklist data — hardcoded scanner IP is the intended security control
+    ("93.123.109.103", "CONFIG_RCE_SCANNER", "2026-06-28", "RNA_CSO"),  # NOSONAR
 ]
 
 # Blocked User-Agent substrings (case-insensitive substring match)
