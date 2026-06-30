@@ -15,6 +15,7 @@ on:
       - '**.txt'
       - '**.rst'
       - 'server.json'
+      - 'sonar-project.properties'
       - 'cloudbuild.yaml'
       - '.github/workflows/publish-mcp-registry.yml'
       - '.github/workflows/docs-ci-bypass.yml'
