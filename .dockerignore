@@ -1,0 +1,36 @@
+# Root-context Docker build exclusions (applies to cloudbuild.yaml / root Dockerfile).
+#
+# NOTE: mcp-server/.dockerignore does NOT apply when the build context is the
+# repo root — Docker only reads the .dockerignore at the context root. Without
+# this file, `COPY mcp-server/ .` would ship tests/, docs/, and any local .env
+# into the production image on the Cloud Build trigger path.
+# Mirrors mcp-server/.dockerignore. Reference: RNA triage 2026-06-03.
+
+# Exclude the whole repo from the build context...
+*
+# ...except the server source the Dockerfile copies
+!mcp-server
+
+# Non-production paths inside mcp-server (last-match-wins re-excludes)
+mcp-server/tests
+mcp-server/docs
+mcp-server/examples
+mcp-server/.env
+mcp-server/.venv
+mcp-server/venv
+mcp-server/.git
+mcp-server/.gitignore
+mcp-server/.pytest_cache
+mcp-server/.coverage
+mcp-server/htmlcov
+mcp-server/.tox
+mcp-server/dist
+mcp-server/build
+mcp-server/node_modules
+mcp-server/**/__pycache__
+mcp-server/**/*.pyc
+mcp-server/**/*.pyo
+mcp-server/**/*.egg-info
+mcp-server/**/*.md
+!mcp-server/README.md
+mcp-server/**/.DS_Store
