@@ -1,6 +1,6 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** June 28, 2026
+**Last Updated:** July 7, 2026
 
 ---
 
@@ -50,7 +50,7 @@ The VerifiMind MCP server is fully operational. All security gates passed. (Per-
 - **CS Agent v1.1**: 6-stage, 12-dimension, OWASP Agentic AI Top 10
 - Input sanitization active (20+ secret patterns)
 - Rate limiting and EDoS protection active
-- GCP Cloud Run revision: `verifimind-mcp-server-00454-kqz`
+- GCP Cloud Run revision: `verifimind-mcp-server-00465-mdr` (v0.5.48 code + exact SDK pins; auto-deployed 2026-07-06 19:51 UTC by the Cloud Build trigger on the PR #271 pin merge — build `607f90bf` from commit `291c1c6`. Supersedes `00464-4f5`, the 2026-07-02 trigger deploy from PR #269, and `00463-mvj` from the June-28 release deploy)
 - CI/CD pipeline passing — 682 tests passing (696 collected, 14 skipped), 0 CodeQL medium+ alerts
 
 ---
