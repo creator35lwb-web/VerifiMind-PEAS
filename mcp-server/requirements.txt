@@ -1,15 +1,18 @@
 # VerifiMind-PEAS MCP Server Dependencies
 # Generated from pyproject.toml for CI/CD compatibility
 
-# Core MCP
-mcp>=0.1.0
-fastmcp>=0.4.1
+# Core MCP — PINNED exactly (2026-07-06): trigger deploys re-resolve deps, and the
+# 2026-07-28 MCP spec RC will land in SDKs soon; SDK bumps must be deliberate PRs.
+# Versions = what prod (rev 00464) serves and 613 unit tests pass on.
+mcp==1.28.1
+fastmcp==3.4.2
+starlette==1.3.1
 
 # Data Validation
-pydantic>=2.0.0
+pydantic==2.13.4
 
 # HTTP Client
-httpx>=0.24.1
+httpx==0.28.1
 
 # LLM Providers
 openai>=1.0.0
@@ -22,8 +25,8 @@ mistralai>=1.0.0
 python-dotenv>=1.0.0
 
 # Server Framework
-fastapi>=0.109.0
-uvicorn[standard]>=0.27.0
+fastapi==0.139.0
+uvicorn[standard]==0.49.0
 
 
 # v0.5.6 Gateway: Early Adopter Registration + Privacy
