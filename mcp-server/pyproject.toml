@@ -5,10 +5,15 @@ description = "Model Context Protocol server for VerifiMind-PEAS"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "mcp>=0.1.0",
-    "fastmcp>=0.4.1",
-    "pydantic>=2.0.0",
-    "httpx>=0.28.1",
+    # MCP/web stack PINNED exactly (2026-07-06): the Cloud Build trigger re-resolves
+    # deps on every deploy — floating floors let prod jump fastmcp 2.x -> 3.4.2
+    # unchosen (rev 00464). With the 2026-07-28 MCP spec RC landing in SDKs, SDK
+    # bumps must be deliberate PRs. Versions = what prod serves + 613 tests pass on.
+    "mcp==1.28.1",
+    "fastmcp==3.4.2",
+    "starlette==1.3.1",
+    "pydantic==2.13.4",
+    "httpx==0.28.1",
     "openai>=1.0.0",
     "anthropic>=0.94.0",
     "google-genai>=1.0.0",
@@ -16,8 +21,8 @@ dependencies = [
     "mistralai>=1.0.0",
     "python-dotenv>=1.2.2",
     "smithery>=0.4.4",
-    "fastapi>=0.109.0",
-    "uvicorn[standard]>=0.27.0",
+    "fastapi==0.139.0",
+    "uvicorn[standard]==0.49.0",
     "google-cloud-firestore>=2.26.0",
     "email-validator>=2.0.0",
     "standardwebhooks>=1.0.0"
