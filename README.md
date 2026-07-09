@@ -14,6 +14,8 @@
   [![Health](https://img.shields.io/badge/Health-LIVE-success)](https://verifimind.ysenseai.org/health)
   [![Genesis DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17972751.svg)](https://doi.org/10.5281/zenodo.17972751)
   [![MACP Thesis DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20399789.svg)](https://doi.org/10.5281/zenodo.20399789)
+  [![Dataset DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21276884.svg)](https://doi.org/10.5281/zenodo.21276884)
+  [![HuggingFace Dataset](https://img.shields.io/badge/HuggingFace-Dataset-yellow)](https://huggingface.co/datasets/YSenseAI/verifimind-peas-eval)
 </div>
 
 ---
@@ -226,6 +228,21 @@ If you use VerifiMind PEAS in research or a project, please cite. We'd love to h
 
 [![MACP DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18504478.svg)](https://doi.org/10.5281/zenodo.18504478)
 
+### VerifiMind PEAS Evaluation Dataset (M2)
+
+```bibtex
+@dataset{verifimind_peas_eval_2026,
+  author  = {Lee, Alton},
+  title   = {VerifiMind-PEAS-Eval: Multi-Model AI Validation Evaluation Dataset},
+  year    = {2026},
+  url     = {https://huggingface.co/datasets/YSenseAI/verifimind-peas-eval},
+  doi     = {10.5281/zenodo.21276884},
+  note    = {100-item dataset with 5 domains, ground-truth verdicts, multi-model scoring, and inter-annotator agreement analysis}
+}
+```
+
+[![Dataset DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21276884.svg)](https://doi.org/10.5281/zenodo.21276884)
+
 ### Defensive Publication
 
 A prior-art defensive publication is registered at DOI [10.5281/zenodo.17645665](https://doi.org/10.5281/zenodo.17645665).
@@ -248,6 +265,7 @@ A prior-art defensive publication is registered at DOI [10.5281/zenodo.17645665]
 | GitHub Discussions | [github.com/creator35lwb-web/VerifiMind-PEAS/discussions](https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions) |
 | MCP Registry listing | [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/?q=verifimind) |
 | Hugging Face demo | [YSenseAI/verifimind-peas](https://huggingface.co/spaces/YSenseAI/verifimind-peas) |
+| **Evaluation Dataset** | [YSenseAI/verifimind-peas-eval](https://huggingface.co/datasets/YSenseAI/verifimind-peas-eval) — 100 items, 5 domains, DOI [10.5281/zenodo.21276884](https://doi.org/10.5281/zenodo.21276884) |
 | Landing page | [verifimind.io](https://verifimind.io) |
 | Long-form README archive (May 10, 2026 snapshot — 87-Day Journey, 8-Skill Stack, full citation library, expanded changelog) | [docs/archive/README_2026-05-10_comprehensive.md](docs/archive/README_2026-05-10_comprehensive.md) |
 
