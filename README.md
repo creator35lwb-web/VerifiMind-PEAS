@@ -232,12 +232,14 @@ If you use VerifiMind PEAS in research or a project, please cite. We'd love to h
 
 ```bibtex
 @dataset{verifimind_peas_eval_2026,
-  author  = {Lee, Alton},
-  title   = {VerifiMind-PEAS-Eval: Multi-Model AI Validation Evaluation Dataset},
-  year    = {2026},
-  url     = {https://huggingface.co/datasets/YSenseAI/verifimind-peas-eval},
-  doi     = {10.5281/zenodo.21276884},
-  note    = {100-item dataset with 5 domains, ground-truth verdicts, multi-model scoring, and inter-annotator agreement analysis}
+  author    = {Lee, Alton Wei Bin},
+  title     = {{VerifiMind-PEAS Evaluation Dataset v1.0: Human-Annotated Ground Truth for Multi-Agent Epistemic Verification}},
+  year      = {2026},
+  publisher = {Zenodo},
+  version   = {v1.0},
+  doi       = {10.5281/zenodo.21276884},
+  url       = {https://doi.org/10.5281/zenodo.21276884},
+  note      = {100-item dataset with 5 domains, ground-truth verdicts, multi-model scoring, and inter-annotator agreement analysis}
 }
 ```
 
