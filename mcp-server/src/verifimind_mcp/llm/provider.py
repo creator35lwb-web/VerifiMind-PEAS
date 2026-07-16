@@ -29,16 +29,21 @@ Environment Variables:
 import os
 import json
 import logging
+import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Type, List
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
+# Reasoning models (Qwen3.x, DeepSeek-R1 family) prefix answers with <think>...</think>.
+# Stripped before JSON extraction so structured parsing sees only the answer payload.
+_THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+
 
 def strip_markdown_code_fences(text: str) -> str:
-    """Strip markdown code fences from LLM responses to extract clean JSON."""
-    text = text.strip()
+    """Strip reasoning think-blocks and markdown code fences to extract clean JSON."""
+    text = _THINK_BLOCK_RE.sub("", text).strip()
     lines = text.splitlines()
 
     # Find the first line that opens a code fence (e.g. ```json, ```JSON, ```)
@@ -71,7 +76,9 @@ def strip_markdown_code_fences(text: str) -> str:
 # across `default_model` fields, models list entries, and per-method defaults.)
 PROVIDER_DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 PROVIDER_DEFAULT_OPENAI_MODEL = "gpt-5.5"  # v0.5.47 model currency (R-S51-B; live-verified 2026-06-22)
-PROVIDER_DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile"
+# v0.5.49 Groq migration (D-65-6): llama-3.3-70b-versatile decommissions 2026-08-16.
+# NOTE: the namespaced ID is required — bare "gpt-oss-120b" returns 404 (live-verified 2026-07-16).
+PROVIDER_DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b"
 PROVIDER_DEFAULT_CEREBRAS_MODEL = "llama-3.3-70b"
 
 PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
@@ -106,10 +113,12 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     "groq": {
         "name": "Groq",
         "default_model": PROVIDER_DEFAULT_GROQ_MODEL,
+        # v0.5.49 (D-65-6/7): gpt-oss-120b default (open-source flagship) + qwen3.6-27b fast
+        # (replaces deprecated llama-3.1-8b-instant). Both live-verified 2026-07-16.
         "models": [
             PROVIDER_DEFAULT_GROQ_MODEL,
+            "qwen/qwen3.6-27b",
             "meta-llama/llama-4-scout-17b-16e-instruct",
-            "llama-3.1-8b-instant",
         ],
         "api_key_env": "GROQ_API_KEY",
         "base_url": "https://api.groq.com/openai/v1",

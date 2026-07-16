@@ -11,7 +11,9 @@ Version: v0.5.3
 
 
 
-# Z Agent token ceiling (Groq/Llama-3.3-70B context limit)
+# Z Agent token ceiling — matches the configured Z max_tokens (raised to 8192 in
+# v0.5.46). Originally sized to the Groq/Llama-3.3 context era; still correct for
+# the v0.5.49 default (openai/gpt-oss-120b) since it caps OUR configured output.
 Z_AGENT_CEILING = 8192
 
 # Risk thresholds

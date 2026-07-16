@@ -83,7 +83,7 @@ z_api_key: "sk-ant-..."     # Z uses your Anthropic key
 | Key Prefix | Provider Auto-Detected |
 |-----------|------------------------|
 | `sk-ant-` | Anthropic (Claude) |
-| `gsk_`    | Groq (llama-3.3-70b) |
+| `gsk_`    | Groq (gpt-oss-120b) |
 | `sk-`     | OpenAI (GPT) |
 | `AIza`    | Gemini |
 | `csk_`    | Cerebras |
@@ -99,7 +99,7 @@ Every BYOK response includes:
 | Field | Type | Description |
 |-------|------|-------------|
 | `_byok` | bool | `true` if your key was used for this call |
-| `_provider_used` | string | Model that served this agent (e.g. `groq/llama-3.3-70b-versatile`) |
+| `_provider_used` | string | Model that served this agent (e.g. `groq/openai/gpt-oss-120b`) |
 | `_byok_agents` | dict | *(Trinity only)* Per-agent BYOK status: `{X: true, Z: false, CS: false}` |
 | `_providers_used` | dict | *(Trinity only)* Per-agent model name |
 | `_session_id` | string | *(Trinity only)* 8-char unique run ID for log correlation |
@@ -122,12 +122,12 @@ The server runs on free-tier APIs by default — no key required:
 
 | `llm_provider` value | Model Used | Notes |
 |----------------------|------------|-------|
-| `groq` | `llama-3.3-70b-versatile` | Fast, free tier available |
+| `groq` | `openai/gpt-oss-120b` | Open-source flagship, free tier (v0.5.49; also `qwen/qwen3.6-27b` fast) |
 | `anthropic` | `claude-sonnet-4-6` | High quality, paid |
-| `openai` | `gpt-4.1-mini` | Paid |
+| `openai` | `gpt-5.5` | Paid (v0.5.47 currency) |
 | `gemini` | `gemini-2.5-flash` | Free tier available |
-| `cerebras` | `llama3.1-70b` | Free tier available (1M tokens/day) |
-| `mistral` | `mistral-small-latest` | Paid |
+| `cerebras` | `llama-3.3-70b` | Free tier available (1M tokens/day) |
+| `mistral` | `mistral-medium-3` | Paid (v0.5.47 currency) |
 | `mock` | `mock/test-model` | Testing only (no real inference) |
 
 ---
@@ -156,12 +156,12 @@ retires a model, the BYOK Guide and `provider.py` will be updated within
 
 | Provider | Current Default | Stable Until |
 |----------|----------------|:------------:|
-| Groq | `llama-3.3-70b-versatile` | No notice issued |
-| Gemini | `gemini-2.5-flash` | Jun 17, 2026 (then → `gemini-2.5-flash-latest`) |
+| Groq | `openai/gpt-oss-120b` | No notice issued (predecessor `llama-3.3-70b-versatile` decommissions Aug 16, 2026 — migrated in v0.5.49) |
+| Gemini | `gemini-2.5-flash` | No confirmed EOL |
 | Anthropic | `claude-sonnet-4-6` | No confirmed EOL |
-| OpenAI | `gpt-4.1-mini` | No confirmed EOL |
-| Cerebras | `llama3.1-70b` | No notice issued |
-| Mistral | `mistral-small-latest` | Stable alias — auto-tracks |
+| OpenAI | `gpt-5.5` | No confirmed EOL |
+| Cerebras | `llama-3.3-70b` | No notice issued (watch-item: Groq's llama-3.3 sunset may foreshadow Cerebras) |
+| Mistral | `mistral-medium-3` | No confirmed EOL |
 
 If you hit `model_not_found` errors, check our
 [changelog](https://verifimind.ysenseai.org/changelog) for the latest default models.
