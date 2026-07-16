@@ -13,7 +13,7 @@
   [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Listed-purple)](https://registry.modelcontextprotocol.io/?q=verifimind)
   [![Health](https://img.shields.io/badge/Health-LIVE-success)](https://verifimind.ysenseai.org/health)
   [![Genesis DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17972751.svg)](https://doi.org/10.5281/zenodo.17972751)
-  [![MACP Thesis DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20399789.svg)](https://doi.org/10.5281/zenodo.20399789)
+  [![MACP DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20399788.svg)](https://doi.org/10.5281/zenodo.20399788)
   [![Dataset DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21276884.svg)](https://doi.org/10.5281/zenodo.21276884)
   [![HuggingFace Dataset](https://img.shields.io/badge/HuggingFace-Dataset-yellow)](https://huggingface.co/datasets/YSenseAI/verifimind-peas-eval)
 </div>
@@ -312,7 +312,7 @@ For paid consultation engagements (planned, not yet active), use [GitHub Discuss
 
 ## Acknowledgments
 
-VerifiMind PEAS was built collaboratively by the **FLYWHEEL TEAM** — a human orchestrator working with multiple AI agents (Manus AI, Claude Code, Perplexity, Antigravity/Gemini, GodelAI). Multi-agent coordination uses the open [MACP](https://doi.org/10.5281/zenodo.18504478) protocol.
+VerifiMind PEAS was built collaboratively by the **FLYWHEEL TEAM** — a human orchestrator working with multiple AI agents (Manus AI, Claude Code, Perplexity, Antigravity/Gemini, GodelAI). Multi-agent coordination uses the open [MACP](https://doi.org/10.5281/zenodo.20399788) protocol (v2.5 "Loop Engineering", published 2026-07-14).
 
 The 87-day development journey is documented in the [Validation Paradox research collection](https://verifimind.ysenseai.org/research/paradox) and the [iteration handoffs](https://github.com/creator35lwb-web/verifimind-genesis-mcp) — written contemporaneously, not retrospectively.
 
@@ -320,4 +320,4 @@ External Model Council review (Claude Opus 4.7 + GPT-5.5 + Gemini 3.1 Pro, May 9
 
 ---
 
-**Last Updated:** June 4, 2026 · **Version:** v0.6.0-Beta "Adoption First" · **MACP:** v2.4.1 · **Genesis:** v2.6.1
+**Last Updated:** July 16, 2026 · **Version:** v0.6.0-Beta "Adoption First" · **MACP:** v2.5 "Loop Engineering" ([DOI](https://doi.org/10.5281/zenodo.21345820)) · **Genesis:** registry v3.13
