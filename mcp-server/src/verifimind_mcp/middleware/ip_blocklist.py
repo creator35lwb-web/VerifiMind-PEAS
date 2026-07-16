@@ -182,19 +182,26 @@ def _get_all_ips(request: Request) -> list[str]:
     return ips
 
 
+def _match_blocked_cidr(ip: str) -> str:
+    """Return the reason code if ip falls inside a blocked CIDR range, else ""."""
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return ""  # malformed XFF fragment — not a blockable address
+    for network, reason in _BLOCKED_NETWORKS:
+        if addr.version == network.version and addr in network:
+            return reason
+    return ""
+
+
 def _check_ip(request: Request) -> tuple[bool, str, str]:
     """Return (blocked, matched_ip, reason_code). Checks full XFF chain, then CIDR ranges."""
     for ip in _get_all_ips(request):
         if ip in _BLOCKED_IP_SET:
             return True, ip, _BLOCKED_IP_REASONS[ip]
-        if _BLOCKED_NETWORKS:
-            try:
-                addr = ipaddress.ip_address(ip)
-            except ValueError:
-                continue  # malformed XFF fragment — not a blockable address
-            for network, reason in _BLOCKED_NETWORKS:
-                if addr.version == network.version and addr in network:
-                    return True, ip, reason
+        cidr_reason = _match_blocked_cidr(ip)
+        if cidr_reason:
+            return True, ip, cidr_reason
     return False, "", ""
 
 
