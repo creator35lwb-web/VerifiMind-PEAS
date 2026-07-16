@@ -1,16 +1,17 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** July 7, 2026
+**Last Updated:** July 16, 2026
 
 ---
 
 ## Current Status: Operational
 
-**v0.5.48 "Scanner Cluster Block" — deployed June 28, 2026**
+**v0.5.49 "Groq Migration + CIDR Layer" — deployed July 16, 2026** (serving revision `00471-66k`)
 
 The VerifiMind MCP server is fully operational. All security gates passed. (Per-version public detail now lives in [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases) since the `/changelog` redirect in v0.5.36.)
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination) — **all free for everyone**
+- **Groq Migration + CIDR Layer (v0.5.49)**: migrated the Groq free-tier default ahead of the `llama-3.3-70b-versatile` decommission (Aug 16, 2026) — default → `openai/gpt-oss-120b`, fast option → `qwen/qwen3.6-27b` (first Qwen in production; `llama-4-scout` retained). Free tier is now the frontier+open-source hybrid (Gemini 2.5 Flash + GPT-OSS 120B). Added `<think>`-block stripping for reasoning models, `/health` `protocol_version` reporting (now `2025-11-25`), and a per-model 8k-TPM admission clamp (post-deploy smoke caught a 413; fixed-forward same hour, free-tier Trinity restored). Security: scanner #27 `45.148.10.194` + NEW `BLOCKED_CIDRS` `/24` range layer (4th confirmed IP from the subnet; T-approved; live-verified 403 on listed+unlisted subnet IPs, adjacent subnet unaffected). 641 unit tests; PRE+POST live Trinity smokes real/real/real (X=Gemini, Z+CS=GPT-OSS 120B). PRs #277/#278/#281/#285/#286 — July 16, 2026
 - **Scanner Cluster Block (v0.5.48)**: blocked a coordinated config/secret/RCE scanner cluster — `45.148.10.62` + `45.148.10.67` (CONFIG_SECRET_SCANNER, same `45.148.10.0/24` as probe #23) and `93.123.109.103` (CONFIG_RCE_SCANNER, new class — carried a Node.js `child_process.execSync` RCE probe our Python/FastAPI ignored: zero execution/leak). `TLM-Audit-Scanner` UA-substring block added (rotation-proof). `BLOCKED_IPS` 23 → 26. Zero sensitive-path 200s on all three (Sentinel re-verified live GCP, 30d). `/24` remarked as a watch-item — revisit CIDR only on a 4th IP (Alton 2026-06-28). 613 unit tests; AY+AZ Report 099 + Sentinel forensics — June 28, 2026
 - **Model Currency (v0.5.47)**: BYOK frontier menu refreshed + Gemini SDK migration. `GeminiProvider` moved to the supported `google-genai` SDK (enables Gemini 3.x); `gemini-3.1-pro-preview`/`gemini-3.5-flash` added as BYOK options. OpenAI BYOK default → `gpt-5.5` (+ gpt-5.x `max_completion_tokens` fix); Mistral → `mistral-medium-3`. All IDs live-verified before listing. Default free-tier path (Gemini 2.5 Flash + Groq) unchanged — cost/stability preserved. Probe #23 (config/secret scanner) blocked. 699 tests; pre-deploy live Trinity smoke green. R-S51 + T+L S45/S46/S51 — June 23, 2026
 - **BYOK Robustness (v0.5.46)**: production-hardening bundle surfaced by dogfooding the M2 P3 evaluation — `provider/model` shorthand now accepted server-side (fixes June-17 prod rejection of valid BYOK configs), Z/CS `max_tokens` raised 4096 → 8192 (Groq clamped per-provider) to stop verbose-model truncation, the Z token-monitor repaired (silently read 0 since v0.5.3), and structured provider evidence coerced to string for schema conformance. Strictly additive — no change to the default free-tier path. 698 tests pass. T+L S46 D-46-1/2 + S47 D-47-1 + Alton — June 19, 2026
