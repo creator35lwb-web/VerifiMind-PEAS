@@ -68,6 +68,57 @@ class TestThinkBlockStripping:
         assert json.loads(strip_markdown_code_fences(raw)) == {"b": 2}
 
 
+class TestGroqTpmClamp:
+    """8k-TPM models reject requests whose input + max_tokens reservation exceeds
+    the limit (post-deploy smoke caught a 413 on the 8192 reservation)."""
+
+    def _capture_provider(self, model):
+        import os as _os
+        from unittest.mock import AsyncMock, MagicMock, patch
+        from verifimind_mcp.llm.provider import GroqProvider
+        with patch.dict(_os.environ, {"GROQ_API_KEY": "test-key"}):
+            provider = GroqProvider(model=model)
+        captured = {}
+
+        async def fake_create(**kwargs):
+            captured.update(kwargs)
+            resp = MagicMock()
+            resp.choices = [MagicMock()]
+            resp.choices[0].message.content = '{"ok": true}'
+            resp.usage.prompt_tokens = 10
+            resp.usage.completion_tokens = 5
+            resp.usage.total_tokens = 15
+            return resp
+
+        provider.client = MagicMock()
+        provider.client.chat.completions.create = AsyncMock(side_effect=fake_create)
+        return provider, captured
+
+    def test_gpt_oss_reservation_clamped(self):
+        import asyncio
+        provider, captured = self._capture_provider("openai/gpt-oss-120b")
+        asyncio.run(provider.generate("hi", max_tokens=8192))
+        assert captured["max_tokens"] == 4096
+
+    def test_qwen_reservation_clamped(self):
+        import asyncio
+        provider, captured = self._capture_provider("qwen/qwen3.6-27b")
+        asyncio.run(provider.generate("hi", max_tokens=8192))
+        assert captured["max_tokens"] == 4096
+
+    def test_small_requests_not_inflated(self):
+        import asyncio
+        provider, captured = self._capture_provider("openai/gpt-oss-120b")
+        asyncio.run(provider.generate("hi", max_tokens=1024))
+        assert captured["max_tokens"] == 1024
+
+    def test_high_tpm_model_not_clamped(self):
+        import asyncio
+        provider, captured = self._capture_provider("meta-llama/llama-4-scout-17b-16e-instruct")
+        asyncio.run(provider.generate("hi", max_tokens=8192))
+        assert captured["max_tokens"] == 8192
+
+
 class TestHealthProtocolVersion:
 
     def test_health_exposes_protocol_version(self):
