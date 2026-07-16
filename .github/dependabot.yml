@@ -27,3 +27,10 @@ updates:
     commit-message:
       prefix: "ci"
       include: "scope"
+    # Bump all action versions in ONE PR — paired actions (codeql init/analyze)
+    # fail CI when bumped separately, and OAuth tokens without `workflow` scope
+    # cannot push a hand-made combined branch.
+    groups:
+      github-actions:
+        patterns:
+          - "*"
