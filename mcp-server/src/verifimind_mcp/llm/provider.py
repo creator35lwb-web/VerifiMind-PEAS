@@ -79,6 +79,15 @@ PROVIDER_DEFAULT_OPENAI_MODEL = "gpt-5.5"  # v0.5.47 model currency (R-S51-B; li
 # v0.5.49 Groq migration (D-65-6): llama-3.3-70b-versatile decommissions 2026-08-16.
 # NOTE: the namespaced ID is required — bare "gpt-oss-120b" returns 404 (live-verified 2026-07-16).
 PROVIDER_DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b"
+
+# Groq on_demand admission rejects any request whose input + max_tokens reservation
+# exceeds the model's TPM limit. gpt-oss-120b and qwen3.6-27b sit at 8,000 TPM
+# (llama-3.3 was 12,000, which absorbed the v0.5.46 8192 reservation) — limits
+# live-read from x-ratelimit-limit-tokens headers 2026-07-16. Clamp the completion
+# reservation so admission always fits: observed Z/CS outputs run ~1k tokens, so
+# 4096 keeps ~4x headroom. Caught by the v0.5.49 post-deploy Trinity smoke (413).
+GROQ_8K_TPM_MODELS = frozenset({"openai/gpt-oss-120b", "qwen/qwen3.6-27b"})
+GROQ_8K_TPM_COMPLETION_CAP = 4096
 PROVIDER_DEFAULT_CEREBRAS_MODEL = "llama-3.3-70b"
 
 PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
@@ -837,6 +846,11 @@ class GroqProvider(LLMProvider):
                 f"Include reasoning_steps as an ARRAY inside the single JSON object.\n"
                 f"Respond ONLY with the JSON object, no other text.\n\nJSON:"
             )
+
+        # v0.5.49 TPM-admission clamp: keep input + completion reservation under
+        # the 8k on_demand limit for gpt-oss/qwen (see GROQ_8K_TPM_MODELS above).
+        if self.model in GROQ_8K_TPM_MODELS:
+            max_tokens = min(max_tokens, GROQ_8K_TPM_COMPLETION_CAP)
 
         try:
             response = await self.client.chat.completions.create(
