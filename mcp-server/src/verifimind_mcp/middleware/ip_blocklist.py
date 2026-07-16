@@ -15,6 +15,7 @@ Audit log format:
 """
 
 import datetime
+import ipaddress
 import logging
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -124,6 +125,25 @@ BLOCKED_IPS: list[tuple[str, str, str, str]] = [
     # VULN_TEST>) — returned 200 root page (Python/FastAPI ignores query params; zero execution, zero leak);
     # 108x404 (60%), 64x429 (36%), 5x200 (root + ignored-query paths), 3x302; ZERO sensitive 200s. Sentinel 2026-06-28.
     ("93.123.109.103", "CONFIG_RCE_SCANNER", "2026-06-28", "RNA_CSO"),  # NOSONAR
+    # Config/Secret Scanner #27 (45.148.10.0/24 — FOURTH IP from this subnet, triggering the pre-agreed
+    # CIDR threshold, Alton 2026-06-28) — 959 GET across a ~50-min burst 2026-07-14T22:57-23:47Z (peak
+    # 65 req/min); secret/config crawl: /.env tree (10+ traversal encodings incl. %252e, %C0%AE, null-byte,
+    # CRLF), /etc/passwd, /.aws/credentials, /actuator/{env,heapdump,loggers}, Java/Tomcat (WEB-INF, manager/
+    # html), Next.js internals; rotating fake browser UAs across 6+ browser/OS families (botnet pattern);
+    # 949x404, 10x200 (public root / only); ZERO sensitive 200s, 0 Stream-1/DB impact. AY+AZ flagged
+    # 2026-07-15, Sentinel re-verified live GCP same day. Individual entry kept for audit granularity;
+    # successors caught by the /24 CIDR entry in BLOCKED_CIDRS below.
+    ("45.148.10.194", "CONFIG_SECRET_SCANNER", "2026-07-15", "RNA_CSO"),  # NOSONAR
+]
+
+# Blocked CIDR ranges — for subnets with repeated confirmed-scanner IPs (threshold: 4th IP from
+# the same /24, pre-agreed Alton 2026-06-28 as the v0.5.48 watch-item trigger).
+# Format: (cidr, reason_code, date_added, added_by). Checked AFTER the exact-match set misses.
+BLOCKED_CIDRS: list[tuple[str, str, str, str]] = [
+    # 45.148.10.0/24 — four confirmed CONFIG_SECRET_SCANNER IPs (.15 Jun-18, .62 + .67 Jun-28,
+    # .194 Jul-15); weekly-cron + burst crawl patterns, rotating/spoofed UAs, multi-tool orchestration;
+    # zero sensitive 200s across all four. Subnet block per the pre-agreed 4th-IP threshold.
+    ("45.148.10.0/24", "CONFIG_SECRET_SCANNER_NET", "2026-07-15", "RNA_CSO"),  # NOSONAR
 ]
 
 # Blocked User-Agent substrings (case-insensitive substring match)
@@ -139,6 +159,9 @@ BLOCKED_UA_PATTERNS: list[str] = [
 _BLOCKED_IP_SET: frozenset[str] = frozenset(ip.lower() for ip, *_ in BLOCKED_IPS)
 _BLOCKED_IP_REASONS: dict[str, str] = {ip.lower(): reason for ip, reason, *_ in BLOCKED_IPS}
 _BLOCKED_UA_LOWER: list[str] = [p.lower() for p in BLOCKED_UA_PATTERNS]
+_BLOCKED_NETWORKS: list[tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, str]] = [
+    (ipaddress.ip_network(cidr), reason) for cidr, reason, *_ in BLOCKED_CIDRS
+]
 
 # Minimal 403 response — no implementation details disclosed
 _FORBIDDEN_BODY = {
@@ -159,11 +182,26 @@ def _get_all_ips(request: Request) -> list[str]:
     return ips
 
 
+def _match_blocked_cidr(ip: str) -> str:
+    """Return the reason code if ip falls inside a blocked CIDR range, else ""."""
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return ""  # malformed XFF fragment — not a blockable address
+    for network, reason in _BLOCKED_NETWORKS:
+        if addr.version == network.version and addr in network:
+            return reason
+    return ""
+
+
 def _check_ip(request: Request) -> tuple[bool, str, str]:
-    """Return (blocked, matched_ip, reason_code). Checks full XFF chain."""
+    """Return (blocked, matched_ip, reason_code). Checks full XFF chain, then CIDR ranges."""
     for ip in _get_all_ips(request):
         if ip in _BLOCKED_IP_SET:
             return True, ip, _BLOCKED_IP_REASONS[ip]
+        cidr_reason = _match_blocked_cidr(ip)
+        if cidr_reason:
+            return True, ip, cidr_reason
     return False, "", ""
 
 
