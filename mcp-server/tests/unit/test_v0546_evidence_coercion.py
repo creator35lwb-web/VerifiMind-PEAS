@@ -9,8 +9,6 @@ preserved instead of failing validation.
 
 import json
 
-import pytest
-
 from verifimind_mcp.models.reasoning import ReasoningStep, CSAgentAnalysis
 
 
