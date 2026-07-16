@@ -8,6 +8,30 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.49 - Groq Migration + CIDR Layer (July 16, 2026)
+
+Deadline-driven model migration (Groq decommissions `llama-3.3-70b-versatile` on **August 16, 2026**) bundled with the first CIDR-range blocklist layer and MCP protocol-version reporting. The free-tier stack becomes the "frontier + open-source" hybrid T+L designed (D-65-6/7/8): Gemini 2.5 Flash (frontier) + GPT-OSS 120B (open-source) as the two free pillars. 637 unit tests pass (3 skipped); every new model ID live-verified against the Groq API before listing.
+
+### What changed
+- **Groq default → `openai/gpt-oss-120b`** (D-65-6). Live verification caught that the migration plan's bare `gpt-oss-120b` **returns 404** — Groq namespaces the ID. Aspirational-name class error prevented for the third release running (v0.5.47 caught `gemini-3.1-pro`; the verify-before-listing rule pays again).
+- **Groq fast option → `qwen/qwen3.6-27b`** (D-65-7) replacing deprecated `llama-3.1-8b-instant`; `meta-llama/llama-4-scout-17b-16e-instruct` retained. First Qwen model in production BYOK ("models as features").
+- **Reasoning-model output handling:** `<think>…</think>` blocks now stripped in the shared JSON-extraction path (`strip_markdown_code_fences`) — Qwen3.x prefixes answers with thinking tags that would otherwise break structured parsing for every provider path.
+- **`/health` now reports `protocol_version`** (MCP SDK `LATEST_PROTOCOL_VERSION`; AY/AZ ask from the MCP 2026-07-28 RC assessment) so clients can check compatibility pre-connect.
+- **Scanner #27 + CIDR layer (PR #281, merged 2026-07-16):** `45.148.10.194` (CONFIG_SECRET_SCANNER — 959 GET/72h, 949×404, zero leak) is the **4th** confirmed-malicious IP from `45.148.10.0/24`, meeting the pre-agreed threshold (v0.5.48 watch-item). NEW `BLOCKED_CIDRS` layer blocks the whole /24 (`CONFIG_SECRET_SCANNER_NET`) — exact-match wins first, CIDR fallback catches unlisted successors; malformed-XFF-safe; IP-version-matched. Sentinel 30-day sweep: 7 IPs from this /24, zero benign traffic ever. T (CTO) formally approved both decisions separately.
+- **BYOK_GUIDE table refresh:** correction-propagation sweep aligned all provider rows to `PROVIDER_CONFIGS` (OpenAI `gpt-5.5`, Mistral `mistral-medium-3`, Cerebras `llama-3.3-70b` — v0.5.47 currency had missed the guide).
+- **Deps:** uvicorn 0.51.0 (#277), fastmcp 3.4.4 (#278); `mcp` stays pinned 1.28.1.
+
+### Watch-items
+- Cerebras `llama-3.3-70b` default: unverifiable without a key (no CEREBRAS_API_KEY held); Groq's llama-3.3 sunset may foreshadow Cerebras — monitor.
+- Groq deprecated IDs remain live upstream until Aug 16; users pinning them explicitly get provider-side errors after that date.
+
+### Why
+Migrating 31 days before the decommission cliff, not after it. The hybrid free-tier stack structurally embodies the model-heterogeneity thesis (the infrastructure IS the methodology), at zero burn-rate. The CIDR layer ends per-IP whack-a-mole against a subnet with zero benign history — forecast (70%): the next `45.148.10.x` scanner is silently 403'd with no deploy.
+
+**PRs:** #277, #278, #281, this release PR.
+
+---
+
 ## v0.5.48 - Scanner Cluster Block (June 28, 2026)
 
 Security-hygiene batch: three config/secret/RCE scanners blocked at the application layer (`BLOCKED_IPS` 23 → 26), one rotation-proof UA block added, two crawler UAs flagged for monitoring. Zero sensitive-path 200s confirmed across all three IPs. AY+AZ flagged the cluster in Report 099 / `.macp/handoffs/20260628_AY_AZ_to_RNA_probe_blocklist_tlm_config_scanners.md`; Sentinel independently re-verified against live GCP logs (30-day window) before recommending action. No functional change; 613 unit tests pass (3 skipped), full suite gated in CI.

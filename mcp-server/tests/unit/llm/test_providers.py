@@ -75,11 +75,14 @@ class TestProviderConfiguration:
         assert 'gpt-5.5' in info['models']
         assert 'gpt-4.1' in info['models']
 
-    def test_groq_mixtral_removed(self):
-        """Verify deprecated mixtral model removed from Groq."""
+    def test_groq_deprecated_models_removed(self):
+        """Verify deprecated Groq models removed (v0.5.49: llama-3.3/3.1 decommission Aug 16)."""
         info = get_provider_info('groq')
         assert 'mixtral-8x7b-32768' not in info['models'], "Deprecated Mixtral still listed"
-        assert 'llama-3.3-70b-versatile' in info['models']
+        assert 'llama-3.3-70b-versatile' not in info['models'], "Decommissioned llama-3.3 still listed"
+        assert 'llama-3.1-8b-instant' not in info['models'], "Deprecated llama-3.1 still listed"
+        assert 'openai/gpt-oss-120b' in info['models']
+        assert 'qwen/qwen3.6-27b' in info['models']
 
     def test_list_providers_returns_all(self):
         """Test list_providers returns all configured providers."""
@@ -236,13 +239,13 @@ class TestProviderClasses:
         assert provider.get_model_name() == "ollama/llama3.2"
 
     def test_groq_default_model(self):
-        """Test GroqProvider uses llama-3.3-70b-versatile by default."""
+        """Test GroqProvider uses openai/gpt-oss-120b by default (v0.5.49, D-65-6)."""
         from verifimind_mcp.llm.provider import GroqProvider
         with patch.dict(os.environ, {'GROQ_API_KEY': 'test-key'}):
             try:
                 provider = GroqProvider()
-                assert provider.model == "llama-3.3-70b-versatile"
-                assert provider.get_model_name() == "groq/llama-3.3-70b-versatile"
+                assert provider.model == "openai/gpt-oss-120b"
+                assert provider.get_model_name() == "groq/openai/gpt-oss-120b"
             except ImportError:
                 pytest.skip("groq package not installed")
 

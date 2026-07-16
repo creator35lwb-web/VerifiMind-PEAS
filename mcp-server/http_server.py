@@ -64,7 +64,14 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.48"
+SERVER_VERSION = "0.5.49"
+
+# MCP protocol version the server speaks (v0.5.49, AY/AZ ask from the MCP RC
+# assessment) — surfaced in /health so clients can check compatibility pre-connect.
+try:
+    from mcp.types import LATEST_PROTOCOL_VERSION as MCP_PROTOCOL_VERSION
+except ImportError:  # never let a health field break the server
+    MCP_PROTOCOL_VERSION = "unknown"
 
 # MCP endpoint constants — single source of truth for URL/path strings used in
 # JSON responses, quickstart commands, and HTML setup pages. Extracted in v0.5.32
@@ -127,6 +134,7 @@ async def health_handler(request):
         "health_version": 2,
         "inference_mode": _get_inference_mode(),
         "transport": "streamable-http",
+        "protocol_version": MCP_PROTOCOL_VERSION,
         "uptime_seconds": uptime_seconds,
         "server_started": _SERVER_START_ISO,
         "endpoints": {
@@ -182,7 +190,7 @@ async def mcp_config_handler(request):
                 "tools": 13,
                 "features": {
                     "agents": ["X (Innovation)", "Z (Ethics)", "CS (Security)"],
-                    "models": ["Gemini 2.5 Flash (FREE)", "Claude Sonnet 4.6 (BYOK)", "GPT-4.1-mini (BYOK)", "Groq Llama 3.3 (FREE)"],
+                    "models": ["Gemini 2.5 Flash (FREE)", "Claude Sonnet 4.6 (BYOK)", "GPT-4.1-mini (BYOK)", "Groq GPT-OSS 120B (FREE)", "Groq Qwen3.6 27B (FREE)"],
                     "cost_per_validation": "$0 (FREE tier)",
                     "byok": True,
                     "smart_fallback": True,

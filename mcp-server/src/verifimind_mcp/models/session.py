@@ -28,7 +28,7 @@ class SessionContext:
     Usage::
 
         session = SessionContext(concept_name="My Idea")
-        session.write("X", {"score": 7.5, "provider": "groq/llama-3.3-70b"})
+        session.write("X", {"score": 7.5, "provider": "groq/openai/gpt-oss-120b"})
         session.write("Z", {"score": 8.0, "veto": False})
         session.write("CS", {"score": 6.5})
 
