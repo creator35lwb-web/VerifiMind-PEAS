@@ -10,9 +10,8 @@ Date: December 21, 2025
 Version: 1.0.0
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any
 from dataclasses import dataclass
-import random
 
 
 @dataclass
@@ -87,41 +86,12 @@ class LLMConfig:
         }
 
 
-@dataclass
-class RetryConfig:
-    """Retry configuration for API reliability."""
-    
-    max_retries: int = 3
-    initial_delay: float = 1.0  # seconds
-    max_delay: float = 60.0  # seconds
-    exponential_base: float = 2.0  # 1s → 2s → 4s → 8s
-    jitter: bool = True  # Add randomness to prevent thundering herd
-    
-    # HTTP status codes to retry on
-    retry_on_errors: List[int] = None
-    
-    def __post_init__(self):
-        if self.retry_on_errors is None:
-            self.retry_on_errors = [
-                429,  # Rate limit
-                500,  # Internal server error
-                502,  # Bad gateway
-                503,  # Service unavailable
-                529,  # Overloaded (Anthropic)
-            ]
-    
-    def calculate_delay(self, attempt: int) -> float:
-        """Calculate delay for given attempt with exponential backoff and jitter."""
-        delay = min(
-            self.initial_delay * (self.exponential_base ** attempt),
-            self.max_delay
-        )
-        
-        if self.jitter:
-            # Add 50-150% randomness to prevent thundering herd
-            delay *= (0.5 + random.random())
-        
-        return delay
+# RetryConfig removed in v0.5.50 (Foundation Inspection F-R1): the retry
+# subsystem (utils/retry.py + this config) was never imported by any runtime
+# code — dead since Dec 2025, implying a resilience contract the runtime did
+# not have. Resilience lives in the provider fallback chain + structured
+# errors. If retries are ever wanted, design them at the provider layer with
+# Retry-After awareness — do not resurrect this block blind.
 
 
 @dataclass
@@ -169,15 +139,12 @@ class StandardConfig:
     """Complete standard configuration for VerifiMind PEAS."""
     
     llm: LLMConfig = None
-    retry: RetryConfig = None
     rate_limit: RateLimitConfig = None
     monitoring: MonitoringConfig = None
-    
+
     def __post_init__(self):
         if self.llm is None:
             self.llm = LLMConfig()
-        if self.retry is None:
-            self.retry = RetryConfig()
         if self.rate_limit is None:
             self.rate_limit = RateLimitConfig()
         if self.monitoring is None:
