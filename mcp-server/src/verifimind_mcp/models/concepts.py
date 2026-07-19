@@ -7,7 +7,7 @@ including input concepts, validation requests, and configuration.
 
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Concept(BaseModel):
@@ -25,17 +25,16 @@ class Concept(BaseModel):
     constraints: Optional[List[str]] = Field(None, description="Known constraints or limitations")
     created_at: datetime = Field(default_factory=datetime.now)
     
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "name": "AI-Powered Code Review",
-                "description": "An AI system that automatically reviews code for bugs, security issues, and best practices.",
-                "context": "For a software development team of 50 engineers",
-                "domain": "software_development",
-                "stakeholders": ["developers", "security team", "management"],
-                "constraints": ["must work offline", "budget under $10k/month"]
-            }
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "name": "AI-Powered Code Review",
+            "description": "An AI system that automatically reviews code for bugs, security issues, and best practices.",
+            "context": "For a software development team of 50 engineers",
+            "domain": "software_development",
+            "stakeholders": ["developers", "security team", "management"],
+            "constraints": ["must work offline", "budget under $10k/month"]
         }
+    })
 
 
 class ValidationRequest(BaseModel):

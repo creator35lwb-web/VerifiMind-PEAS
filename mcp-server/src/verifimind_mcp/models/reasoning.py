@@ -9,7 +9,7 @@ and with humans for full auditability.
 import json
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class ReasoningStep(BaseModel):
@@ -49,15 +49,14 @@ class ReasoningStep(BaseModel):
                 return str(v)
         return str(v)
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "step_number": 1,
-                "thought": "This concept involves AI automation of code review, which is a growing market.",
-                "evidence": "GitHub Copilot and similar tools have seen 40% YoY growth.",
-                "confidence": 0.85
-            }
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "step_number": 1,
+            "thought": "This concept involves AI automation of code review, which is a growing market.",
+            "evidence": "GitHub Copilot and similar tools have seen 40% YoY growth.",
+            "confidence": 0.85
         }
+    })
 
 
 class ChainOfThought(BaseModel):
