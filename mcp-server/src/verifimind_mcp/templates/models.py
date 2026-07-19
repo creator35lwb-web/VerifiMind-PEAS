@@ -15,7 +15,7 @@ Version: 0.4.0
 from datetime import datetime
 from enum import Enum
 from typing import Optional, List, Any
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class GenesisPhase(str, Enum):
@@ -81,17 +81,16 @@ class TemplateVariable(BaseModel):
             raise ValueError(f"Invalid type_hint: {v}. Must be one of: {valid_types}")
         return v.lower()
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "name": "concept_name",
-                "description": "Name of the concept to analyze",
-                "type_hint": "str",
-                "required": True,
-                "default": None,
-                "examples": ["AI Code Review", "Blockchain Voting System"]
-            }
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "name": "concept_name",
+            "description": "Name of the concept to analyze",
+            "type_hint": "str",
+            "required": True,
+            "default": None,
+            "examples": ["AI Code Review", "Blockchain Voting System"]
         }
+    })
 
 
 class PromptTemplate(BaseModel):
@@ -249,18 +248,17 @@ class PromptTemplate(BaseModel):
         """Check if template is compatible with a provider."""
         return provider.lower() in [p.lower() for p in self.compatible_providers]
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "template_id": "startup-validation-x",
-                "name": "Startup Concept Validation",
-                "agent_id": "X",
-                "content": "Analyze {concept_name}: {concept_description}",
-                "version": "1.0.0",
-                "category": "startup",
-                "tags": ["genesis:phase-1", "innovation", "startup"]
-            }
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "template_id": "startup-validation-x",
+            "name": "Startup Concept Validation",
+            "agent_id": "X",
+            "content": "Analyze {concept_name}: {concept_description}",
+            "version": "1.0.0",
+            "category": "startup",
+            "tags": ["genesis:phase-1", "innovation", "startup"]
         }
+    })
 
 
 class TemplateLibraryEntry(BaseModel):
@@ -307,18 +305,17 @@ class TemplateLibraryEntry(BaseModel):
         description="Path to library YAML file"
     )
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "library_id": "startup_validation",
-                "name": "Startup Validation Templates",
-                "description": "Templates for validating startup concepts",
-                "templates": ["startup-validation-x", "startup-quick-check"],
-                "agent_id": "X",
-                "genesis_phase": "genesis:phase-1",
-                "category": "startup"
-            }
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "library_id": "startup_validation",
+            "name": "Startup Validation Templates",
+            "description": "Templates for validating startup concepts",
+            "templates": ["startup-validation-x", "startup-quick-check"],
+            "agent_id": "X",
+            "genesis_phase": "genesis:phase-1",
+            "category": "startup"
         }
+    })
 
 
 class ExportConfig(BaseModel):
