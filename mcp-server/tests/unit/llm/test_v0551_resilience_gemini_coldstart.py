@@ -139,7 +139,7 @@ def test_generate_real_quality_and_usage_mapping(clean_env):
     out = asyncio.run(p.generate("analyze", output_schema=SCHEMA,
                                  temperature=0.3, max_tokens=2048))
     assert out["_inference_quality"] == "real"
-    assert out["content"]["innovation_score"] == 7.5
+    assert out["content"]["innovation_score"] == pytest.approx(7.5)
     # usage_metadata field names map onto the provider-neutral usage dict
     assert out["usage"] == {"input_tokens": 11, "output_tokens": 5, "total_tokens": 16}
     # config passthrough (google.genai takes max_output_tokens, not max_tokens)
@@ -166,7 +166,7 @@ def test_fenced_json_is_stripped(clean_env):
     }) + "\n```"
     p, _ = _gemini(response=_RespWithUsage(fenced), monkeypatch=clean_env)
     out = asyncio.run(p.generate("x", output_schema=SCHEMA))
-    assert out["content"]["innovation_score"] == 8.0
+    assert out["content"]["innovation_score"] == pytest.approx(8.0)
     assert out["_inference_quality"] == "real"
 
 
@@ -182,8 +182,8 @@ def test_partial_output_filled_and_marked_partial(clean_env):
     # every required field present after schema-default fill...
     for field in SCHEMA["required"]:
         assert field in content
-    assert content["innovation_score"] == 6.0          # model value kept
-    assert content["strategic_value"] == 5.0           # midpoint default
+    assert content["innovation_score"] == pytest.approx(6.0)  # model value kept
+    assert content["strategic_value"] == pytest.approx(5.0)   # midpoint default
     # ...and the synthesis layer is told this was not a clean pass
     assert out["_inference_quality"] == "partial"
 
@@ -201,7 +201,7 @@ def test_scattered_step_objects_merged_below_half_overlap(clean_env):
     out = asyncio.run(p.generate("x", output_schema=SCHEMA))
     content = out["content"]
     assert len(content["reasoning_steps"]) == 2      # real steps recovered
-    assert content["innovation_score"] == 7.0
+    assert content["innovation_score"] == pytest.approx(7.0)
     assert out["_inference_quality"] in ("partial", "fallback")
 
 
@@ -222,7 +222,7 @@ def test_half_overlap_boundary_skips_merge_and_drops_steps(clean_env):
     p, _ = _gemini(response=_RespWithUsage(scattered), monkeypatch=clean_env)
     out = asyncio.run(p.generate("x", output_schema=SCHEMA))
     content = out["content"]
-    assert content["innovation_score"] == 7.0
+    assert content["innovation_score"] == pytest.approx(7.0)
     # the two real steps were dropped; the fill layer synthesized one placeholder
     assert len(content["reasoning_steps"]) == 1
     assert content["reasoning_steps"][0]["thought"].startswith("Analysis was partially")
@@ -243,8 +243,9 @@ def test_missing_usage_metadata_degrades_to_zeros(clean_env):
 
 def test_sdk_error_propagates(clean_env):
     p, _ = _gemini(exc=RuntimeError("503 Service Unavailable"), monkeypatch=clean_env)
+    coro = p.generate("x", output_schema=SCHEMA)
     with pytest.raises(RuntimeError):
-        asyncio.run(p.generate("x", output_schema=SCHEMA))
+        asyncio.run(coro)
 
 
 def test_keyless_gemini_cascades_to_groq(clean_env):
