@@ -179,7 +179,11 @@ class TestRegisterEarlyAdopter:
         assert result.tier == "early_adopter"
         assert result.tc_version == TERMS_VERSION
         assert result.privacy_version == PRIVACY_POLICY_VERSION
-        assert result.uuid in result.opt_out_url
+        # v0.5.50 (F-RES-1): without Firestore the registration is NOT saved
+        # and the response says so instead of promising benefits.
+        assert result.persisted is False
+        assert "NOT saved" in result.message
+        assert result.opt_out_url == "/register"
 
     async def test_new_registration_uuid_is_valid(self):
         import uuid
@@ -200,7 +204,10 @@ class TestRegisterEarlyAdopter:
             result = await register_early_adopter(
                 _make_registration(feedback="Great tool!")
             )
-        assert result.feedback_received is True
+        # v0.5.50 (F-RES-1): storage down -> the feedback was NOT stored either,
+        # so the flag is honestly False on the degraded path.
+        assert result.feedback_received is False
+        assert result.persisted is False
 
     async def test_no_feedback_flag_false(self):
         with patch("verifimind_mcp.registration._get_firestore", return_value=None):
