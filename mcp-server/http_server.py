@@ -44,6 +44,7 @@ from verifimind_mcp.registration import (
     FeedbackRequest,
     SlotCapReachedError,
     register_early_adopter,
+    firestore_health,
     get_ea_status,
     submit_feedback,
     process_optout,
@@ -64,7 +65,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.49"
+SERVER_VERSION = "0.5.50"
 
 # MCP protocol version the server speaks (v0.5.49, AY/AZ ask from the MCP RC
 # assessment) — surfaced in /health so clients can check compatibility pre-connect.
@@ -133,6 +134,7 @@ async def health_handler(request):
         "version": SERVER_VERSION,
         "health_version": 2,
         "inference_mode": _get_inference_mode(),
+        "firestore": firestore_health(),
         "transport": "streamable-http",
         "protocol_version": MCP_PROTOCOL_VERSION,
         "uptime_seconds": uptime_seconds,

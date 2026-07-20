@@ -856,6 +856,15 @@ document.getElementById('register-form').addEventListener('submit', async functi
     var data = await resp.json();
 
     if (resp.ok || resp.status === 201) {
+      if (data.persisted === false) {
+        // v0.5.50 (F-RES-1): storage degraded — never show success for a
+        // registration that was not saved.
+        errDiv.textContent = data.message || 'Registration storage is temporarily unavailable — your registration was NOT saved. Please try again in a few minutes.';
+        errDiv.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Register as Early Adopter';
+        return;
+      }
       // Show success state — textContent only (XSS-safe)
       document.getElementById('register-form').classList.add('hidden');
       var successDiv = document.getElementById('success-state');
