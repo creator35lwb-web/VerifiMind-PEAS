@@ -45,7 +45,7 @@ def _anthropic_style_response(text: str, in_toks=10, out_toks=5):
 def _capture(provider, response):
     captured = {}
 
-    async def fake_create(**kwargs):
+    def fake_create(**kwargs):
         captured.update(kwargs)
         return response
 
@@ -60,11 +60,11 @@ def _capture(provider, response):
 async def test_openai_gpt4x_sends_max_tokens_and_temperature():
     with patch.dict("os.environ", {"OPENAI_API_KEY": "sk-test"}):
         p = OpenAIProvider(model="gpt-4.1")
-    captured, p.client = {}, MagicMock()
+    p.client = MagicMock()
     captured, p.client.chat.completions.create = _capture(p, _openai_style_response('{"ok": 1}'))
     await p.generate("hi", temperature=0.3, max_tokens=1234)
     assert captured["max_tokens"] == 1234
-    assert captured["temperature"] == 0.3
+    assert captured["temperature"] == pytest.approx(0.3)
     assert "max_completion_tokens" not in captured
 
 
@@ -74,7 +74,7 @@ async def test_openai_gpt5x_sends_max_completion_tokens_no_temperature():
     must send max_completion_tokens only (v0.5.47 contract)."""
     with patch.dict("os.environ", {"OPENAI_API_KEY": "sk-test"}):
         p = OpenAIProvider(model="gpt-5.5")
-    captured, p.client = {}, MagicMock()
+    p.client = MagicMock()
     captured, p.client.chat.completions.create = _capture(p, _openai_style_response('{"ok": 1}'))
     await p.generate("hi", temperature=0.3, max_tokens=1234)
     assert captured["max_completion_tokens"] == 1234
@@ -86,7 +86,7 @@ async def test_openai_gpt5x_sends_max_completion_tokens_no_temperature():
 async def test_openai_clean_json_parses_real_quality():
     with patch.dict("os.environ", {"OPENAI_API_KEY": "sk-test"}):
         p = OpenAIProvider(model="gpt-4.1")
-    _, p.client = {}, MagicMock()
+    p.client = MagicMock()
     _, p.client.chat.completions.create = _capture(p, _openai_style_response('{"score": 7}'))
     out = await p.generate("hi")
     assert out["content"] == {"score": 7}
@@ -98,7 +98,7 @@ async def test_openai_clean_json_parses_real_quality():
 async def test_openai_fenced_json_is_stripped():
     with patch.dict("os.environ", {"OPENAI_API_KEY": "sk-test"}):
         p = OpenAIProvider(model="gpt-4.1")
-    _, p.client = {}, MagicMock()
+    p.client = MagicMock()
     _, p.client.chat.completions.create = _capture(
         p, _openai_style_response('```json\n{"score": 8}\n```'))
     out = await p.generate("hi")
@@ -111,7 +111,7 @@ async def test_openai_unparseable_content_returns_raw_response_contract():
     parse_error for the downstream coercion/fill layer."""
     with patch.dict("os.environ", {"OPENAI_API_KEY": "sk-test"}):
         p = OpenAIProvider(model="gpt-4.1")
-    _, p.client = {}, MagicMock()
+    p.client = MagicMock()
     _, p.client.chat.completions.create = _capture(
         p, _openai_style_response("I am not JSON at all"))
     out = await p.generate("hi")
@@ -139,7 +139,7 @@ async def test_groq_think_block_content_parses(monkeypatch):
     through the REAL GroqProvider.generate body."""
     monkeypatch.setenv("GROQ_API_KEY", "gsk_test")
     p = GroqProvider(model="qwen/qwen3.6-27b")
-    _, p.client = {}, MagicMock()
+    p.client = MagicMock()
     _, p.client.chat.completions.create = _capture(
         p, _openai_style_response('<think>\nreasoning...\n</think>\n{"score": 6}'))
     out = await p.generate("hi")
@@ -150,7 +150,7 @@ async def test_groq_think_block_content_parses(monkeypatch):
 async def test_groq_8k_model_clamps_reservation_in_real_body(monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", "gsk_test")
     p = GroqProvider(model="openai/gpt-oss-120b")
-    captured, p.client = {}, MagicMock()
+    p.client = MagicMock()
     captured, p.client.chat.completions.create = _capture(p, _openai_style_response('{"ok": 1}'))
     await p.generate("hi", max_tokens=8192)
     assert captured["max_tokens"] == GROQ_8K_TPM_COMPLETION_CAP
@@ -160,7 +160,7 @@ async def test_groq_8k_model_clamps_reservation_in_real_body(monkeypatch):
 async def test_groq_schema_hint_added_to_prompt(monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", "gsk_test")
     p = GroqProvider(model="openai/gpt-oss-120b")
-    captured, p.client = {}, MagicMock()
+    p.client = MagicMock()
     captured, p.client.chat.completions.create = _capture(p, _openai_style_response('{"a": 1}'))
     await p.generate("analyze", output_schema={"required": ["a"], "properties": {"a": {"type": "integer"}}})
     sent = captured["messages"][0]["content"]
@@ -175,11 +175,11 @@ async def test_groq_schema_hint_added_to_prompt(monkeypatch):
 async def test_anthropic_fenced_json_parses(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
     p = AnthropicProvider()
-    _, p.client = {}, MagicMock()
+    p.client = MagicMock()
     _, p.client.messages.create = _capture(
         p, _anthropic_style_response('```json\n{"ethics_score": 8.5}\n```'))
     out = await p.generate("hi")
-    assert out["content"].get("ethics_score") == 8.5
+    assert out["content"].get("ethics_score") == pytest.approx(8.5)
     assert out["usage"]["total_tokens"] == 15
 
 

@@ -19,17 +19,17 @@ from verifimind_mcp.llm.provider import MockProvider, GroqProvider, AnthropicPro
 # ---------------------------------------------------------------------------
 
 def test_no_params_returns_none_server_default():
-    assert create_ephemeral_provider(None, None) is None
+    assert create_ephemeral_provider() is None
 
 
 def test_provider_without_key_falls_back_to_server_default():
     """Real-provider name with no key must NOT raise — fall back (the server
     may hold the env key)."""
-    assert create_ephemeral_provider("groq", None) is None
+    assert create_ephemeral_provider(llm_provider="groq") is None
 
 
 def test_mock_needs_no_key():
-    p = create_ephemeral_provider("mock", None)
+    p = create_ephemeral_provider(llm_provider="mock")
     assert isinstance(p, MockProvider)
 
 
@@ -55,18 +55,18 @@ def test_shorthand_anthropic_model_carried():
 # ---------------------------------------------------------------------------
 
 def test_sk_ant_prefix_detects_anthropic_not_openai():
-    p = create_ephemeral_provider(None, "sk-ant-abc123")
+    p = create_ephemeral_provider(api_key="sk-ant-abc123")
     assert isinstance(p, AnthropicProvider)
 
 
 def test_gsk_prefix_detects_groq():
-    p = create_ephemeral_provider(None, "gsk_abc123")
+    p = create_ephemeral_provider(api_key="gsk_abc123")
     assert isinstance(p, GroqProvider)
 
 
 def test_unknown_prefix_raises_clear_error():
     with pytest.raises(ValueError) as e:
-        create_ephemeral_provider(None, "zz-unknownkey")
+        create_ephemeral_provider(api_key="zz-unknownkey")
     assert "auto-detect" in str(e.value)
 
 

@@ -80,7 +80,7 @@ class TestGroqTpmClamp:
             provider = GroqProvider(model=model)
         captured = {}
 
-        async def fake_create(**kwargs):
+        def fake_create(**kwargs):
             captured.update(kwargs)
             resp = MagicMock()
             resp.choices = [MagicMock()]
