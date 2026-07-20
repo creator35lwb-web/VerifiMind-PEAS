@@ -71,18 +71,18 @@ def uniform(v: float):
 
 def test_weights_30_40_30():
     # X-avg=6 (0.3*6=1.8) + Z=8 (0.4*8=3.2) + CS=5 (0.3*5=1.5) = 6.5
-    assert calculate_overall_score(x(4, 8), z(8), cs(5)) == 6.5
+    assert calculate_overall_score(x(4, 8), z(8), cs(5)) == pytest.approx(6.5)
 
 
 def test_x_score_is_mean_of_innovation_and_strategic():
-    assert calculate_overall_score(x(10, 0), z(5), cs(5)) == \
-           calculate_overall_score(x(5, 5), z(5), cs(5))
+    assert calculate_overall_score(x(10, 0), z(5), cs(5)) == pytest.approx(
+        calculate_overall_score(x(5, 5), z(5), cs(5)))
 
 
 def test_uniform_scores_pass_through():
     for v in (0.0, 4.0, 5.5, 7.5, 10.0):
         xa, za, ca = uniform(v)
-        assert calculate_overall_score(xa, za, ca) == v
+        assert calculate_overall_score(xa, za, ca) == pytest.approx(v)
 
 
 # ---------------------------------------------------------------------------
@@ -99,7 +99,7 @@ def test_uniform_scores_pass_through():
 def test_verdict_thresholds_exact(overall, expected):
     xa, za, ca = uniform(overall)
     score = calculate_overall_score(xa, za, ca)
-    assert score == overall
+    assert score == pytest.approx(overall)
     assert determine_recommendation(score, za, ca) == expected
 
 
@@ -114,7 +114,7 @@ def test_reject_branch_requires_cs_at_least_4():
     # CS=4.0, X=0, Z=0 -> overall = 0*0.3 + 0*0.4 + 4.0*0.3 = 1.2 -> reject
     za0, ca4 = z(0.0), cs(4.0)
     score = calculate_overall_score(x(0.0), za0, ca4)
-    assert score == 1.2
+    assert score == pytest.approx(1.2)
     assert determine_recommendation(score, za0, ca4) == "reject"
 
 
@@ -131,7 +131,7 @@ def test_revise_hedge_band_is_5_5_to_7_4():
 # ---------------------------------------------------------------------------
 
 def test_veto_caps_score_at_3():
-    assert calculate_overall_score(x(10), z(10, veto=True), cs(10)) == 3.0
+    assert calculate_overall_score(x(10), z(10, veto=True), cs(10)) == pytest.approx(3.0)
 
 
 def test_veto_forces_reject_even_with_high_scores():
@@ -150,7 +150,7 @@ def test_veto_beats_degraded_z():
 
 @pytest.mark.parametrize("quality", ["partial", "fallback"])
 def test_degraded_z_caps_score_at_4(quality):
-    assert calculate_overall_score(x(10), z(10), cs(10), z_quality=quality) == 4.0
+    assert calculate_overall_score(x(10), z(10), cs(10), z_quality=quality) == pytest.approx(4.0)
 
 
 @pytest.mark.parametrize("quality", ["partial", "fallback"])
@@ -161,7 +161,7 @@ def test_degraded_z_forces_revise_even_at_perfect_scores(quality):
 def test_mock_quality_is_excluded_from_the_fail_safe():
     """'mock' is test-mode with its own synthetic warning — by design it does
     NOT trigger the degraded cap (documented exclusion, v0.5.43)."""
-    assert calculate_overall_score(x(10), z(10), cs(10), z_quality="mock") == 10.0
+    assert calculate_overall_score(x(10), z(10), cs(10), z_quality="mock") == pytest.approx(10.0)
     assert determine_recommendation(10.0, z(10), cs(10), z_quality="mock") == "proceed"
 
 
