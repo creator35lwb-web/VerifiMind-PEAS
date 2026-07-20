@@ -10,13 +10,12 @@ The robustness risk matrix routed two MED residuals here:
    was documented but never proven in CI.
 2. Firestore degradation (`registration.py`) — the db-None paths were dark.
 
-FINDING F-RES-1 (pinned below, routed for decision): with Firestore down,
-`register_early_adopter` returns a SUCCESS response carrying a UUID that was
-never persisted — the user is told "save your UUID" but /whoami will never
-recognize it. Graceful degradation by design (warning logged), but silent to
-the user. Candidate fixes (T/Alton decision): disclose degradation in the
-response message, or fail explicitly with 503. Current behavior is PINNED
-here so any change is conscious.
+FINDING F-RES-1 — RESOLVED v0.5.50 (option (a), Alton decision on Hub #81):
+with Firestore down, `register_early_adopter` used to return a SUCCESS
+response carrying a UUID that was never persisted (silent to the user). Now
+the response discloses the degradation: persisted=False, honest "NOT saved"
+message, no benefit promises; /health exposes a `firestore` connectivity
+field so the degradation is observable. Tests below assert the NEW contract.
 """
 
 import asyncio
@@ -173,19 +172,40 @@ def test_ea_status_returns_none_when_db_down(no_firestore):
 
 
 def test_register_degrades_gracefully_without_db(no_firestore):
-    """F-RES-1 (PINNED current behavior — routed for decision): registration
-    with Firestore down still returns success + a UUID that was NEVER
-    persisted. No crash, email masked — but the degradation is silent to the
-    user, whose UUID will never resolve. Any change to this behavior must
-    consciously update this test."""
+    """F-RES-1 RESOLVED (v0.5.50, option (a) — Alton decision on Hub #81):
+    registration with Firestore down no longer pretends success. The response
+    stays available (no 5xx) but discloses that nothing was saved:
+    persisted=False + an honest message, no benefit promises. The register-page
+    JS branches on persisted===false and shows the error state."""
     data = reg.EarlyAdopterRegistration(
         email="resilience-probe@example.com",
         tc_accepted=True,
         privacy_acknowledged=True,
     )
     resp = asyncio.run(reg.register_early_adopter(data))
-    assert resp.uuid  # a UUID is issued...
+    assert resp.persisted is False
+    assert "NOT saved" in resp.message
+    assert "save it" not in resp.message  # the old false promise is gone
+    assert resp.benefit_summary == ""
     assert "@" in resp.email_masked and "resilience-probe" not in resp.email_masked
-    assert resp.tier == "early_adopter"
-    # ...but nothing was persisted: the same environment cannot look it up.
+    # nothing was persisted: the same environment cannot look it up.
     assert asyncio.run(reg.get_ea_status(resp.uuid)) is None
+
+
+def test_firestore_health_unconfigured(no_firestore):
+    assert reg.firestore_health() == "unconfigured"
+
+
+def test_health_endpoint_exposes_firestore_signal(no_firestore):
+    """v0.5.50 (F-RES-1 structural fix): /health carries a firestore field so
+    persistence degradation is observable instead of silent."""
+    import http_server
+    payload = asyncio.run(_health_payload(http_server.health_handler))
+    assert payload["firestore"] in ("connected", "unconfigured", "error")
+    assert payload["version"] == "0.5.50"
+
+
+async def _health_payload(handler):
+    import json
+    response = await handler(None)
+    return json.loads(response.body)

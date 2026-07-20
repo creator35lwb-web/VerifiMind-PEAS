@@ -123,6 +123,7 @@ class RegistrationResponse(BaseModel):
     benefit_summary: str = ""
     opt_out_url: str
     feedback_received: bool
+    persisted: bool = True  # v0.5.50 (F-RES-1): False when storage was down and the record was NOT saved
 
 
 class FeedbackRequest(BaseModel):
@@ -201,6 +202,19 @@ def _get_firestore():
     except Exception as e:
         logger.warning(f"Firestore unavailable: {e} — EA registration will use fallback storage")
         return None
+
+
+def firestore_health() -> str:
+    """Firestore connectivity signal for /health (v0.5.50, F-RES-1).
+
+    'connected'    — client available (registrations persist)
+    'unconfigured' — no FIRESTORE_PROJECT_ID / GOOGLE_CLOUD_PROJECT set
+    'error'        — project configured but the client could not be constructed
+    """
+    project_id = os.environ.get("FIRESTORE_PROJECT_ID") or os.environ.get("GOOGLE_CLOUD_PROJECT")
+    if not project_id:
+        return "unconfigured"
+    return "connected" if _get_firestore() is not None else "error"
 
 
 # ─────────────────────────────────────────────
@@ -358,9 +372,28 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
             db.collection(COLLECTION_FEEDBACK).add(feedback_record)
 
     else:
-        # Fallback: Firestore unavailable — generate UUID but cannot persist
+        # F-RES-1 (v0.5.50): Firestore unavailable — the registration CANNOT be
+        # persisted, so say so instead of promising a UUID that will never resolve.
         logger.warning("Firestore unavailable — registration cannot be persisted")
-        new_uuid = generate_ea_uuid()
+        return RegistrationResponse(
+            uuid=generate_ea_uuid(),
+            email_masked=_mask_email(str(data.email)),
+            tier=tier,
+            tier_label=tier_label,
+            free_months=free_months,
+            registered_at=now,
+            benefits_free_until=benefits_until,
+            tc_version=TERMS_VERSION,
+            privacy_version=PRIVACY_POLICY_VERSION,
+            persisted=False,
+            message=(
+                "Registration storage is temporarily unavailable — your registration "
+                "was NOT saved. No data was stored. Please try again in a few minutes."
+            ),
+            benefit_summary="",
+            opt_out_url="/register",
+            feedback_received=False,
+        )
 
     return RegistrationResponse(
         uuid=new_uuid,

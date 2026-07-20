@@ -8,6 +8,23 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.50 - Honest Registration Degradation (July 20, 2026)
+
+Resolution of **F-RES-1**, the headline finding of the Foundation Inspection resilience pass (Hub #81): with Firestore unavailable, `POST /early-adopters/register` returned a full success response — "Your UUID is your access key — save it" — for a UUID that was **never persisted** and would never resolve at `/whoami`, the status endpoint, or the dashboard. The degradation was disclosed only to the server log, never to the user. Decision by Alton (option a: disclose, keep availability); the behavior change consciously updates the pinned F-RES-1 contract test.
+
+### What changed
+- **`RegistrationResponse.persisted`** (new field, default `True`): the Firestore-unavailable branch now returns `persisted: false`, an explicit *"your registration was NOT saved — no data was stored, please try again"* message, and no benefit promises. The endpoint stays available (no 5xx) — honest degradation, not hard failure.
+- **`/register` page**: the form JS branches on `persisted === false` and shows the retry error state instead of the success screen — a 200 with an unsaved record can no longer masquerade as a completed registration.
+- **`/health` gains `firestore`** (`connected` | `unconfigured` | `error`): persistence degradation is now *observable*. The structural lesson — prior health checks never covered the storage dependency, so a silent-orphan window could not be seen from outside.
+- Version surfaces: both `SERVER_VERSION` constants, 9 version-assertion tests, `server.json` (registry `3.27.0`).
+
+### Forensics (verify-before-invite discipline)
+Before acting on the finding, the funnel was live-probed end-to-end (register → persist → resolve → cleanup: healthy today) and GCP logs swept for the degradation signature — zero occurrences within the 30-day log-retention window; earlier eras are unqueryable by retention, which is exactly why `/health` now carries the signal permanently. A public re-registration invitation for anyone whose UUID does not resolve follows separately.
+
+713 unit tests pass (3 skipped), coverage 71.98%. **PR:** #295.
+
+---
+
 ## v0.5.49 - Groq Migration + CIDR Layer (July 16, 2026)
 
 Deadline-driven model migration (Groq decommissions `llama-3.3-70b-versatile` on **August 16, 2026**) bundled with the first CIDR-range blocklist layer and MCP protocol-version reporting. The free-tier stack becomes the "frontier + open-source" hybrid T+L designed (D-65-6/7/8): Gemini 2.5 Flash (frontier) + GPT-OSS 120B (open-source) as the two free pillars. 637 unit tests pass (3 skipped); every new model ID live-verified against the Groq API before listing.
