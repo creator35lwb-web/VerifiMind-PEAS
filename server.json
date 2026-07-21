@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.creator35lwb-web/verifimind-genesis",
   "title": "VerifiMind PEAS - RefleXion Trinity",
-  "description": "Multi-Agent AI Validation: X-Z-CS Trinity. 13 tools FREE. Auditable reasoning. v0.5.50",
-  "version": "3.27.0",
+  "description": "Multi-Agent AI Validation: X-Z-CS Trinity. 13 tools FREE. Auditable reasoning. v0.5.51",
+  "version": "3.28.0",
   "repository": {
     "url": "https://github.com/creator35lwb-web/VerifiMind-PEAS",
     "source": "github"

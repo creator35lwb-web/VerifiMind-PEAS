@@ -2,7 +2,7 @@
 Handoff Store — v0.5.13 Fortify
 ================================
 
-Dual-backend storage for MACP v2.2 handoff records:
+Dual-backend storage for MACP v2.5 handoff records:
   Primary:  Firestore `coordination_handoffs` collection (cross-instance persistence)
   Fallback: In-memory deque per pioneer key (when Firestore unavailable)
 
@@ -138,7 +138,7 @@ def build_handoff_record(
     blockers: list[str],
     next_agent: str | None,
 ) -> dict[str, Any]:
-    """Construct a handoff dict with all required MACP v2.2 fields.
+    """Construct a handoff dict with all required MACP v2.5 fields.
 
     Args:
         agent_id: Short identifier for the agent (e.g. "RNA", "cursor", "XV").
@@ -173,6 +173,6 @@ def build_handoff_record(
         "pending": pending,
         "blockers": blockers,
         "next_agent": next_agent or "",
-        "macp_version": "2.2",
+        "macp_version": "2.5",
         "status": "CREATED",
     }

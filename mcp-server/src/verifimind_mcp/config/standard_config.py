@@ -19,7 +19,7 @@ class LLMConfig:
     """Standard LLM configuration for consistent results."""
     
     # Model Selection (Pinned Versions)
-    x_agent_model: str = "gemini-2.5-flash"  # Google Gemini 2.5 Flash (creative, free tier)
+    x_agent_model: str = "gemini-3.5-flash-lite"  # v0.5.51 Gemini currency (creative, free tier)
     z_agent_model: str = "claude-haiku-4-5-20251001"  # Anthropic Claude Haiku (pinned)
     cs_agent_model: str = "claude-haiku-4-5-20251001"  # Anthropic Claude Haiku (pinned)
     

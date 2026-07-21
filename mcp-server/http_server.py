@@ -45,16 +45,26 @@ from verifimind_mcp.registration import (
     SlotCapReachedError,
     register_early_adopter,
     firestore_health,
+)
+from verifimind_mcp.registration import (
     get_ea_status,
     submit_feedback,
     process_optout,
     UserRegistrationRequest,
     register_user,
 )
+from verifimind_mcp.contract import (
+    get_public_contract,
+    free_tier_models_display,
+)
 from verifimind_mcp.policies import PRIVACY_POLICY, TERMS_AND_CONDITIONS
 from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_research_page, get_library_page, get_dashboard_page, get_paradox_page, get_cowork_page, get_evaluation_roadmap_page
 from verifimind_mcp.utils.trinity_history import read_trinity_history
-from verifimind_mcp.llm.provider import PROVIDER_CONFIGS
+from verifimind_mcp.llm.provider import PROVIDER_CONFIGS, PROVIDER_DEFAULT_GEMINI_MODEL
+
+# v0.5.51 (D-85-2): display copy for the free-tier Gemini default is projected
+# from the runtime constant - a model migration updates every surface at once.
+GEMINI_DEFAULT_DISPLAY = f"Gemini ({PROVIDER_DEFAULT_GEMINI_MODEL})"
 from verifimind_mcp.registration import _get_firestore
 
 # Create MCP server instance
@@ -65,7 +75,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.50"
+SERVER_VERSION = "0.5.51"
 
 # MCP protocol version the server speaks (v0.5.49, AY/AZ ask from the MCP RC
 # assessment) — surfaced in /health so clients can check compatibility pre-connect.
@@ -123,6 +133,17 @@ def _get_inference_mode() -> str:
     return "mock"
 
 
+def _hosted_routing_display() -> dict:
+    """Per-agent hosted routing, generated from the truth contract (D-85-2)."""
+    routing = get_public_contract()["free_tier_routing"]
+    display = {
+        f"agent_{aid.lower()}": f"{r['model']} ({r['provider']}, developer key - FREE; fallback: {r['fallback_provider']})"
+        for aid, r in routing.items()
+    }
+    display["default"] = "Mock provider (no API key needed)"
+    return display
+
+
 async def health_handler(request):
     """Health check endpoint — v2 with uptime and session tracing (v0.5.0)."""
     rate_stats = get_rate_limit_stats()
@@ -135,6 +156,9 @@ async def health_handler(request):
         "health_version": 2,
         "inference_mode": _get_inference_mode(),
         "firestore": firestore_health(),
+        # v0.5.51 (D-85-2): the canonical routing truth, projected — external
+        # surfaces should read THIS instead of hand-maintaining model copy.
+        "free_tier_routing": get_public_contract()["free_tier_routing"],
         "transport": "streamable-http",
         "protocol_version": MCP_PROTOCOL_VERSION,
         "uptime_seconds": uptime_seconds,
@@ -192,7 +216,8 @@ async def mcp_config_handler(request):
                 "tools": 13,
                 "features": {
                     "agents": ["X (Innovation)", "Z (Ethics)", "CS (Security)"],
-                    "models": ["Gemini 2.5 Flash (FREE)", "Claude Sonnet 4.6 (BYOK)", "GPT-4.1-mini (BYOK)", "Groq GPT-OSS 120B (FREE)", "Groq Qwen3.6 27B (FREE)"],
+                    # v0.5.51 (D-85-2): generated from the truth contract — never hand-edit
+                    "models": free_tier_models_display() + ["BYOK: 6 providers (Gemini, Anthropic, OpenAI, Groq, Cerebras, Mistral)"],
                     "cost_per_validation": "$0 (FREE tier)",
                     "byok": True,
                     "smart_fallback": True,
@@ -319,13 +344,8 @@ async def mcp_config_handler(request):
             "description": "Bring Your Own Key (BYOK) - provide API keys via session config",
             "supported_providers": ["gemini", "groq", "cerebras", "openai", "anthropic", "mistral", "ollama", "mock"],
             "default_provider": "mock",
-            "important_note": "ONE provider is used for ALL agents (X, Z, CS). Per-agent provider selection is not supported.",
-            "hosted_server_config": {
-                "agent_x": "Gemini 2.0 Flash (developer key - FREE)",
-                "agent_z": "Uses same provider as configured",
-                "agent_cs": "Uses same provider as configured",
-                "default": "Mock provider (no API key needed)"
-            },
+            "important_note": "BYOK session config applies ONE provider to all agents (X, Z, CS). The hosted free tier routes per-agent (see hosted_server_config, generated from the live routing contract).",
+            "hosted_server_config": _hosted_routing_display(),
             "setup_options": {
                 "option_1_use_hosted": {
                     "description": "Use the hosted server with developer-provided Gemini key",
@@ -905,7 +925,8 @@ async def smithery_server_card_handler(request):
             "prompt-template library, and cross-session coordination). Auditable reasoning "
             "returned by default — per-step reasoning, framework citations, ethics scoring "
             "breakdown, and Socratic questions. BYOK across 6 providers (Gemini, Anthropic, "
-            "OpenAI, Groq, Cerebras, Mistral). Free tier powered by Gemini 2.5 Flash."
+            "OpenAI, Groq, Cerebras, Mistral). Free tier powered by "
+            f"{GEMINI_DEFAULT_DISPLAY}."
         ),
         "version": SERVER_VERSION,
         "iconUrl": "https://verifimind.ysenseai.org/logo.png",
@@ -916,7 +937,7 @@ async def smithery_server_card_handler(request):
                 "configSchema": {
                     "type": "object",
                     "properties": {},
-                    "description": "No configuration required. Free tier uses developer-hosted Gemini 2.5 Flash. Optional: set LLM_PROVIDER + API key headers for BYOK (gemini, anthropic, openai, groq, cerebras, mistral)."
+                    "description": f"No configuration required. Free tier uses developer-hosted {GEMINI_DEFAULT_DISPLAY}. Optional: set LLM_PROVIDER + API key headers for BYOK (gemini, anthropic, openai, groq, cerebras, mistral)."
                 }
             }
         ],

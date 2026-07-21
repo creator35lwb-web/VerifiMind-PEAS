@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 _RAW_SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.5.50"
+SERVER_VERSION = "0.5.51"
 
 # Agent role names + master prompt filename — single source of truth.
 # (SonarCloud P2 batch-2: extracted in v0.5.39 from 13 dup-literal occurrences
@@ -1574,11 +1574,11 @@ def _create_mcp_instance():
         ctx: Context = None,
     ) -> dict:
         """
-        Create a structured MACP v2.2 handoff record.
+        Create a structured MACP v2.5 handoff record.
 
         Free for everyone (Option B, May 9 2026 — Core Tools Always Free pledge).
 
-        Generates a MACP v2.2 compliant handoff document and stores it in
+        Generates a MACP v2.5 compliant handoff document and stores it in
         the coordination layer. Returns the formatted markdown content
         and suggested filename for saving to .macp/handoffs/ in your repository.
 
