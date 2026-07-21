@@ -8,6 +8,24 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.51 - Public Truth Contract + Gemini Currency (July 22, 2026)
+
+Implements the P0 from T's Session 85 **Live Publication Truth Audit** (D-85-2): every endpoint returned 200 while the discovery surfaces (`/setup`, MCP config, `/health`, landing data) *disagreed with each other* about models, routing, and versions — one surface still claimed "Gemini 2.0 Flash," another denied that per-agent routing exists. "Availability is not currency."
+
+### What changed
+- **NEW `verifimind_mcp/contract.py` — the canonical truth object.** `get_public_contract()` generates version + per-agent free-tier routing + BYOK provider menus from the live runtime constants. Surfaces now PROJECT from it instead of hand-maintaining copy: `/health` gains `free_tier_routing`, the root feature list and server-card copy are generated, and the false "per-agent selection is not supported" claim is corrected. A new anti-drift test suite asserts surface↔contract agreement, so the next migration that misses a surface fails CI instead of shipping a contradiction.
+- **Gemini currency (Alton + live-verified 2026-07-22):** free-tier X default `gemini-2.5-flash` → **`gemini-3.5-flash-lite`** (GA; Google's documented migration target; "structured JSON parsing" strength = the X-seat workload; direct responder — no thinking-token burn). BYOK menu adds **`gemini-3.6-flash`** (GA frontier) and retains `gemini-3.5-flash` (thinking model — budget output accordingly), `gemini-2.5-flash`, `gemini-3.1-pro-preview`. All IDs live-verified via ListModels + generateContent on the free-tier key.
+- **Coordination template MACP v2.5 (#77, T-approved):** handoff records now stamp `MACP v2.5 "Loop Engineering"` (was v2.2 "Identity" — the acknowledged Gate #6 lag, now retired).
+- Version surfaces: both `SERVER_VERSION` constants, 10 version tests, `server.json` (registry `3.28.0`).
+
+### Verification
+- 742 unit + 79 registration tests green (14 new contract tests), coverage 73.43%
+- **PRE-deploy live smoke through the production XAgent path** on `gemini-3.5-flash-lite`: schema-valid, 7 genuine reasoning steps, no synthetic fills. (An ad-hoc prompt without the Genesis structure DID produce mis-keyed steps — evidence the prompt architecture, not luck, carries the contract.)
+
+**PR:** #300.
+
+---
+
 ## v0.5.50 - Honest Registration Degradation (July 20, 2026)
 
 Resolution of **F-RES-1**, the headline finding of the Foundation Inspection resilience pass (Hub #81): with Firestore unavailable, `POST /early-adopters/register` returned a full success response — "Your UUID is your access key — save it" — for a UUID that was **never persisted** and would never resolve at `/whoami`, the status endpoint, or the dashboard. The degradation was disclosed only to the server log, never to the user. Decision by Alton (option a: disclose, keep availability); the behavior change consciously updates the pinned F-RES-1 contract test.

@@ -74,7 +74,14 @@ def strip_markdown_code_fences(text: str) -> str:
 # Default model per provider — single source of truth.
 # (SonarCloud P2 batch-2: extracted in v0.5.39 from 12 dup-literal occurrences
 # across `default_model` fields, models list entries, and per-method defaults.)
-PROVIDER_DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+# v0.5.51 Gemini currency: gemini-3.5-flash-lite is GA, Google's documented
+# migration target from gemini-2.5-flash ("outperforms prior Flash-Lite
+# generations", suited for structured JSON parsing — the X-seat workload), and
+# a direct responder: unlike gemini-3.5-flash it spends no thinking tokens, so
+# strict max_output_tokens budgets return text instead of empty candidates.
+# All IDs live-verified against ListModels + generateContent on the free-tier
+# key 2026-07-22.
+PROVIDER_DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite"
 PROVIDER_DEFAULT_OPENAI_MODEL = "gpt-5.5"  # v0.5.47 model currency (R-S51-B; live-verified 2026-06-22)
 # v0.5.49 Groq migration (D-65-6): llama-3.3-70b-versatile decommissions 2026-08-16.
 # NOTE: the namespaced ID is required — bare "gpt-oss-120b" returns 404 (live-verified 2026-07-16).
@@ -93,11 +100,12 @@ PROVIDER_DEFAULT_CEREBRAS_MODEL = "llama-3.3-70b"
 PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     "gemini": {
         "name": "Google Gemini",
-        # default stays gemini-2.5-flash (free-tier, fast) — preserves the default free-tier path.
-        # gemini-3.1-pro-preview added as a BYOK/frontier option (live-verified 2026-06-22, R-S51-A);
-        # not made default — a preview model isn't a safe free-tier default (flagged to XV/T+L).
+        # v0.5.51: default -> gemini-3.5-flash-lite (GA, free-tier-verified; see
+        # constant note). gemini-3.6-flash added (GA frontier flash). 2.5-flash
+        # retained for continuity; 3.5-flash is a THINKING model — callers with
+        # tight output budgets should prefer the default. All live-verified 2026-07-22.
         "default_model": PROVIDER_DEFAULT_GEMINI_MODEL,
-        "models": [PROVIDER_DEFAULT_GEMINI_MODEL, "gemini-3.1-pro-preview", "gemini-3.5-flash", "gemini-2.5-flash-lite"],
+        "models": [PROVIDER_DEFAULT_GEMINI_MODEL, "gemini-3.6-flash", "gemini-3.5-flash", "gemini-2.5-flash", "gemini-3.1-pro-preview"],
         "api_key_env": "GEMINI_API_KEY",
         "base_url": "https://generativelanguage.googleapis.com/v1beta",
         "free_tier": True,
@@ -427,7 +435,8 @@ class GeminiProvider(LLMProvider):
     Supports Gemini 3.x (gemini-3.1-pro-preview, gemini-3.5-flash) and the 2.5 line.
     Uses prompt engineering for structured JSON output.
 
-    Default: gemini-2.5-flash (FREE tier, reliable, fast). gemini-3.1-pro-preview
+    Default: gemini-3.5-flash-lite (v0.5.51 - GA, FREE tier, direct responder;
+    3.5-flash is a THINKING model, budget output accordingly). gemini-3.1-pro-preview
     available as a BYOK/frontier option. Note: Gemini 1.5 models retired in 2026.
     """
 

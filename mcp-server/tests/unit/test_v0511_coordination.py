@@ -249,7 +249,7 @@ class TestBuildHandoffRecord:
 
     def test_macp_version_is_22(self):
         r = self.build("RNA", "dev", [], [], [], [], [], None)
-        assert r["macp_version"] == "2.2"
+        assert r["macp_version"] == "2.5"  # v0.5.51 template currency (#77)
 
     def test_status_is_created(self):
         r = self.build("RNA", "dev", [], [], [], [], [], None)
@@ -309,7 +309,7 @@ class TestHandoffFormatter:
     def test_markdown_contains_macp_version(self):
         r = self.build("RNA", "dev", [], [], [], [], [], None)
         md = self.format(r)
-        assert "2.2" in md
+        assert "2.5" in md  # v0.5.51 template currency (#77)
 
     def test_markdown_contains_section_headers(self):
         r = self.build("RNA", "dev", ["Task A"], ["Dec B"], ["file.py"], ["Todo C"], ["Blocker D"], "T")
@@ -588,7 +588,7 @@ class TestFreeToolRegression:
 
     def test_server_version_is_0513(self):
         from verifimind_mcp.server import SERVER_VERSION
-        assert SERVER_VERSION == "0.5.50"
+        assert SERVER_VERSION == "0.5.51"
 
     def test_wrap_response_still_works(self):
         from verifimind_mcp.server import wrap_response
