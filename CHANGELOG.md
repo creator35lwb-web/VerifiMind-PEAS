@@ -8,6 +8,25 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.52 - Discovery Truth Repair (July 22, 2026)
+
+T's Session 87 verification (WP-A, P0) found the v0.5.51 truth contract only **partially projected**: `/setup` still claimed "Gemini 1.5 Flash" powered the X seat, described hosted Z/CS as "Claude (if BYOK) or Gemini", carried a `X (Gemini) -> Z (Claude/Gemini)` flow, stamped the free coordination tools "Pioneer tier", and miscounted the tool composition; the startup banner told the v0.3-era routing story; and `/mcp/test` actively told users to "Upgrade to Pioneer for coordination tools" — a false paywall claim (everything is free since v0.5.28).
+
+### What changed
+- **`/setup` trinity descriptions, flow, and banner now project from `get_public_contract()`** — same anti-drift mechanism as v0.5.51, extended to the surfaces it missed.
+- **`/mcp/test` message corrected**: "All 13 tools (Trinity + templates + coordination) are free for everyone."
+- **All "Pioneer tier" stamps removed** from tool descriptions (MCP config + server card + setup); tool composition corrected to "4 Trinity + 6 template + 3 coordination".
+- **NEW `test_v0552_discovery_truth.py`**: renders the ACTUAL handlers and scans source + payloads for the named stale-claim shapes — T's audit findings become permanent CI. The source-scan caught 6 further "Pioneer tier" stamps my manual sweep missed, pre-merge.
+- Version surfaces: both constants, 11 version tests, `server.json` (registry `3.29.0`).
+
+### Verification
+- 748 unit + 79 registration tests green, coverage 73.43%
+- WP-A exit: cross-surface agreement tests prove `/health`, `/setup`, MCP config, and root serve one truth; live GET evidence recorded post-deploy
+
+**PR:** #301.
+
+---
+
 ## v0.5.51 - Public Truth Contract + Gemini Currency (July 22, 2026)
 
 Implements the P0 from T's Session 85 **Live Publication Truth Audit** (D-85-2): every endpoint returned 200 while the discovery surfaces (`/setup`, MCP config, `/health`, landing data) *disagreed with each other* about models, routing, and versions — one surface still claimed "Gemini 2.0 Flash," another denied that per-agent routing exists. "Availability is not currency."

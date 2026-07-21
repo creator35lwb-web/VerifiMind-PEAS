@@ -75,7 +75,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.51"
+SERVER_VERSION = "0.5.52"
 
 # MCP protocol version the server speaks (v0.5.49, AY/AZ ask from the MCP RC
 # assessment) — surfaced in /health so clients can check compatibility pre-connect.
@@ -315,20 +315,20 @@ async def mcp_config_handler(request):
                 "description": "Get template registry statistics",
                 "parameters": []
             },
-            # v0.5.16 Coordination Tools (Pioneer Tier)
+            # v0.5.16 Coordination Tools (free for everyone since v0.5.28)
             {
                 "name": "coordination_handoff_create",
-                "description": "Create a structured agent handoff record (Pioneer tier)",
+                "description": "Create a structured agent handoff record",
                 "parameters": ["agent_id", "session_type", "completed", "decisions", "artifacts", "pending", "pioneer_key"]
             },
             {
                 "name": "coordination_handoff_read",
-                "description": "Read the latest handoff record for a given agent (Pioneer tier)",
+                "description": "Read the latest handoff record for a given agent",
                 "parameters": ["pioneer_key", "agent_id (optional)", "count (default: 1)"]
             },
             {
                 "name": "coordination_team_status",
-                "description": "Get current status of all coordination agents (Pioneer tier)",
+                "description": "Get current status of all coordination agents",
                 "parameters": ["pioneer_key"]
             }
         ],
@@ -568,6 +568,9 @@ async def root_post_redirect(request):
 
 
 async def setup_handler(request):
+    # v0.5.52 (T S87 WP-A): descriptive fields project from the truth contract
+    _routing = get_public_contract()["free_tier_routing"]
+    _x, _z, _cs = _routing["X"], _routing["Z"], _routing["CS"]
     """User-friendly setup page with step-by-step instructions"""
     # Get the base URL from the request
     scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
@@ -652,44 +655,44 @@ async def setup_handler(request):
         },
 
         "available_tools": {
-            "_total": "13 tools (10 Trinity + 3 Coordination)",
+            "_total": "13 tools (4 Trinity + 6 template + 3 coordination) - all free",
             "trinity": {
                 "consult_agent_x": {
                     "description": "Innovation & Strategy analysis",
-                    "powered_by": "Gemini 1.5 Flash (FREE) - Smart Fallback",
+                    "powered_by": f"{_x['model']} ({_x['provider']}, FREE) - smart fallback",
                     "use_for": "Evaluating market potential, competitive positioning, innovation score"
                 },
                 "consult_agent_z": {
                     "description": "Ethics & Safety review",
-                    "powered_by": "Claude (if BYOK) or Gemini FREE - Smart Fallback",
+                    "powered_by": f"{_z['model']} ({_z['provider']}, FREE; any provider via BYOK) - smart fallback",
                     "use_for": "Privacy concerns, bias detection, social impact, Z-Protocol compliance",
                     "special": "Has VETO POWER - can reject unethical concepts"
                 },
                 "consult_agent_cs": {
                     "description": "Security & Feasibility validation",
-                    "powered_by": "Claude (if BYOK) or Gemini FREE - Smart Fallback",
+                    "powered_by": f"{_cs['model']} ({_cs['provider']}, FREE; any provider via BYOK) - smart fallback",
                     "use_for": "Security vulnerabilities, attack vectors, Socratic questioning"
                 },
                 "run_full_trinity": {
                     "description": "Complete validation workflow with per-agent optimized providers",
-                    "flow": "X (Gemini) -> Z (Claude/Gemini) -> CS (Claude/Gemini) -> Synthesis",
+                    "flow": f"X ({_x['provider']}/{_x['model']}) -> Z ({_z['provider']}/{_z['model']}) -> CS ({_cs['provider']}/{_cs['model']}) -> Synthesis",
                     "use_for": "Comprehensive concept validation with all three agents"
                 }
             },
             "coordination": {
                 "coordination_handoff_create": {
                     "description": "Create a structured agent handoff record",
-                    "tier": "Pioneer",
+                    "tier": "Free (all 13 tools free since v0.5.28)",
                     "use_for": "Multi-agent session continuity, passing context between AI agents"
                 },
                 "coordination_handoff_read": {
                     "description": "Read the latest handoff record for a given agent",
-                    "tier": "Pioneer",
+                    "tier": "Free (all 13 tools free since v0.5.28)",
                     "use_for": "Retrieving previous session context, resuming multi-agent workflows"
                 },
                 "coordination_team_status": {
                     "description": "Get the current status of all coordination agents",
-                    "tier": "Pioneer",
+                    "tier": "Free (all 13 tools free since v0.5.28)",
                     "use_for": "Monitoring multi-agent team state and active handoffs"
                 }
             }
@@ -1068,7 +1071,7 @@ async def smithery_server_card_handler(request):
             },
             {
                 "name": "coordination_handoff_create",
-                "description": "Create a structured agent handoff record for multi-agent session continuity (Pioneer tier).",
+                "description": "Create a structured agent handoff record for multi-agent session continuity.",
                 "inputSchema": {
                     "type": "object",
                     "required": ["agent_id", "session_type", "completed", "decisions", "artifacts", "pending", "pioneer_key"],
@@ -1085,7 +1088,7 @@ async def smithery_server_card_handler(request):
             },
             {
                 "name": "coordination_handoff_read",
-                "description": "Read the latest handoff record for a given agent (Pioneer tier).",
+                "description": "Read the latest handoff record for a given agent.",
                 "inputSchema": {
                     "type": "object",
                     "required": ["pioneer_key"],
@@ -1098,7 +1101,7 @@ async def smithery_server_card_handler(request):
             },
             {
                 "name": "coordination_team_status",
-                "description": "Get current status of all coordination agents and active handoffs (Pioneer tier).",
+                "description": "Get current status of all coordination agents and active handoffs.",
                 "inputSchema": {
                     "type": "object",
                     "required": ["pioneer_key"],
@@ -1490,8 +1493,7 @@ async def mcp_test_handler(request):
         "server_version": SERVER_VERSION,
         "message": (
             f"Connection verified! Your tier: {tier}. "
-            + ("Pioneer tools are active." if allowed
-               else "Upgrade to Pioneer for coordination tools.")
+            "All 13 tools (Trinity + templates + coordination) are free for everyone."
         )
     })
 
@@ -1906,10 +1908,11 @@ print(f"  Rate Limiting: {os.getenv('RATE_LIMIT_PER_IP', '10')} req/min per IP")
 print(f"  Global Limit:  {os.getenv('RATE_LIMIT_GLOBAL', '100')} req/min per instance")
 print(f"  CORS: Enabled (all origins)")
 print("-" * 70)
-print("SMART FALLBACK (v0.3.1):")
-print("  X Agent:  Gemini (FREE) - Innovation/Strategy")
-print("  Z Agent:  Gemini (FREE) -> Claude if ANTHROPIC_API_KEY set")
-print("  CS Agent: Gemini (FREE) -> Claude if ANTHROPIC_API_KEY set")
+print("FREE-TIER ROUTING (generated from the truth contract, v0.5.52):")
+_banner_routing = get_public_contract()["free_tier_routing"]
+for _aid in ("X", "Z", "CS"):
+    _r = _banner_routing[_aid]
+    print(f"  {_aid} Agent: {_r['provider']}/{_r['model']} (fallback: {_r['fallback_provider']}; BYOK any provider)")
 print("-" * 70)
 print("Endpoints:")
 print(f"  MCP:    /mcp/")
@@ -1917,7 +1920,7 @@ print(f"  Health: /health")
 print(f"  Config: /.well-known/mcp-config")
 print(f"  Setup:  /setup")
 print("-" * 70)
-print("Resources: 4 | Tools: 13 (10 Trinity + 3 Coordination)")
+print("Resources: 4 | Tools: 13 (4 Trinity + 6 template + 3 coordination) - all free")
 print("Agents: X (Innovation) | Z (Ethics) | CS (Security)")
 print("-" * 70)
 print("Quick Start (Claude Code):")
