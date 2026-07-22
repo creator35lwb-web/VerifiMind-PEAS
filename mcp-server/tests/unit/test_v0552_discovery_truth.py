@@ -104,4 +104,4 @@ def test_versions_agree_across_surfaces():
     import http_server
     contract_version = get_public_contract()["version"]
     assert _render(http_server.health_handler)["version"] == contract_version
-    assert http_server.SERVER_VERSION == contract_version == "0.5.52"
+    assert http_server.SERVER_VERSION == contract_version == "0.5.53"

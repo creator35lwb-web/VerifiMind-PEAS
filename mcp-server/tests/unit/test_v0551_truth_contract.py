@@ -32,7 +32,7 @@ from verifimind_mcp.llm.provider import (
 
 def test_contract_version_matches_server_constant():
     from verifimind_mcp.server import SERVER_VERSION
-    assert get_public_contract()["version"] == SERVER_VERSION == "0.5.52"
+    assert get_public_contract()["version"] == SERVER_VERSION == "0.5.53"
 
 
 def test_contract_routing_covers_all_three_agents():

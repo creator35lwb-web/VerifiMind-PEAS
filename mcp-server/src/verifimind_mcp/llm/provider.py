@@ -153,8 +153,11 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     },
     "mistral": {
         "name": "Mistral AI",
-        "default_model": "mistral-medium-3",  # v0.5.47 model currency (R-S51-D; live-verified 2026-06-22)
-        "models": ["mistral-medium-3", "mistral-small-latest", "mistral-large-latest"],
+        # v0.5.53 model currency: mistral-medium-3.5 is the successor (live-verified
+        # 2026-07-22 on Alton's key, chat probe OK); medium-3 retained for continuity.
+        # EU-sovereignty lane: Mistral = jurisdictional diversity for the Layer-2 thesis.
+        "default_model": "mistral-medium-3.5",
+        "models": ["mistral-medium-3.5", "mistral-medium-3", "mistral-small-latest", "mistral-large-latest"],
         "api_key_env": "MISTRAL_API_KEY",
         "base_url": "https://api.mistral.ai/v1",
         "free_tier": False,
