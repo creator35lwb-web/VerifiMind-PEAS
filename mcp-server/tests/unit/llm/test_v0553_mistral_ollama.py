@@ -70,15 +70,17 @@ class _FakeAsyncClient:
     next_exc = None
 
     def __init__(self, *a, **kw):
+        # Accepts and ignores httpx.AsyncClient constructor kwargs (timeout etc.)
+        # — the fake needs no per-instance state; class attributes carry the script.
         pass
 
-    async def __aenter__(self):
+    async def __aenter__(self):  # NOSONAR — async protocol required by `async with`
         return self
 
-    async def __aexit__(self, *a):
+    async def __aexit__(self, *a):  # NOSONAR — async protocol required by `async with`
         return False
 
-    async def post(self, url, **kwargs):
+    async def post(self, url, **kwargs):  # NOSONAR — awaited by the provider; async signature required
         _FakeAsyncClient.calls.append({"url": url, **kwargs})
         if _FakeAsyncClient.next_exc:
             raise _FakeAsyncClient.next_exc
@@ -110,9 +112,9 @@ def test_construction_requires_no_api_key():
 
 
 def test_custom_model_and_base_url():
-    p = OllamaProvider(model="qwen2.5:0.5b", base_url="http://192.168.1.10:11434")
+    p = OllamaProvider(model="qwen2.5:0.5b", base_url="https://ollama.lan.example:11434")
     assert p.get_model_name() == "ollama/qwen2.5:0.5b"
-    assert p.base_url == "http://192.168.1.10:11434"
+    assert p.base_url == "https://ollama.lan.example:11434"
 
 
 def test_config_declares_free_tier_no_key():
