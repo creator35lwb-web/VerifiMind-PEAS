@@ -8,6 +8,24 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.53 - Mistral Currency + Ollama Contract (July 23, 2026)
+
+Two lanes from Alton's model-diversity direction (S78): the **EU-sovereignty BYOK lane** (Mistral) and a health check on the **keyless local open-source path** (Ollama).
+
+### What changed
+- **Mistral BYOK default `mistral-medium-3` → `mistral-medium-3.5`** (live-verified on a real key 2026-07-22: chat probe OK; 25k TPM / 50 RPM observed — more headroom than Groq's 8k). `mistral-medium-3` retained for continuity. Jurisdictional diversity (US frontier + EU sovereign + open weights) is a genuine Layer-2 model-diversity axis. Thanks to the v0.5.51 truth contract, the menu change propagates to /health, /setup, and the server card with zero copy edits.
+- **Ollama SDK boundary tested for the first time** (the provider shipped in v0.4.x with zero boundary tests — the same gap class Gemini had before resilience batch 2). 10 mocked-httpx contract tests: keyless construction, request shape (`num_predict`, `stream:false`, schema-guidance injection), token-field mapping, fence-strip/prose-extraction, error propagation.
+- **FINDING F-RES-3 (pinned, routed):** Ollama's parse-failure path returns `_inference_quality: "real"` while shipping `{"raw_response", "parse_error"}` content — unlike Gemini/Groq, which mark the same situation `"fallback"`. Downstream quality gates would not fire on an Ollama parse failure. Candidate fix routed to the parse-ladder lane (with F-RES-2); behavior pinned so any change is conscious.
+- Version surfaces: both constants, 12 version tests, `server.json` (registry `3.30.0`).
+
+### Verification
+- 760 unit + 79 registration tests green (12 new), coverage 73.99%
+- Mistral: PRE-verified via direct live API probes (models list + chat completions on `mistral-medium-3.5` and `mistral-medium-3`); hosted free-tier routing UNCHANGED (X/Z/CS untouched)
+
+**PR:** #302.
+
+---
+
 ## v0.5.52 - Discovery Truth Repair (July 22, 2026)
 
 T's Session 87 verification (WP-A, P0) found the v0.5.51 truth contract only **partially projected**: `/setup` still claimed "Gemini 1.5 Flash" powered the X seat, described hosted Z/CS as "Claude (if BYOK) or Gemini", carried a `X (Gemini) -> Z (Claude/Gemini)` flow, stamped the free coordination tools "Pioneer tier", and miscounted the tool composition; the startup banner told the v0.3-era routing story; and `/mcp/test` actively told users to "Upgrade to Pioneer for coordination tools" — a false paywall claim (everything is free since v0.5.28).

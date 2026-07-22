@@ -202,7 +202,7 @@ def test_health_endpoint_exposes_firestore_signal(no_firestore):
     import http_server
     payload = asyncio.run(_health_payload(http_server.health_handler))
     assert payload["firestore"] in ("connected", "unconfigured", "error")
-    assert payload["version"] == "0.5.52"
+    assert payload["version"] == "0.5.53"
 
 
 async def _health_payload(handler):

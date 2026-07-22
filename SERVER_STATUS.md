@@ -6,11 +6,12 @@
 
 ## Current Status: Operational
 
-**v0.5.52 "Discovery Truth Repair" — deployed July 22, 2026**
+**v0.5.53 "Mistral Currency + Ollama Contract" — deployed July 23, 2026**
 
 The VerifiMind MCP server is fully operational. All security gates passed. (Per-version public detail now lives in [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases) since the `/changelog` redirect in v0.5.36.)
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination) — **all free for everyone**
+- **Mistral Currency + Ollama Contract (v0.5.53)**: Mistral BYOK default → `mistral-medium-3.5` (live-verified; EU-sovereignty diversification lane); Ollama httpx boundary gets its first contract tests (10, mocked — keyless local path health-checked); FINDING F-RES-3 pinned (Ollama parse-failure stamps quality "real" — routed with F-RES-2 to the parse-ladder lane). 760 tests. PR #302 — July 23, 2026
 - **Discovery Truth Repair (v0.5.52)**: T S87 WP-A — /setup, the startup banner, and /mcp/test now project from the generated truth contract; stale "Gemini 1.5"/"Claude/Gemini" routing claims and pre-v0.5.28 "Pioneer tier" stamps removed (incl. a false "Upgrade to Pioneer" paywall message); new discovery-truth test suite renders the actual handlers and scans for the named stale-claim shapes. 748 tests. PR #301 — July 22, 2026
 - **Public Truth Contract + Gemini Currency (v0.5.51)**: implements T's S85 truth-audit P0 — a canonical generated provider/routing/version contract (`get_public_contract()`) now feeds `/health` (`free_tier_routing`), the root feature list, and server-card copy, with anti-drift tests asserting surface agreement (the audit had found surfaces disagreeing, down to a stale "Gemini 2.0 Flash" claim). Free-tier X default migrated `gemini-2.5-flash` → `gemini-3.5-flash-lite` (GA, Google's documented successor, live-verified); `gemini-3.6-flash` added to BYOK. Coordination handoff template now stamps MACP v2.5 (#77). 742 tests; PRE-deploy live smoke through the production XAgent path. PR #300 — July 22, 2026
 - **Honest Registration Degradation (v0.5.50)**: resolves F-RES-1 from the Foundation Inspection resilience pass — when Firestore is unavailable, registration used to show success for a record that was never saved (a UUID that would never resolve). Now the response discloses `persisted: false` with an explicit "NOT saved, please retry" message, the `/register` page shows the retry state instead of the success screen, and `/health` reports a `firestore` connectivity field so storage degradation is observable. Funnel live-probed end-to-end (healthy) before shipping; 713 unit tests. PR #295 — July 20, 2026
