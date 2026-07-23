@@ -1,16 +1,17 @@
 # VerifiMind-PEAS Server Status
 
-**Last Updated:** July 22, 2026
+**Last Updated:** July 24, 2026
 
 ---
 
 ## Current Status: Operational
 
-**v0.5.53 "Mistral Currency + Ollama Contract" — deployed July 23, 2026**
+**v0.5.54 "Honest Fallback Semantics" — deployed July 24, 2026**
 
 The VerifiMind MCP server is fully operational. All security gates passed. (Per-version public detail now lives in [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases) since the `/changelog` redirect in v0.5.36.)
 
 - 13 MCP tools (4 core Trinity + 6 template management + 3 coordination) — **all free for everyone**
+- **Honest Fallback Semantics (v0.5.54)**: T S88 WP-A residual repair — discovery no longer describes construction-time provider selection as "smart fallback"; `/health` serves `runtime_failover_enabled: false` + `fallback_semantics` until WP-B ships with failure evidence; MCP-config Z/CS descriptions generated from the truth contract (v0.3-era "Claude if BYOK" story removed); Cerebras copy account-qualified (no blanket "1M tokens/day"); BYOK-guide model tables caught up to v0.5.51/v0.5.53. 858 tests. PR #303 — July 24, 2026
 - **Mistral Currency + Ollama Contract (v0.5.53)**: Mistral BYOK default → `mistral-medium-3.5` (live-verified; EU-sovereignty diversification lane); Ollama httpx boundary gets its first contract tests (10, mocked — keyless local path health-checked); FINDING F-RES-3 pinned (Ollama parse-failure stamps quality "real" — routed with F-RES-2 to the parse-ladder lane). 760 tests. PR #302 — July 23, 2026
 - **Discovery Truth Repair (v0.5.52)**: T S87 WP-A — /setup, the startup banner, and /mcp/test now project from the generated truth contract; stale "Gemini 1.5"/"Claude/Gemini" routing claims and pre-v0.5.28 "Pioneer tier" stamps removed (incl. a false "Upgrade to Pioneer" paywall message); new discovery-truth test suite renders the actual handlers and scans for the named stale-claim shapes. 748 tests. PR #301 — July 22, 2026
 - **Public Truth Contract + Gemini Currency (v0.5.51)**: implements T's S85 truth-audit P0 — a canonical generated provider/routing/version contract (`get_public_contract()`) now feeds `/health` (`free_tier_routing`), the root feature list, and server-card copy, with anti-drift tests asserting surface agreement (the audit had found surfaces disagreeing, down to a stale "Gemini 2.0 Flash" claim). Free-tier X default migrated `gemini-2.5-flash` → `gemini-3.5-flash-lite` (GA, Google's documented successor, live-verified); `gemini-3.6-flash` added to BYOK. Coordination handoff template now stamps MACP v2.5 (#77). 742 tests; PRE-deploy live smoke through the production XAgent path. PR #300 — July 22, 2026

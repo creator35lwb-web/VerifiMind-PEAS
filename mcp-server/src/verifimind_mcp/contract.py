@@ -29,15 +29,19 @@ def get_public_contract() -> Dict[str, Any]:
         return PROVIDER_CONFIGS.get(provider, {}).get("default_model", "")
 
     # Free-tier routing as deployed: each agent's preferred ("recommended")
-    # provider with its default model, plus the fallback provider. The BYOK
-    # session config and per-agent env overrides sit above this baseline.
+    # provider with its default model, plus the CONSTRUCTION fallback — the
+    # provider selected at client-construction time when the primary cannot be
+    # built (missing key/config). This is NOT request-time failover: once a
+    # request is in flight, it does not hop providers (T S88 D-88-1; runtime
+    # failover is WP-B and gated behind runtime_failover_enabled below). The
+    # BYOK session config and per-agent env overrides sit above this baseline.
     free_tier_routing = {}
     for agent_id, cfg in AGENT_PROVIDER_DEFAULTS.items():
         provider = cfg.get("recommended") or cfg.get("default", "mock")
         free_tier_routing[agent_id] = {
             "provider": provider,
             "model": _default_model(provider),
-            "fallback_provider": cfg.get("fallback", "mock"),
+            "construction_fallback": cfg.get("fallback", "mock"),
         }
 
     byok_providers = {
@@ -53,6 +57,14 @@ def get_public_contract() -> Dict[str, Any]:
     return {
         "version": SERVER_VERSION,
         "free_tier_routing": free_tier_routing,
+        # v0.5.54 (T S88 D-88-1/D-88-2): honest failover semantics. WP-B's
+        # FailoverExecutor flips this to True ONLY after deploy + failure-
+        # injection evidence; until then no surface may claim runtime failover.
+        "runtime_failover_enabled": False,
+        "fallback_semantics": (
+            "construction-time provider selection; an in-flight request does "
+            "not fail over between providers"
+        ),
         "byok_providers": byok_providers,
     }
 

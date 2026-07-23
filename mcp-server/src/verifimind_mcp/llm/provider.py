@@ -10,7 +10,7 @@ different LLM providers, enabling users to bring their own API keys
 Supported Providers:
 - Gemini (FREE tier available)
 - Groq (FREE tier available)
-- Cerebras (FREE tier available — 1M tokens/day)
+- Cerebras (free tier available; limits vary by account)
 - OpenAI
 - Anthropic
 - Mistral
@@ -149,7 +149,7 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "api_key_env": "CEREBRAS_API_KEY",
         "base_url": "https://api.cerebras.ai/v1",
         "free_tier": True,
-        "rate_limit": 60,  # 1M tokens/day free; 20x GPU throughput
+        "rate_limit": 60,  # free-tier limits vary by account; 20x GPU throughput
     },
     "mistral": {
         "name": "Mistral AI",
@@ -957,7 +957,7 @@ class CerebrasProvider(LLMProvider):
     Cerebras provider implementation.
 
     v0.4.0: OpenAI-compatible API on Cerebras wafer-scale hardware.
-    FREE tier: 1M tokens/day. 20x GPU throughput vs standard cloud.
+    Free tier available (limits vary by account). 20x GPU throughput vs cloud.
     Key prefix: csk_
 
     Follows the same robust JSON extraction pipeline as GroqProvider.
