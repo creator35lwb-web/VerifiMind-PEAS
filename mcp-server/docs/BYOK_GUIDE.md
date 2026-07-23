@@ -114,7 +114,7 @@ The server runs on free-tier APIs by default — no key required:
 |----------|-----------|---------|
 | **Groq** | ✅ Free (rate limited) | [console.groq.com](https://console.groq.com) |
 | **Gemini** | ✅ Free (rate limited) | [aistudio.google.com](https://aistudio.google.com) |
-| **Cerebras** | ✅ Free (1M tokens/day) | [cloud.cerebras.ai](https://cloud.cerebras.ai) |
+| **Cerebras** | ✅ Free tier (limits vary by account) | [cloud.cerebras.ai](https://cloud.cerebras.ai) |
 
 ---
 
@@ -125,9 +125,9 @@ The server runs on free-tier APIs by default — no key required:
 | `groq` | `openai/gpt-oss-120b` | Open-source flagship, free tier (v0.5.49; also `qwen/qwen3.6-27b` fast) |
 | `anthropic` | `claude-sonnet-4-6` | High quality, paid |
 | `openai` | `gpt-5.5` | Paid (v0.5.47 currency) |
-| `gemini` | `gemini-2.5-flash` | Free tier available |
-| `cerebras` | `llama-3.3-70b` | Free tier available (1M tokens/day) |
-| `mistral` | `mistral-medium-3` | Paid (v0.5.47 currency) |
+| `gemini` | `gemini-3.5-flash-lite` | Free tier available (v0.5.51 currency) |
+| `cerebras` | `llama-3.3-70b` | Free tier available (limits vary by account) |
+| `mistral` | `mistral-medium-3.5` | Paid — EU-sovereignty lane (v0.5.53 currency) |
 | `mock` | `mock/test-model` | Testing only (no real inference) |
 
 ---
@@ -157,11 +157,11 @@ retires a model, the BYOK Guide and `provider.py` will be updated within
 | Provider | Current Default | Stable Until |
 |----------|----------------|:------------:|
 | Groq | `openai/gpt-oss-120b` | No notice issued (predecessor `llama-3.3-70b-versatile` decommissions Aug 16, 2026 — migrated in v0.5.49) |
-| Gemini | `gemini-2.5-flash` | No confirmed EOL |
+| Gemini | `gemini-3.5-flash-lite` | No confirmed EOL (migrated in v0.5.51; `gemini-2.5-flash` retained on the menu) |
 | Anthropic | `claude-sonnet-4-6` | No confirmed EOL |
 | OpenAI | `gpt-5.5` | No confirmed EOL |
 | Cerebras | `llama-3.3-70b` | No notice issued (watch-item: Groq's llama-3.3 sunset may foreshadow Cerebras) |
-| Mistral | `mistral-medium-3` | No confirmed EOL |
+| Mistral | `mistral-medium-3.5` | No confirmed EOL (migrated in v0.5.53; `mistral-medium-3` retained on the menu) |
 
 If you hit `model_not_found` errors, check our
 [changelog](https://verifimind.ysenseai.org/changelog) for the latest default models.

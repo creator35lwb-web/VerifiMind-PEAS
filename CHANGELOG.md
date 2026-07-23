@@ -8,6 +8,28 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.54 - Honest Fallback Semantics (July 24, 2026)
+
+T's Session 88 review (D-88-1) narrowed the WP-A exit: the route/version projection passed, but discovery still described **construction-time provider selection as "smart fallback"** — wording that reads as request-time failover, behavior the runtime does not execute (runtime failover is WP-B, designed but unbuilt). The label must describe the execution.
+
+### What changed
+- **`get_public_contract()` now names the semantics**: routing entries carry `construction_fallback` (renamed from the ambiguous `fallback_provider`), plus top-level `runtime_failover_enabled: false` and a one-line `fallback_semantics` statement. WP-B flips the flag ONLY after deploy + failure-injection evidence.
+- **`/health`** serves `runtime_failover_enabled: false` + `fallback_semantics`; `features.smart_fallback` → honest pair `construction_fallback: true` / `runtime_failover: false`.
+- **MCP config Z/CS tool descriptions were still v0.3-era** ("Claude if BYOK, else Gemini FREE") — now GENERATED from the truth contract (`hosted: <model> via <provider>`); hosted-option copy no longer says "developer-provided Gemini key" (multi-provider free tier); features block carries the honest pair.
+- **`/setup` + startup banner** drop the "smart fallback" suffix; hosted routing display says "construction fallback".
+- **Cerebras copy account-qualified** (T criterion 6): the blanket "FREE — 1M tokens/day" guarantee replaced with "free tier available; limits vary by account" across MCP config, provider docstrings, and the BYOK guide.
+- **BYOK guide currency sweep**: the guide's model tables had missed v0.5.51/v0.5.53 (still listed `gemini-2.5-flash`, `mistral-medium-3`) — corrected to `gemini-3.5-flash-lite` / `mistral-medium-3.5`.
+- **NEW `test_v0554_honest_fallback.py` (13 tests)**: required-current AND forbidden-stale assertions across /health, /setup, MCP config (rendered) + source backstop — T's exit criteria 1-7 as permanent CI.
+- Version surfaces: both constants, 12 version tests, `server.json` (registry `3.31.0`).
+
+### Verification
+- 772 unit + 79 registration + 7 integration tests green (13 new), coverage 74.64%
+- Content: copy/semantics + one JSON field rename on /health; hosted routing itself UNCHANGED (X/Z/CS untouched)
+
+**PR:** #303. T S88 review: `.macp/reviews/20260723_T_wpA_exit_and_wpB_design_review.md` (Hub).
+
+---
+
 ## v0.5.53 - Mistral Currency + Ollama Contract (July 23, 2026)
 
 Two lanes from Alton's model-diversity direction (S78): the **EU-sovereignty BYOK lane** (Mistral) and a health check on the **keyless local open-source path** (Ollama).

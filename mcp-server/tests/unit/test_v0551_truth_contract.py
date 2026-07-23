@@ -32,14 +32,14 @@ from verifimind_mcp.llm.provider import (
 
 def test_contract_version_matches_server_constant():
     from verifimind_mcp.server import SERVER_VERSION
-    assert get_public_contract()["version"] == SERVER_VERSION == "0.5.53"
+    assert get_public_contract()["version"] == SERVER_VERSION == "0.5.54"
 
 
 def test_contract_routing_covers_all_three_agents():
     routing = get_public_contract()["free_tier_routing"]
     assert set(routing) == {"X", "Z", "CS"}
     for entry in routing.values():
-        assert entry["provider"] and entry["model"] and entry["fallback_provider"]
+        assert entry["provider"] and entry["model"] and entry["construction_fallback"]
 
 
 def test_x_seat_routes_to_gemini_default():
@@ -137,4 +137,7 @@ def test_handoff_template_stamps_macp_25():
     assert record["macp_version"] == "2.5"
     md = format_handoff_markdown(record)
     assert 'MACP Version: 2.5 "Loop Engineering"' in md
-    assert "2.2" not in md
+    # Claim shapes, not bare numbers: the bare "2.2" scan false-positived on
+    # a "...52.28..." render TIMESTAMP in CI (clock-dependent flake).
+    assert "MACP Version: 2.2" not in md
+    assert "v2.2" not in md

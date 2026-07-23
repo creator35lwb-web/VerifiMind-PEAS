@@ -24,7 +24,7 @@ Carried forward from v0.4.1/v0.5.0:
 - Health check endpoint with rate limit stats
 - MCP configuration endpoint
 - Streamable HTTP transport for MCP protocol
-- Smart Fallback per-agent provider system
+- Per-agent provider routing (construction-time fallback; no runtime failover yet)
 """
 import logging
 import os
@@ -75,7 +75,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.53"
+SERVER_VERSION = "0.5.54"
 
 # MCP protocol version the server speaks (v0.5.49, AY/AZ ask from the MCP RC
 # assessment) — surfaced in /health so clients can check compatibility pre-connect.
@@ -137,7 +137,7 @@ def _hosted_routing_display() -> dict:
     """Per-agent hosted routing, generated from the truth contract (D-85-2)."""
     routing = get_public_contract()["free_tier_routing"]
     display = {
-        f"agent_{aid.lower()}": f"{r['model']} ({r['provider']}, developer key - FREE; fallback: {r['fallback_provider']})"
+        f"agent_{aid.lower()}": f"{r['model']} ({r['provider']}, developer key - FREE; construction fallback: {r['construction_fallback']})"
         for aid, r in routing.items()
     }
     display["default"] = "Mock provider (no API key needed)"
@@ -148,6 +148,7 @@ async def health_handler(request):
     """Health check endpoint — v2 with uptime and session tracing (v0.5.0)."""
     rate_stats = get_rate_limit_stats()
     uptime_seconds = int(time.time() - _SERVER_START_TIME)
+    contract = get_public_contract()
 
     return JSONResponse({
         "status": "healthy",
@@ -158,7 +159,11 @@ async def health_handler(request):
         "firestore": firestore_health(),
         # v0.5.51 (D-85-2): the canonical routing truth, projected — external
         # surfaces should read THIS instead of hand-maintaining model copy.
-        "free_tier_routing": get_public_contract()["free_tier_routing"],
+        "free_tier_routing": contract["free_tier_routing"],
+        # v0.5.54 (T S88 D-88-1): construction fallback ≠ request-time
+        # failover; this stays false until WP-B ships with failure evidence.
+        "runtime_failover_enabled": contract["runtime_failover_enabled"],
+        "fallback_semantics": contract["fallback_semantics"],
         "transport": "streamable-http",
         "protocol_version": MCP_PROTOCOL_VERSION,
         "uptime_seconds": uptime_seconds,
@@ -173,7 +178,8 @@ async def health_handler(request):
         "resources": 4,
         "tools": 13,
         "features": {
-            "smart_fallback": True,
+            "construction_fallback": True,
+            "runtime_failover": False,
             "per_agent_providers": True,
             "multi_model_routing": True,
             "quality_markers": True,
@@ -204,6 +210,11 @@ async def mcp_config_handler(request):
     host = request.headers.get("host", request.url.netloc)
     base_url = f"{scheme}://{host}"
 
+    # v0.5.54 (T S88 criterion 4): hosted-route copy is GENERATED from the
+    # truth contract so tool descriptions cannot drift from actual routing.
+    _routing = get_public_contract()["free_tier_routing"]
+    _rx, _rz, _rcs = _routing["X"], _routing["Z"], _routing["CS"]
+
     return JSONResponse({
         "mcpServers": {
             "verifimind-genesis": {
@@ -220,7 +231,8 @@ async def mcp_config_handler(request):
                     "models": free_tier_models_display() + ["BYOK: 6 providers (Gemini, Anthropic, OpenAI, Groq, Cerebras, Mistral)"],
                     "cost_per_validation": "$0 (FREE tier)",
                     "byok": True,
-                    "smart_fallback": True,
+                    "construction_fallback": True,
+                    "runtime_failover": False,
                     "rate_limiting": True
                 },
                 "headers": {
@@ -266,17 +278,17 @@ async def mcp_config_handler(request):
         "tools": [
             {
                 "name": "consult_agent_x",
-                "description": "Innovation & Strategy analysis (Smart Fallback: Gemini FREE)",
+                "description": f"Innovation & Strategy analysis (hosted: {_rx['model']} via {_rx['provider']}, FREE; any provider via BYOK)",
                 "parameters": ["concept_name", "concept_description", "context (optional)"]
             },
             {
                 "name": "consult_agent_z",
-                "description": "Ethics & Safety review with VETO power (Smart Fallback: Claude if BYOK, else Gemini FREE)",
+                "description": f"Ethics & Safety review with VETO power (hosted: {_rz['model']} via {_rz['provider']}, FREE; any provider via BYOK)",
                 "parameters": ["concept_name", "concept_description", "context (optional)", "prior_reasoning (optional)"]
             },
             {
                 "name": "consult_agent_cs",
-                "description": "Security & Feasibility validation (Smart Fallback: Claude if BYOK, else Gemini FREE)",
+                "description": f"Security & Feasibility validation (hosted: {_rcs['model']} via {_rcs['provider']}, FREE; any provider via BYOK)",
                 "parameters": ["concept_name", "concept_description", "context (optional)", "prior_reasoning (optional)"]
             },
             {
@@ -348,7 +360,7 @@ async def mcp_config_handler(request):
             "hosted_server_config": _hosted_routing_display(),
             "setup_options": {
                 "option_1_use_hosted": {
-                    "description": "Use the hosted server with developer-provided Gemini key",
+                    "description": "Use the hosted server with developer-provided keys (multi-provider free tier — per-agent routing in hosted_server_config)",
                     "cost": "FREE (covered by developer)",
                     "action": "Just use the tools - no configuration needed"
                 },
@@ -385,7 +397,7 @@ async def mcp_config_handler(request):
             "get_free_api_keys": {
                 "gemini": "https://aistudio.google.com (FREE tier)",
                 "groq": "https://console.groq.com (FREE tier)",
-                "cerebras": "https://cloud.cerebras.ai (FREE — 1M tokens/day)",
+                "cerebras": "https://cloud.cerebras.ai (free tier available; limits vary by account)",
                 "anthropic": "https://console.anthropic.com (paid)",
                 "openai": "https://platform.openai.com (paid)",
                 "mistral": "https://console.mistral.ai (paid)"
@@ -659,18 +671,18 @@ async def setup_handler(request):
             "trinity": {
                 "consult_agent_x": {
                     "description": "Innovation & Strategy analysis",
-                    "powered_by": f"{_x['model']} ({_x['provider']}, FREE) - smart fallback",
+                    "powered_by": f"{_x['model']} ({_x['provider']}, FREE)",
                     "use_for": "Evaluating market potential, competitive positioning, innovation score"
                 },
                 "consult_agent_z": {
                     "description": "Ethics & Safety review",
-                    "powered_by": f"{_z['model']} ({_z['provider']}, FREE; any provider via BYOK) - smart fallback",
+                    "powered_by": f"{_z['model']} ({_z['provider']}, FREE; any provider via BYOK)",
                     "use_for": "Privacy concerns, bias detection, social impact, Z-Protocol compliance",
                     "special": "Has VETO POWER - can reject unethical concepts"
                 },
                 "consult_agent_cs": {
                     "description": "Security & Feasibility validation",
-                    "powered_by": f"{_cs['model']} ({_cs['provider']}, FREE; any provider via BYOK) - smart fallback",
+                    "powered_by": f"{_cs['model']} ({_cs['provider']}, FREE; any provider via BYOK)",
                     "use_for": "Security vulnerabilities, attack vectors, Socratic questioning"
                 },
                 "run_full_trinity": {
@@ -1912,7 +1924,7 @@ print("FREE-TIER ROUTING (generated from the truth contract, v0.5.52):")
 _banner_routing = get_public_contract()["free_tier_routing"]
 for _aid in ("X", "Z", "CS"):
     _r = _banner_routing[_aid]
-    print(f"  {_aid} Agent: {_r['provider']}/{_r['model']} (fallback: {_r['fallback_provider']}; BYOK any provider)")
+    print(f"  {_aid} Agent: {_r['provider']}/{_r['model']} (construction fallback: {_r['construction_fallback']}; BYOK any provider)")
 print("-" * 70)
 print("Endpoints:")
 print(f"  MCP:    /mcp/")
