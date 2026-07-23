@@ -159,9 +159,13 @@ class BaseAgent(ABC):
         # Get output schema
         output_schema = self.OUTPUT_MODEL.model_json_schema()
         
-        # Call LLM
+        # Call LLM — through the WP-B failover executor. For unmarked
+        # providers (all BYOK/Ollama/override/mock) or with the runtime flag
+        # off, this is a plain delegated provider.generate() call.
+        from ..llm.failover import generate_with_failover
         try:
-            response = await self.llm.generate(
+            response = await generate_with_failover(
+                self.llm,
                 prompt=prompt,
                 output_schema=output_schema,
                 temperature=self.config.temperature,
@@ -184,6 +188,14 @@ class BaseAgent(ABC):
 
             # v0.4.3.1 C-S-P State: attach inference quality marker to result
             result._inference_quality = inference_quality
+
+            # WP-B: attempt disclosure (present only when the failover
+            # executor ran for a marked hosted provider; absent otherwise).
+            # The quality marker above is the FINAL provider's true stamp —
+            # a hop never upgrades it.
+            if isinstance(response, dict) and "_provider_attempts" in response:
+                result._provider_attempts = response["_provider_attempts"]
+                result._failover_occurred = response.get("_failover_occurred", False)
 
             # v0.5.46 (P2-2 repair): expose API-reported output tokens on the result so
             # the Z-Agent token-ceiling monitor (server.py) reads a real count. Previously
