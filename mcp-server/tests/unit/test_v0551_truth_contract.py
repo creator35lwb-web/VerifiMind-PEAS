@@ -137,4 +137,7 @@ def test_handoff_template_stamps_macp_25():
     assert record["macp_version"] == "2.5"
     md = format_handoff_markdown(record)
     assert 'MACP Version: 2.5 "Loop Engineering"' in md
-    assert "2.2" not in md
+    # Claim shapes, not bare numbers: the bare "2.2" scan false-positived on
+    # a "...52.28..." render TIMESTAMP in CI (clock-dependent flake).
+    assert "MACP Version: 2.2" not in md
+    assert "v2.2" not in md
