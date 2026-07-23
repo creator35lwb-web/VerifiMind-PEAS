@@ -224,12 +224,18 @@ def get_agent_provider(agent_id: str, ctx: Any = None):
             return provider
 
     # 3. Smart fallback: Use recommended provider if API key available
+    # WP-B: ONLY these hosted env-key branches mark the provider as runtime-
+    # failover eligible (D-88-3 locality). Session BYOK (step 2), per-agent
+    # operator overrides (step 1), and Mock (step 6) are never marked — a
+    # session-BYOK GeminiProvider is indistinguishable from a hosted one at
+    # the call site, so eligibility MUST be decided here, at resolution time.
+    from .llm.failover import mark_hosted_failover
     recommended = agent_config["recommended"]
 
     if recommended == "anthropic" and os.getenv("ANTHROPIC_API_KEY"):
         logger.info(f"Agent {agent_id}: Using recommended provider 'anthropic' (API key found)")
         try:
-            return AnthropicProvider()
+            return mark_hosted_failover(AnthropicProvider(), agent_id)
         except Exception as e:
             logger.warning(f"Agent {agent_id}: Anthropic failed: {e}")
 
@@ -237,7 +243,7 @@ def get_agent_provider(agent_id: str, ctx: Any = None):
         logger.info(f"Agent {agent_id}: Using recommended provider 'groq' (API key found)")
         try:
             from .llm import GroqProvider
-            return GroqProvider()
+            return mark_hosted_failover(GroqProvider(), agent_id)
         except Exception as e:
             logger.warning(f"Agent {agent_id}: Groq failed: {e}")
 
@@ -245,7 +251,7 @@ def get_agent_provider(agent_id: str, ctx: Any = None):
     if os.getenv("GEMINI_API_KEY"):
         logger.info(f"Agent {agent_id}: Using Gemini (FREE tier)")
         try:
-            return GeminiProvider()
+            return mark_hosted_failover(GeminiProvider(), agent_id)
         except Exception as e:
             logger.warning(f"Agent {agent_id}: Gemini failed: {e}")
 
@@ -254,7 +260,7 @@ def get_agent_provider(agent_id: str, ctx: Any = None):
         logger.info(f"Agent {agent_id}: Using Groq (FREE tier)")
         try:
             from .llm import GroqProvider
-            return GroqProvider()
+            return mark_hosted_failover(GroqProvider(), agent_id)
         except Exception as e:
             logger.warning(f"Agent {agent_id}: Groq failed: {e}")
 

@@ -150,7 +150,7 @@ async def health_handler(request):
     uptime_seconds = int(time.time() - _SERVER_START_TIME)
     contract = get_public_contract()
 
-    return JSONResponse({
+    payload = {
         "status": "healthy",
         "server": "verifimind-genesis",
         "version": SERVER_VERSION,
@@ -179,7 +179,7 @@ async def health_handler(request):
         "tools": 13,
         "features": {
             "construction_fallback": True,
-            "runtime_failover": False,
+            "runtime_failover": contract["runtime_failover_enabled"],
             "per_agent_providers": True,
             "multi_model_routing": True,
             "quality_markers": True,
@@ -195,7 +195,18 @@ async def health_handler(request):
             "current_load": f"{rate_stats['global_requests_in_window']}/{rate_stats['global_limit']}"
         },
         "quick_start": f"Run: {MCP_REMOTE_QUICKSTART}"
-    })
+    }
+    # WP-B (D-88-5): evidence + aggregate circuit state, served ONLY when the
+    # runtime flag is on. `failover_contract_tested_at` is stamped by the same
+    # env update that flips the flag, so the CI failure-injection evidence and
+    # build identity travel with the enablement (distinct from live probing).
+    if contract["runtime_failover_enabled"]:
+        from verifimind_mcp.llm.failover import circuit_snapshot
+        payload["failover"] = {
+            "failover_contract_tested_at": os.getenv("FAILOVER_CONTRACT_TESTED_AT", "unset"),
+            "circuit": circuit_snapshot(),
+        }
+    return JSONResponse(payload)
 
 async def mcp_config_handler(request):
     """MCP configuration endpoint for Claude Desktop and other MCP clients.

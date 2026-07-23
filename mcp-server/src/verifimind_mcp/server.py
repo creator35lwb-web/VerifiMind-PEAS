@@ -90,6 +90,28 @@ def wrap_response(response: dict) -> dict:
     return response
 
 
+def actual_provider_used(result, provider) -> str:
+    """WP-B honest disclosure: when runtime failover hopped, `_provider_used`
+    must name the provider that actually served the request, not the primary
+    the handler constructed. Without failover attempts (the normal/dark
+    path), this is exactly `provider.get_model_name()` as before."""
+    attempts = getattr(result, "_provider_attempts", None)
+    if attempts:
+        final = attempts[-1]
+        if final.get("outcome_class") == "success" and final.get("model"):
+            return final["model"]
+    return provider.get_model_name()
+
+
+def attach_failover_disclosure(payload: dict, result) -> None:
+    """Add the privacy-minimal attempt trail to a tool payload when the
+    failover executor ran (absent otherwise — strictly additive)."""
+    attempts = getattr(result, "_provider_attempts", None)
+    if attempts:
+        payload["_provider_attempts"] = attempts
+        payload["_failover_occurred"] = getattr(result, "_failover_occurred", False)
+
+
 def build_error_response(
     error_code: str,
     message: str,
@@ -555,7 +577,7 @@ def _create_mcp_instance():
                 "recommendation": result.recommendation,
                 "confidence": result.confidence,
                 "_inference_quality": _iq,
-                "_provider_used": provider.get_model_name(),
+                "_provider_used": actual_provider_used(result, provider),
                 "_byok": byok_used
             }
             # v0.5.44: structured fields at standard+; heaviest at full
@@ -567,6 +589,7 @@ def _create_mcp_instance():
                 payload["competitive_analysis"] = getattr(result, "competitive_analysis", None)
             if _iq == "mock":
                 payload["_warning"] = MOCK_MODE_WARNING
+            attach_failover_disclosure(payload, result)
             persist_trinity_result(user_uuid, "consult_agent_x", payload)
             return wrap_response(payload)
 
@@ -684,7 +707,7 @@ def _create_mcp_instance():
                 "veto_triggered": result.veto_triggered,
                 "confidence": result.confidence,
                 "_inference_quality": _iq,
-                "_provider_used": provider.get_model_name(),
+                "_provider_used": actual_provider_used(result, provider),
                 "_byok": byok_used
             }
             # v0.5.44: framework citations + scoring breakdown at standard+
@@ -697,6 +720,7 @@ def _create_mcp_instance():
                 payload["total_frameworks_evaluated"] = getattr(result, "total_frameworks_evaluated", None)
             if _iq == "mock":
                 payload["_warning"] = MOCK_MODE_WARNING
+            attach_failover_disclosure(payload, result)
             persist_trinity_result(user_uuid, "consult_agent_z", payload)
             return wrap_response(payload)
 
@@ -809,7 +833,7 @@ def _create_mcp_instance():
                 "recommendation": result.recommendation,
                 "confidence": result.confidence,
                 "_inference_quality": getattr(result, '_inference_quality', 'unknown'),
-                "_provider_used": provider.get_model_name(),
+                "_provider_used": actual_provider_used(result, provider),
                 "_byok": byok_used
             }
             # v0.5.44: threat assessment at standard+; 12-dim/6-stage/MACP at full
@@ -824,6 +848,7 @@ def _create_mcp_instance():
                 payload["standards_referenced"] = getattr(result, "standards_referenced", None)
             if payload["_inference_quality"] == "mock":
                 payload["_warning"] = MOCK_MODE_WARNING
+            attach_failover_disclosure(payload, result)
             persist_trinity_result(user_uuid, "consult_agent_cs", payload)
             return wrap_response(payload)
 
@@ -1052,14 +1077,29 @@ def _create_mcp_instance():
                 save_validation_history(history)
 
             # BYOK metadata for response
+            _stage_results = {"X": x_result, "Z": z_result, "CS": cs_result}
             _byok_meta = {
                 "_byok": any(byok_status.values()),
                 "_byok_agents": byok_status,
+                # WP-B: names the provider that ACTUALLY served each stage
+                # (identical to the resolved provider unless a runtime hop ran)
                 "_providers_used": {
-                    aid: resolved_providers[aid].get_model_name()
+                    aid: actual_provider_used(_stage_results[aid], resolved_providers[aid])
                     for aid in ("X", "Z", "CS")
                 },
             }
+            _stage_failover = {
+                aid: getattr(_stage_results[aid], "_provider_attempts", None)
+                for aid in ("X", "Z", "CS")
+            }
+            if any(_stage_failover.values()):
+                _byok_meta["_provider_attempts"] = {
+                    aid: attempts for aid, attempts in _stage_failover.items() if attempts
+                }
+                _byok_meta["_failover_occurred"] = any(
+                    getattr(_stage_results[aid], "_failover_occurred", False)
+                    for aid in ("X", "Z", "CS")
+                )
 
             # Return result — Markdown-first if requested (v0.4.1)
             if output_format == "markdown":
