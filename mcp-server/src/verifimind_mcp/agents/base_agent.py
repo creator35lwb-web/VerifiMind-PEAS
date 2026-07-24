@@ -192,10 +192,12 @@ class BaseAgent(ABC):
             # WP-B: attempt disclosure (present only when the failover
             # executor ran for a marked hosted provider; absent otherwise).
             # The quality marker above is the FINAL provider's true stamp —
-            # a hop never upgrades it.
+            # a hop never upgrades it. B-92-3: the per-consultation
+            # correlation travels with the disclosure on SUCCESS too.
             if isinstance(response, dict) and "_provider_attempts" in response:
                 result._provider_attempts = response["_provider_attempts"]
                 result._failover_occurred = response.get("_failover_occurred", False)
+                result._failover_correlation = response.get("_failover_correlation")
 
             # v0.5.46 (P2-2 repair): expose API-reported output tokens on the result so
             # the Z-Agent token-ceiling monitor (server.py) reads a real count. Previously

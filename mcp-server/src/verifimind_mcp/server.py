@@ -106,11 +106,44 @@ def actual_provider_used(result, provider) -> str:
 
 def attach_failover_disclosure(payload: dict, result) -> None:
     """Add the privacy-minimal attempt trail to a tool payload when the
-    failover executor ran (absent otherwise — strictly additive)."""
+    failover executor ran (absent otherwise — strictly additive). B-92-3:
+    the ephemeral consultation correlation is part of the success contract,
+    not only the error contract."""
     attempts = getattr(result, "_provider_attempts", None)
     if attempts:
         payload["_provider_attempts"] = attempts
         payload["_failover_occurred"] = getattr(result, "_failover_occurred", False)
+        correlation = getattr(result, "_failover_correlation", None)
+        if correlation:
+            payload["_failover_correlation"] = correlation
+
+
+def trinity_failover_meta(stage_results: dict) -> dict:
+    """Trinity-level failover disclosure (B-92-3): per-stage attempt trails
+    and correlations, present only when at least one stage ran the executor."""
+    stage_attempts = {
+        aid: getattr(res, "_provider_attempts", None)
+        for aid, res in stage_results.items()
+    }
+    if not any(stage_attempts.values()):
+        return {}
+    meta = {
+        "_provider_attempts": {
+            aid: attempts for aid, attempts in stage_attempts.items() if attempts
+        },
+        "_failover_occurred": any(
+            getattr(res, "_failover_occurred", False)
+            for res in stage_results.values()
+        ),
+    }
+    correlations = {
+        aid: getattr(res, "_failover_correlation", None)
+        for aid, res in stage_results.items()
+        if getattr(res, "_failover_correlation", None)
+    }
+    if correlations:
+        meta["_failover_correlations"] = correlations
+    return meta
 
 
 def failover_error_payload(exc, agent: str, concept_name: Optional[str] = None) -> dict:
@@ -143,8 +176,11 @@ def failover_error_payload(exc, agent: str, concept_name: Optional[str] = None) 
     payload["_provider_attempts"] = exc.attempts
     payload["attempt_count"] = len(exc.attempts)
     payload["final_reason_class"] = exc.final_reason_class
-    payload["_failover_occurred"] = len(
-        {a.get("provider") for a in exc.attempts}) > 1
+    # B-92-1: EXPLICIT terminal truth from the executor — never inferred
+    # from the trail. A proposed-but-rejected hop is not failover, and the
+    # final provider is the one that actually executed inference (or None).
+    payload["_failover_occurred"] = exc.hop_executed
+    payload["final_provider"] = exc.final_provider
     payload["_failover_correlation"] = exc.correlation
     payload["_inference_quality"] = "unavailable"
     if concept_name is not None:
@@ -1135,18 +1171,7 @@ def _create_mcp_instance():
                     for aid in ("X", "Z", "CS")
                 },
             }
-            _stage_failover = {
-                aid: getattr(_stage_results[aid], "_provider_attempts", None)
-                for aid in ("X", "Z", "CS")
-            }
-            if any(_stage_failover.values()):
-                _byok_meta["_provider_attempts"] = {
-                    aid: attempts for aid, attempts in _stage_failover.items() if attempts
-                }
-                _byok_meta["_failover_occurred"] = any(
-                    getattr(_stage_results[aid], "_failover_occurred", False)
-                    for aid in ("X", "Z", "CS")
-                )
+            _byok_meta.update(trinity_failover_meta(_stage_results))
 
             # Return result — Markdown-first if requested (v0.4.1)
             if output_format == "markdown":

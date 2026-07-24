@@ -55,6 +55,7 @@ byte-identical to v0.5.54.
 import asyncio
 import logging
 import os
+import re
 import time
 import uuid
 from datetime import datetime, timezone
@@ -86,20 +87,50 @@ def _flag_on() -> bool:
     return os.getenv(ENABLE_ENV, "").strip().lower() in ("1", "true", "yes", "on")
 
 
+EVIDENCE_CLOCK_SKEW_S = 3600  # bounded skew: evidence may not be materially future
+
+# A build identity is strong iff it is a git commit SHA (7-40 hex) or exactly
+# the running deployment identity (Cloud Run stamps K_REVISION on every
+# instance) — B-92-2: "x" or other decorative strings must never validate.
+_GIT_SHA_RE = re.compile(r"^[0-9a-f]{7,40}$")
+
+
+def _evidence_timestamp_valid(tested_at: str) -> bool:
+    """B-92-2: require a FULL, timezone-aware, not-materially-future ISO-8601
+    timestamp. Date-only ('2026-07-25') and naive timestamps fail; a future
+    stamp beyond bounded clock skew fails (evidence cannot postdate reality)."""
+    if "T" not in tested_at:
+        return False  # date-only parses via fromisoformat — reject explicitly
+    try:
+        stamp = datetime.fromisoformat(tested_at.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    if stamp.tzinfo is None:
+        return False
+    now = datetime.now(timezone.utc)
+    return (stamp - now).total_seconds() <= EVIDENCE_CLOCK_SKEW_S
+
+
+def _evidence_build_valid(build: str) -> bool:
+    if _GIT_SHA_RE.fullmatch(build.lower()):
+        return True
+    running_revision = os.getenv("K_REVISION", "").strip()
+    return bool(running_revision) and build == running_revision
+
+
 def evidence_state() -> Dict[str, Any]:
-    """The enablement evidence tuple (B-90-7): stamped by the SAME env update
-    that flips the flag, so CI failure-injection evidence + build identity
-    travel with enablement. `valid` requires an ISO-8601 tested-at AND a
-    non-empty build identity."""
+    """The enablement evidence tuple (B-90-7 + B-92-2): stamped by the SAME
+    env update that flips the flag, so CI failure-injection evidence + build
+    identity travel with enablement. `valid` requires a timezone-aware,
+    non-future ISO-8601 tested-at AND a build identity bound to a git SHA or
+    the running deployment revision."""
     tested_at = os.getenv(EVIDENCE_TESTED_ENV, "").strip() or None
     build = os.getenv(EVIDENCE_BUILD_ENV, "").strip() or None
-    valid = False
-    if tested_at and build:
-        try:
-            datetime.fromisoformat(tested_at.replace("Z", "+00:00"))
-            valid = True
-        except ValueError:
-            valid = False
+    valid = bool(
+        tested_at and build
+        and _evidence_timestamp_valid(tested_at)
+        and _evidence_build_valid(build)
+    )
     return {"tested_at": tested_at, "build": build, "valid": valid}
 
 
@@ -426,15 +457,25 @@ class FailoverExhaustedError(RuntimeError):
     """All bounded attempts failed — surfaced instead of silent degradation.
 
     Carries the privacy-minimal attempt trail (provider/model/class/duration
-    — never prompts, responses, or identifiers) plus an ephemeral
-    per-consultation correlation value."""
+    — never prompts, responses, or identifiers), an ephemeral
+    per-consultation correlation value, and EXPLICIT terminal truth
+    (B-92-1): `final_reason_class` is the ACTUAL last event (which may be an
+    admission rejection or circuit skip, not the preceding inference
+    failure), `final_provider` is the last provider that EXECUTED an
+    inference attempt (None if none ran), and `hop_executed` is True only
+    when a backup inference attempt actually ran — a proposed-but-rejected
+    hop never counts as failover."""
 
     def __init__(self, message: str, attempts: List[Dict[str, Any]],
-                 final_reason_class: str, correlation: str):
+                 final_reason_class: str, correlation: str,
+                 final_provider: Optional[str] = None,
+                 hop_executed: bool = False):
         super().__init__(message)
         self.attempts = attempts
         self.final_reason_class = final_reason_class
         self.correlation = correlation
+        self.final_provider = final_provider
+        self.hop_executed = hop_executed
         self.error_code = "FAILOVER_EXHAUSTED"
 
 
@@ -442,14 +483,19 @@ class FailoverTerminalError(RuntimeError):
     """A terminal (non-retryable, non-hoppable) hosted-provider failure —
     auth/config or invalid-request. Distinct from BYOK_AUTH_FAILED by
     construction: BYOK providers never enter the executor, so this code
-    always means the HOSTED lane needs operator attention."""
+    always means the HOSTED lane needs operator attention. Carries the same
+    explicit terminal-truth fields as FailoverExhaustedError (B-92-1)."""
 
     def __init__(self, message: str, attempts: List[Dict[str, Any]],
-                 reason_class: str, correlation: str):
+                 reason_class: str, correlation: str,
+                 final_provider: Optional[str] = None,
+                 hop_executed: bool = False):
         super().__init__(message)
         self.attempts = attempts
         self.final_reason_class = reason_class
         self.correlation = correlation
+        self.final_provider = final_provider
+        self.hop_executed = hop_executed
         self.error_code = "HOSTED_PROVIDER_TERMINAL"
 
 
@@ -478,16 +524,21 @@ class _FailoverRun:
     def __init__(self, provider: Any, agent_id: str,
                  chain: Tuple[str, ...], kwargs: Dict[str, Any]):
         self.primary = provider
+        self.primary_family = _provider_family(provider)
         self.agent_id = agent_id
         self.chain = chain
         self.kwargs = kwargs
         self.correlation = uuid.uuid4().hex[:8]  # ephemeral, per-consultation
         self.attempts: List[Dict[str, Any]] = []
-        self.hop_used = False
         self.retry_used = False
         self.probe_held: Optional[str] = None
         self.admission_held: Optional[str] = None
         self.last_reason = "unclassified"
+        # B-92-1 explicit terminal truth: the last provider that EXECUTED an
+        # inference attempt, and whether a backup attempt actually ran (a
+        # proposed/rejected hop is NOT failover).
+        self.last_executed_family: Optional[str] = None
+        self.hop_executed = False
         self.deadline = time.monotonic() + _total_deadline()
         self.attempt_timeout = _attempt_timeout()
 
@@ -511,9 +562,18 @@ class _FailoverRun:
             release_backup(self.admission_held)
             self.admission_held = None
 
-    def _exhausted(self, message: str) -> FailoverExhaustedError:
+    def _exhausted(self, message: str,
+                   reason: Optional[str] = None) -> FailoverExhaustedError:
+        """Build the exhaustion error. `reason` OVERRIDES last_reason when the
+        terminal event is not an inference failure (admission rejection,
+        circuit skip, construction failure, deadline) — B-92-1: the payload's
+        final_reason_class must be the ACTUAL last event."""
+        if reason is not None:
+            self.last_reason = reason
         return FailoverExhaustedError(
-            message, self.attempts, self.last_reason, self.correlation)
+            message, self.attempts, self.last_reason, self.correlation,
+            final_provider=self.last_executed_family,
+            hop_executed=self.hop_executed)
 
     # -- attempt outcomes -----------------------------------------------------
 
@@ -540,14 +600,19 @@ class _FailoverRun:
     def _hop(self) -> Any:
         """Cross to the resolved backup (B-90-2 chain), honoring its circuit
         and the admission bulkhead (B-90-5). Returns the constructed provider
-        or raises FailoverExhaustedError."""
+        or raises FailoverExhaustedError. Every failure path here sets the
+        EXPLICIT terminal reason (B-92-1) — a hop that never executed must
+        never be reported through the preceding inference-failure class."""
         if not self.chain:
-            raise self._exhausted(f"no runtime hop target for agent {self.agent_id}")
+            raise self._exhausted(
+                f"no runtime hop target for agent {self.agent_id}",
+                reason="no_runtime_hop_target")
         target = self.chain[0]
         allowed, probe = acquire_slot(target)
         if not allowed:
-            self._note(target, "circuit_open_skipped")
-            raise self._exhausted(f"hop target {target} cooling down")
+            self._note(target, "hop_target_circuit_open")
+            raise self._exhausted(f"hop target {target} cooling down",
+                                  reason="hop_target_circuit_open")
         if probe:
             self.probe_held = target
         if not admit_backup(target):
@@ -555,17 +620,18 @@ class _FailoverRun:
                 release_probe(target)
                 self.probe_held = None
             self._note(target, "backup_admission_rejected")
-            raise self._exhausted(f"backup {target} admission limit reached")
+            raise self._exhausted(f"backup {target} admission limit reached",
+                                  reason="backup_admission_rejected")
         self.admission_held = target
         try:
             from . import get_provider
             provider = get_provider(target)
         except Exception as exc:
             self._note(target, "hop_construction_failed")
-            raise self._exhausted(f"hop target {target} unavailable") from exc
+            raise self._exhausted(f"hop target {target} unavailable",
+                                  reason="hop_construction_failed") from exc
         logger.info("failover: agent %s hopping to %s (%s) [%s]",
                     self.agent_id, target, self.last_reason, self.correlation)
-        self.hop_used = True
         return provider
 
     async def _handle_failure(self, active: Any, family: str,
@@ -585,8 +651,10 @@ class _FailoverRun:
             raise FailoverTerminalError(
                 f"hosted provider {family} terminal failure "
                 f"({decision.reason_class})",
-                self.attempts, decision.reason_class, self.correlation) from exc
-        if self.hop_used:
+                self.attempts, decision.reason_class, self.correlation,
+                final_provider=self.last_executed_family,
+                hop_executed=self.hop_executed) from exc
+        if self.hop_executed:
             # The backup got its single shot (T S88: "one retry plus one hop
             # can otherwise become three paid/limited calls").
             raise self._exhausted("hop budget exhausted") from exc
@@ -608,7 +676,8 @@ class _FailoverRun:
         self._note(family, "success", duration_ms, model)
         if isinstance(response, dict):
             response["_provider_attempts"] = self.attempts
-            response["_failover_occurred"] = self.hop_used
+            # B-92-1: failover means a backup inference actually EXECUTED
+            response["_failover_occurred"] = self.hop_executed
             response["_failover_correlation"] = self.correlation
         return response
 
@@ -628,15 +697,21 @@ class _FailoverRun:
             self.probe_held = family
         if not allowed:
             self._note(family, "circuit_open_skipped")
-            self.last_reason = "circuit_open"
+            self.last_reason = "primary_circuit_open"
             active = self._hop()
             family = _provider_family(active)
 
         while True:
             remaining = self.deadline - time.monotonic()
             if remaining <= 0:
-                raise self._exhausted("total consultation deadline exhausted")
+                raise self._exhausted("total consultation deadline exhausted",
+                                      reason="total_deadline_exhausted")
             started = time.monotonic()
+            # B-92-1: record execution BEFORE the attempt — final_provider and
+            # hop_executed reflect attempts that actually ran, never proposals.
+            self.last_executed_family = family
+            if family != self.primary_family:
+                self.hop_executed = True
             try:
                 response = await asyncio.wait_for(
                     active.generate(**self.kwargs),
