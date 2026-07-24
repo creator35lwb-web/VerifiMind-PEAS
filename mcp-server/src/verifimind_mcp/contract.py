@@ -54,12 +54,19 @@ def get_public_contract() -> Dict[str, Any]:
         if name not in ("mock", "ollama")
     }
 
-    # WP-B: the runtime hop chain is config truth (what failover WOULD do),
-    # served even while disabled; the flag is a LIVE read of the deploy-gated
-    # env switch (default off => False, same served value as v0.5.54).
-    from .llm.failover import runtime_failover_enabled, runtime_hop_chain
+    # WP-B: the runtime hop chain is config truth (what failover WOULD do
+    # under normal resolution), served even while disabled. B-90-2: the chain
+    # excludes mock AND the primary's own family — a same-family "hop" is not
+    # failover. The flag is a LIVE, FAIL-CLOSED read (env switch + validated
+    # evidence tuple, B-90-7); default off => False, same as v0.5.54.
+    from .llm.failover import runtime_failover_enabled
     for agent_id, entry in free_tier_routing.items():
-        entry["runtime_hop_chain"] = runtime_hop_chain(agent_id)
+        cfg = AGENT_PROVIDER_DEFAULTS.get(agent_id, {})
+        fallback = cfg.get("fallback")
+        primary = entry["provider"]
+        entry["runtime_hop_chain"] = (
+            [fallback] if fallback and fallback not in ("mock", primary) else []
+        )
 
     enabled = runtime_failover_enabled()
     return {

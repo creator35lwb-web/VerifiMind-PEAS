@@ -1,28 +1,34 @@
 """
-WP-B — FailoverExecutor deterministic failure injection (T S88 D-88-2..5)
+WP-B — FailoverExecutor deterministic failure injection (T S88 D-88-2..5 +
+S90 B-90-1..9 amendment regressions)
 =========================================================================
 
 The runtime-failover contract, enforced with shaped fakes (no SDK, no
-network): locality consent (BYOK/Ollama never enter, mock never a target),
-the retry-vs-hop matrices, Retry-After handling, bounded budgets +
-cancellation, cooldown circuit, quality/veto preservation, telemetry
-redaction, and the dark-mode guarantee (flag off == byte-identical legacy
-behavior). Design: Hub #81 (WP-B design v2); review basis:
-.macp/reviews/20260723_T_wpA_exit_and_wpB_design_review.md.
+network). v2 adds a named regression for each of T's five independently
+reproduced S90 counterexamples — terminal-auth circuit poisoning, the
+same-family "hop", the blind 429 retry, the stranded half-open probe, and
+fail-open evidence — plus backup admission, MCP terminal payloads, and the
+Z-veto / degraded-cap synthesis invariants after a hop.
+
+Design: Hub #81 (WP-B design v2); reviews:
+.macp/reviews/20260723_T_wpA_exit_and_wpB_design_review.md (S88) and
+.macp/reviews/20260724_T_pr304_wpb_implementation_review.md (S90).
 """
 
 import asyncio
+import time
 
 import pytest
 
 from verifimind_mcp.llm import failover as fo
 from verifimind_mcp.llm.failover import (
     FailoverExhaustedError,
+    FailoverTerminalError,
     classify_failure,
     generate_with_failover,
     hosted_failover_agent,
+    hosted_hop_chain,
     mark_hosted_failover,
-    runtime_hop_chain,
 )
 
 
@@ -33,6 +39,24 @@ class RateLimitError(Exception):
         super().__init__("rate limited")
         if retry_after is not None:
             self.retry_after = retry_after
+
+
+class _Headers(dict):
+    pass
+
+
+class _HeaderResponse:
+    def __init__(self, headers):
+        self.headers = _Headers(headers)
+        self.status_code = 429
+
+
+class RateLimitHeaderError(Exception):
+    """429 whose Retry-After lives on response.headers (either HTTP form)."""
+
+    def __init__(self, headers):
+        super().__init__("rate limited")
+        self.response = _HeaderResponse(headers)
 
 
 class AuthenticationError(Exception):
@@ -87,11 +111,17 @@ class HangingProvider(FakeProvider):
         await asyncio.Event().wait()  # blocks until cancelled / timed out
 
 
+EVIDENCE = {"tested": "2026-07-25T00:00:00Z", "build": "abc1234"}
+
+
 @pytest.fixture(autouse=True)
 def _failover_env(monkeypatch):
-    """Every test starts flag-ON with clean circuits and fast budgets;
-    dark-mode tests turn the flag off explicitly."""
+    """Every test starts flag-ON with a VALID evidence tuple (fail-closed
+    otherwise, B-90-7), clean circuits/admission, fast budgets; dark-mode and
+    evidence tests override explicitly."""
     monkeypatch.setenv(fo.ENABLE_ENV, "true")
+    monkeypatch.setenv(fo.EVIDENCE_TESTED_ENV, EVIDENCE["tested"])
+    monkeypatch.setenv(fo.EVIDENCE_BUILD_ENV, EVIDENCE["build"])
     monkeypatch.setenv(fo.ATTEMPT_TIMEOUT_ENV, "0.5")
     monkeypatch.setenv(fo.TOTAL_DEADLINE_ENV, "5")
     fo.reset_circuits()
@@ -101,7 +131,7 @@ def _failover_env(monkeypatch):
 
 @pytest.fixture
 def gemini_backup(monkeypatch):
-    """Route Z's hop target ('gemini') to a scripted fake."""
+    """Route the resolved 'gemini' hop target to a scripted fake."""
     backup = FakeProvider([_ok()], model_name="gemini/backup-model")
 
     def _fake_get_provider(name):
@@ -112,8 +142,10 @@ def gemini_backup(monkeypatch):
     return backup
 
 
-def _marked(script, agent="Z", model_name="groq/test-model"):
-    return mark_hosted_failover(FakeProvider(script, model_name), agent)
+def _marked(script, agent="Z", active="groq", fallback="gemini",
+            model_name="groq/test-model"):
+    return mark_hosted_failover(
+        FakeProvider(script, model_name), agent, active, fallback)
 
 
 def _run(provider, **kwargs):
@@ -166,8 +198,9 @@ def test_unmarked_ollama_stays_local(monkeypatch):
     assert hop_calls == []
 
 
-def test_hosted_resolution_marks_and_session_byok_does_not(monkeypatch):
-    """config_helper wiring: hosted env-key branch marks; session BYOK not."""
+def test_hosted_resolution_marks_with_resolved_chain(monkeypatch):
+    """config_helper wiring: the hosted env-key branch marks AND attaches the
+    resolved chain (B-90-2); session BYOK gets neither."""
     for key in ("GROQ_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY",
                 "X_AGENT_PROVIDER", "Z_AGENT_PROVIDER"):
         monkeypatch.delenv(key, raising=False)
@@ -175,6 +208,7 @@ def test_hosted_resolution_marks_and_session_byok_does_not(monkeypatch):
     from verifimind_mcp.config_helper import get_agent_provider
     hosted = get_agent_provider("Z")
     assert hosted_failover_agent(hosted) == "Z"
+    assert hosted_hop_chain(hosted) == ("gemini",)
 
     class Cfg:
         llm_provider = "groq"
@@ -185,18 +219,26 @@ def test_hosted_resolution_marks_and_session_byok_does_not(monkeypatch):
 
     byok = get_agent_provider("Z", Ctx())
     assert hosted_failover_agent(byok) is None
+    assert hosted_hop_chain(byok) == ()
 
 
-def test_mock_is_never_a_hop_target():
-    assert runtime_hop_chain("X") == []       # X's fallback is mock => no hop
-    assert runtime_hop_chain("Z") == ["gemini"]
-    assert runtime_hop_chain("CS") == ["gemini"]
+def test_marker_excludes_mock_and_same_family_targets():
+    same_family = _marked([_ok()], active="gemini", fallback="gemini",
+                          model_name="gemini/gemini-3.5-flash-lite")
+    assert hosted_hop_chain(same_family) == ()          # B-90-2
+    mock_fallback = _marked([_ok()], agent="X", active="gemini",
+                            fallback="mock",
+                            model_name="gemini/gemini-3.5-flash-lite")
+    assert hosted_hop_chain(mock_fallback) == ()        # no-silent-mock
+    normal = _marked([_ok()])
+    assert hosted_hop_chain(normal) == ("gemini",)
 
 
 def test_no_silent_mock_on_exhaustion():
-    """Agent X (no hop target): a hop-class failure surfaces an explicit
+    """Agent X (empty chain): a hop-class failure surfaces an explicit
     error — never a synthetic response."""
-    provider = _marked([APITimeoutError()], agent="X",
+    provider = _marked([APITimeoutError()], agent="X", active="gemini",
+                       fallback="mock",
                        model_name="gemini/gemini-3.5-flash-lite")
     with pytest.raises(FailoverExhaustedError) as excinfo:
         _run(provider)
@@ -205,21 +247,60 @@ def test_no_silent_mock_on_exhaustion():
 
 
 # ---------------------------------------------------------------------------
-# Failure-class policy (D-88-2)
+# B-90-2 regression: a hop must cross provider families
 # ---------------------------------------------------------------------------
 
-def test_classify_auth_is_terminal():
-    assert classify_failure(AuthenticationError()).action == fo.TERMINAL
+def test_gemini_primary_never_hops_to_gemini(monkeypatch):
+    """T's reproduced counterexample: gemini -> gemini with
+    _failover_occurred=true. Now: empty resolved chain -> explicit
+    exhaustion, single family in the trail, no fake failover."""
+    hop_calls = []
+    import verifimind_mcp.llm as llm_pkg
+    monkeypatch.setattr(llm_pkg, "get_provider",
+                        lambda name: hop_calls.append(name))
+    provider = _marked([InternalServerError(), InternalServerError()],
+                       active="gemini", fallback="gemini",
+                       model_name="gemini/gemini-3.5-flash-lite")
+    with pytest.raises(FailoverExhaustedError) as excinfo:
+        _run(provider)
+    assert hop_calls == []
+    assert {a["provider"] for a in excinfo.value.attempts} == {"gemini"}
+
+
+def test_hop_crosses_provider_families(gemini_backup):
+    provider = _marked([APITimeoutError()])
+    response = _run(provider)
+    families = [a["provider"] for a in response["_provider_attempts"]]
+    assert families == ["groq", "gemini"]
+    assert response["_failover_occurred"] is True
+
+
+# ---------------------------------------------------------------------------
+# Failure-class policy (D-88-2) + B-90-1 circuit hygiene
+# ---------------------------------------------------------------------------
+
+def test_classify_auth_is_terminal_and_circuit_neutral():
+    decision = classify_failure(AuthenticationError())
+    assert decision.action == fo.TERMINAL
+    assert decision.circuit_relevant is False
 
 
 def test_classify_invalid_request_is_terminal():
     assert classify_failure(BadRequestError()).action == fo.TERMINAL
 
 
-def test_classify_429_carries_retry_after():
+def test_classify_429_with_retry_after_retries():
     decision = classify_failure(RateLimitError(retry_after=7))
     assert decision.action == fo.RETRY
     assert decision.retry_after == pytest.approx(7.0)
+    assert decision.circuit_relevant is False
+
+
+def test_classify_429_without_retry_after_hops():
+    """B-90-3 regression: absent Retry-After must NOT blind-retry."""
+    decision = classify_failure(RateLimitError())
+    assert decision.action == fo.HOP
+    assert decision.reason_class == "rate_limited_no_retry_after"
 
 
 def test_classify_timeout_hops():
@@ -230,10 +311,37 @@ def test_classify_unknown_is_terminal_conservative():
     assert classify_failure(ValueError("weird")).action == fo.TERMINAL
 
 
-def test_terminal_failure_raises_original_no_hop(gemini_backup):
-    provider = _marked([AuthenticationError()])
-    with pytest.raises(AuthenticationError):
+def test_terminal_auth_failures_do_not_poison_circuit(monkeypatch):
+    """B-90-1 regression: T reproduced terminal_auth_circuit_state=open after
+    three auth failures. Terminal classes are circuit-neutral now."""
+    import verifimind_mcp.llm as llm_pkg
+    monkeypatch.setattr(llm_pkg, "get_provider", lambda name: None)
+    for _ in range(fo.CIRCUIT_FAILURE_THRESHOLD + 1):
+        provider = _marked([AuthenticationError()])
+        with pytest.raises(FailoverTerminalError):
+            _run(provider)
+    assert fo.circuit_snapshot().get("groq", "closed") == "closed"
+    healthy = _marked([_ok()])
+    response = _run(healthy)          # a valid request still uses the primary
+    assert healthy.calls == 1
+    assert response["_failover_occurred"] is False
+
+
+def test_rate_limit_failures_do_not_poison_circuit(gemini_backup):
+    for _ in range(fo.CIRCUIT_FAILURE_THRESHOLD + 1):
+        gemini_backup._script.append(_ok())
+        provider = _marked([RateLimitError()])   # no Retry-After -> hop
         _run(provider)
+    assert fo.circuit_snapshot().get("groq", "closed") == "closed"
+
+
+def test_terminal_failure_is_typed_with_original_cause(gemini_backup):
+    provider = _marked([AuthenticationError()])
+    with pytest.raises(FailoverTerminalError) as excinfo:
+        _run(provider)
+    assert excinfo.value.error_code == "HOSTED_PROVIDER_TERMINAL"
+    assert excinfo.value.final_reason_class == "auth_or_config"
+    assert isinstance(excinfo.value.__cause__, AuthenticationError)
     assert gemini_backup.calls == 0
 
 
@@ -250,7 +358,7 @@ def test_safety_refusal_is_a_response_not_a_failure(gemini_backup):
 
 
 # ---------------------------------------------------------------------------
-# Retry / hop execution paths
+# Retry / hop execution paths (incl. B-90-3 Retry-After forms)
 # ---------------------------------------------------------------------------
 
 def test_primary_success_no_failover_machinery(gemini_backup):
@@ -258,6 +366,7 @@ def test_primary_success_no_failover_machinery(gemini_backup):
     response = _run(provider)
     assert response["_failover_occurred"] is False
     assert [a["outcome_class"] for a in response["_provider_attempts"]] == ["success"]
+    assert len(response["_failover_correlation"]) == 8
     assert gemini_backup.calls == 0
 
 
@@ -295,6 +404,40 @@ def test_429_with_small_retry_after_waits_and_retries(gemini_backup):
     assert provider.calls == 2
     assert gemini_backup.calls == 0
     assert response["_failover_occurred"] is False
+
+
+def test_429_without_retry_after_hops_immediately(gemini_backup):
+    """B-90-3 regression: T reproduced primary=2 backup=0 on a bare 429."""
+    provider = _marked([RateLimitError()])
+    response = _run(provider)
+    assert provider.calls == 1          # exactly one primary call — no blind retry
+    assert gemini_backup.calls == 1
+    assert response["_failover_occurred"] is True
+
+
+def test_429_with_http_date_retry_after_waits(gemini_backup):
+    from email.utils import format_datetime
+    from datetime import datetime, timezone
+    soon = format_datetime(datetime.now(timezone.utc))  # ~0s wait
+    provider = _marked([RateLimitHeaderError({"Retry-After": soon}), _ok()])
+    response = _run(provider)
+    assert provider.calls == 2
+    assert gemini_backup.calls == 0
+    assert response["_failover_occurred"] is False
+
+
+def test_429_with_malformed_retry_after_hops(gemini_backup):
+    provider = _marked([RateLimitHeaderError({"Retry-After": "soonish"})])
+    response = _run(provider)
+    assert provider.calls == 1
+    assert gemini_backup.calls == 1
+
+
+def test_429_with_negative_retry_after_clamps_to_immediate_retry(gemini_backup):
+    provider = _marked([RateLimitError(retry_after=-5), _ok()])
+    response = _run(provider)
+    assert provider.calls == 2          # negative clamps to 0 => one retry
+    assert gemini_backup.calls == 0
 
 
 def test_429_with_retry_after_beyond_budget_hops_immediately(gemini_backup):
@@ -335,12 +478,12 @@ def test_hop_construction_failure_is_explicit(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Bounded execution + cancellation (D-88-4)
+# Bounded execution + cancellation (D-88-4, B-90-4)
 # ---------------------------------------------------------------------------
 
 def test_per_attempt_timeout_fires_and_hops(monkeypatch, gemini_backup):
     monkeypatch.setenv(fo.ATTEMPT_TIMEOUT_ENV, "0.05")
-    provider = mark_hosted_failover(HangingProvider([]), "Z")
+    provider = mark_hosted_failover(HangingProvider([]), "Z", "groq", "gemini")
     response = _run(provider)
     assert gemini_backup.calls == 1
     assert response["_provider_attempts"][0]["outcome_class"] == "attempt_timeout"
@@ -356,7 +499,7 @@ def test_total_deadline_exhaustion(monkeypatch):
 
 
 def test_cancellation_propagates():
-    provider = mark_hosted_failover(HangingProvider([]), "Z")
+    provider = mark_hosted_failover(HangingProvider([]), "Z", "groq", "gemini")
 
     async def _cancel_run():
         task = asyncio.ensure_future(generate_with_failover(
@@ -367,6 +510,46 @@ def test_cancellation_propagates():
         with pytest.raises(asyncio.CancelledError):
             await task
     asyncio.run(_cancel_run())
+
+
+def test_cancellation_releases_half_open_probe():
+    """B-90-4 regression: T reproduced half_open_allows_after_cancel=False.
+    A cancelled probe attempt must release the permit so a later request can
+    probe the half-open circuit."""
+    opened = time.monotonic() - fo.CIRCUIT_COOLDOWN_S - 1
+    for _ in range(fo.CIRCUIT_FAILURE_THRESHOLD):
+        fo.record_provider_failure("groq", now=opened)
+    assert fo._circuit_for("groq").state(time.monotonic()) == "half_open"
+
+    provider = mark_hosted_failover(HangingProvider([]), "Z", "groq", "gemini")
+
+    async def _cancel_run():
+        task = asyncio.ensure_future(generate_with_failover(
+            provider, prompt="p", output_schema={}, temperature=0.2,
+            max_tokens=64))
+        await asyncio.sleep(0.05)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    asyncio.run(_cancel_run())
+    allowed, probe = fo.acquire_slot("groq")
+    assert allowed is True              # the permit was released, not stranded
+    assert probe is True
+
+
+def test_circuit_neutral_failure_releases_half_open_probe(monkeypatch):
+    """A terminal failure during a half-open probe must not strand the
+    permit either (it records no circuit outcome by design)."""
+    import verifimind_mcp.llm as llm_pkg
+    monkeypatch.setattr(llm_pkg, "get_provider", lambda name: None)
+    opened = time.monotonic() - fo.CIRCUIT_COOLDOWN_S - 1
+    for _ in range(fo.CIRCUIT_FAILURE_THRESHOLD):
+        fo.record_provider_failure("groq", now=opened)
+    provider = _marked([AuthenticationError()])
+    with pytest.raises(FailoverTerminalError):
+        _run(provider)
+    allowed, _ = fo.acquire_slot("groq")
+    assert allowed is True
 
 
 # ---------------------------------------------------------------------------
@@ -408,14 +591,226 @@ def test_circuit_snapshot_is_aggregate_only():
 
 
 # ---------------------------------------------------------------------------
-# Quality / veto preservation + telemetry contract (D-88-2 g6)
+# Backup admission bulkhead (B-90-5, per-process)
 # ---------------------------------------------------------------------------
+
+def test_backup_admission_rejects_at_limit(gemini_backup):
+    for _ in range(fo.DEFAULT_BACKUP_ADMISSION_LIMIT):
+        assert fo.admit_backup("gemini") is True     # saturate the bulkhead
+    provider = _marked([APITimeoutError()])
+    with pytest.raises(FailoverExhaustedError) as excinfo:
+        _run(provider)
+    assert excinfo.value.attempts[-1]["outcome_class"] == "backup_admission_rejected"
+    assert gemini_backup.calls == 0
+
+
+def test_backup_admission_released_after_attempt(gemini_backup):
+    provider = _marked([APITimeoutError()])
+    _run(provider)                        # hop succeeds
+    assert fo.admission_snapshot() == {}  # nothing held after completion
+
+
+def test_backup_admission_released_on_backup_failure(gemini_backup):
+    gemini_backup._script = [InternalServerError()]
+    provider = _marked([APITimeoutError()])
+    with pytest.raises(FailoverExhaustedError):
+        _run(provider)
+    assert fo.admission_snapshot() == {}
+
+
+def test_admission_scope_is_labeled_per_process():
+    assert fo.ADMISSION_SCOPE == "per-process"
+
+
+# ---------------------------------------------------------------------------
+# Evidence semantics (B-90-7): fail-closed enablement
+# ---------------------------------------------------------------------------
+
+def test_flag_without_evidence_stays_disabled(monkeypatch):
+    """B-90-7 regression: T reproduced runtime env true while surfaces
+    disagreed. The flag alone must never enable."""
+    monkeypatch.delenv(fo.EVIDENCE_TESTED_ENV, raising=False)
+    monkeypatch.delenv(fo.EVIDENCE_BUILD_ENV, raising=False)
+    assert fo.runtime_failover_enabled() is False
+    provider = _marked([_ok()])
+    response = _run(provider)
+    assert "_provider_attempts" not in response   # dark path — fail closed
+
+
+def test_malformed_evidence_timestamp_stays_disabled(monkeypatch):
+    monkeypatch.setenv(fo.EVIDENCE_TESTED_ENV, "soon")
+    assert fo.runtime_failover_enabled() is False
+
+
+def test_evidence_without_build_stays_disabled(monkeypatch):
+    monkeypatch.delenv(fo.EVIDENCE_BUILD_ENV, raising=False)
+    assert fo.runtime_failover_enabled() is False
+
+
+def test_full_evidence_tuple_enables():
+    assert fo.evidence_state()["valid"] is True
+    assert fo.runtime_failover_enabled() is True
+
+
+def test_contract_flips_live_with_the_flag(monkeypatch):
+    from verifimind_mcp.contract import get_public_contract
+    on = get_public_contract()
+    assert on["runtime_failover_enabled"] is True
+    assert "bounded runtime failover" in on["fallback_semantics"]
+    assert on["free_tier_routing"]["Z"]["runtime_hop_chain"] == ["gemini"]
+    assert on["free_tier_routing"]["X"]["runtime_hop_chain"] == []
+
+    monkeypatch.setenv(fo.ENABLE_ENV, "")
+    off = get_public_contract()
+    assert off["runtime_failover_enabled"] is False
+    assert "does not fail over" in off["fallback_semantics"]
+
+
+def test_health_failover_block_carries_validated_evidence(monkeypatch):
+    import http_server
+    import json
+
+    lit = json.loads(asyncio.run(http_server.health_handler(None)).body)
+    assert lit["runtime_failover_enabled"] is True
+    assert lit["features"]["runtime_failover"] is True
+    assert lit["failover"]["failover_contract_tested_at"] == EVIDENCE["tested"]
+    assert lit["failover"]["build"] == EVIDENCE["build"]
+    assert lit["failover"]["admission_scope"] == "per-process"
+    assert isinstance(lit["failover"]["circuit"], dict)
+
+    monkeypatch.setenv(fo.ENABLE_ENV, "")
+    dark = json.loads(asyncio.run(http_server.health_handler(None)).body)
+    assert dark["runtime_failover_enabled"] is False
+    assert "failover" not in dark
+
+
+def test_mcp_config_projects_the_live_flag(monkeypatch):
+    """B-90-7 regression: T reproduced MCP config reporting false while the
+    runtime env was true. The features block now reads the contract."""
+    import http_server
+    import json
+
+    class _URL:
+        scheme = "https"
+        netloc = "verifimind.ysenseai.org"
+
+    class _Req:
+        headers = {"host": "verifimind.ysenseai.org"}
+        url = _URL()
+
+    lit = json.loads(asyncio.run(http_server.mcp_config_handler(_Req())).body)
+    assert lit["mcpServers"]["verifimind-genesis"]["features"]["runtime_failover"] is True
+
+    monkeypatch.setenv(fo.ENABLE_ENV, "")
+    dark = json.loads(asyncio.run(http_server.mcp_config_handler(_Req())).body)
+    assert dark["mcpServers"]["verifimind-genesis"]["features"]["runtime_failover"] is False
+
+
+# ---------------------------------------------------------------------------
+# MCP boundary contract (B-90-8)
+# ---------------------------------------------------------------------------
+
+def test_failover_error_payload_exhausted_contract():
+    from verifimind_mcp.server import failover_error_payload
+    exc = FailoverExhaustedError(
+        "hop budget exhausted",
+        [{"provider": "groq", "model": "groq/test-model",
+          "outcome_class": "server_error", "duration_ms": 20},
+         {"provider": "gemini", "model": "gemini/backup-model",
+          "outcome_class": "server_error", "duration_ms": 30}],
+        "server_error", "abcd1234")
+    payload = failover_error_payload(exc, "Trinity", "TestConcept")
+    assert payload["error_code"] == "FAILOVER_EXHAUSTED"
+    assert payload["attempt_count"] == 2
+    assert payload["final_reason_class"] == "server_error"
+    assert payload["_failover_occurred"] is True
+    assert payload["_failover_correlation"] == "abcd1234"
+    assert payload["_inference_quality"] == "unavailable"
+    assert payload["concept"] == "TestConcept"
+
+
+def test_failover_error_payload_terminal_distinct_from_byok():
+    from verifimind_mcp.server import failover_error_payload
+    exc = FailoverTerminalError(
+        "hosted provider groq terminal failure (auth_or_config)",
+        [{"provider": "groq", "model": "groq/test-model",
+          "outcome_class": "auth_or_config", "duration_ms": 10}],
+        "auth_or_config", "beef5678")
+    payload = failover_error_payload(exc, "Z")
+    assert payload["error_code"] == "HOSTED_PROVIDER_TERMINAL"
+    assert payload["error_code"] != "BYOK_AUTH_FAILED"
+    assert payload["_failover_occurred"] is False
+    assert payload["final_reason_class"] == "auth_or_config"
+
+
+def test_error_payload_carries_no_prompt_content():
+    from verifimind_mcp.server import failover_error_payload
+    import json as _json
+    exc = FailoverExhaustedError("x", [{"provider": "groq", "model": "m",
+                                        "outcome_class": "server_error",
+                                        "duration_ms": 1}],
+                                 "server_error", "cafe0000")
+    secret = "TOP-SECRET-CONCEPT-TEXT"
+    payload = failover_error_payload(exc, "Z")
+    assert secret not in _json.dumps(payload)
+
+
+# ---------------------------------------------------------------------------
+# Quality / veto / synthesis invariants after a hop (B-90-9)
+# ---------------------------------------------------------------------------
+
+class _XStub:
+    innovation_score = 8.0
+    strategic_value = 8.0
+
+
+class _ZStub:
+    def __init__(self, ethics_score=8.0, veto=False):
+        self.ethics_score = ethics_score
+        self.veto_triggered = veto
+
+
+class _CSStub:
+    security_score = 8.0
+
 
 def test_hop_never_upgrades_inference_quality(gemini_backup):
     gemini_backup._script = [_ok(quality="fallback")]
     provider = _marked([APITimeoutError()])
     response = _run(provider)
     assert response["_inference_quality"] == "fallback"   # degraded stays degraded
+
+
+def test_degraded_hop_quality_still_caps_synthesis_at_revise(gemini_backup):
+    """B-90-9: the degraded-cap consumers read the hop's TRUE final quality —
+    a hopped consultation that landed degraded cannot auto-clear a concept."""
+    from verifimind_mcp.utils.synthesis import (
+        calculate_overall_score, determine_recommendation,
+    )
+    gemini_backup._script = [_ok(quality="fallback")]
+    provider = _marked([APITimeoutError()])
+    z_quality = _run(provider)["_inference_quality"]
+    assert z_quality == "fallback"
+
+    score = calculate_overall_score(_XStub(), _ZStub(), _CSStub(), z_quality)
+    assert score <= 4.0                                    # degraded cap holds
+    assert determine_recommendation(score, _ZStub(), _CSStub(), z_quality) == "revise"
+
+
+def test_z_veto_preserved_after_hop(gemini_backup):
+    """B-90-9: a veto carried by a hopped-to provider's output still rejects
+    and still caps the score at 3.0 — failover never dilutes the veto."""
+    from verifimind_mcp.utils.synthesis import (
+        calculate_overall_score, determine_recommendation,
+    )
+    gemini_backup._script = [_ok(quality="real")]
+    provider = _marked([APITimeoutError()])
+    z_quality = _run(provider)["_inference_quality"]
+
+    veto_z = _ZStub(ethics_score=2.0, veto=True)
+    score = calculate_overall_score(_XStub(), veto_z, _CSStub(), z_quality)
+    assert score <= 3.0                                    # veto cap holds
+    assert determine_recommendation(score, veto_z, _CSStub(), z_quality) == "reject"
 
 
 def test_telemetry_is_privacy_minimal(gemini_backup):
@@ -425,77 +820,12 @@ def test_telemetry_is_privacy_minimal(gemini_backup):
         assert set(attempt) == {"provider", "model", "outcome_class", "duration_ms"}
 
 
-def test_exhaustion_error_carries_no_prompt_content():
-    provider = _marked([AuthenticationError()], agent="X")
+def test_terminal_error_carries_no_prompt_content():
+    provider = _marked([AuthenticationError()])
     secret_prompt = "TOP-SECRET-CONCEPT-TEXT"
-    with pytest.raises(Exception) as excinfo:
+    with pytest.raises(FailoverTerminalError) as excinfo:
         asyncio.run(generate_with_failover(
             provider, prompt=secret_prompt, output_schema={},
             temperature=0.2, max_tokens=64))
     assert secret_prompt not in repr(excinfo.value)
-
-
-# ---------------------------------------------------------------------------
-# Surface projection (D-88-5): contract + /health + payload helpers
-# ---------------------------------------------------------------------------
-
-def test_contract_flips_live_with_the_flag(monkeypatch):
-    from verifimind_mcp.contract import get_public_contract
-    monkeypatch.setenv(fo.ENABLE_ENV, "")
-    off = get_public_contract()
-    assert off["runtime_failover_enabled"] is False
-    assert "does not fail over" in off["fallback_semantics"]
-    assert off["free_tier_routing"]["Z"]["runtime_hop_chain"] == ["gemini"]
-    assert off["free_tier_routing"]["X"]["runtime_hop_chain"] == []
-
-    monkeypatch.setenv(fo.ENABLE_ENV, "true")
-    on = get_public_contract()
-    assert on["runtime_failover_enabled"] is True
-    assert "bounded runtime failover" in on["fallback_semantics"]
-
-
-def test_health_failover_block_only_when_enabled(monkeypatch):
-    import http_server
-    import json
-
-    monkeypatch.setenv(fo.ENABLE_ENV, "")
-    dark = json.loads(asyncio.run(http_server.health_handler(None)).body)
-    assert dark["runtime_failover_enabled"] is False
-    assert "failover" not in dark
-
-    monkeypatch.setenv(fo.ENABLE_ENV, "true")
-    monkeypatch.setenv("FAILOVER_CONTRACT_TESTED_AT", "2026-07-24T00:00:00Z@abc1234")
-    lit = json.loads(asyncio.run(http_server.health_handler(None)).body)
-    assert lit["runtime_failover_enabled"] is True
-    assert lit["features"]["runtime_failover"] is True
-    assert lit["failover"]["failover_contract_tested_at"].startswith("2026-07-24")
-    assert isinstance(lit["failover"]["circuit"], dict)
-
-
-def test_payload_helpers_disclose_actual_provider():
-    from verifimind_mcp.server import actual_provider_used, attach_failover_disclosure
-
-    class _Result:
-        _provider_attempts = [
-            {"provider": "groq", "model": "groq/test-model",
-             "outcome_class": "attempt_timeout", "duration_ms": 30},
-            {"provider": "gemini", "model": "gemini/backup-model",
-             "outcome_class": "success", "duration_ms": 900},
-        ]
-        _failover_occurred = True
-
-    class _Primary:
-        def get_model_name(self):
-            return "groq/test-model"
-
-    assert actual_provider_used(_Result(), _Primary()) == "gemini/backup-model"
-    payload = {}
-    attach_failover_disclosure(payload, _Result())
-    assert payload["_failover_occurred"] is True
-
-    class _Plain:
-        pass
-    assert actual_provider_used(_Plain(), _Primary()) == "groq/test-model"
-    plain_payload = {}
-    attach_failover_disclosure(plain_payload, _Plain())
-    assert plain_payload == {}   # absent on the normal path — strictly additive
+    assert secret_prompt not in repr(excinfo.value.attempts)

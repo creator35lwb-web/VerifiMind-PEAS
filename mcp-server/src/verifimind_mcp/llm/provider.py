@@ -688,8 +688,12 @@ class GeminiProvider(LLMProvider):
                     f"Respond ONLY with the JSON object, no other text.\n\nJSON:"
                 )
 
-            # Generate response (google.genai client API — v0.5.47 R-S51-G)
-            response = self.client.models.generate_content(
+            # Generate response (google.genai client API — v0.5.47 R-S51-G).
+            # WP-B B-90-6: awaited via the SDK's async client (`client.aio`)
+            # so `asyncio.wait_for` can actually bound the attempt — the old
+            # sync call inside this async method blocked the event loop and
+            # made the per-attempt timeout unenforceable for Gemini.
+            response = await self.client.aio.models.generate_content(
                 model=self.model,
                 contents=prompt,
                 config=gen_config,

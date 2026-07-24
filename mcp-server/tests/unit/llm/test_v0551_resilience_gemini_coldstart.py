@@ -9,9 +9,11 @@ fallback cascade and Firestore degradation; the two residuals routed here:
    v0.5.47 `google.genai` migration no test walked the SDK boundary — the
    v0.5.50 provider-contract file covered OpenAI/Groq/Anthropic/Mistral and
    explicitly deferred Gemini. These tests mock the genai client faithfully
-   (sync `models.generate_content`, `response.text`, `usage_metadata` token
-   fields) and pin the whole parse ladder: real / partial-with-defaults /
-   scattered-object merge / fence stripping / raise-on-SDK-error.
+   (`client.aio.models.generate_content` async surface since WP-B B-90-6 —
+   previously the sync `models.generate_content`; `response.text`,
+   `usage_metadata` token fields) and pin the whole parse ladder: real /
+   partial-with-defaults / scattered-object merge / fence stripping /
+   raise-on-SDK-error.
 
 2. Cold-start behavior: Cloud Run cold starts must not pay for (or crash on)
    eager client construction. Firestore is lazy + cached; import must not
@@ -46,7 +48,10 @@ def clean_env(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# Faithful google.genai stand-ins (sync generate_content, usage_metadata names)
+# Faithful google.genai stand-ins (usage_metadata names). WP-B B-90-6: the
+# provider now awaits `client.aio.models.generate_content` (async client) so
+# per-attempt timeouts are enforceable — the fake mirrors that surface, with
+# the async path delegating to the same scripted sync core.
 # ---------------------------------------------------------------------------
 
 class _Usage:
@@ -80,9 +85,26 @@ class _FakeModels:
         return self._response
 
 
+class _FakeAioModels:
+    """Async mirror of _FakeModels — same scripted calls/exceptions."""
+
+    def __init__(self, models):
+        self._models = models
+
+    async def generate_content(self, **kwargs):
+        await asyncio.sleep(0)
+        return self._models.generate_content(**kwargs)
+
+
+class _FakeAio:
+    def __init__(self, models):
+        self.models = _FakeAioModels(models)
+
+
 class _FakeClient:
     def __init__(self, models):
         self.models = models
+        self.aio = _FakeAio(models)
 
 
 def _gemini(response=None, exc=None, monkeypatch=None):

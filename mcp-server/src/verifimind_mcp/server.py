@@ -34,6 +34,7 @@ from pydantic import BaseModel, Field
 
 from verifimind_mcp.utils.uuid_tracer import emit_tracer
 from verifimind_mcp.utils.trinity_history import persist_trinity_result
+from verifimind_mcp.llm.failover import FailoverExhaustedError, FailoverTerminalError
 
 # Initialize logger for security events
 logger = logging.getLogger(__name__)
@@ -110,6 +111,45 @@ def attach_failover_disclosure(payload: dict, result) -> None:
     if attempts:
         payload["_provider_attempts"] = attempts
         payload["_failover_occurred"] = getattr(result, "_failover_occurred", False)
+
+
+def failover_error_payload(exc, agent: str, concept_name: Optional[str] = None) -> dict:
+    """B-90-8: the stable terminal contract for failover-lane failures.
+
+    FAILOVER_EXHAUSTED = all bounded attempts failed (explicit instead of a
+    silent mock). HOSTED_PROVIDER_TERMINAL = auth/config or invalid-request
+    on the HOSTED lane — distinct from BYOK_AUTH_FAILED by construction,
+    because BYOK providers never enter the executor. Both carry the
+    privacy-minimal attempt trail (provider/model/class/duration only) and an
+    ephemeral per-consultation correlation value; no prompts, responses, or
+    user/registration identifiers."""
+    exhausted = getattr(exc, "error_code", "") == "FAILOVER_EXHAUSTED"
+    if exhausted:
+        message = "All bounded runtime-failover attempts failed."
+        hint = ("The hosted providers for this agent are currently failing. "
+                "Try again shortly, or pass BYOK params to use your own provider.")
+    else:
+        message = f"Hosted provider terminal failure ({exc.final_reason_class})."
+        hint = ("This hosted-lane failure is not retryable (auth/config or "
+                "invalid request) — the operator has been signalled via logs. "
+                "BYOK requests are unaffected.")
+    payload = build_error_response(
+        error_code=exc.error_code,
+        message=message,
+        recovery_hint=hint,
+        agent=agent,
+        original_error=exc,
+    )
+    payload["_provider_attempts"] = exc.attempts
+    payload["attempt_count"] = len(exc.attempts)
+    payload["final_reason_class"] = exc.final_reason_class
+    payload["_failover_occurred"] = len(
+        {a.get("provider") for a in exc.attempts}) > 1
+    payload["_failover_correlation"] = exc.correlation
+    payload["_inference_quality"] = "unavailable"
+    if concept_name is not None:
+        payload["concept"] = concept_name
+    return payload
 
 
 def build_error_response(
@@ -593,6 +633,9 @@ def _create_mcp_instance():
             persist_trinity_result(user_uuid, "consult_agent_x", payload)
             return wrap_response(payload)
 
+        except (FailoverExhaustedError, FailoverTerminalError) as e:
+            # B-90-8: the executor's typed contract survives the MCP boundary
+            return wrap_response(failover_error_payload(e, AGENT_X_NAME, concept_name))
         except Exception as e:
             return wrap_response({
                 "agent": AGENT_X_NAME,
@@ -724,6 +767,8 @@ def _create_mcp_instance():
             persist_trinity_result(user_uuid, "consult_agent_z", payload)
             return wrap_response(payload)
 
+        except (FailoverExhaustedError, FailoverTerminalError) as e:
+            return wrap_response(failover_error_payload(e, AGENT_Z_NAME, concept_name))
         except Exception as e:
             return wrap_response({
                 "agent": AGENT_Z_NAME,
@@ -852,6 +897,8 @@ def _create_mcp_instance():
             persist_trinity_result(user_uuid, "consult_agent_cs", payload)
             return wrap_response(payload)
 
+        except (FailoverExhaustedError, FailoverTerminalError) as e:
+            return wrap_response(failover_error_payload(e, AGENT_CS_NAME, concept_name))
         except Exception as e:
             return wrap_response({
                 "agent": AGENT_CS_NAME,
@@ -1176,6 +1223,10 @@ def _create_mcp_instance():
             persist_trinity_result(user_uuid, "run_full_trinity", payload)
             return wrap_response(payload)
 
+        except (FailoverExhaustedError, FailoverTerminalError) as e:
+            # B-90-8: hosted-lane typed contract — distinct from BYOK_AUTH_FAILED
+            # below (BYOK providers never enter the failover executor).
+            return wrap_response(failover_error_payload(e, "Trinity", concept_name))
         except Exception as e:
             err_str = str(e).lower()
             # Detect BYOK authentication failures for targeted recovery hints
