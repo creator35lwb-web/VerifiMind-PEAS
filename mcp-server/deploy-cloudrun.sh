@@ -80,30 +80,35 @@ echo ""
 echo "Step 1: Building container image..."
 cd "$(dirname "$0")"
 
-# B-94-1/B-95-2: bake the immutable build identity into the image
-# (Dockerfile ARG COMMIT_SHA -> image-owned /app/.build_commit_sha file).
-# The WP-B failover evidence gate binds against this image-carried value.
-#
-# B-95-2 guard: `gcloud builds submit` uploads the WORKING DIRECTORY, while
-# `git rev-parse HEAD` names the committed tree — a dirty worktree could
-# ship bytes B wearing label A. Therefore: refuse dirty/untracked state,
-# and require HEAD to be the pushed origin/main commit (prod builds from
-# published main only). Fail closed on any mismatch.
+# B-94-1/B-95-2/B-96-2: bake the immutable build identity into the image
+# (Dockerfile ARG COMMIT_SHA -> image-owned /app/.build_commit_sha file),
+# and build from EXACT COMMITTED BYTES — `gcloud builds submit <dir>`
+# uploads the working directory (where Git-IGNORED files like .env.local
+# are invisible to `git status --porcelain` yet enter the upload and
+# `COPY . .`). Therefore the source package is a `git archive` of the
+# verified commit: ignored/untracked local files structurally CANNOT
+# enter, and the identity label describes the archive bytes by
+# construction.
 if [[ -n "$(git status --porcelain)" ]]; then
-    echo "ERROR (B-95-2): working tree is not clean — the build would upload"
-    echo "bytes that HEAD does not describe. Commit/stash and push first."
+    echo "ERROR (B-95-2): working tree is not clean — commit/stash first so" >&2
+    echo "the identity label describes the source exactly." >&2
     exit 1
 fi
 git fetch origin main --quiet
 if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
-    echo "ERROR (B-95-2): HEAD is not origin/main — production builds only"
-    echo "from the pushed main commit, so the identity label is verifiable."
+    echo "ERROR (B-95-2): HEAD is not origin/main — production builds only" >&2
+    echo "from the pushed main commit, so the identity label is verifiable." >&2
     exit 1
 fi
 COMMIT_SHA=$(git rev-parse HEAD)
-echo "Source commit:  $COMMIT_SHA (verified clean + remote-parity; baked into image)"
+SRC_ARCHIVE="$(mktemp -t verifimind-src-XXXXXX).tgz"
+trap 'rm -f "$SRC_ARCHIVE"' EXIT
+# HEAD:mcp-server — the committed subtree at archive root (exact bytes;
+# .gcloudignore is irrelevant on this path because nothing local is scanned)
+git archive --format=tgz -o "$SRC_ARCHIVE" "HEAD:mcp-server"
+echo "Source commit:  $COMMIT_SHA (clean + remote-parity; exact-archive build)"
 
-gcloud builds submit \
+gcloud builds submit "$SRC_ARCHIVE" \
     --config=cloudbuild-image.yaml \
     --substitutions=_IMAGE_TAG="$IMAGE_TAG",_COMMIT_SHA="$COMMIT_SHA" \
     --timeout=600s

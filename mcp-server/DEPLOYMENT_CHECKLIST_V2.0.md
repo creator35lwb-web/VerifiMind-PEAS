@@ -1,3 +1,10 @@
+> **SUPERSEDED — HISTORICAL REFERENCE ONLY (B-96-1, 2026-07-25).**
+> Any build/deploy commands below are from the v0.2.x era and MUST NOT be
+> executed. The only authorized deployment paths are the Cloud Build
+> trigger (root `cloudbuild.yaml`) and `mcp-server/deploy-cloudrun.sh`
+> (exact-committed-bytes archive build with provenance guards), reached
+> via the `/verifimind-deploy` command which delegates exclusively.
+
 # VerifiMind PEAS MCP Server v2.0 - Deployment Checklist
 
 **Date**: December 23, 2025  

@@ -15,7 +15,13 @@ build
 .coverage
 htmlcov
 .tox
-.env
+# B-96-2: the FULL secret/local class — `.env` alone missed `.env.local` /
+# `.env.production`, which Git ignores (invisible to `git status --porcelain`)
+# yet the upload and `COPY . .` would include. Pattern class, not one name.
+.env*
+*.db
+*.sqlite*
+*.log
 .venv
 venv/
 ENV/

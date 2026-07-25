@@ -1276,36 +1276,102 @@ def test_legacy_deploy_path_hard_retired():
         assert live_command not in stub, f"retired stub still carries: {live_command}"
 
 
-def test_deploy_surface_inventory_closed():
-    """B-95-3 receipt: EVERY tracked executable/config surface capable of
-    building or deploying verifimind-mcp-server is either an authorized
-    attested path or a retirement stub — the inventory is machine-closed,
-    not documented-by-convention."""
+def _tracked_deploy_surfaces():
+    """B-96-1: capability detection by CONTENT, independent of extension —
+    the prior `.sh/.yaml/.yml` filter excluded a live `.md` command surface
+    by construction (T's exact counterexample). Also catches the args-list
+    YAML form ('deploy' as a list item), which the literal-command scan
+    missed on cloudbuild.yaml itself."""
     import subprocess
     listing = subprocess.run(
         ["git", "ls-files"], cwd=str(_REPO_ROOT),
         capture_output=True, text=True, check=True).stdout.splitlines()
-    authorized = {
-        "cloudbuild.yaml",                    # trigger path (attested)
-        "mcp-server/cloudbuild-image.yaml",   # manual build config (attested)
-        "mcp-server/deploy-cloudrun.sh",      # manual path (guarded + attested)
-    }
-    retired_stubs = {"mcp-server/deploy-gcp.sh"}
-    offenders = []
+    capability_markers = ("gcloud builds submit", "gcloud run deploy",
+                         "builds submit", "docker push", "'deploy'")
+    surfaces = {}
     for name in listing:
-        if not name.endswith((".sh", ".yaml", ".yml")):
-            continue  # executable/config surfaces only; prose cannot deploy
         try:
             text = (_REPO_ROOT / name).read_text(encoding="utf-8", errors="ignore")
         except OSError:
             continue
-        deployish = ("gcloud run deploy" in text or "builds submit" in text
-                     or "docker push" in text)
-        if "verifimind-mcp-server" in text and deployish:
-            if name in authorized:
-                continue
-            if name in retired_stubs:
-                offenders.append(f"{name} (stub carries live commands)")
-            else:
-                offenders.append(name)
-    assert offenders == [], f"unattested deploy surfaces: {offenders}"
+        if "verifimind-mcp-server" in text and any(
+                marker in text for marker in capability_markers):
+            surfaces[name] = text
+    return surfaces
+
+
+def test_deploy_surface_inventory_closed():
+    """B-95-3 + B-96-1 receipt: EVERY tracked surface whose CONTENT can build
+    or deploy verifimind-mcp-server is explicitly classified — authorized
+    executable, retirement stub, delegating command doc, superseded doc, test
+    oracle, or historical narrative. An unclassified new surface fails."""
+    authorized_exec = {
+        "cloudbuild.yaml",                    # trigger path (attested)
+        "mcp-server/deploy-cloudrun.sh",      # manual path (guards + archive)
+    }
+    retired_stubs = {"mcp-server/deploy-gcp.sh"}
+    delegating_docs = {".claude/commands/verifimind-deploy.md"}
+    superseded_docs = {                       # banner-redirected, non-operational
+        "mcp-server/DEPLOY_GCP.md",
+        "docs/GCP_DEPLOYMENT_GUIDE.md",
+        "mcp-server/DEPLOYMENT_CHECKLIST_V2.0.md",
+    }
+    historical_or_config = {                  # narrative / permission entries
+        "docs/DEVELOPMENT_JOURNEY.md",
+        ".claude/settings.local.json",
+    }
+    classified = (authorized_exec | retired_stubs | delegating_docs
+                  | superseded_docs | historical_or_config)
+    surfaces = _tracked_deploy_surfaces()
+    unclassified = [
+        name for name in surfaces
+        if name not in classified and not name.startswith("mcp-server/tests/")
+    ]
+    assert unclassified == [], f"unclassified deploy-capable surfaces: {unclassified}"
+    for name in retired_stubs & set(surfaces):
+        raise AssertionError(f"retired stub {name} still deploy-capable")
+    for name in superseded_docs & set(surfaces):
+        assert "SUPERSEDED — HISTORICAL REFERENCE ONLY" in surfaces[name] \
+            or "HARD-RETIRED" in surfaces[name], name
+
+
+def test_md_command_surface_cannot_carry_own_recipe():
+    """B-96-1 named regression — T's exact counterexample: the tracked
+    /verifimind-deploy command must DELEGATE to the guarded canonical script
+    and carry NO standalone build/deploy recipe of its own."""
+    skill = (_REPO_ROOT / ".claude/commands/verifimind-deploy.md").read_text(
+        encoding="utf-8")
+    assert "deploy-cloudrun.sh" in skill          # the delegation
+    assert "gcloud builds submit" not in skill    # no second recipe
+    assert "gcloud run deploy" not in skill
+
+
+def test_manual_build_consumes_exact_committed_bytes():
+    """B-96-2 named regression: `gcloud builds submit <dir>` uploads the
+    WORKING DIRECTORY, where Git-ignored files (.env.local) hide from
+    `git status --porcelain` yet enter the upload and COPY. The manual path
+    must therefore submit a `git archive` of the verified commit — local
+    ignored/untracked bytes structurally cannot enter."""
+    script = (_MCP_SERVER_DIR / "deploy-cloudrun.sh").read_text(encoding="utf-8")
+    assert "git archive" in script
+    assert "HEAD:mcp-server" in script
+    assert 'gcloud builds submit "$SRC_ARCHIVE"' in script
+    # and never a bare directory submit
+    for line in script.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("gcloud builds submit") and "SRC_ARCHIVE" not in stripped:
+            raise AssertionError("manual build must submit the exact archive")
+
+
+def test_ignore_files_cover_secret_and_local_classes():
+    """B-96-2 receipt: the FULL `.env*` secret class plus local artifact
+    classes are excluded from every build context — `.env` alone missed
+    `.env.local`/`.env.production` (T's exact pattern gap)."""
+    gcloud = (_MCP_SERVER_DIR / ".gcloudignore").read_text(encoding="utf-8")
+    docker = (_MCP_SERVER_DIR / ".dockerignore").read_text(encoding="utf-8")
+    for content, where in ((gcloud, ".gcloudignore"), (docker, ".dockerignore")):
+        for pattern in (".env*", "*.db", "*.log"):
+            assert pattern in content, f"{pattern} missing from {where}"
+    root_docker = (_REPO_ROOT / ".dockerignore").read_text(encoding="utf-8")
+    for pattern in ("mcp-server/.env*", "mcp-server/**/*.db", "mcp-server/**/*.log"):
+        assert pattern in root_docker, f"{pattern} missing from root .dockerignore"
