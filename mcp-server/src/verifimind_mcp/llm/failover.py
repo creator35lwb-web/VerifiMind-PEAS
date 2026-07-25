@@ -55,7 +55,6 @@ byte-identical to v0.5.54.
 import asyncio
 import logging
 import os
-import re
 import time
 import uuid
 from datetime import datetime, timezone
@@ -89,10 +88,19 @@ def _flag_on() -> bool:
 
 EVIDENCE_CLOCK_SKEW_S = 3600  # bounded skew: evidence may not be materially future
 
-# A build identity is strong iff it is a git commit SHA (7-40 hex) or exactly
-# the running deployment identity (Cloud Run stamps K_REVISION on every
-# instance) — B-92-2: "x" or other decorative strings must never validate.
-_GIT_SHA_RE = re.compile(r"^[0-9a-f]{7,40}$")
+# B-93-1: evidence build identity must BIND to the live artifact, never
+# merely look like one — a SHA-shaped value ("deadbee") names nothing. Two
+# accepted bindings, both compared against runtime values the OPERATOR does
+# not control at flip time:
+#   1. equality with K_REVISION (Cloud Run stamps the running revision);
+#   2. equality with BUILD_COMMIT_SHA — the source commit the build pipeline
+#      exports at deploy (cloudbuild.yaml passes $COMMIT_SHA), i.e. a trusted
+#      comparator baked before any operator env-flip. This is the practical
+#      Cloud Run path: the flip's own env update creates a NEW revision, so
+#      an operator cannot know K_REVISION in advance — but the release
+#      commit SHA is known and pipeline-verified.
+# Syntax alone NEVER validates.
+TRUSTED_BUILD_ENV = "BUILD_COMMIT_SHA"
 
 
 def _evidence_timestamp_valid(tested_at: str) -> bool:
@@ -112,10 +120,14 @@ def _evidence_timestamp_valid(tested_at: str) -> bool:
 
 
 def _evidence_build_valid(build: str) -> bool:
-    if _GIT_SHA_RE.fullmatch(build.lower()):
-        return True
+    """True only when the evidence identity BINDS to the live artifact
+    (B-93-1): equal to the running K_REVISION, or equal to the pipeline-
+    exported BUILD_COMMIT_SHA. A well-formed but unrelated value fails."""
     running_revision = os.getenv("K_REVISION", "").strip()
-    return bool(running_revision) and build == running_revision
+    if running_revision and build == running_revision:
+        return True
+    trusted_commit = os.getenv(TRUSTED_BUILD_ENV, "").strip()
+    return bool(trusted_commit) and build.lower() == trusted_commit.lower()
 
 
 def evidence_state() -> Dict[str, Any]:
