@@ -2,7 +2,7 @@
 # /verifimind-deploy skill). Exists because `gcloud builds submit --tag`
 # cannot pass --build-arg, and B-94-1 requires EVERY live deploy path to
 # bake the immutable build identity into the image:
-#   Dockerfile ARG COMMIT_SHA -> ENV BUILD_COMMIT_SHA
+#   Dockerfile ARG COMMIT_SHA -> image-owned file /app/.build_commit_sha
 # The WP-B failover evidence gate binds FAILOVER_EVIDENCE_BUILD against
 # that image-carried value, so artifact B can never inherit artifact A's
 # evidence. NEVER set BUILD_COMMIT_SHA at the Cloud Run service level.

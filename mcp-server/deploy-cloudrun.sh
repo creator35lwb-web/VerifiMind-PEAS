@@ -101,8 +101,9 @@ if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
     exit 1
 fi
 COMMIT_SHA=$(git rev-parse HEAD)
-SRC_ARCHIVE="$(mktemp -t verifimind-src-XXXXXX).tgz"
-trap 'rm -f "$SRC_ARCHIVE"' EXIT
+SRC_BASE=$(mktemp -t verifimind-src-XXXXXX)
+SRC_ARCHIVE="$SRC_BASE.tgz"
+trap 'rm -f "$SRC_BASE" "$SRC_ARCHIVE"' EXIT
 # HEAD:mcp-server — the committed subtree at archive root (exact bytes;
 # .gcloudignore is irrelevant on this path because nothing local is scanned)
 git archive --format=tgz -o "$SRC_ARCHIVE" "HEAD:mcp-server"

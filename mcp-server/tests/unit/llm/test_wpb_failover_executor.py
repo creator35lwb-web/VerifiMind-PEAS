@@ -1276,28 +1276,119 @@ def test_legacy_deploy_path_hard_retired():
         assert live_command not in stub, f"retired stub still carries: {live_command}"
 
 
+# B-97-1: a VERSIONED deployment-capability signature registry. v1 was the
+# extension filter (missed a live .md command — B-96-1); v2 was a literal
+# marker set over all files (missed a GitHub Actions deploy wrapper — T's
+# S97 counterexample: capability-EQUIVALENT execution with none of the
+# literal markers); v3 models ENCODING FAMILIES — the detector's universe
+# is the family of mechanisms that can cause the deployment effect, and
+# each family carries a named known-negative fixture below.
+DEPLOY_CAPABILITY_SIGNATURES = {
+    "version": 3,
+    "families": {
+        "shell_command": ("gcloud run deploy", "gcloud builds submit",
+                          "builds submit", "docker push"),
+        "cloudbuild_args_list": ("'deploy'", '"deploy"'),
+        "github_actions_wrapper": ("deploy-cloudrun@",
+                                   "google-github-actions/deploy-cloudrun"),
+        "declarative_cloud_run": ("run.googleapis.com",
+                                  "serving.knative.dev"),
+    },
+    # Format-scoped rule: in batch/PowerShell scripts, ANY gcloud invocation
+    # alongside the service name is deployment-capable indirection.
+    "script_suffixes": (".bat", ".cmd", ".ps1"),
+    "script_marker": "gcloud",
+}
+
+SERVICE_NAME_MARKER = "verifimind-mcp-server"
+
+
+def _detect_deploy_capability(text, filename):
+    """Pure detector: which encoding families make this content capable of
+    deploying the service? (Empty set = not deploy-capable.) Pure so each
+    family's known-negative fixture can be asserted without staging files."""
+    if SERVICE_NAME_MARKER not in text:
+        return set()
+    families = set()
+    for family, markers in DEPLOY_CAPABILITY_SIGNATURES["families"].items():
+        if any(marker in text for marker in markers):
+            families.add(family)
+    if filename.endswith(DEPLOY_CAPABILITY_SIGNATURES["script_suffixes"]) \
+            and DEPLOY_CAPABILITY_SIGNATURES["script_marker"] in text:
+        families.add("script_indirection")
+    return families
+
+
 def _tracked_deploy_surfaces():
-    """B-96-1: capability detection by CONTENT, independent of extension —
-    the prior `.sh/.yaml/.yml` filter excluded a live `.md` command surface
-    by construction (T's exact counterexample). Also catches the args-list
-    YAML form ('deploy' as a list item), which the literal-command scan
-    missed on cloudbuild.yaml itself."""
+    """Scan ALL tracked files through the capability detector."""
     import subprocess
     listing = subprocess.run(
         ["git", "ls-files"], cwd=str(_REPO_ROOT),
         capture_output=True, text=True, check=True).stdout.splitlines()
-    capability_markers = ("gcloud builds submit", "gcloud run deploy",
-                         "builds submit", "docker push", "'deploy'")
     surfaces = {}
     for name in listing:
         try:
             text = (_REPO_ROOT / name).read_text(encoding="utf-8", errors="ignore")
         except OSError:
             continue
-        if "verifimind-mcp-server" in text and any(
-                marker in text for marker in capability_markers):
+        if _detect_deploy_capability(text, name):
             surfaces[name] = text
     return surfaces
+
+
+# --- B-97-1 known-negative fixtures: one per encoding family (T contract 3) --
+
+T_S97_ACTIONS_WRAPPER = """- uses: google-github-actions/deploy-cloudrun@v2
+  with:
+    service: verifimind-mcp-server
+    image: gcr.io/example/verifimind-mcp-server:synthetic
+"""
+
+
+def test_actions_wrapper_counterexample_is_detected():
+    """B-97-1 named regression — T's S97 staged workflow VERBATIM: this
+    exact content passed the v2 oracle; the v3 detector must flag it."""
+    families = _detect_deploy_capability(
+        T_S97_ACTIONS_WRAPPER, ".github/workflows/synthetic.yml")
+    assert "github_actions_wrapper" in families
+
+
+def test_shell_command_family_detected():
+    families = _detect_deploy_capability(
+        "gcloud run deploy verifimind-mcp-server --region us-central1",
+        "anyfile.md")
+    assert "shell_command" in families
+
+
+def test_cloudbuild_args_list_family_detected():
+    content = ("args:\n  - 'run'\n  - 'deploy'\n"
+               "  - 'verifimind-mcp-server'\n")
+    assert "cloudbuild_args_list" in _detect_deploy_capability(
+        content, "some-pipeline.yaml")
+
+
+def test_declarative_cloud_run_family_detected():
+    content = ("apiVersion: serving.knative.dev/v1\nkind: Service\n"
+               "metadata:\n  name: verifimind-mcp-server\n")
+    assert "declarative_cloud_run" in _detect_deploy_capability(
+        content, "service.yaml")
+
+
+def test_script_indirection_family_detected():
+    content = ("set SERVICE=verifimind-mcp-server\n"
+               "gcloud run services update %SERVICE%\n")
+    assert "script_indirection" in _detect_deploy_capability(
+        content, "deploy.bat")
+    # the same content in a prose file is NOT script indirection
+    assert "script_indirection" not in _detect_deploy_capability(
+        content, "notes.md")
+
+
+def test_detector_ignores_other_services():
+    """Capability requires OUR service name — other services are out of the
+    closure scope by definition."""
+    assert _detect_deploy_capability(
+        "gcloud run deploy some-other-service", "x.sh") == set()
 
 
 def test_deploy_surface_inventory_closed():
