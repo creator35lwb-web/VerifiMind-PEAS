@@ -28,14 +28,15 @@ USER app
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8080
 
-# B-94-1: immutable build identity carried BY THE IMAGE — the WP-B failover
-# evidence gate compares FAILOVER_EVIDENCE_BUILD against this value. Baked at
-# build time (--build-arg COMMIT_SHA=<source sha>) so a new image can never
-# inherit an older artifact's identity. NEVER set BUILD_COMMIT_SHA at the
-# Cloud Run service level — a service env var would shadow the image value
-# and reintroduce cross-deploy inheritance.
+# B-94-1/B-95-1: immutable build identity carried BY THE IMAGE as a FILE —
+# the WP-B failover evidence gate compares FAILOVER_EVIDENCE_BUILD against
+# /app/.build_commit_sha. A file cannot be shadowed by Cloud Run service
+# configuration (unlike ENV, which service-level vars override and which
+# persists across revisions), so artifact B can never inherit artifact A's
+# identity. Baked at build time via --build-arg COMMIT_SHA=<source sha>;
+# empty when absent => the evidence gate fails closed.
 ARG COMMIT_SHA=""
-ENV BUILD_COMMIT_SHA=${COMMIT_SHA}
+RUN printf '%s' "${COMMIT_SHA}" > /app/.build_commit_sha
 
 # Expose the port (Cloud Run will map this)
 EXPOSE 8080

@@ -80,14 +80,28 @@ echo ""
 echo "Step 1: Building container image..."
 cd "$(dirname "$0")"
 
-# B-94-1: bake the immutable build identity into the image (Dockerfile
-# ARG COMMIT_SHA -> ENV BUILD_COMMIT_SHA). The WP-B failover evidence gate
-# binds against this image-carried value; every live deploy path must
-# export it, and it must NEVER be set at the Cloud Run service level.
-# (cloudbuild-image.yaml exists because `gcloud builds submit --tag`
-# cannot pass --build-arg.)
+# B-94-1/B-95-2: bake the immutable build identity into the image
+# (Dockerfile ARG COMMIT_SHA -> image-owned /app/.build_commit_sha file).
+# The WP-B failover evidence gate binds against this image-carried value.
+#
+# B-95-2 guard: `gcloud builds submit` uploads the WORKING DIRECTORY, while
+# `git rev-parse HEAD` names the committed tree — a dirty worktree could
+# ship bytes B wearing label A. Therefore: refuse dirty/untracked state,
+# and require HEAD to be the pushed origin/main commit (prod builds from
+# published main only). Fail closed on any mismatch.
+if [[ -n "$(git status --porcelain)" ]]; then
+    echo "ERROR (B-95-2): working tree is not clean — the build would upload"
+    echo "bytes that HEAD does not describe. Commit/stash and push first."
+    exit 1
+fi
+git fetch origin main --quiet
+if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
+    echo "ERROR (B-95-2): HEAD is not origin/main — production builds only"
+    echo "from the pushed main commit, so the identity label is verifiable."
+    exit 1
+fi
 COMMIT_SHA=$(git rev-parse HEAD)
-echo "Source commit:  $COMMIT_SHA (baked as BUILD_COMMIT_SHA)"
+echo "Source commit:  $COMMIT_SHA (verified clean + remote-parity; baked into image)"
 
 gcloud builds submit \
     --config=cloudbuild-image.yaml \

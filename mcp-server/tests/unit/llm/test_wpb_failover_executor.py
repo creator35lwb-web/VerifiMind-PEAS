@@ -118,22 +118,25 @@ EVIDENCE_BUILD = "abc1234"
 
 
 @pytest.fixture(autouse=True)
-def _failover_env(monkeypatch):
+def _failover_env(monkeypatch, tmp_path):
     """Every test starts flag-ON with a VALID evidence tuple (fail-closed
     otherwise, B-90-7), clean circuits/admission, fast budgets; dark-mode and
     evidence tests override explicitly. The tested-at stamp is generated
     fresh per test — B-92-2's future-rejection correctly invalidated a
     hardcoded midnight stamp the first time it ran (the validator catching
-    its own suite's stale evidence). Yields the stamp for tests that assert
-    surface projection."""
+    its own suite's stale evidence). B-95-1: the build identity is an
+    IMAGE-OWNED FILE (never an env var) — the fixture writes a per-test
+    identity file matching the evidence value. Yields the stamp for tests
+    that assert surface projection."""
     tested_at = datetime.now(timezone.utc).isoformat()
     monkeypatch.setenv(fo.ENABLE_ENV, "true")
     monkeypatch.setenv(fo.EVIDENCE_TESTED_ENV, tested_at)
     monkeypatch.setenv(fo.EVIDENCE_BUILD_ENV, EVIDENCE_BUILD)
-    # B-93-1: the build identity must BIND — the fixture provides the
-    # pipeline-exported comparator matching the evidence value.
-    monkeypatch.setenv(fo.TRUSTED_BUILD_ENV, EVIDENCE_BUILD)
+    identity_file = tmp_path / "build_commit_sha"
+    identity_file.write_text(EVIDENCE_BUILD, encoding="utf-8")
+    monkeypatch.setattr(fo, "_BUILD_IDENTITY_FILE", str(identity_file))
     monkeypatch.delenv("K_REVISION", raising=False)
+    monkeypatch.delenv("BUILD_COMMIT_SHA", raising=False)
     monkeypatch.setenv(fo.ATTEMPT_TIMEOUT_ENV, "0.5")
     monkeypatch.setenv(fo.TOTAL_DEADLINE_ENV, "5")
     fo.reset_circuits()
@@ -163,6 +166,17 @@ def _run(provider, prompt="p", **kwargs):
     return asyncio.run(fo.generate_with_failover(
         provider, prompt=prompt, output_schema={}, temperature=0.2,
         max_tokens=64, **kwargs))
+
+
+async def _await_cancelled(task):
+    """Effectful cancellation receipt (replaces a bare `await` inside a
+    raises block, which scanners flag as an ineffectual statement): awaiting
+    a cancelled task raises CancelledError — captured as a boolean."""
+    try:
+        await task
+    except asyncio.CancelledError:
+        return True
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -512,8 +526,7 @@ def test_cancellation_propagates():
             max_tokens=64))
         await asyncio.sleep(0.05)
         task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await task
+        assert await _await_cancelled(task) is True
     asyncio.run(_cancel_run())
 
 
@@ -534,8 +547,7 @@ def test_cancellation_releases_half_open_probe():
             max_tokens=64))
         await asyncio.sleep(0.05)
         task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await task
+        assert await _await_cancelled(task) is True
     asyncio.run(_cancel_run())
     allowed, probe = fo.acquire_slot("groq")
     assert allowed is True              # the permit was released, not stranded
@@ -958,35 +970,63 @@ def test_evidence_rejects_weak_build_identity(monkeypatch):
     assert fo.runtime_failover_enabled() is False
 
 
-def test_unrelated_sha_never_validates_against_live_revision(monkeypatch):
+def _write_identity(monkeypatch, tmp_path, value):
+    """Point the image-owned identity file at a fresh per-test value
+    (None = the file is absent, as in an image built without the bake)."""
+    identity_file = tmp_path / "identity_override"
+    if value is None:
+        monkeypatch.setattr(fo, "_BUILD_IDENTITY_FILE",
+                            str(tmp_path / "missing_identity"))
+        return
+    identity_file.write_text(value, encoding="utf-8")
+    monkeypatch.setattr(fo, "_BUILD_IDENTITY_FILE", str(identity_file))
+
+
+def test_unrelated_sha_never_validates_against_live_revision(monkeypatch, tmp_path):
     """B-93-1 regression — T's S93 counterexample verbatim: a SHA-shaped but
     unrelated value ('deadbee') must NOT enable when the live revision names
-    a different artifact and no pipeline comparator matches."""
+    a different artifact and no image identity matches."""
     monkeypatch.setenv("K_REVISION", "verifimind-mcp-server-00484-qrt")
-    monkeypatch.delenv(fo.TRUSTED_BUILD_ENV, raising=False)
+    _write_identity(monkeypatch, tmp_path, None)
     monkeypatch.setenv(fo.EVIDENCE_BUILD_ENV, "deadbee")
     assert fo.evidence_state()["valid"] is False
     assert fo.runtime_failover_enabled() is False
 
 
-def test_sha_syntax_alone_never_validates(monkeypatch):
-    """B-93-1: with NO binding source at all (no K_REVISION, no pipeline
-    comparator), a well-formed SHA identifies nothing and must fail."""
-    monkeypatch.delenv(fo.TRUSTED_BUILD_ENV, raising=False)
+def test_sha_syntax_alone_never_validates(monkeypatch, tmp_path):
+    """B-93-1: with NO binding source at all (no K_REVISION, no image
+    identity file), a well-formed SHA identifies nothing and must fail."""
+    _write_identity(monkeypatch, tmp_path, None)
     monkeypatch.setenv(fo.EVIDENCE_BUILD_ENV, "abc1234")
     assert fo.evidence_state()["valid"] is False
     assert fo.runtime_failover_enabled() is False
 
 
-def test_sha_binds_only_to_pipeline_exported_commit(monkeypatch):
+def test_sha_binds_only_to_image_owned_identity(monkeypatch, tmp_path):
     """The Cloud Run flip path: FAILOVER_EVIDENCE_BUILD must equal the
-    BUILD_COMMIT_SHA the pipeline baked at deploy — matching enables,
-    any other SHA fails."""
-    monkeypatch.setenv(fo.TRUSTED_BUILD_ENV, "9352f4cabc")
+    identity the image itself carries — matching enables, any other fails."""
+    _write_identity(monkeypatch, tmp_path, "9352f4cabc")
     monkeypatch.setenv(fo.EVIDENCE_BUILD_ENV, "9352f4cabc")
     assert fo.evidence_state()["valid"] is True
     monkeypatch.setenv(fo.EVIDENCE_BUILD_ENV, "deadbee")
     assert fo.evidence_state()["valid"] is False
+
+
+def test_service_env_can_never_shadow_image_identity(monkeypatch, tmp_path):
+    """B-95-1 regression — T's S95 reproduction: a PERSISTED service-level
+    BUILD_COMMIT_SHA env var (inherited from artifact A across revisions)
+    must be IGNORED — env vars are not a trust source. Only the image-owned
+    file binds; with image B's file absent or different, A's evidence dies
+    even though the stale env var still matches it."""
+    monkeypatch.setenv("K_REVISION", "verifimind-mcp-server-00500-bbb")
+    monkeypatch.setenv("BUILD_COMMIT_SHA", "aaaa111")   # stale service override
+    monkeypatch.setenv(fo.EVIDENCE_BUILD_ENV, "aaaa111")
+    _write_identity(monkeypatch, tmp_path, None)        # image B: no bake
+    assert fo.evidence_state()["valid"] is False
+    assert fo.runtime_failover_enabled() is False
+    _write_identity(monkeypatch, tmp_path, "bbbb222")   # image B: own identity
+    assert fo.evidence_state()["valid"] is False
+    assert fo.runtime_failover_enabled() is False
 
 
 def test_evidence_accepts_running_revision_binding(monkeypatch):
@@ -1122,8 +1162,7 @@ def test_cancelled_admitted_backup_returns_hold(monkeypatch):
                 break
         assert fo.admission_snapshot() == {"gemini": 1}   # admitted + in flight
         task.cancel()
-        with pytest.raises(asyncio.CancelledError):
-            await task
+        assert await _await_cancelled(task) is True
         assert fo.admission_snapshot() == {}              # hold returned on cancel
     asyncio.run(scenario())
 
@@ -1152,23 +1191,23 @@ _MCP_SERVER_DIR = Path(__file__).resolve().parents[3]
 _REPO_ROOT = _MCP_SERVER_DIR.parent
 
 
-def test_artifact_b_cannot_inherit_artifact_a_evidence(monkeypatch):
+def test_artifact_b_cannot_inherit_artifact_a_evidence(monkeypatch, tmp_path):
     """B-94-1 regression — T's S94 counterexample: image A stamps evidence A
     and enables; a different artifact B must NOT stay enabled on A's
-    evidence, whether B carries no comparator or its own different one."""
-    monkeypatch.setenv(fo.TRUSTED_BUILD_ENV, "aaaa111")   # image A, baked
+    evidence, whether B carries no identity file or its own different one."""
+    _write_identity(monkeypatch, tmp_path, "aaaa111")     # image A, baked file
     monkeypatch.setenv(fo.EVIDENCE_BUILD_ENV, "aaaa111")  # operator stamped A
     assert fo.runtime_failover_enabled() is True          # artifact A: enabled
 
     # transition 1: image B built WITHOUT the bake (a non-conforming path) —
-    # image-carried semantics mean the comparator VANISHES with the old image
-    monkeypatch.delenv(fo.TRUSTED_BUILD_ENV, raising=False)
+    # image-carried semantics mean the identity file VANISHES with the image
+    _write_identity(monkeypatch, tmp_path, None)
     monkeypatch.setenv("K_REVISION", "verifimind-mcp-server-00500-bbb")
     assert fo.evidence_state()["valid"] is False
     assert fo.runtime_failover_enabled() is False         # stale evidence dies
 
     # transition 2: image B carries its OWN identity — A's evidence still dies
-    monkeypatch.setenv(fo.TRUSTED_BUILD_ENV, "bbbb222")
+    _write_identity(monkeypatch, tmp_path, "bbbb222")
     assert fo.evidence_state()["valid"] is False
     assert fo.runtime_failover_enabled() is False
 
@@ -1179,7 +1218,9 @@ def test_dockerfiles_bake_immutable_identity():
     for dockerfile in (_REPO_ROOT / "Dockerfile", _MCP_SERVER_DIR / "Dockerfile"):
         src = dockerfile.read_text(encoding="utf-8")
         assert "ARG COMMIT_SHA" in src, dockerfile
-        assert "ENV BUILD_COMMIT_SHA=${COMMIT_SHA}" in src, dockerfile
+        # B-95-1: the identity is a FILE (service-unshadowable), never ENV
+        assert '> /app/.build_commit_sha' in src, dockerfile
+        assert "ENV BUILD_COMMIT_SHA" not in src, dockerfile
 
 
 def test_trigger_pipeline_bakes_identity_and_never_service_sets_it():
@@ -1208,3 +1249,63 @@ def test_manual_deploy_path_bakes_identity():
     for line in script.splitlines():
         if "BUILD_COMMIT_SHA=" in line and not line.strip().startswith("#"):
             raise AssertionError("deploy script must never service-set the comparator")
+
+
+def test_manual_deploy_rejects_dirty_source():
+    """B-95-2 receipt: `gcloud builds submit` uploads WORKING-DIRECTORY
+    bytes while `git rev-parse HEAD` names the committed tree — the script
+    must refuse dirty/untracked state and require origin/main parity BEFORE
+    computing the identity label, so bytes B can never wear label A."""
+    script = (_MCP_SERVER_DIR / "deploy-cloudrun.sh").read_text(encoding="utf-8")
+    assert "git status --porcelain" in script
+    assert "git fetch origin" in script
+    assert "origin/main" in script
+    # the guards must run BEFORE the build is submitted
+    assert script.index("git status --porcelain") < script.index("cloudbuild-image.yaml")
+    assert script.index("origin/main") < script.index("cloudbuild-image.yaml")
+
+
+def test_legacy_deploy_path_hard_retired():
+    """B-95-3 receipt: deploy-gcp.sh must be a fail-closed stub — no build,
+    no push, no deploy commands; execution exits 1."""
+    stub = (_MCP_SERVER_DIR / "deploy-gcp.sh").read_text(encoding="utf-8")
+    assert "RETIREMENT-STUB-MARKER" in stub
+    assert "exit 1" in stub
+    for live_command in ("gcloud run deploy", "gcloud builds submit",
+                         "docker build", "docker push"):
+        assert live_command not in stub, f"retired stub still carries: {live_command}"
+
+
+def test_deploy_surface_inventory_closed():
+    """B-95-3 receipt: EVERY tracked executable/config surface capable of
+    building or deploying verifimind-mcp-server is either an authorized
+    attested path or a retirement stub — the inventory is machine-closed,
+    not documented-by-convention."""
+    import subprocess
+    listing = subprocess.run(
+        ["git", "ls-files"], cwd=str(_REPO_ROOT),
+        capture_output=True, text=True, check=True).stdout.splitlines()
+    authorized = {
+        "cloudbuild.yaml",                    # trigger path (attested)
+        "mcp-server/cloudbuild-image.yaml",   # manual build config (attested)
+        "mcp-server/deploy-cloudrun.sh",      # manual path (guarded + attested)
+    }
+    retired_stubs = {"mcp-server/deploy-gcp.sh"}
+    offenders = []
+    for name in listing:
+        if not name.endswith((".sh", ".yaml", ".yml")):
+            continue  # executable/config surfaces only; prose cannot deploy
+        try:
+            text = (_REPO_ROOT / name).read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        deployish = ("gcloud run deploy" in text or "builds submit" in text
+                     or "docker push" in text)
+        if "verifimind-mcp-server" in text and deployish:
+            if name in authorized:
+                continue
+            if name in retired_stubs:
+                offenders.append(f"{name} (stub carries live commands)")
+            else:
+                offenders.append(name)
+    assert offenders == [], f"unattested deploy surfaces: {offenders}"

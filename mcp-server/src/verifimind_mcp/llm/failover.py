@@ -88,26 +88,40 @@ def _flag_on() -> bool:
 
 EVIDENCE_CLOCK_SKEW_S = 3600  # bounded skew: evidence may not be materially future
 
-# B-93-1 + B-94-1: evidence build identity must BIND to the live artifact —
-# not merely look like one ("deadbee" names nothing), and the binding must
-# hold ACROSS DEPLOYMENT TRANSITIONS, not only inside this validator. Two
-# accepted bindings, both compared against values the OPERATOR does not
-# control at flip time:
-#   1. equality with K_REVISION (Cloud Run stamps the running revision);
-#   2. equality with BUILD_COMMIT_SHA — the source commit BAKED INTO THE
-#      IMAGE at build time (Dockerfile ARG COMMIT_SHA -> ENV; every live
-#      deploy path passes --build-arg: cloudbuild.yaml for the trigger,
-#      cloudbuild-image.yaml for deploy-cloudrun.sh / the deploy skill).
-#      Image-carried means artifact B can never inherit artifact A's
-#      comparator — a new image brings its own identity or none (B-94-1's
-#      counterexample: a service-LEVEL comparator would persist across
-#      image swaps and keep stale evidence valid; therefore BUILD_COMMIT_SHA
-#      must NEVER be set at the service level, and deploy-surface contract
-#      tests enforce exactly that).
+# B-93-1 + B-94-1 + B-95-1: evidence build identity must BIND to the live
+# artifact — not merely look like one ("deadbee" names nothing), the binding
+# must hold ACROSS DEPLOYMENT TRANSITIONS, and the carrier must be
+# NON-SHADOWABLE. Two accepted bindings, both compared against values the
+# OPERATOR cannot control or override at flip time:
+#   1. equality with K_REVISION — a Cloud Run RESERVED env var (users cannot
+#      set reserved vars, so it cannot be shadowed);
+#   2. equality with the IMAGE-OWNED IDENTITY FILE — the source commit is
+#      written INTO the image filesystem at build time (Dockerfile:
+#      RUN printf "$COMMIT_SHA" > /app/.build_commit_sha). B-95-1: a
+#      Dockerfile ENV default is runtime-overridable — Cloud Run service
+#      env vars take precedence over image ENV and PERSIST across
+#      revisions, so a stale service-level value could shadow image B's
+#      identity. A file in the image cannot be shadowed by service
+#      configuration: artifact B brings its own file or none, and either
+#      way artifact A's evidence dies at the transition BY CONSTRUCTION.
+# The file path is a MODULE CONSTANT, deliberately not env-configurable
+# (an env-configurable path would reintroduce the shadowing channel).
 # The flip runbook: the operator stamps the RELEASE commit SHA, which must
 # equal what the deployed image actually carries. Syntax alone NEVER
-# validates.
-TRUSTED_BUILD_ENV = "BUILD_COMMIT_SHA"
+# validates; environment variables are NEVER a trust source for the build
+# identity.
+_BUILD_IDENTITY_FILE = "/app/.build_commit_sha"
+
+
+def _image_build_identity() -> str:
+    """The identity the running image actually carries (empty if absent —
+    fail closed). Read fresh per call: the file is immutable within one
+    container, and fresh reads keep tests honest."""
+    try:
+        with open(_BUILD_IDENTITY_FILE, encoding="utf-8") as handle:
+            return handle.read().strip()
+    except OSError:
+        return ""
 
 
 def _evidence_timestamp_valid(tested_at: str) -> bool:
@@ -128,13 +142,15 @@ def _evidence_timestamp_valid(tested_at: str) -> bool:
 
 def _evidence_build_valid(build: str) -> bool:
     """True only when the evidence identity BINDS to the live artifact
-    (B-93-1): equal to the running K_REVISION, or equal to the pipeline-
-    exported BUILD_COMMIT_SHA. A well-formed but unrelated value fails."""
+    (B-93-1/B-95-1): equal to the running K_REVISION (reserved, unshadowable)
+    or to the image-owned identity file. A well-formed but unrelated value
+    fails; a service-level BUILD_COMMIT_SHA env var is IGNORED entirely —
+    environment variables are not a trust source for the build identity."""
     running_revision = os.getenv("K_REVISION", "").strip()
     if running_revision and build == running_revision:
         return True
-    trusted_commit = os.getenv(TRUSTED_BUILD_ENV, "").strip()
-    return bool(trusted_commit) and build.lower() == trusted_commit.lower()
+    image_identity = _image_build_identity()
+    return bool(image_identity) and build.lower() == image_identity.lower()
 
 
 def evidence_state() -> Dict[str, Any]:
