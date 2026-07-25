@@ -1286,8 +1286,9 @@ def test_legacy_deploy_path_hard_retired():
 DEPLOY_CAPABILITY_SIGNATURES = {
     "version": 3,
     "families": {
-        "shell_command": ("gcloud run deploy", "gcloud builds submit",
-                          "builds submit", "docker push"),
+        "shell_command": ("gcloud run deploy", "gcloud run services update",
+                          "gcloud builds submit", "builds submit",
+                          "docker push"),
         "cloudbuild_args_list": ("'deploy'", '"deploy"'),
         "github_actions_wrapper": ("deploy-cloudrun@",
                                    "google-github-actions/deploy-cloudrun"),
@@ -1358,6 +1359,12 @@ def test_shell_command_family_detected():
         "gcloud run deploy verifimind-mcp-server --region us-central1",
         "anyfile.md")
     assert "shell_command" in families
+    # the service-MUTATION verb is capability too (it changes env/image on
+    # the same service — the flip mechanism itself); caught by the
+    # probe-both-sides rule against the registry, disclosed + fixed pre-review
+    assert "shell_command" in _detect_deploy_capability(
+        "gcloud run services update verifimind-mcp-server --update-env-vars X=1",
+        "runbook.md")
 
 
 def test_cloudbuild_args_list_family_detected():
