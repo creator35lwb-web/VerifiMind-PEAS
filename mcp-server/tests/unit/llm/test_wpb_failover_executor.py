@@ -17,6 +17,7 @@ Design: Hub #81 (WP-B design v2); reviews:
 
 import asyncio
 import json
+import re
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -1276,27 +1277,35 @@ def test_legacy_deploy_path_hard_retired():
         assert live_command not in stub, f"retired stub still carries: {live_command}"
 
 
-# B-97-1: a VERSIONED deployment-capability signature registry. v1 was the
-# extension filter (missed a live .md command — B-96-1); v2 was a literal
-# marker set over all files (missed a GitHub Actions deploy wrapper — T's
-# S97 counterexample: capability-EQUIVALENT execution with none of the
-# literal markers); v3 models ENCODING FAMILIES — the detector's universe
-# is the family of mechanisms that can cause the deployment effect, and
-# each family carries a named known-negative fixture below.
+# B-97-1/B-98-1: a VERSIONED deployment-capability signature registry.
+# Lineage: v1 extension filter (missed a live .md command — B-96-1);
+# v2 literal markers over all files (missed a GitHub Actions deploy
+# wrapper — B-97-1: capability-equivalent execution); v3 encoding
+# families (missed valid GRAMMAR variants inside declared families —
+# B-98-1: unquoted YAML scalars, Windows case-insensitivity); v4
+# normalizes each family's GRAMMAR: "family named != family grammar
+# covered" (T S98). Bounded goal: truthful coverage of the repo's
+# supported deployment grammars — not universal static analysis.
 DEPLOY_CAPABILITY_SIGNATURES = {
-    "version": 3,
+    "version": 4,
     "families": {
+        # Unix shell commands stay CASE-SENSITIVE (T contract 3: command
+        # lookup on Unix is case-sensitive; do not erase those semantics)
         "shell_command": ("gcloud run deploy", "gcloud run services update",
                           "gcloud builds submit", "builds submit",
                           "docker push"),
-        "cloudbuild_args_list": ("'deploy'", '"deploy"'),
         "github_actions_wrapper": ("deploy-cloudrun@",
                                    "google-github-actions/deploy-cloudrun"),
         "declarative_cloud_run": ("run.googleapis.com",
                                   "serving.knative.dev"),
     },
-    # Format-scoped rule: in batch/PowerShell scripts, ANY gcloud invocation
-    # alongside the service name is deployment-capable indirection.
+    # Cloud Build args-list: TOKEN-aware — a YAML list item whose scalar is
+    # `deploy`, with quoted and unquoted spellings EQUIVALENT (B-98-1 A).
+    "cloudbuild_deploy_token": re.compile(
+        r"^\s*-\s*['\"]?deploy['\"]?\s*$", re.MULTILINE),
+    # Windows script formats: suffix and command text are CASE-INSENSITIVE
+    # on the executing platform (B-98-1 B), so detection normalizes case
+    # WITHIN these formats only.
     "script_suffixes": (".bat", ".cmd", ".ps1"),
     "script_marker": "gcloud",
 }
@@ -1314,9 +1323,13 @@ def _detect_deploy_capability(text, filename):
     for family, markers in DEPLOY_CAPABILITY_SIGNATURES["families"].items():
         if any(marker in text for marker in markers):
             families.add(family)
-    if filename.endswith(DEPLOY_CAPABILITY_SIGNATURES["script_suffixes"]) \
-            and DEPLOY_CAPABILITY_SIGNATURES["script_marker"] in text:
-        families.add("script_indirection")
+    if DEPLOY_CAPABILITY_SIGNATURES["cloudbuild_deploy_token"].search(text):
+        families.add("cloudbuild_args_list")
+    # Windows semantics: case-insensitive suffix AND case-insensitive
+    # command text — but only within script formats (contract 3)
+    if filename.lower().endswith(DEPLOY_CAPABILITY_SIGNATURES["script_suffixes"]):
+        if DEPLOY_CAPABILITY_SIGNATURES["script_marker"] in text.lower():
+            families.add("script_indirection")
     return families
 
 
@@ -1398,39 +1411,108 @@ def test_detector_ignores_other_services():
         "gcloud run deploy some-other-service", "x.sh") == set()
 
 
+AUTHORIZED_EXEC = {
+    "cloudbuild.yaml",                    # trigger path (attested)
+    "mcp-server/deploy-cloudrun.sh",      # manual path (guards + archive)
+}
+RETIRED_STUBS = {"mcp-server/deploy-gcp.sh"}
+DELEGATING_DOCS = {".claude/commands/verifimind-deploy.md"}
+SUPERSEDED_DOCS = {                       # banner-redirected, non-operational
+    "mcp-server/DEPLOY_GCP.md",
+    "docs/GCP_DEPLOYMENT_GUIDE.md",
+    "mcp-server/DEPLOYMENT_CHECKLIST_V2.0.md",
+}
+HISTORICAL_OR_CONFIG = {                  # narrative / permission entries
+    "docs/DEVELOPMENT_JOURNEY.md",
+    ".claude/settings.local.json",
+}
+_CLASSIFIED = (AUTHORIZED_EXEC | RETIRED_STUBS | DELEGATING_DOCS
+               | SUPERSEDED_DOCS | HISTORICAL_OR_CONFIG)
+
+
+def _classify_offenders(surfaces):
+    """The classification oracle as a pure function (B-98-1 contract 5:
+    staged-inventory regressions reuse the EXACT production classifier)."""
+    return [
+        name for name in surfaces
+        if name not in _CLASSIFIED and not name.startswith("mcp-server/tests/")
+    ]
+
+
 def test_deploy_surface_inventory_closed():
     """B-95-3 + B-96-1 receipt: EVERY tracked surface whose CONTENT can build
     or deploy verifimind-mcp-server is explicitly classified — authorized
     executable, retirement stub, delegating command doc, superseded doc, test
     oracle, or historical narrative. An unclassified new surface fails."""
-    authorized_exec = {
-        "cloudbuild.yaml",                    # trigger path (attested)
-        "mcp-server/deploy-cloudrun.sh",      # manual path (guards + archive)
-    }
-    retired_stubs = {"mcp-server/deploy-gcp.sh"}
-    delegating_docs = {".claude/commands/verifimind-deploy.md"}
-    superseded_docs = {                       # banner-redirected, non-operational
-        "mcp-server/DEPLOY_GCP.md",
-        "docs/GCP_DEPLOYMENT_GUIDE.md",
-        "mcp-server/DEPLOYMENT_CHECKLIST_V2.0.md",
-    }
-    historical_or_config = {                  # narrative / permission entries
-        "docs/DEVELOPMENT_JOURNEY.md",
-        ".claude/settings.local.json",
-    }
-    classified = (authorized_exec | retired_stubs | delegating_docs
-                  | superseded_docs | historical_or_config)
     surfaces = _tracked_deploy_surfaces()
-    unclassified = [
-        name for name in surfaces
-        if name not in classified and not name.startswith("mcp-server/tests/")
-    ]
+    unclassified = _classify_offenders(surfaces)
     assert unclassified == [], f"unclassified deploy-capable surfaces: {unclassified}"
-    for name in retired_stubs & set(surfaces):
+    for name in RETIRED_STUBS & set(surfaces):
         raise AssertionError(f"retired stub {name} still deploy-capable")
-    for name in superseded_docs & set(surfaces):
+    for name in SUPERSEDED_DOCS & set(surfaces):
         assert "SUPERSEDED — HISTORICAL REFERENCE ONLY" in surfaces[name] \
             or "HARD-RETIRED" in surfaces[name], name
+
+
+# --- B-98-1: T's two grammar counterexamples, VERBATIM (contract 4) ---------
+
+T_S98_UNQUOTED_CLOUDBUILD = """steps:
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - verifimind-mcp-server
+      - --image
+      - gcr.io/example/verifimind-mcp-server:round8-synthetic
+"""
+
+T_S98_UPPERCASE_PS1 = """$ServiceName = "verifimind-mcp-server"
+GCLOUD run services update $ServiceName --image "gcr.io/example/verifimind-mcp-server:round8-synthetic"
+"""
+
+
+def test_unquoted_yaml_scalar_counterexample_is_detected():
+    """B-98-1 Probe A verbatim: the ordinary unquoted YAML scalar `- deploy`
+    is grammar-equivalent to the quoted forms and must be detected."""
+    families = _detect_deploy_capability(
+        T_S98_UNQUOTED_CLOUDBUILD, "round8-synthetic-cloudbuild.yaml")
+    assert "cloudbuild_args_list" in families
+
+
+def test_uppercase_ps1_counterexample_is_detected():
+    """B-98-1 Probe B verbatim: Windows treats `.PS1` and `GCLOUD` case-
+    insensitively — the executable form must be detected."""
+    families = _detect_deploy_capability(
+        T_S98_UPPERCASE_PS1, "round8-synthetic-deploy.PS1")
+    assert "script_indirection" in families
+
+
+def test_unix_shell_case_semantics_preserved():
+    """B-98-1 contract 3: case normalization is scoped to case-insensitive
+    platforms — `GCLOUD RUN DEPLOY` in a Unix shell script or prose is NOT
+    a command and must NOT be flagged as the shell family."""
+    families = _detect_deploy_capability(
+        "GCLOUD RUN DEPLOY verifimind-mcp-server", "notes.sh")
+    assert "shell_command" not in families
+    assert "script_indirection" not in families   # .sh is not a Windows format
+
+
+def test_staged_grammar_probes_fail_closed_at_inventory():
+    """B-98-1 contract 5: a tracked file carrying either grammar variant is
+    an UNCLASSIFIED capable surface — the inventory pipeline (detector +
+    classifier, the same functions the real test runs) fails closed on it."""
+    staged = {
+        "round8-synthetic-cloudbuild.yaml": T_S98_UNQUOTED_CLOUDBUILD,
+        "round8-synthetic-deploy.PS1": T_S98_UPPERCASE_PS1,
+    }
+    detected = {
+        name: text for name, text in staged.items()
+        if _detect_deploy_capability(text, name)
+    }
+    assert set(detected) == set(staged)           # both probes detected
+    offenders = _classify_offenders(detected)
+    assert sorted(offenders) == sorted(staged)    # both fail closed
 
 
 def test_md_command_surface_cannot_carry_own_recipe():
