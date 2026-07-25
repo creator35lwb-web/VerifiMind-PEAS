@@ -15,10 +15,14 @@ Deploy VerifiMind-PEAS to GCP Cloud Run.
    - Check current server health
    - Confirm version number
 
-2. **Build container:**
+2. **Build container** (B-94-1: every deploy path bakes the immutable build
+   identity into the image — `--tag` alone cannot pass `--build-arg`, hence
+   the config file; NEVER set `BUILD_COMMIT_SHA` at the service level):
    ```bash
    cd mcp-server
-   gcloud builds submit --tag gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:v{VERSION}
+   gcloud builds submit \
+     --config=cloudbuild-image.yaml \
+     --substitutions=_IMAGE_TAG=gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:v{VERSION},_COMMIT_SHA=$(git rev-parse HEAD)
    ```
 
 3. **Deploy to Cloud Run:**

@@ -88,18 +88,25 @@ def _flag_on() -> bool:
 
 EVIDENCE_CLOCK_SKEW_S = 3600  # bounded skew: evidence may not be materially future
 
-# B-93-1: evidence build identity must BIND to the live artifact, never
-# merely look like one — a SHA-shaped value ("deadbee") names nothing. Two
-# accepted bindings, both compared against runtime values the OPERATOR does
-# not control at flip time:
+# B-93-1 + B-94-1: evidence build identity must BIND to the live artifact —
+# not merely look like one ("deadbee" names nothing), and the binding must
+# hold ACROSS DEPLOYMENT TRANSITIONS, not only inside this validator. Two
+# accepted bindings, both compared against values the OPERATOR does not
+# control at flip time:
 #   1. equality with K_REVISION (Cloud Run stamps the running revision);
-#   2. equality with BUILD_COMMIT_SHA — the source commit the build pipeline
-#      exports at deploy (cloudbuild.yaml passes $COMMIT_SHA), i.e. a trusted
-#      comparator baked before any operator env-flip. This is the practical
-#      Cloud Run path: the flip's own env update creates a NEW revision, so
-#      an operator cannot know K_REVISION in advance — but the release
-#      commit SHA is known and pipeline-verified.
-# Syntax alone NEVER validates.
+#   2. equality with BUILD_COMMIT_SHA — the source commit BAKED INTO THE
+#      IMAGE at build time (Dockerfile ARG COMMIT_SHA -> ENV; every live
+#      deploy path passes --build-arg: cloudbuild.yaml for the trigger,
+#      cloudbuild-image.yaml for deploy-cloudrun.sh / the deploy skill).
+#      Image-carried means artifact B can never inherit artifact A's
+#      comparator — a new image brings its own identity or none (B-94-1's
+#      counterexample: a service-LEVEL comparator would persist across
+#      image swaps and keep stale evidence valid; therefore BUILD_COMMIT_SHA
+#      must NEVER be set at the service level, and deploy-surface contract
+#      tests enforce exactly that).
+# The flip runbook: the operator stamps the RELEASE commit SHA, which must
+# equal what the deployed image actually carries. Syntax alone NEVER
+# validates.
 TRUSTED_BUILD_ENV = "BUILD_COMMIT_SHA"
 
 

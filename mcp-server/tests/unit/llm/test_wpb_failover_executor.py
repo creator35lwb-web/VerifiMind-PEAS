@@ -19,11 +19,12 @@ import asyncio
 import json
 import time
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 
 import verifimind_mcp.llm as llm_pkg
-from verifimind_mcp.llm import failover as fo
+import verifimind_mcp.llm.failover as fo
 from verifimind_mcp.server import (
     attach_failover_disclosure,
     failover_error_payload,
@@ -1138,3 +1139,72 @@ def test_consultation_call_and_token_ceiling(gemini_backup):
     assert provider.calls + gemini_backup.calls == fo.MAX_ATTEMPTS
     for kwargs in provider.seen_kwargs + gemini_backup.seen_kwargs:
         assert kwargs["max_tokens"] == 64
+
+
+# ---------------------------------------------------------------------------
+# B-94-1: identity binds ACROSS deployment transitions — machine-checkable
+# receipts that every live deploy path bakes the comparator INTO the image
+# and never sets it at the service level (a service value would let artifact
+# B inherit artifact A's evidence).
+# ---------------------------------------------------------------------------
+
+_MCP_SERVER_DIR = Path(__file__).resolve().parents[3]
+_REPO_ROOT = _MCP_SERVER_DIR.parent
+
+
+def test_artifact_b_cannot_inherit_artifact_a_evidence(monkeypatch):
+    """B-94-1 regression — T's S94 counterexample: image A stamps evidence A
+    and enables; a different artifact B must NOT stay enabled on A's
+    evidence, whether B carries no comparator or its own different one."""
+    monkeypatch.setenv(fo.TRUSTED_BUILD_ENV, "aaaa111")   # image A, baked
+    monkeypatch.setenv(fo.EVIDENCE_BUILD_ENV, "aaaa111")  # operator stamped A
+    assert fo.runtime_failover_enabled() is True          # artifact A: enabled
+
+    # transition 1: image B built WITHOUT the bake (a non-conforming path) —
+    # image-carried semantics mean the comparator VANISHES with the old image
+    monkeypatch.delenv(fo.TRUSTED_BUILD_ENV, raising=False)
+    monkeypatch.setenv("K_REVISION", "verifimind-mcp-server-00500-bbb")
+    assert fo.evidence_state()["valid"] is False
+    assert fo.runtime_failover_enabled() is False         # stale evidence dies
+
+    # transition 2: image B carries its OWN identity — A's evidence still dies
+    monkeypatch.setenv(fo.TRUSTED_BUILD_ENV, "bbbb222")
+    assert fo.evidence_state()["valid"] is False
+    assert fo.runtime_failover_enabled() is False
+
+
+def test_dockerfiles_bake_immutable_identity():
+    """Both production Dockerfiles must carry the ARG->ENV bake so the
+    comparator travels with the image, never with the service."""
+    for dockerfile in (_REPO_ROOT / "Dockerfile", _MCP_SERVER_DIR / "Dockerfile"):
+        src = dockerfile.read_text(encoding="utf-8")
+        assert "ARG COMMIT_SHA" in src, dockerfile
+        assert "ENV BUILD_COMMIT_SHA=${COMMIT_SHA}" in src, dockerfile
+
+
+def test_trigger_pipeline_bakes_identity_and_never_service_sets_it():
+    """Root cloudbuild.yaml (the trigger path): --build-arg present in the
+    build step; BUILD_COMMIT_SHA absent from every service env-var flag."""
+    src = (_REPO_ROOT / "cloudbuild.yaml").read_text(encoding="utf-8")
+    assert "--build-arg" in src
+    assert "COMMIT_SHA=$COMMIT_SHA" in src
+    for line in src.splitlines():
+        if "env-vars" in line or "BUILD_COMMIT_SHA=" in line:
+            assert "BUILD_COMMIT_SHA=" not in line, (
+                "service-level comparator reintroduces cross-deploy inheritance")
+
+
+def test_manual_deploy_path_bakes_identity():
+    """deploy-cloudrun.sh (the /verifimind-deploy path) must build via
+    cloudbuild-image.yaml with the commit substitution — `gcloud builds
+    submit --tag` cannot pass --build-arg, which was B-94-1's opening."""
+    script = (_MCP_SERVER_DIR / "deploy-cloudrun.sh").read_text(encoding="utf-8")
+    assert "cloudbuild-image.yaml" in script
+    assert "_COMMIT_SHA=" in script
+    assert "git rev-parse HEAD" in script
+    config = (_MCP_SERVER_DIR / "cloudbuild-image.yaml").read_text(encoding="utf-8")
+    assert "--build-arg" in config
+    assert "COMMIT_SHA=$_COMMIT_SHA" in config
+    for line in script.splitlines():
+        if "BUILD_COMMIT_SHA=" in line and not line.strip().startswith("#"):
+            raise AssertionError("deploy script must never service-set the comparator")

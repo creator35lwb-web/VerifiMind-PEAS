@@ -1,5 +1,9 @@
 steps:
-  # Build the container image and tag with commit SHA + latest
+  # Build the container image and tag with commit SHA + latest.
+  # B-94-1: --build-arg bakes the source commit INTO the image
+  # (Dockerfile ARG COMMIT_SHA -> ENV BUILD_COMMIT_SHA) — the immutable
+  # identity the WP-B failover evidence gate binds against. The identity
+  # travels with the image; it is NEVER set at the service level.
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -7,6 +11,8 @@ steps:
       - 'gcr.io/$PROJECT_ID/verifimind-mcp-server:$COMMIT_SHA'
       - '-t'
       - 'gcr.io/$PROJECT_ID/verifimind-mcp-server:latest'
+      - '--build-arg'
+      - 'COMMIT_SHA=$COMMIT_SHA'
       - '-f'
       - 'Dockerfile'
       - '.'
@@ -36,10 +42,11 @@ steps:
       - '512Mi'
       - '--allow-unauthenticated'
       - '--update-env-vars'
-      # BUILD_COMMIT_SHA: the pipeline-exported trusted build identity — the
-      # WP-B failover evidence gate (B-93-1) binds FAILOVER_EVIDENCE_BUILD
-      # against it, so a SHA-shaped-but-unrelated value can never enable.
-      - 'FIRESTORE_PROJECT_ID=$PROJECT_ID,BUILD_COMMIT_SHA=$COMMIT_SHA'
+      # NOTE (B-94-1): BUILD_COMMIT_SHA is deliberately NOT set here — it is
+      # image-baked via --build-arg above. A service-level value would shadow
+      # every future image's identity and let artifact B inherit artifact A's
+      # failover evidence.
+      - 'FIRESTORE_PROJECT_ID=$PROJECT_ID'
       - '--quiet'
 
 images:

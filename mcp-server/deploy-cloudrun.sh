@@ -80,8 +80,18 @@ echo ""
 echo "Step 1: Building container image..."
 cd "$(dirname "$0")"
 
+# B-94-1: bake the immutable build identity into the image (Dockerfile
+# ARG COMMIT_SHA -> ENV BUILD_COMMIT_SHA). The WP-B failover evidence gate
+# binds against this image-carried value; every live deploy path must
+# export it, and it must NEVER be set at the Cloud Run service level.
+# (cloudbuild-image.yaml exists because `gcloud builds submit --tag`
+# cannot pass --build-arg.)
+COMMIT_SHA=$(git rev-parse HEAD)
+echo "Source commit:  $COMMIT_SHA (baked as BUILD_COMMIT_SHA)"
+
 gcloud builds submit \
-    --tag "$IMAGE_TAG" \
+    --config=cloudbuild-image.yaml \
+    --substitutions=_IMAGE_TAG="$IMAGE_TAG",_COMMIT_SHA="$COMMIT_SHA" \
     --timeout=600s
 
 # ── Step 2: Deploy to Cloud Run ───────────────────────────────────────────────
