@@ -1322,12 +1322,22 @@ def test_legacy_deploy_path_hard_retired():
 # into ONE shared normalization + capability path used by BOTH lanes
 # (Windows script formats case-insensitive, ambiguity propagates
 # fail-closed pre-marker, command separators and PowerShell
-# continuations are lexical structure). Bounded goal unchanged: truthful
-# coverage of the repo's supported deployment grammars — not universal
-# shell AST or working-directory analysis.
+# continuations are lexical structure) (missed that SHARED NORMALIZATION
+# IS NOT SHARED CAPABILITY — B-105-1: CMD caret-newline continuation in
+# a marker-free `.cmd` escaped because the normalizer knew POSIX and
+# PowerShell continuations but not CMD's, and the two lanes still made
+# DIFFERENT capability decisions; the textual fallback also classified
+# bare prose and `othercli builds submit` — a phrase is not a command
+# identity); v11 makes ONE filename- and platform-aware capability
+# decision (`_builds_submit_capability`) consumed by BOTH lanes —
+# platform-scoped continuations (POSIX backslash / PS backtick `.ps1` /
+# CMD caret `.bat`/`.cmd`), CMD REM/:: comments, and an identity-bound
+# textual fallback (gcloud + bounded grammar, never a phrase). Bounded
+# goal unchanged: truthful coverage of the repo's supported deployment
+# grammars — not universal shell AST or working-directory analysis.
 
 DEPLOY_CAPABILITY_SIGNATURES = {
-    "version": 10,
+    "version": 11,
     "families": {
         "github_actions_wrapper": ("deploy-cloudrun@",
                                    "google-github-actions/deploy-cloudrun"),
@@ -1347,9 +1357,11 @@ DEPLOY_CAPABILITY_SIGNATURES = {
                            ("run", "services", "replace"),
                            ("builds", "submit")),
     "release_tracks": ("alpha", "beta"),
-    # Non-gcloud shell literals (docker has no release tracks; bare
-    # 'builds submit' covers args-list fragments quoted in prose).
-    "shell_literals": ("builds submit", "docker push"),
+    # Non-gcloud shell literals (docker: different executable, no
+    # tracks). B-105-1 removed the bare 'builds submit' phrase — the
+    # builds-submit family now binds gcloud COMMAND IDENTITY through the
+    # one shared capability decision, never a phrase.
+    "shell_literals": ("docker push",),
     # Textual fallback layer for yaml-esque fragments EMBEDDED in prose
     # (a .md carrying a snippet won't parse as a whole document); the
     # semantic layer below supersedes this for parseable documents.
@@ -1440,32 +1452,37 @@ def _tokens_reach_effect(tokens, trees=None):
     return any(walk(0, tree, 0, True) for tree in trees)
 
 
-def _normalized_shell_text(text):
-    """ONE shared lexical normalization for every carrier lane (B-104-1:
-    carrier semantics must not differ by which lane consumes them).
+def _normalized_shell_text(text, filename=""):
+    """ONE shared lexical normalization for every carrier lane, with
+    PLATFORM-SCOPED continuation semantics (B-105-1: each platform's
+    presentation rules apply where that platform executes).
 
     - POSIX: an unquoted backslash-newline pair is removed before token
-      splitting (the continuation joins one logical command line);
-      PowerShell's backtick-newline continuation likewise.
-    - Comments are lexical: an unquoted `#` starts a comment in every
-      format this layer scans — a `# gcloud builds submit` MENTION
-      cannot execute (capability claims, not mentions). The quoted-#
-      edge degrades to an unbalanced-quote lex failure = ambiguous =
-      fail CLOSED, never fail-open.
+      splitting (the continuation joins one logical command line).
+    - PowerShell: backtick-newline continuation joins — scoped to `.ps1`.
+    - CMD: caret-newline continuation joins — scoped to `.bat`/`.cmd`
+      (T's shim proof: CMD delivers `gcloud builds ^\\n submit` to the
+      executable as joined `builds submit`).
+    - Comments are lexical and platform-true: unquoted `#` everywhere;
+      `REM`/`::` lines in CMD formats — a comment MENTION cannot execute
+      (capability claims, not mentions). The quoted-# edge degrades to
+      an unbalanced-quote lex failure = ambiguous = fail CLOSED.
     - Substitution delimiters (backticks, parens) and command separators
       (`;`, `&`, `|`) EXECUTE or delimit their content — they lex as
-      token boundaries, so trailing delimiters never glue to an effect
-      verb (`RESULT=$(gcloud builds submit)`, `gcloud builds submit;
-      echo done`). Quoted values keep token integrity regardless
-      (quotes survive normalization); replacing errs toward detection
-      for quoted literals — the safe direction."""
+      token boundaries. Quoted values keep token integrity regardless;
+      replacing errs toward detection — the safe direction."""
+    suffix = filename.lower()
     normalized = re.sub(r"\\\r?\n", " ", text)          # POSIX continuation
-    normalized = re.sub(r"`\r?\n", " ", normalized)     # PowerShell continuation
+    if suffix.endswith(".ps1"):
+        normalized = re.sub(r"`\r?\n", " ", normalized)  # PowerShell continuation
+    if suffix.endswith((".bat", ".cmd")):
+        normalized = re.sub(r"\^\r?\n", " ", normalized)  # CMD caret continuation
+        normalized = re.sub(r"(?im)^\s*(?:rem\s|::).*$", "", normalized)
     normalized = re.sub(r"(^|\s)#.*?$", r"\1", normalized, flags=re.MULTILINE)
     return re.sub(r"[`();&|]", " ", normalized)
 
 
-def _gcloud_token_capability(text, trees=None):
+def _gcloud_token_capability(text, filename="", trees=None):
     """Shell lexical layer (v8, B-102): normalize supported presentation
     into bounded argv-like tokens BEFORE grammar matching. Supported
     subset: single/double quoted values, POSIX unquoted backslash-newline
@@ -1475,7 +1492,7 @@ def _gcloud_token_capability(text, trees=None):
     family).
 
     Returns: True (deploy tokens reached), False, or "ambiguous"."""
-    normalized = _normalized_shell_text(text)
+    normalized = _normalized_shell_text(text, filename)
     ambiguous = False
     for line in normalized.splitlines():
         for hit in re.finditer(r"\bgcloud\b", line):   # case-sensitive: Unix
@@ -1491,26 +1508,41 @@ def _gcloud_token_capability(text, trees=None):
     return "ambiguous" if ambiguous else False
 
 
-def _cross_file_build_capability(text, filename):
-    """B-104-1 parity lane: the cross-file (marker-free) builds-submit
-    check supports EVERY carrier presentation the same-marker lane
-    supports — Unix case-sensitive tokens, the comment-stripped textual
-    fallback, Windows case-INSENSITIVE script formats, and fail-closed
+# B-105-1 guardrail: the textual fallback must bind the GCLOUD COMMAND
+# IDENTITY, never a bare phrase — prose ("how builds submit jobs are
+# queued") and other executables ("othercli builds submit") are not the
+# governed capability. Optional quotes tolerate the quoted-command
+# presentation ('"gcloud" builds submit'); optional .cmd/.exe tolerate
+# Windows executable spellings.
+_GCLOUD_BUILDS_SUBMIT_TEXTUAL = re.compile(
+    r"[\"']?\bgcloud\b(?:\.cmd|\.exe)?[\"']?\s+builds\s+submit\b")
+
+
+def _builds_submit_capability(text, filename):
+    """THE one filename- and platform-aware capability decision for the
+    builds-submit family (B-105-1: "sharing a normalizer is an
+    implementation fact; capability parity is the safety invariant").
+    Consumed by BOTH the marker-free lane and the post-marker lane —
+    there is no second decision to diverge. Supports: Unix
+    case-sensitive tokens, Windows case-INSENSITIVE script formats
+    (platform scope — Unix stays exact), platform-scoped continuations
+    (POSIX backslash / PS backtick / CMD caret via the shared
+    normalizer), the identity-bound textual fallback, and fail-closed
     ambiguity. Returns True / False / "ambiguous"."""
     trees = (("builds", "submit"),)
-    lanes = [(text, _normalized_shell_text(text))]
-    # Windows script formats: command lookup is case-insensitive WITHIN
-    # these formats only (platform scope preserved — Unix stays exact).
+    lanes = [text]
     if filename.lower().endswith(DEPLOY_CAPABILITY_SIGNATURES["script_suffixes"]):
-        lowered = text.lower()
-        lanes.append((lowered, _normalized_shell_text(lowered)))
+        lanes.append(text.lower())
     ambiguous = False
-    for raw, normalized in lanes:
-        token_result = _gcloud_token_capability(raw, trees=trees)
-        if token_result is True or "builds submit" in normalized:
+    for lane in lanes:
+        token_result = _gcloud_token_capability(lane, filename, trees=trees)
+        if token_result is True:
             return True
         if token_result == "ambiguous":
             ambiguous = True
+        if _GCLOUD_BUILDS_SUBMIT_TEXTUAL.search(
+                _normalized_shell_text(lane, filename)):
+            return True
     return "ambiguous" if ambiguous else False
 
 
@@ -1526,11 +1558,11 @@ def _detect_deploy_capability(text, filename):
     # Conservative bound (T round-13 contract 5): the builds-submit tree
     # ONLY — run deploy / services update|replace name their target as an
     # argument, so the marker guard remains correct for those trees.
-    # B-104-1: this lane reuses the FULL supported carrier semantics
-    # ("moving target binding across files must not shrink the supported
-    # carrier grammar") — Windows casing, textual fallback, and
-    # fail-closed ambiguity all survive the lane change.
-    cross = _cross_file_build_capability(text, filename)
+    # B-104-1/B-105-1: this lane consumes THE one platform-aware
+    # capability decision ("moving target binding across files must not
+    # shrink the supported carrier grammar") — the SAME decision the
+    # post-marker lane consumes below, so parity holds by construction.
+    cross = _builds_submit_capability(text, filename)
     if cross is True:
         families.add("default_config_build")
     elif cross == "ambiguous":
@@ -1542,12 +1574,15 @@ def _detect_deploy_capability(text, filename):
             families.add(family)
     # v8 (B-102): LEX before grammar — the gcloud family is matched on
     # normalized shell tokens; unlexable gcloud candidates fail CLOSED.
-    # Non-gcloud literals stay textual (prose fragments, docker).
-    shell = _gcloud_token_capability(text)
-    if shell is True or any(lit in text
-                            for lit in DEPLOY_CAPABILITY_SIGNATURES["shell_literals"]):
+    # B-105-1: the builds-submit binding reuses the ONE decision computed
+    # above (`cross`) — no post-marker phrase fallback remains; only the
+    # docker literal stays textual (different executable, no tracks).
+    shell = _gcloud_token_capability(text, filename)
+    if shell is True or cross is True \
+            or any(lit in text
+                   for lit in DEPLOY_CAPABILITY_SIGNATURES["shell_literals"]):
         families.add("shell_command")
-    elif shell == "ambiguous":
+    elif "ambiguous" in (shell, cross):
         families.add("ambiguous_shell_candidate")   # fail closed
     # Semantic layer applies to CANDIDATE structured config only: Cloud
     # Build consumes YAML/JSON files (`--config=FILE`); prose and source
@@ -2279,3 +2314,73 @@ def test_staged_marker_free_carrier_probes_fail_closed_at_inventory():
     assert set(detected) == set(_S105_PROBES)
     offenders = _classify_offenders(detected)
     assert sorted(offenders) == sorted(_S105_PROBES)
+
+
+# --- B-105-1: CMD caret parity + identity-bound fallback, T VERBATIM --------
+
+T_S106_CMD_CARET = ("round15-marker-free-caret.cmd",
+                    "gcloud builds ^\n  submit\n")
+T_S106_PROSE_NEGATIVE = ("round15-prose.md",
+                         "This guide explains how builds submit jobs "
+                         "are queued.\n")
+T_S106_OTHER_CLI_NEGATIVE = ("round15-other-cli.sh",
+                             "othercli builds submit\n")
+
+
+def test_marker_free_cmd_caret_carrier_is_detected():
+    """B-105-1 verbatim — CMD joins caret-newline before invocation
+    (T's shim received `builds submit` joined), so the marker-free
+    `.cmd` carrier is the governed capability in CMD presentation."""
+    name, text = T_S106_CMD_CARET
+    families = _detect_deploy_capability(text, name)
+    assert "default_config_build" in families
+
+
+def test_cmd_caret_carrier_parity_with_marker():
+    """B-105-1 contract 4: the same carrier plus the (CMD-comment)
+    service marker is detected identically — only marker co-location
+    changed, never the capability."""
+    name, text = T_S106_CMD_CARET
+    with_marker = _detect_deploy_capability(
+        text + "REM verifimind-mcp-server\n", name)
+    assert with_marker
+    assert "default_config_build" in with_marker
+
+
+def test_caret_is_cmd_scoped_not_posix():
+    """Platform scope: caret-newline is NOT a continuation on POSIX —
+    the identical bytes in a `.sh` stay undetected (a caret is just a
+    character there)."""
+    families = _detect_deploy_capability(
+        "gcloud builds ^\n  submit\n", "not-cmd.sh")
+    assert "default_config_build" not in families
+
+
+def test_textual_fallback_binds_gcloud_identity():
+    """B-105-1 guardrails verbatim: bare prose and another executable
+    carrying the words 'builds submit' are NOT the governed capability
+    — the fallback binds gcloud command identity, never a phrase."""
+    for name, text in (T_S106_PROSE_NEGATIVE, T_S106_OTHER_CLI_NEGATIVE):
+        families = _detect_deploy_capability(text, name)
+        assert families == set(), name
+
+
+def test_cmd_rem_comment_mention_is_not_a_command():
+    """CMD comment semantics (REM / ::) join the comment principle: a
+    `REM gcloud builds submit` mention cannot execute."""
+    families = _detect_deploy_capability(
+        "REM gcloud builds submit\n:: gcloud builds submit\n",
+        "notes.cmd")
+    assert families == set()
+
+
+def test_staged_cmd_caret_and_negatives_at_inventory():
+    """B-105-1 contract 6: the positive staged path is named by the
+    closed-inventory failure; the two negatives stage clean."""
+    name, text = T_S106_CMD_CARET
+    detected = {name: text} if _detect_deploy_capability(text, name) else {}
+    assert set(detected) == {name}
+    assert _classify_offenders(detected) == [name]
+    for neg_name, neg_text in (T_S106_PROSE_NEGATIVE,
+                               T_S106_OTHER_CLI_NEGATIVE):
+        assert not _detect_deploy_capability(neg_text, neg_name), neg_name
