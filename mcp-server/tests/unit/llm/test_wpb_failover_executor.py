@@ -1304,12 +1304,19 @@ def test_legacy_deploy_path_hard_retired():
 # (quotes, unquoted continuations) normalizes into bounded argv-like
 # tokens FIRST, then a token-level command grammar with flag slots at
 # EVERY tree boundary classifies the effect; unlexable gcloud candidates
-# fail CLOSED as their own family. Bounded goal unchanged: truthful
-# coverage of the repo's supported deployment grammars — not universal
-# shell AST analysis.
+# fail CLOSED as their own family (missed CROSS-FILE effect binding —
+# B-103-1: a marker-free `gcloud builds submit` resolves the DEFAULT
+# repository cloudbuild.yaml which deploys the service, so the same-file
+# service-marker guard hid the carrier); v9 checks the builds-submit
+# tree BEFORE the marker guard (conservative: run/services trees name
+# their target as an argument, builds-submit binds its target through a
+# separately resolved config) and lexes substitution delimiters
+# (backticks, parens) as token boundaries. Bounded goal unchanged:
+# truthful coverage of the repo's supported deployment grammars — not
+# universal shell AST or working-directory analysis.
 
 DEPLOY_CAPABILITY_SIGNATURES = {
-    "version": 8,
+    "version": 9,
     "families": {
         "github_actions_wrapper": ("deploy-cloudrun@",
                                    "google-github-actions/deploy-cloudrun"),
@@ -1389,14 +1396,15 @@ def _cloudbuild_semantic_capability(text):
     return False
 
 
-def _tokens_reach_effect(tokens):
+def _tokens_reach_effect(tokens, trees=None):
     """Token-level command grammar (v8): can `tokens` (starting at the
     token AFTER `gcloud`) be read as [flag-slot] [track] [flag-slot]
     tree-token [flag-slot] tree-token ... for any bounded effect tree?
     A flag token is dash-prefixed; without `=` it MAY consume one
     following non-dash token as its value — both readings are tried
     (backtracking), so bare booleans release the next command token."""
-    trees = DEPLOY_CAPABILITY_SIGNATURES["effect_token_trees"]
+    if trees is None:
+        trees = DEPLOY_CAPABILITY_SIGNATURES["effect_token_trees"]
     tracks = DEPLOY_CAPABILITY_SIGNATURES["release_tracks"]
 
     def walk(ti, tree, ci, track_allowed):
@@ -1421,21 +1429,35 @@ def _tokens_reach_effect(tokens):
     return any(walk(0, tree, 0, True) for tree in trees)
 
 
-def _gcloud_token_capability(text):
+def _gcloud_token_capability(text, trees=None):
     """Shell lexical layer (v8, B-102): normalize supported presentation
     into bounded argv-like tokens BEFORE grammar matching. Supported
     subset: single/double quoted values, POSIX unquoted backslash-newline
-    continuation (LF and CRLF). A gcloud candidate the lexer cannot
-    tokenize (e.g. unbalanced quote) cannot prove its innocence —
-    returns "ambiguous" (fail closed as its own family).
+    continuation (LF and CRLF), command-substitution delimiters. A gcloud
+    candidate the lexer cannot tokenize (e.g. unbalanced quote) cannot
+    prove its innocence — returns "ambiguous" (fail closed as its own
+    family).
 
     Returns: True (deploy tokens reached), False, or "ambiguous"."""
     # POSIX: an unquoted backslash-newline pair is removed before token
     # splitting — the continuation joins one logical command line.
-    # Backticks delimit command substitution (`gcloud builds submit`
-    # EXECUTES) — they lex as token boundaries; replacing them errs
-    # toward detection for single-quoted literals, the safe direction.
-    normalized = re.sub(r"\\\r?\n", " ", text).replace("`", " ")
+    # Substitution delimiters — backticks and parentheses (`...` and
+    # $(...) EXECUTE their content; subshells too) — lex as token
+    # boundaries, so trailing delimiters never glue to an effect verb
+    # (B-103: `RESULT=$(gcloud builds submit)`). Quoted values keep
+    # their token integrity regardless (quotes survive normalization),
+    # so `--format="table(name, status)"` still lexes as one token.
+    # Replacing errs toward detection for quoted literals — the safe
+    # direction. Comments are lexical too: an unquoted `#` starts a
+    # comment in every format this layer scans (shell, YAML, Dockerfile,
+    # ignore-files) — a `# gcloud builds submit` comment CANNOT execute,
+    # so comment text is removed before the gcloud search (B-103 honest
+    # bound: capability claims, not mentions). The quoted-# edge (`--desc
+    # "a # b"`) degrades to an unbalanced-quote lex failure = ambiguous =
+    # fail CLOSED, never fail-open.
+    normalized = re.sub(r"\\\r?\n", " ", text)
+    normalized = re.sub(r"(^|\s)#.*?$", r"\1", normalized, flags=re.MULTILINE)
+    normalized = re.sub(r"[`()]", " ", normalized)
     ambiguous = False
     for line in normalized.splitlines():
         for hit in re.finditer(r"\bgcloud\b", line):   # case-sensitive: Unix
@@ -1446,7 +1468,7 @@ def _gcloud_token_capability(text):
                 ambiguous = True
                 continue
             if tokens and tokens[0] == "gcloud" \
-                    and _tokens_reach_effect(tokens[1:]):
+                    and _tokens_reach_effect(tokens[1:], trees):
                 return True
     return "ambiguous" if ambiguous else False
 
@@ -1455,9 +1477,18 @@ def _detect_deploy_capability(text, filename):
     """Pure detector: which encoding families make this content capable of
     deploying the service? (Empty set = not deploy-capable.) Pure so each
     family's known-negative fixture can be asserted without staging files."""
-    if SERVICE_NAME_MARKER not in text:
-        return set()
     families = set()
+    # B-103-1 (checked BEFORE the same-file marker guard): effect binding
+    # crosses carriers — a lexable `gcloud builds submit` resolves the
+    # DEFAULT repository cloudbuild.yaml, which deploys the service, so
+    # the wrapper never needs the service literal in its own bytes.
+    # Conservative bound (T round-13 contract 5): the builds-submit tree
+    # ONLY — run deploy / services update|replace name their target as an
+    # argument, so the marker guard remains correct for those trees.
+    if _gcloud_token_capability(text, trees=(("builds", "submit"),)) is True:
+        families.add("default_config_build")
+    if SERVICE_NAME_MARKER not in text:
+        return families
     for family, markers in DEPLOY_CAPABILITY_SIGNATURES["families"].items():
         if any(marker in text for marker in markers):
             families.add(family)
@@ -2066,3 +2097,73 @@ def test_lexer_keeps_prose_and_case_bounds():
     assert "shell_command" not in _detect_deploy_capability(prose, "notes.sh")
     upper = "GCLOUD RUN DEPLOY verifimind-mcp-server"
     assert "shell_command" not in _detect_deploy_capability(upper, "notes.sh")
+
+
+# --- B-103-1: effect binding crosses carriers, T's probes VERBATIM ----------
+
+T_S104_MARKER_FREE_PLAIN = "gcloud builds submit\n"
+
+T_S104_MARKER_FREE_SUBSTITUTION = "RESULT=$(gcloud builds submit)\n"
+
+
+def test_marker_free_builds_submit_is_detected():
+    """B-103-1 verbatim — T's staged marker-free carrier: `gcloud builds
+    submit` resolves the DEFAULT repository cloudbuild.yaml, which
+    deploys verifimind-mcp-server. The wrapper's own bytes never name
+    the service; capability and target binding CROSS files."""
+    families = _detect_deploy_capability(
+        T_S104_MARKER_FREE_PLAIN, "round13-marker-free-plain.sh")
+    assert "default_config_build" in families
+
+
+def test_marker_free_substitution_builds_submit_is_detected():
+    """B-103-1 verbatim — the $() carrier form: substitution delimiters
+    lex as token boundaries, so the closing paren no longer glues to the
+    final effect token."""
+    families = _detect_deploy_capability(
+        T_S104_MARKER_FREE_SUBSTITUTION, "round13-marker-free-subst.sh")
+    assert "default_config_build" in families
+
+
+def test_staged_marker_free_carriers_fail_closed_at_inventory():
+    """B-103-1 contract 3: both marker-free carriers, staged as tracked
+    surfaces, fail closed through the production detector + classifier
+    with offender identity asserted."""
+    staged = {
+        "round13-marker-free-plain.sh": T_S104_MARKER_FREE_PLAIN,
+        "round13-marker-free-subst.sh": T_S104_MARKER_FREE_SUBSTITUTION,
+    }
+    detected = {
+        name: text for name, text in staged.items()
+        if _detect_deploy_capability(text, name)
+    }
+    assert set(detected) == set(staged)
+    offenders = _classify_offenders(detected)
+    assert sorted(offenders) == sorted(staged)
+
+
+def test_comment_mentions_are_not_commands():
+    """Comments are lexical structure: `# gcloud builds submit` cannot
+    execute in any format this layer scans (the three real repo files
+    that documented the deploy path in comments must NOT be claimed
+    deploy-capable) — while an inline comment AFTER a real command does
+    not hide it."""
+    comment_only = ("# Mirrors .gcloudignore so `gcloud builds submit` "
+                    "and docker build match\n")
+    assert _detect_deploy_capability(comment_only, ".dockerignore") == set()
+    inline = "gcloud builds submit # kick the default-config build\n"
+    families = _detect_deploy_capability(inline, "x.sh")
+    assert "default_config_build" in families
+
+
+def test_marker_free_named_target_trees_stay_unflagged():
+    """The conservative bound (T round-13 contract 5), documented as a
+    named negative: run/services trees bind their target as a command
+    ARGUMENT, so a marker-free `gcloud run deploy other-service` cannot
+    deploy verifimind-mcp-server and stays undetected — only the
+    builds-submit tree binds its target through a separately resolved
+    default config."""
+    families = _detect_deploy_capability(
+        "gcloud run deploy other-service --image gcr.io/x/y:z\n",
+        "other-deploy.sh")
+    assert families == set()
