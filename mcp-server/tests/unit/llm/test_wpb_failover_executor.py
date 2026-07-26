@@ -18,6 +18,8 @@ Design: Hub #81 (WP-B design v2); reviews:
 import asyncio
 import json
 import re
+import shlex  # hard requirement: the shell lexical layer (v8) must fail
+              # LOUD if absent, never silently degrade to raw-text matching
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -1294,42 +1296,39 @@ def test_legacy_deploy_path_hard_retired():
 # global flags legally preceding the command tree); v7 models the
 # gcloud-wide flag slot as bounded tokens before the track AND before
 # the effect group, covering both value encodings (`--flag=value`,
-# `--flag value`) and bare boolean flags. Bounded goal unchanged:
-# truthful coverage of the repo's supported deployment grammars — not
-# universal shell AST analysis.
-
-# B-101-1: one gcloud-wide flag token — `--flag`, `--flag=value`,
-# `--flag value`, or the documented short form (`-q`); the value token
-# never starts with `-`. The optional value group releases its token on
-# backtracking, so a bare boolean flag directly before the effect group
-# (`gcloud --quiet run deploy`) still lets `run` reach the verb grammar.
-# Only dash-prefixed tokens (plus at most one value each) are skippable
-# — arbitrary prose between `gcloud` and the verbs does NOT match.
-_GCLOUD_WIDE_FLAG_SLOT = r"(?:-{1,2}[\w-]+(?:=\S+|\s+[^-\s]\S*)?\s+)*"
+# `--flag value`) and bare boolean flags (missed the ORDER of
+# interpretation — B-102: raw source-character adjacency cannot see
+# quoted values with spaces, POSIX backslash-newline continuations, or
+# flags between LATER command-tree tokens like `gcloud run --project=x
+# deploy`); v8 LEXES BEFORE GRAMMAR — supported shell presentation
+# (quotes, unquoted continuations) normalizes into bounded argv-like
+# tokens FIRST, then a token-level command grammar with flag slots at
+# EVERY tree boundary classifies the effect; unlexable gcloud candidates
+# fail CLOSED as their own family. Bounded goal unchanged: truthful
+# coverage of the repo's supported deployment grammars — not universal
+# shell AST analysis.
 
 DEPLOY_CAPABILITY_SIGNATURES = {
-    "version": 7,
+    "version": 8,
     "families": {
         "github_actions_wrapper": ("deploy-cloudrun@",
                                    "google-github-actions/deploy-cloudrun"),
         "declarative_cloud_run": ("run.googleapis.com",
                                   "serving.knative.dev"),
     },
-    # Unix shell commands stay CASE-SENSITIVE (T contract: command lookup
-    # on Unix is case-sensitive). B-100-1: the gcloud family is a GRAMMAR
-    # with an optional documented release-track token between `gcloud` and
-    # the command group — alpha and beta forms are the same deployment
-    # effect. B-101-1: gcloud-wide flags may legally precede the release
-    # track and the effect group (`gcloud --project=x run deploy` is
-    # SDK-accepted) — the flag SLOT is modeled at both positions, not any
-    # flag spelling list. `\s+` tolerates spacing; the verb set covers
-    # deploy / services update / services replace / builds submit.
-    "gcloud_shell_grammar": re.compile(
-        r"gcloud\s+" + _GCLOUD_WIDE_FLAG_SLOT
-        + r"(?:(?:alpha|beta)\s+" + _GCLOUD_WIDE_FLAG_SLOT + r")?"
-        + r"(?:run\s+deploy\b"
-        r"|run\s+services\s+(?:update|replace)\b"
-        r"|builds\s+submit\b)"),
+    # v8 token grammar (B-102): the shell family is matched on LEXED
+    # tokens, not source characters. Unix commands stay CASE-SENSITIVE.
+    # Effect trees are finite token sequences; the optional release track
+    # precedes the tree; gcloud-wide flag slots exist at EVERY tree
+    # boundary (before the track, before the tree, and between tree
+    # tokens — `gcloud run --project=x deploy` is SDK-accepted). Flag
+    # arity (equals / split value / bare boolean / short form) resolves
+    # by token-level backtracking, not a per-flag table.
+    "effect_token_trees": (("run", "deploy"),
+                           ("run", "services", "update"),
+                           ("run", "services", "replace"),
+                           ("builds", "submit")),
+    "release_tracks": ("alpha", "beta"),
     # Non-gcloud shell literals (docker has no release tracks; bare
     # 'builds submit' covers args-list fragments quoted in prose).
     "shell_literals": ("builds submit", "docker push"),
@@ -1390,6 +1389,68 @@ def _cloudbuild_semantic_capability(text):
     return False
 
 
+def _tokens_reach_effect(tokens):
+    """Token-level command grammar (v8): can `tokens` (starting at the
+    token AFTER `gcloud`) be read as [flag-slot] [track] [flag-slot]
+    tree-token [flag-slot] tree-token ... for any bounded effect tree?
+    A flag token is dash-prefixed; without `=` it MAY consume one
+    following non-dash token as its value — both readings are tried
+    (backtracking), so bare booleans release the next command token."""
+    trees = DEPLOY_CAPABILITY_SIGNATURES["effect_token_trees"]
+    tracks = DEPLOY_CAPABILITY_SIGNATURES["release_tracks"]
+
+    def walk(ti, tree, ci, track_allowed):
+        if ci == len(tree):
+            return True
+        if ti >= len(tokens):
+            return False
+        tok = tokens[ti]
+        if tok.startswith("-") and len(tok) > 1:
+            if walk(ti + 1, tree, ci, track_allowed):     # bare flag
+                return True
+            if ("=" not in tok and ti + 1 < len(tokens)
+                    and not tokens[ti + 1].startswith("-")):
+                return walk(ti + 2, tree, ci, track_allowed)  # flag + value
+            return False
+        if track_allowed and ci == 0 and tok in tracks:
+            return walk(ti + 1, tree, ci, False)
+        if tok == tree[ci]:
+            return walk(ti + 1, tree, ci + 1, False)
+        return False
+
+    return any(walk(0, tree, 0, True) for tree in trees)
+
+
+def _gcloud_token_capability(text):
+    """Shell lexical layer (v8, B-102): normalize supported presentation
+    into bounded argv-like tokens BEFORE grammar matching. Supported
+    subset: single/double quoted values, POSIX unquoted backslash-newline
+    continuation (LF and CRLF). A gcloud candidate the lexer cannot
+    tokenize (e.g. unbalanced quote) cannot prove its innocence —
+    returns "ambiguous" (fail closed as its own family).
+
+    Returns: True (deploy tokens reached), False, or "ambiguous"."""
+    # POSIX: an unquoted backslash-newline pair is removed before token
+    # splitting — the continuation joins one logical command line.
+    # Backticks delimit command substitution (`gcloud builds submit`
+    # EXECUTES) — they lex as token boundaries; replacing them errs
+    # toward detection for single-quoted literals, the safe direction.
+    normalized = re.sub(r"\\\r?\n", " ", text).replace("`", " ")
+    ambiguous = False
+    for line in normalized.splitlines():
+        for hit in re.finditer(r"\bgcloud\b", line):   # case-sensitive: Unix
+            candidate = line[hit.start():]
+            try:
+                tokens = shlex.split(candidate, posix=True)
+            except ValueError:
+                ambiguous = True
+                continue
+            if tokens and tokens[0] == "gcloud" \
+                    and _tokens_reach_effect(tokens[1:]):
+                return True
+    return "ambiguous" if ambiguous else False
+
+
 def _detect_deploy_capability(text, filename):
     """Pure detector: which encoding families make this content capable of
     deploying the service? (Empty set = not deploy-capable.) Pure so each
@@ -1400,12 +1461,15 @@ def _detect_deploy_capability(text, filename):
     for family, markers in DEPLOY_CAPABILITY_SIGNATURES["families"].items():
         if any(marker in text for marker in markers):
             families.add(family)
-    # B-100-1: the gcloud shell family is a GRAMMAR (optional release-track
-    # position), plus non-gcloud literals — case-sensitive (Unix semantics)
-    if DEPLOY_CAPABILITY_SIGNATURES["gcloud_shell_grammar"].search(text) \
-            or any(lit in text
-                   for lit in DEPLOY_CAPABILITY_SIGNATURES["shell_literals"]):
+    # v8 (B-102): LEX before grammar — the gcloud family is matched on
+    # normalized shell tokens; unlexable gcloud candidates fail CLOSED.
+    # Non-gcloud literals stay textual (prose fragments, docker).
+    shell = _gcloud_token_capability(text)
+    if shell is True or any(lit in text
+                            for lit in DEPLOY_CAPABILITY_SIGNATURES["shell_literals"]):
         families.add("shell_command")
+    elif shell == "ambiguous":
+        families.add("ambiguous_shell_candidate")   # fail closed
     # Semantic layer applies to CANDIDATE structured config only: Cloud
     # Build consumes YAML/JSON files (`--config=FILE`); prose and source
     # files cannot BE a build config (their embedded snippets are covered
@@ -1903,3 +1967,102 @@ def test_staged_global_flag_probes_fail_closed_at_inventory():
     assert set(detected) == set(staged)
     offenders = _classify_offenders(detected)
     assert sorted(offenders) == sorted(staged)
+
+
+# --- B-102: lex before grammar — T's six probes VERBATIM --------------------
+
+T_S102_TREE_FLAG_DEPLOY = """gcloud run --project=synthetic-project deploy verifimind-mcp-server \\
+  --image gcr.io/example/verifimind-mcp-server:round12-synthetic
+"""
+
+T_S102_TREE_FLAG_SERVICES = """gcloud run services --project=synthetic-project update verifimind-mcp-server \\
+  --region us-central1
+"""
+
+T_S102_QUOTED_FORMAT_EQUALS = """gcloud --format="table(name, status)" run deploy verifimind-mcp-server \\
+  --image gcr.io/example/verifimind-mcp-server:round12-synthetic
+"""
+
+T_S102_QUOTED_FORMAT_SPLIT = """gcloud --format "table(name, status)" run deploy verifimind-mcp-server \\
+  --image gcr.io/example/verifimind-mcp-server:round12-synthetic
+"""
+
+T_S102_CONTINUATION_BEFORE_RUN = """gcloud \\
+  run deploy verifimind-mcp-server --image gcr.io/example/verifimind-mcp-server:round12-synthetic
+"""
+
+T_S102_CONTINUATION_INSIDE_TREE = """gcloud run \\
+  deploy verifimind-mcp-server --image gcr.io/example/verifimind-mcp-server:round12-synthetic
+"""
+
+_S102_PROBES = {
+    "round12-tree-flag-deploy.sh": T_S102_TREE_FLAG_DEPLOY,
+    "round12-tree-flag-services.sh": T_S102_TREE_FLAG_SERVICES,
+    "round12-quoted-format-equals.sh": T_S102_QUOTED_FORMAT_EQUALS,
+    "round12-quoted-format-split.sh": T_S102_QUOTED_FORMAT_SPLIT,
+    "round12-continuation-before-run.sh": T_S102_CONTINUATION_BEFORE_RUN,
+    "round12-continuation-inside-tree.sh": T_S102_CONTINUATION_INSIDE_TREE,
+}
+
+
+def test_all_six_shell_token_counterexamples_are_detected():
+    """B-102 verbatim — T's six SDK-accepted forms: flags at LATER tree
+    boundaries, quoted values containing spaces (both encodings), and
+    POSIX continuations before and inside the tree. Presentation changed;
+    the argv-level command did not."""
+    for name, text in _S102_PROBES.items():
+        families = _detect_deploy_capability(text, name)
+        assert "shell_command" in families, name
+
+
+def test_staged_shell_token_probes_fail_closed_at_inventory():
+    """B-102 contract 4: all six files, staged as tracked surfaces, fail
+    closed through the production detector + classifier with offender
+    identity asserted."""
+    detected = {
+        name: text for name, text in _S102_PROBES.items()
+        if _detect_deploy_capability(text, name)
+    }
+    assert set(detected) == set(_S102_PROBES)
+    offenders = _classify_offenders(detected)
+    assert sorted(offenders) == sorted(_S102_PROBES)
+
+
+def test_crlf_continuation_is_normalized():
+    """Repo files may carry CRLF line endings — the continuation rule
+    covers backslash + CRLF as well as backslash + LF."""
+    text = ("gcloud run \\\r\n  deploy verifimind-mcp-server "
+            "--image gcr.io/example/verifimind-mcp-server:x\r\n")
+    assert "shell_command" in _detect_deploy_capability(text, "x.sh")
+
+
+def test_unlexable_gcloud_candidate_fails_closed():
+    """B-102 contract 1: a gcloud candidate the lexer cannot tokenize
+    (unbalanced quote) cannot prove its innocence — it is detected as its
+    own fail-closed family and must be classified at inventory."""
+    text = ('gcloud run deploy "verifimind-mcp-server --image '
+            "gcr.io/example/verifimind-mcp-server:x\n")
+    families = _detect_deploy_capability(text, "broken.sh")
+    assert "ambiguous_shell_candidate" in families
+    offenders = _classify_offenders({"broken.sh": text})
+    assert offenders == ["broken.sh"]
+
+
+def test_backtick_substitution_wrapped_command_is_detected():
+    """Pre-review self-probe (4th instance): backtick command
+    substitution EXECUTES its content — a trailing backtick must not
+    glue to the effect verb and hide the command."""
+    text = ("OUTPUT=`gcloud builds submit --config=cloudbuild-image.yaml` "
+            "# verifimind-mcp-server manual build\n")
+    assert "shell_command" in _detect_deploy_capability(text, "x.sh")
+
+
+def test_lexer_keeps_prose_and_case_bounds():
+    """The token path preserves the honest bounds: prose between `gcloud`
+    and deploy verbs stays undetected (non-flag tokens are never
+    skipped), and Unix case sensitivity survives lexing."""
+    prose = ("gcloud is the CLI we use. Later, run deploy scripts by hand "
+             "for verifimind-mcp-server.")
+    assert "shell_command" not in _detect_deploy_capability(prose, "notes.sh")
+    upper = "GCLOUD RUN DEPLOY verifimind-mcp-server"
+    assert "shell_command" not in _detect_deploy_capability(upper, "notes.sh")
