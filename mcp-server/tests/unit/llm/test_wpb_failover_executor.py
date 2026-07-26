@@ -1279,34 +1279,42 @@ def test_legacy_deploy_path_hard_retired():
         assert live_command not in stub, f"retired stub still carries: {live_command}"
 
 
-# B-97-1/B-98-1/B-99-1: a VERSIONED deployment-capability signature
-# registry. Lineage: v1 extension filter (missed a live .md command —
-# B-96-1); v2 literal markers over all files (missed a GitHub Actions
-# deploy wrapper — B-97-1: capability-equivalent execution); v3 encoding
-# families (missed valid GRAMMAR variants — B-98-1: unquoted YAML,
-# Windows casing); v4 grammar normalization by regex (missed SEMANTIC
-# equivalence — B-99-1: inline comments, flow-style sequences, and the
-# services-replace verb); v5 PARSES structured configuration and
-# authorizes on the semantic token sequence: "named family -> selected
-# presentation spellings != parsed semantic structure" (T S99).
-# Bounded goal unchanged: truthful coverage of the repo's supported
-# deployment grammars — not universal static analysis.
+# B-97-1/B-98-1/B-99-1/B-100-1: a VERSIONED deployment-capability
+# signature registry. Lineage: v1 extension filter (missed a live .md
+# command — B-96-1); v2 literal markers over all files (missed a GitHub
+# Actions deploy wrapper — B-97-1: capability-equivalent execution); v3
+# encoding families (missed valid GRAMMAR variants — B-98-1: unquoted
+# YAML, Windows casing); v4 grammar normalization by regex (missed
+# SEMANTIC equivalence — B-99-1: comments, flow style, services-replace);
+# v5 parses structured config on the semantic token sequence (missed the
+# COMMAND grammar's optional dimension — B-100-1: release-track
+# prefixes); v6 expresses the gcloud shell family as GRAMMAR — the
+# optional alpha/beta release-track POSITION is modeled, per T S100:
+# "adding only the exact beta string would repeat the spelling-list
+# failure." Bounded goal unchanged: truthful coverage of the repo's
+# supported deployment grammars — not universal static analysis.
 DEPLOY_CAPABILITY_SIGNATURES = {
-    "version": 5,
+    "version": 6,
     "families": {
-        # Unix shell commands stay CASE-SENSITIVE (T contract 3: command
-        # lookup on Unix is case-sensitive; do not erase those semantics).
-        # B-99-1 Probe C: `services replace` creates-or-replaces a service
-        # from a YAML spec — same deployment effect, now registered.
-        "shell_command": ("gcloud run deploy", "gcloud run services update",
-                          "gcloud run services replace",
-                          "gcloud builds submit", "builds submit",
-                          "docker push"),
         "github_actions_wrapper": ("deploy-cloudrun@",
                                    "google-github-actions/deploy-cloudrun"),
         "declarative_cloud_run": ("run.googleapis.com",
                                   "serving.knative.dev"),
     },
+    # Unix shell commands stay CASE-SENSITIVE (T contract: command lookup
+    # on Unix is case-sensitive). B-100-1: the gcloud family is a GRAMMAR
+    # with an optional documented release-track token between `gcloud` and
+    # the command group — alpha and beta forms are the same deployment
+    # effect. `\s+` tolerates spacing; the verb set covers deploy /
+    # services update / services replace / builds submit.
+    "gcloud_shell_grammar": re.compile(
+        r"gcloud\s+(?:alpha\s+|beta\s+)?"
+        r"(?:run\s+deploy\b"
+        r"|run\s+services\s+(?:update|replace)\b"
+        r"|builds\s+submit\b)"),
+    # Non-gcloud shell literals (docker has no release tracks; bare
+    # 'builds submit' covers args-list fragments quoted in prose).
+    "shell_literals": ("builds submit", "docker push"),
     # Textual fallback layer for yaml-esque fragments EMBEDDED in prose
     # (a .md carrying a snippet won't parse as a whole document); the
     # semantic layer below supersedes this for parseable documents.
@@ -1374,6 +1382,12 @@ def _detect_deploy_capability(text, filename):
     for family, markers in DEPLOY_CAPABILITY_SIGNATURES["families"].items():
         if any(marker in text for marker in markers):
             families.add(family)
+    # B-100-1: the gcloud shell family is a GRAMMAR (optional release-track
+    # position), plus non-gcloud literals — case-sensitive (Unix semantics)
+    if DEPLOY_CAPABILITY_SIGNATURES["gcloud_shell_grammar"].search(text) \
+            or any(lit in text
+                   for lit in DEPLOY_CAPABILITY_SIGNATURES["shell_literals"]):
+        families.add("shell_command")
     # Semantic layer applies to CANDIDATE structured config only: Cloud
     # Build consumes YAML/JSON files (`--config=FILE`); prose and source
     # files cannot BE a build config (their embedded snippets are covered
@@ -1705,3 +1719,64 @@ def test_staged_semantic_probes_fail_closed_at_inventory():
     assert set(detected) == set(staged)           # all three detected
     offenders = _classify_offenders(detected)
     assert sorted(offenders) == sorted(staged)    # all three fail closed
+
+
+# --- B-100-1: release-track command grammar, T's probe VERBATIM -------------
+
+T_S100_BETA_DEPLOY = """gcloud beta run deploy verifimind-mcp-server \\
+  --image gcr.io/example/verifimind-mcp-server:round10-synthetic
+"""
+
+T_S100_ALPHA_DEPLOY = """gcloud alpha run deploy verifimind-mcp-server \\
+  --image gcr.io/example/verifimind-mcp-server:round10-synthetic
+"""
+
+
+def test_beta_release_track_counterexample_is_detected():
+    """B-100-1 verbatim — T's staged beta-prefixed deploy: the documented
+    release-track token changes the text, not the deployment effect."""
+    families = _detect_deploy_capability(
+        T_S100_BETA_DEPLOY, "round10-synthetic-beta.sh")
+    assert "shell_command" in families
+
+
+def test_alpha_release_track_counterexample_is_detected():
+    families = _detect_deploy_capability(
+        T_S100_ALPHA_DEPLOY, "round10-synthetic-alpha.sh")
+    assert "shell_command" in families
+
+
+def test_release_track_grammar_covers_all_bounded_verbs():
+    """The grammar expresses the optional TRACK POSITION (per T S100:
+    'adding only the exact beta string would repeat the spelling-list
+    failure') — every bounded verb accepts the optional prefix."""
+    for track in ("", "alpha ", "beta "):
+        for verb in ("run deploy", "run services update",
+                     "run services replace", "builds submit"):
+            cmd = f"gcloud {track}{verb} verifimind-mcp-server"
+            assert "shell_command" in _detect_deploy_capability(cmd, "x.md"), cmd
+
+
+def test_release_track_grammar_stays_case_sensitive_on_unix():
+    """Unix command lookup is case-sensitive — GCLOUD BETA RUN DEPLOY in a
+    non-Windows context is not a command (the Windows script layer handles
+    its own case-insensitive world)."""
+    families = _detect_deploy_capability(
+        "GCLOUD BETA RUN DEPLOY verifimind-mcp-server", "notes.sh")
+    assert "shell_command" not in families
+
+
+def test_staged_release_track_probes_fail_closed_at_inventory():
+    """B-100-1 contract 3: both track-prefixed files, staged as tracked
+    surfaces, fail closed through the production detector + classifier."""
+    staged = {
+        "round10-synthetic-beta.sh": T_S100_BETA_DEPLOY,
+        "round10-synthetic-alpha.sh": T_S100_ALPHA_DEPLOY,
+    }
+    detected = {
+        name: text for name, text in staged.items()
+        if _detect_deploy_capability(text, name)
+    }
+    assert set(detected) == set(staged)
+    offenders = _classify_offenders(detected)
+    assert sorted(offenders) == sorted(staged)
