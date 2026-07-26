@@ -23,6 +23,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+import yaml  # hard requirement: the semantic oracle layer must fail LOUD,
+             # never silently degrade to text-only detection (fail-open)
 
 import verifimind_mcp.llm as llm_pkg
 import verifimind_mcp.llm.failover as fo
@@ -1277,21 +1279,27 @@ def test_legacy_deploy_path_hard_retired():
         assert live_command not in stub, f"retired stub still carries: {live_command}"
 
 
-# B-97-1/B-98-1: a VERSIONED deployment-capability signature registry.
-# Lineage: v1 extension filter (missed a live .md command — B-96-1);
-# v2 literal markers over all files (missed a GitHub Actions deploy
-# wrapper — B-97-1: capability-equivalent execution); v3 encoding
-# families (missed valid GRAMMAR variants inside declared families —
-# B-98-1: unquoted YAML scalars, Windows case-insensitivity); v4
-# normalizes each family's GRAMMAR: "family named != family grammar
-# covered" (T S98). Bounded goal: truthful coverage of the repo's
-# supported deployment grammars — not universal static analysis.
+# B-97-1/B-98-1/B-99-1: a VERSIONED deployment-capability signature
+# registry. Lineage: v1 extension filter (missed a live .md command —
+# B-96-1); v2 literal markers over all files (missed a GitHub Actions
+# deploy wrapper — B-97-1: capability-equivalent execution); v3 encoding
+# families (missed valid GRAMMAR variants — B-98-1: unquoted YAML,
+# Windows casing); v4 grammar normalization by regex (missed SEMANTIC
+# equivalence — B-99-1: inline comments, flow-style sequences, and the
+# services-replace verb); v5 PARSES structured configuration and
+# authorizes on the semantic token sequence: "named family -> selected
+# presentation spellings != parsed semantic structure" (T S99).
+# Bounded goal unchanged: truthful coverage of the repo's supported
+# deployment grammars — not universal static analysis.
 DEPLOY_CAPABILITY_SIGNATURES = {
-    "version": 4,
+    "version": 5,
     "families": {
         # Unix shell commands stay CASE-SENSITIVE (T contract 3: command
-        # lookup on Unix is case-sensitive; do not erase those semantics)
+        # lookup on Unix is case-sensitive; do not erase those semantics).
+        # B-99-1 Probe C: `services replace` creates-or-replaces a service
+        # from a YAML spec — same deployment effect, now registered.
         "shell_command": ("gcloud run deploy", "gcloud run services update",
+                          "gcloud run services replace",
                           "gcloud builds submit", "builds submit",
                           "docker push"),
         "github_actions_wrapper": ("deploy-cloudrun@",
@@ -1299,18 +1307,61 @@ DEPLOY_CAPABILITY_SIGNATURES = {
         "declarative_cloud_run": ("run.googleapis.com",
                                   "serving.knative.dev"),
     },
-    # Cloud Build args-list: TOKEN-aware — a YAML list item whose scalar is
-    # `deploy`, with quoted and unquoted spellings EQUIVALENT (B-98-1 A).
+    # Textual fallback layer for yaml-esque fragments EMBEDDED in prose
+    # (a .md carrying a snippet won't parse as a whole document); the
+    # semantic layer below supersedes this for parseable documents.
     "cloudbuild_deploy_token": re.compile(
-        r"^\s*-\s*['\"]?deploy['\"]?\s*$", re.MULTILINE),
+        r"^\s*-\s*['\"]?deploy['\"]?\s*(#.*)?$", re.MULTILINE),
     # Windows script formats: suffix and command text are CASE-INSENSITIVE
     # on the executing platform (B-98-1 B), so detection normalizes case
     # WITHIN these formats only.
     "script_suffixes": (".bat", ".cmd", ".ps1"),
     "script_marker": "gcloud",
+    # Semantic layer (v5): args tokens that constitute a same-service
+    # deployment when found in a parsed Cloud Build step.
+    "semantic_deploy_verbs": ("deploy", "replace", "update"),
 }
 
 SERVICE_NAME_MARKER = "verifimind-mcp-server"
+
+
+def _cloudbuild_semantic_capability(text):
+    """Parse candidate structured config (YAML or JSON — YAML is a
+    superset) and authorize on the SEMANTIC token sequence (B-99-1):
+    block/flow style, quotation, and inline comments are presentation
+    detail; `steps[*].entrypoint` + the parsed `args` list are the truth.
+
+    Returns: True (deploy-capable), False (not), or "malformed" — a file
+    that LOOKS like structured build config but cannot be parsed cannot
+    prove its innocence and must fail CLOSED (T contract 3)."""
+    if "args" not in text and "steps" not in text:
+        return False        # not candidate structured config at all
+    try:
+        docs = list(yaml.safe_load_all(text))
+    except yaml.YAMLError:
+        return "malformed"
+    verbs = DEPLOY_CAPABILITY_SIGNATURES["semantic_deploy_verbs"]
+    for doc in docs:
+        if not isinstance(doc, dict):
+            continue
+        steps = doc.get("steps")
+        candidates = steps if isinstance(steps, list) else [doc]
+        for step in candidates:
+            if not isinstance(step, dict):
+                continue
+            args = step.get("args")
+            if not isinstance(args, list):
+                continue
+            tokens = [str(item) for item in args]
+            entrypoint = str(step.get("entrypoint", "")).lower()
+            name = str(step.get("name", "")).lower()
+            gcloudish = ("gcloud" in entrypoint or "cloud-sdk" in name
+                         or "cloud-builders" in name or not (entrypoint or name))
+            if gcloudish and any(verb in tokens for verb in verbs):
+                return True
+            if "push" in tokens and "docker" in (entrypoint + name):
+                return True
+    return False
 
 
 def _detect_deploy_capability(text, filename):
@@ -1323,6 +1374,16 @@ def _detect_deploy_capability(text, filename):
     for family, markers in DEPLOY_CAPABILITY_SIGNATURES["families"].items():
         if any(marker in text for marker in markers):
             families.add(family)
+    # Semantic layer applies to CANDIDATE structured config only: Cloud
+    # Build consumes YAML/JSON files (`--config=FILE`); prose and source
+    # files cannot BE a build config (their embedded snippets are covered
+    # by the textual token layer below).
+    if filename.lower().endswith((".yaml", ".yml", ".json")):
+        semantic = _cloudbuild_semantic_capability(text)
+        if semantic is True:
+            families.add("cloudbuild_args_semantic")
+        elif semantic == "malformed":
+            families.add("malformed_structured_config")   # fail closed
     if DEPLOY_CAPABILITY_SIGNATURES["cloudbuild_deploy_token"].search(text):
         families.add("cloudbuild_args_list")
     # Windows semantics: case-insensitive suffix AND case-insensitive
@@ -1555,3 +1616,92 @@ def test_ignore_files_cover_secret_and_local_classes():
     root_docker = (_REPO_ROOT / ".dockerignore").read_text(encoding="utf-8")
     for pattern in ("mcp-server/.env*", "mcp-server/**/*.db", "mcp-server/**/*.log"):
         assert pattern in root_docker, f"{pattern} missing from root .dockerignore"
+
+
+# --- B-99-1: T's three semantic counterexamples, VERBATIM (contract 5) ------
+
+T_S99_SERVICES_REPLACE = (
+    "gcloud run services replace verifimind-mcp-server.yaml --region us-central1\n"
+)
+
+T_S99_COMMENTED_BLOCK_LIST = """args:
+  - run
+  - deploy # deploy the service
+  - verifimind-mcp-server
+"""
+
+T_S99_FLOW_STYLE = (
+    "args: [run, deploy, verifimind-mcp-server, --image, "
+    "gcr.io/example/verifimind-mcp-server:round9-synthetic]\n"
+)
+
+
+def test_services_replace_counterexample_is_detected():
+    """B-99-1 Probe C verbatim — the create-or-replace verb has the same
+    deployment effect and belongs to the shell mechanism model. (Disclosed
+    as a residual in RNA S88 pre-review; held for T's exact-head replay.)"""
+    families = _detect_deploy_capability(T_S99_SERVICES_REPLACE, "runbook.md")
+    assert "shell_command" in families
+
+
+def test_commented_block_list_counterexample_is_detected():
+    """B-99-1 Probe D verbatim — a YAML inline comment is presentation
+    detail; the parsed scalar is `deploy` and must be detected."""
+    families = _detect_deploy_capability(
+        T_S99_COMMENTED_BLOCK_LIST, "round9-synthetic-comment.yaml")
+    assert "cloudbuild_args_semantic" in families or \
+        "cloudbuild_args_list" in families
+
+
+def test_flow_style_counterexample_is_detected():
+    """B-99-1 Probe E verbatim — a flow-style sequence is the same YAML
+    sequence data model as a block sequence; the parsed args must match."""
+    families = _detect_deploy_capability(
+        T_S99_FLOW_STYLE, "round9-synthetic-flow.yaml")
+    assert "cloudbuild_args_semantic" in families
+
+
+def test_presentation_forms_parse_to_identical_semantics():
+    """The core B-99-1 principle as a direct assertion: comment-carrying
+    block style and flow style resolve to the SAME token sequence."""
+    block = yaml.safe_load(T_S99_COMMENTED_BLOCK_LIST)["args"]
+    flow = yaml.safe_load(T_S99_FLOW_STYLE)["args"][:3]
+    assert block == flow == ["run", "deploy", "verifimind-mcp-server"]
+
+
+def test_malformed_structured_config_fails_closed():
+    """B-99-1 contract 3: a candidate structured config that cannot be
+    parsed cannot prove its innocence — detected as its own fail-closed
+    family, never silently skipped."""
+    broken = "steps:\n  - args: [run, deploy\nverifimind-mcp-server: {{{"
+    families = _detect_deploy_capability(broken, "broken-pipeline.yaml")
+    assert "malformed_structured_config" in families
+
+
+def test_full_cloudbuild_document_semantic_detection():
+    """A complete steps-document (entrypoint + parsed args) is authorized
+    on semantics — T's Probe D/E embedded in the real document shape."""
+    doc = """steps:
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args: [run, deploy, verifimind-mcp-server, --image, gcr.io/example/verifimind-mcp-server:x]
+"""
+    assert "cloudbuild_args_semantic" in _detect_deploy_capability(
+        doc, "pipeline.yaml")
+
+
+def test_staged_semantic_probes_fail_closed_at_inventory():
+    """B-99-1 contract 5: all three probes, staged as tracked surfaces,
+    fail closed through the EXACT production detector + classifier."""
+    staged = {
+        "round9-synthetic-replace.md": T_S99_SERVICES_REPLACE,
+        "round9-synthetic-comment.yaml": T_S99_COMMENTED_BLOCK_LIST,
+        "round9-synthetic-flow.yaml": T_S99_FLOW_STYLE,
+    }
+    detected = {
+        name: text for name, text in staged.items()
+        if _detect_deploy_capability(text, name)
+    }
+    assert set(detected) == set(staged)           # all three detected
+    offenders = _classify_offenders(detected)
+    assert sorted(offenders) == sorted(staged)    # all three fail closed
