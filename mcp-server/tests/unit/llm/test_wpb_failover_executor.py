@@ -1311,12 +1311,23 @@ def test_legacy_deploy_path_hard_retired():
 # tree BEFORE the marker guard (conservative: run/services trees name
 # their target as an argument, builds-submit binds its target through a
 # separately resolved config) and lexes substitution delimiters
-# (backticks, parens) as token boundaries. Bounded goal unchanged:
-# truthful coverage of the repo's supported deployment grammars — not
-# universal shell AST or working-directory analysis.
+# (backticks, parens) as token boundaries (missed CARRIER-GRAMMAR PARITY
+# — B-104-1: the pre-marker lane preserved only the Unix `is True` token
+# result, so five presentation forms the SAME-marker lane already
+# recognizes — uppercase Windows scripts, ambiguous/unlexable shell,
+# quoted command words, semicolon-delimited commands, PowerShell
+# backtick continuations — became invisible when the target was
+# inherited cross-file: "moving target binding across files must not
+# shrink the supported carrier grammar"); v10 factors carrier semantics
+# into ONE shared normalization + capability path used by BOTH lanes
+# (Windows script formats case-insensitive, ambiguity propagates
+# fail-closed pre-marker, command separators and PowerShell
+# continuations are lexical structure). Bounded goal unchanged: truthful
+# coverage of the repo's supported deployment grammars — not universal
+# shell AST or working-directory analysis.
 
 DEPLOY_CAPABILITY_SIGNATURES = {
-    "version": 9,
+    "version": 10,
     "families": {
         "github_actions_wrapper": ("deploy-cloudrun@",
                                    "google-github-actions/deploy-cloudrun"),
@@ -1429,6 +1440,31 @@ def _tokens_reach_effect(tokens, trees=None):
     return any(walk(0, tree, 0, True) for tree in trees)
 
 
+def _normalized_shell_text(text):
+    """ONE shared lexical normalization for every carrier lane (B-104-1:
+    carrier semantics must not differ by which lane consumes them).
+
+    - POSIX: an unquoted backslash-newline pair is removed before token
+      splitting (the continuation joins one logical command line);
+      PowerShell's backtick-newline continuation likewise.
+    - Comments are lexical: an unquoted `#` starts a comment in every
+      format this layer scans — a `# gcloud builds submit` MENTION
+      cannot execute (capability claims, not mentions). The quoted-#
+      edge degrades to an unbalanced-quote lex failure = ambiguous =
+      fail CLOSED, never fail-open.
+    - Substitution delimiters (backticks, parens) and command separators
+      (`;`, `&`, `|`) EXECUTE or delimit their content — they lex as
+      token boundaries, so trailing delimiters never glue to an effect
+      verb (`RESULT=$(gcloud builds submit)`, `gcloud builds submit;
+      echo done`). Quoted values keep token integrity regardless
+      (quotes survive normalization); replacing errs toward detection
+      for quoted literals — the safe direction."""
+    normalized = re.sub(r"\\\r?\n", " ", text)          # POSIX continuation
+    normalized = re.sub(r"`\r?\n", " ", normalized)     # PowerShell continuation
+    normalized = re.sub(r"(^|\s)#.*?$", r"\1", normalized, flags=re.MULTILINE)
+    return re.sub(r"[`();&|]", " ", normalized)
+
+
 def _gcloud_token_capability(text, trees=None):
     """Shell lexical layer (v8, B-102): normalize supported presentation
     into bounded argv-like tokens BEFORE grammar matching. Supported
@@ -1439,25 +1475,7 @@ def _gcloud_token_capability(text, trees=None):
     family).
 
     Returns: True (deploy tokens reached), False, or "ambiguous"."""
-    # POSIX: an unquoted backslash-newline pair is removed before token
-    # splitting — the continuation joins one logical command line.
-    # Substitution delimiters — backticks and parentheses (`...` and
-    # $(...) EXECUTE their content; subshells too) — lex as token
-    # boundaries, so trailing delimiters never glue to an effect verb
-    # (B-103: `RESULT=$(gcloud builds submit)`). Quoted values keep
-    # their token integrity regardless (quotes survive normalization),
-    # so `--format="table(name, status)"` still lexes as one token.
-    # Replacing errs toward detection for quoted literals — the safe
-    # direction. Comments are lexical too: an unquoted `#` starts a
-    # comment in every format this layer scans (shell, YAML, Dockerfile,
-    # ignore-files) — a `# gcloud builds submit` comment CANNOT execute,
-    # so comment text is removed before the gcloud search (B-103 honest
-    # bound: capability claims, not mentions). The quoted-# edge (`--desc
-    # "a # b"`) degrades to an unbalanced-quote lex failure = ambiguous =
-    # fail CLOSED, never fail-open.
-    normalized = re.sub(r"\\\r?\n", " ", text)
-    normalized = re.sub(r"(^|\s)#.*?$", r"\1", normalized, flags=re.MULTILINE)
-    normalized = re.sub(r"[`()]", " ", normalized)
+    normalized = _normalized_shell_text(text)
     ambiguous = False
     for line in normalized.splitlines():
         for hit in re.finditer(r"\bgcloud\b", line):   # case-sensitive: Unix
@@ -1473,6 +1491,29 @@ def _gcloud_token_capability(text, trees=None):
     return "ambiguous" if ambiguous else False
 
 
+def _cross_file_build_capability(text, filename):
+    """B-104-1 parity lane: the cross-file (marker-free) builds-submit
+    check supports EVERY carrier presentation the same-marker lane
+    supports — Unix case-sensitive tokens, the comment-stripped textual
+    fallback, Windows case-INSENSITIVE script formats, and fail-closed
+    ambiguity. Returns True / False / "ambiguous"."""
+    trees = (("builds", "submit"),)
+    lanes = [(text, _normalized_shell_text(text))]
+    # Windows script formats: command lookup is case-insensitive WITHIN
+    # these formats only (platform scope preserved — Unix stays exact).
+    if filename.lower().endswith(DEPLOY_CAPABILITY_SIGNATURES["script_suffixes"]):
+        lowered = text.lower()
+        lanes.append((lowered, _normalized_shell_text(lowered)))
+    ambiguous = False
+    for raw, normalized in lanes:
+        token_result = _gcloud_token_capability(raw, trees=trees)
+        if token_result is True or "builds submit" in normalized:
+            return True
+        if token_result == "ambiguous":
+            ambiguous = True
+    return "ambiguous" if ambiguous else False
+
+
 def _detect_deploy_capability(text, filename):
     """Pure detector: which encoding families make this content capable of
     deploying the service? (Empty set = not deploy-capable.) Pure so each
@@ -1485,8 +1526,15 @@ def _detect_deploy_capability(text, filename):
     # Conservative bound (T round-13 contract 5): the builds-submit tree
     # ONLY — run deploy / services update|replace name their target as an
     # argument, so the marker guard remains correct for those trees.
-    if _gcloud_token_capability(text, trees=(("builds", "submit"),)) is True:
+    # B-104-1: this lane reuses the FULL supported carrier semantics
+    # ("moving target binding across files must not shrink the supported
+    # carrier grammar") — Windows casing, textual fallback, and
+    # fail-closed ambiguity all survive the lane change.
+    cross = _cross_file_build_capability(text, filename)
+    if cross is True:
         families.add("default_config_build")
+    elif cross == "ambiguous":
+        families.add("ambiguous_shell_candidate")   # fail closed
     if SERVICE_NAME_MARKER not in text:
         return families
     for family, markers in DEPLOY_CAPABILITY_SIGNATURES["families"].items():
@@ -2167,3 +2215,67 @@ def test_marker_free_named_target_trees_stay_unflagged():
         "gcloud run deploy other-service --image gcr.io/x/y:z\n",
         "other-deploy.sh")
     assert families == set()
+
+
+# --- B-104-1: carrier-grammar parity, T's five carriers VERBATIM ------------
+# "Moving target binding across files must not shrink the supported
+# carrier grammar" — every presentation the same-marker lane recognizes
+# must survive the lane change to cross-file target binding.
+
+T_S105_UPPERCASE_BAT = ("round14-marker-free-uppercase.bat",
+                        "GCLOUD BUILDS SUBMIT\n")
+T_S105_AMBIGUOUS = ("round14-marker-free-ambiguous.sh",
+                    'gcloud builds submit "round14-synthetic\n')
+T_S105_QUOTED_COMMAND = ("round14-marker-free-quoted-command.sh",
+                         '"gcloud" builds submit\n')
+T_S105_SEMICOLON = ("round14-marker-free-semicolon.sh",
+                    "gcloud builds submit; echo done\n")
+T_S105_PS_CONTINUATION = ("round14-marker-free-continuation.ps1",
+                          "gcloud builds `\n  submit\n")
+
+_S105_PROBES = dict([T_S105_UPPERCASE_BAT, T_S105_AMBIGUOUS,
+                     T_S105_QUOTED_COMMAND, T_S105_SEMICOLON,
+                     T_S105_PS_CONTINUATION])
+
+
+def test_all_five_marker_free_carriers_are_detected():
+    """B-104-1 verbatim — each of T's five carriers must be detected
+    marker-free (uppercase Windows script, unlexable shell, quoted
+    command word, semicolon separator, PowerShell continuation)."""
+    for name, text in _S105_PROBES.items():
+        families = _detect_deploy_capability(text, name)
+        assert families, name
+
+
+def test_carrier_grammar_parity_is_metamorphic():
+    """The governing invariant, asserted directly: for every carrier,
+    detection with the service marker present implies detection with
+    the marker absent — only target binding moved, not the grammar."""
+    for name, text in _S105_PROBES.items():
+        with_marker = _detect_deploy_capability(
+            text + "# verifimind-mcp-server\n", name)
+        without_marker = _detect_deploy_capability(text, name)
+        assert with_marker, name
+        assert without_marker, name
+
+
+def test_marker_free_pure_ambiguity_fails_closed():
+    """B-104-1 contract 3: a marker-free unlexable gcloud candidate with
+    NO recoverable textual evidence still propagates to the explicit
+    fail-closed family before the service-marker return."""
+    families = _detect_deploy_capability(
+        'gcloud "builds sub\n', "broken-marker-free.sh")
+    assert "ambiguous_shell_candidate" in families
+
+
+def test_staged_marker_free_carrier_probes_fail_closed_at_inventory():
+    """B-104-1 contract 5: all five carriers, staged as tracked
+    surfaces, fail closed through the production detector + classifier
+    with offender identity asserted."""
+    detected = {
+        name: text for name, text in _S105_PROBES.items()
+        if _detect_deploy_capability(text, name)
+    }
+    assert set(detected) == set(_S105_PROBES)
+    offenders = _classify_offenders(detected)
+    assert sorted(offenders) == sorted(_S105_PROBES)
