@@ -1279,7 +1279,7 @@ def test_legacy_deploy_path_hard_retired():
         assert live_command not in stub, f"retired stub still carries: {live_command}"
 
 
-# B-97-1/B-98-1/B-99-1/B-100-1: a VERSIONED deployment-capability
+# B-97-1/B-98-1/B-99-1/B-100-1/B-101-1: a VERSIONED deployment-capability
 # signature registry. Lineage: v1 extension filter (missed a live .md
 # command — B-96-1); v2 literal markers over all files (missed a GitHub
 # Actions deploy wrapper — B-97-1: capability-equivalent execution); v3
@@ -1288,13 +1288,27 @@ def test_legacy_deploy_path_hard_retired():
 # SEMANTIC equivalence — B-99-1: comments, flow style, services-replace);
 # v5 parses structured config on the semantic token sequence (missed the
 # COMMAND grammar's optional dimension — B-100-1: release-track
-# prefixes); v6 expresses the gcloud shell family as GRAMMAR — the
-# optional alpha/beta release-track POSITION is modeled, per T S100:
-# "adding only the exact beta string would repeat the spelling-list
-# failure." Bounded goal unchanged: truthful coverage of the repo's
-# supported deployment grammars — not universal static analysis.
+# prefixes); v6 expresses the gcloud shell family as GRAMMAR with the
+# alpha/beta release-track POSITION modeled (missed the gcloud-WIDE FLAG
+# slot — B-101-1: `gcloud --project=x run deploy` is SDK-accepted with
+# global flags legally preceding the command tree); v7 models the
+# gcloud-wide flag slot as bounded tokens before the track AND before
+# the effect group, covering both value encodings (`--flag=value`,
+# `--flag value`) and bare boolean flags. Bounded goal unchanged:
+# truthful coverage of the repo's supported deployment grammars — not
+# universal shell AST analysis.
+
+# B-101-1: one gcloud-wide flag token — `--flag`, `--flag=value`,
+# `--flag value`, or the documented short form (`-q`); the value token
+# never starts with `-`. The optional value group releases its token on
+# backtracking, so a bare boolean flag directly before the effect group
+# (`gcloud --quiet run deploy`) still lets `run` reach the verb grammar.
+# Only dash-prefixed tokens (plus at most one value each) are skippable
+# — arbitrary prose between `gcloud` and the verbs does NOT match.
+_GCLOUD_WIDE_FLAG_SLOT = r"(?:-{1,2}[\w-]+(?:=\S+|\s+[^-\s]\S*)?\s+)*"
+
 DEPLOY_CAPABILITY_SIGNATURES = {
-    "version": 6,
+    "version": 7,
     "families": {
         "github_actions_wrapper": ("deploy-cloudrun@",
                                    "google-github-actions/deploy-cloudrun"),
@@ -1305,11 +1319,15 @@ DEPLOY_CAPABILITY_SIGNATURES = {
     # on Unix is case-sensitive). B-100-1: the gcloud family is a GRAMMAR
     # with an optional documented release-track token between `gcloud` and
     # the command group — alpha and beta forms are the same deployment
-    # effect. `\s+` tolerates spacing; the verb set covers deploy /
-    # services update / services replace / builds submit.
+    # effect. B-101-1: gcloud-wide flags may legally precede the release
+    # track and the effect group (`gcloud --project=x run deploy` is
+    # SDK-accepted) — the flag SLOT is modeled at both positions, not any
+    # flag spelling list. `\s+` tolerates spacing; the verb set covers
+    # deploy / services update / services replace / builds submit.
     "gcloud_shell_grammar": re.compile(
-        r"gcloud\s+(?:alpha\s+|beta\s+)?"
-        r"(?:run\s+deploy\b"
+        r"gcloud\s+" + _GCLOUD_WIDE_FLAG_SLOT
+        + r"(?:(?:alpha|beta)\s+" + _GCLOUD_WIDE_FLAG_SLOT + r")?"
+        + r"(?:run\s+deploy\b"
         r"|run\s+services\s+(?:update|replace)\b"
         r"|builds\s+submit\b)"),
     # Non-gcloud shell literals (docker has no release tracks; bare
@@ -1772,6 +1790,111 @@ def test_staged_release_track_probes_fail_closed_at_inventory():
     staged = {
         "round10-synthetic-beta.sh": T_S100_BETA_DEPLOY,
         "round10-synthetic-alpha.sh": T_S100_ALPHA_DEPLOY,
+    }
+    detected = {
+        name: text for name, text in staged.items()
+        if _detect_deploy_capability(text, name)
+    }
+    assert set(detected) == set(staged)
+    offenders = _classify_offenders(detected)
+    assert sorted(offenders) == sorted(staged)
+
+
+# --- B-101-1: gcloud-wide flag slot, T's probes VERBATIM --------------------
+
+T_S101_GLOBAL_FLAG_STABLE = """gcloud --project=synthetic-project run deploy verifimind-mcp-server \\
+  --image gcr.io/example/verifimind-mcp-server:round11-synthetic
+"""
+
+T_S101_GLOBAL_FLAG_BETA = """gcloud --project=synthetic-project beta run deploy verifimind-mcp-server \\
+  --image gcr.io/example/verifimind-mcp-server:round11-synthetic
+"""
+
+T_S101_GLOBAL_FLAG_ALPHA = """gcloud --project=synthetic-project alpha run deploy verifimind-mcp-server \\
+  --image gcr.io/example/verifimind-mcp-server:round11-synthetic
+"""
+
+
+def test_global_flag_stable_counterexample_is_detected():
+    """B-101-1 verbatim — T's staged stable deploy with a gcloud-wide flag
+    before the command tree. The SDK accepted this exact grammar (help
+    exit 0): the flag changes the text, not the deployment effect."""
+    families = _detect_deploy_capability(
+        T_S101_GLOBAL_FLAG_STABLE, "round11-synthetic-global-flag.sh")
+    assert "shell_command" in families
+
+
+def test_global_flag_beta_counterexample_is_detected():
+    families = _detect_deploy_capability(
+        T_S101_GLOBAL_FLAG_BETA, "round11-synthetic-global-flag-beta.sh")
+    assert "shell_command" in families
+
+
+def test_global_flag_alpha_variant_is_detected():
+    families = _detect_deploy_capability(
+        T_S101_GLOBAL_FLAG_ALPHA, "round11-synthetic-global-flag-alpha.sh")
+    assert "shell_command" in families
+
+
+def test_global_flag_both_value_encodings_across_tracks():
+    """B-101-1 contract 2: the SDK accepts `--project=value` AND
+    `--project value` — both encodings, at every track, with the flag
+    before the track. The SLOT is modeled, not a flag spelling list."""
+    for track in ("", "beta ", "alpha "):
+        for flag in ("--project=synthetic-project ",
+                     "--project synthetic-project "):
+            cmd = f"gcloud {flag}{track}run deploy verifimind-mcp-server"
+            assert "shell_command" in _detect_deploy_capability(cmd, "x.md"), cmd
+
+
+def test_global_flag_slot_after_release_track():
+    """gcloud-wide flags are also legal BETWEEN the track and the effect
+    group (`gcloud beta --project=x run deploy`) — the slot exists at
+    both documented positions."""
+    cmd = "gcloud beta --project=synthetic-project run deploy verifimind-mcp-server"
+    assert "shell_command" in _detect_deploy_capability(cmd, "x.md")
+
+
+def test_bare_boolean_flag_backtracks_into_verb_grammar():
+    """A value-less flag directly before the effect group must not eat
+    `run` as its value — the optional value group releases the token on
+    backtracking (`gcloud --quiet run deploy` is a valid deploy)."""
+    for cmd in ("gcloud --quiet run deploy verifimind-mcp-server",
+                "gcloud --quiet --project=x run deploy verifimind-mcp-server",
+                "gcloud --project x --quiet beta run deploy verifimind-mcp-server"):
+        assert "shell_command" in _detect_deploy_capability(cmd, "x.md"), cmd
+
+
+def test_short_form_global_flag_is_detected():
+    """Pre-review self-probe (the S87/S91 ring discipline): the SDK also
+    documents SHORT-form global flags (`-q` = `--quiet`) — the slot
+    models dash-prefixed tokens, not just the double-dash spelling."""
+    cmd = "gcloud -q run deploy verifimind-mcp-server"
+    assert "shell_command" in _detect_deploy_capability(cmd, "x.md")
+
+
+def test_flag_slot_does_not_skip_arbitrary_prose():
+    """Honest bound (contract 6): only `--`-prefixed tokens (plus at most
+    one value each) are skippable — prose between `gcloud` and deploy
+    verbs stays undetected, and the Unix case invariant survives the
+    flag slot."""
+    families = _detect_deploy_capability(
+        "gcloud is the CLI we use. Later, run deploy scripts by hand for "
+        "verifimind-mcp-server.", "notes.sh")
+    assert "shell_command" not in families
+    families = _detect_deploy_capability(
+        "GCLOUD --PROJECT=X RUN DEPLOY verifimind-mcp-server", "notes.sh")
+    assert "shell_command" not in families
+
+
+def test_staged_global_flag_probes_fail_closed_at_inventory():
+    """B-101-1 contract 3: all three flag-prefixed files (stable / beta /
+    alpha), staged as tracked surfaces, fail closed through the
+    production detector + classifier."""
+    staged = {
+        "round11-synthetic-global-flag.sh": T_S101_GLOBAL_FLAG_STABLE,
+        "round11-synthetic-global-flag-beta.sh": T_S101_GLOBAL_FLAG_BETA,
+        "round11-synthetic-global-flag-alpha.sh": T_S101_GLOBAL_FLAG_ALPHA,
     }
     detected = {
         name: text for name, text in staged.items()
