@@ -1335,9 +1335,19 @@ def test_legacy_deploy_path_hard_retired():
 # textual fallback (gcloud + bounded grammar, never a phrase). Bounded
 # goal unchanged: truthful coverage of the repo's supported deployment
 # grammars — not universal shell AST or working-directory analysis.
+# (v11 missed EXECUTABLE-IDENTITY × GRAMMAR COMPOSITION — B-106-1:
+# `gcloud.cmd --project=x builds submit` is SDK-accepted, but the token
+# walk demanded literal `gcloud` at token zero while the textual
+# fallback knew `.cmd`/`.exe` only in direct adjacency — identity
+# spellings and command grammar behaved as ALTERNATIVES, not composed
+# dimensions); v12 canonicalizes supported executable spellings
+# (`gcloud` / `gcloud.cmd` / `gcloud.exe`, quoted/path forms via the
+# existing anchor) to ONE identity BEFORE the token grammar, so every
+# already-modeled slot (global flags, release tracks, inter-tree flags)
+# composes with every supported spelling.
 
 DEPLOY_CAPABILITY_SIGNATURES = {
-    "version": 11,
+    "version": 12,
     "families": {
         "github_actions_wrapper": ("deploy-cloudrun@",
                                    "google-github-actions/deploy-cloudrun"),
@@ -1482,6 +1492,19 @@ def _normalized_shell_text(text, filename=""):
     return re.sub(r"[`();&|]", " ", normalized)
 
 
+# B-106-1: supported executable SPELLINGS canonicalize to one identity
+# BEFORE the grammar — `gcloud`, `gcloud.cmd`, `gcloud.exe` are the same
+# executable, so every modeled grammar slot (global flags, release
+# tracks, inter-tree flags) must compose with every spelling. fullmatch
+# keeps the bound honest: `gcloud-related`/`gcloud.command` are NOT the
+# executable.
+_EXECUTABLE_SPELLINGS = re.compile(r"gcloud(?:\.cmd|\.exe)?")
+
+
+def _canonical_executable(token):
+    return "gcloud" if _EXECUTABLE_SPELLINGS.fullmatch(token) else token
+
+
 def _gcloud_token_capability(text, filename="", trees=None):
     """Shell lexical layer (v8, B-102): normalize supported presentation
     into bounded argv-like tokens BEFORE grammar matching. Supported
@@ -1502,7 +1525,7 @@ def _gcloud_token_capability(text, filename="", trees=None):
             except ValueError:
                 ambiguous = True
                 continue
-            if tokens and tokens[0] == "gcloud" \
+            if tokens and _canonical_executable(tokens[0]) == "gcloud" \
                     and _tokens_reach_effect(tokens[1:], trees):
                 return True
     return "ambiguous" if ambiguous else False
@@ -2384,3 +2407,62 @@ def test_staged_cmd_caret_and_negatives_at_inventory():
     for neg_name, neg_text in (T_S106_PROSE_NEGATIVE,
                                T_S106_OTHER_CLI_NEGATIVE):
         assert not _detect_deploy_capability(neg_text, neg_name), neg_name
+
+
+# --- B-106-1: executable identity x grammar composition, T VERBATIM ---------
+
+T_S107_CMD_GLOBAL_FLAG = ("round16-marker-free-cmd-global-flag.cmd",
+                          "gcloud.cmd --project=synthetic-project builds submit\n")
+T_S107_CMD_INTERTREE_FLAG = ("round16-marker-free-cmd-intertree-flag.cmd",
+                             "gcloud.cmd builds --project=synthetic-project submit\n")
+T_S107_CMD_RELEASE_TRACK = ("round16-marker-free-cmd-beta.cmd",
+                            "gcloud.cmd beta builds submit\n")
+
+_S107_PROBES = dict([T_S107_CMD_GLOBAL_FLAG, T_S107_CMD_INTERTREE_FLAG,
+                     T_S107_CMD_RELEASE_TRACK])
+
+
+def test_executable_spellings_compose_with_grammar():
+    """B-106-1 verbatim — `gcloud.cmd` is the SAME executable identity
+    (SDK-accepted, shim-proven), so every modeled grammar slot must
+    compose with every supported spelling: global flag before the tree,
+    flag between tree tokens, and the release track."""
+    for name, text in _S107_PROBES.items():
+        families = _detect_deploy_capability(text, name)
+        assert "default_config_build" in families, name
+
+
+def test_cmd_executable_identity_marker_parity():
+    """B-106-1 contract 3: marker-free and marker-present verdicts
+    converge for the composed carriers — only marker co-location
+    changed, never capability."""
+    for name, text in _S107_PROBES.items():
+        with_marker = _detect_deploy_capability(
+            text + "REM verifimind-mcp-server\n", name)
+        without_marker = _detect_deploy_capability(text, name)
+        assert with_marker, name
+        assert without_marker, name
+
+
+def test_executable_identity_bound_is_honest():
+    """The canonicalization is fullmatch-bounded: lookalike tokens are
+    NOT the executable (`gcloud.command`, `gcloud-related`, `gcloudx`)
+    — the identity claim stays exact."""
+    for lookalike in ("gcloud.command builds submit\n",
+                      "gcloud-related builds submit\n",
+                      "gcloudx builds submit\n"):
+        families = _detect_deploy_capability(lookalike, "notes.sh")
+        assert "default_config_build" not in families, lookalike
+
+
+def test_staged_executable_identity_probes_fail_closed_at_inventory():
+    """B-106-1 contract 3: all three composed carriers, staged as
+    tracked surfaces, fail closed through the production detector +
+    classifier with offender identity asserted."""
+    detected = {
+        name: text for name, text in _S107_PROBES.items()
+        if _detect_deploy_capability(text, name)
+    }
+    assert set(detected) == set(_S107_PROBES)
+    offenders = _classify_offenders(detected)
+    assert sorted(offenders) == sorted(_S107_PROBES)
