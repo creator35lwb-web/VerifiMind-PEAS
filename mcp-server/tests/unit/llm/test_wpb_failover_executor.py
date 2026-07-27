@@ -1344,10 +1344,18 @@ def test_legacy_deploy_path_hard_retired():
 # (`gcloud` / `gcloud.cmd` / `gcloud.exe`, quoted/path forms via the
 # existing anchor) to ONE identity BEFORE the token grammar, so every
 # already-modeled slot (global flags, release tracks, inter-tree flags)
-# composes with every supported spelling.
+# composes with every supported spelling. (v12 missed CMD IN-TOKEN
+# caret ESCAPING — B-107-1: outside double quotes CMD's caret escapes
+# the NEXT CHARACTER, so `gcl^oud.cmd` / `bu^ilds` / `sub^mit` /
+# `^--project` all execute as the governed command while the detector
+# saw fragmented literals; caret-newline continuation was only the
+# special case of escaping a newline); v13 applies quote-aware bounded
+# CMD unescaping (`^^`→`^` literal, `^X`→`X`, caret-newline→join,
+# quoted carets stay literal) for `.bat`/`.cmd` ONLY, before identity
+# and grammar — POSIX carets are just characters (named negative).
 
 DEPLOY_CAPABILITY_SIGNATURES = {
-    "version": 12,
+    "version": 13,
     "families": {
         "github_actions_wrapper": ("deploy-cloudrun@",
                                    "google-github-actions/deploy-cloudrun"),
@@ -1462,6 +1470,45 @@ def _tokens_reach_effect(tokens, trees=None):
     return any(walk(0, tree, 0, True) for tree in trees)
 
 
+def _cmd_unescape(text):
+    """CMD unquoted caret semantics (B-107-1, T's shim proof: all four
+    fragmented carriers execute as the governed command). Outside double
+    quotes the caret escapes the NEXT character: `^^` -> literal `^`,
+    `^X` -> `X` (so `gcl^oud` IS `gcloud` to CMD), caret-newline -> line
+    continuation (the special case of escaping a newline). Inside double
+    quotes carets are LITERAL — a quoted `"bu^ilds"` reaches the program
+    with its caret and is NOT the governed verb (quote semantics
+    preserved per T contract 2). Applied to `.bat`/`.cmd` lanes only —
+    a POSIX caret is just a character."""
+    out = []
+    in_quote = False
+    i = 0
+    while i < len(text):
+        ch = text[i]
+        if ch == '"':
+            in_quote = not in_quote
+            out.append(ch)
+        elif ch == "^" and not in_quote:
+            nxt = text[i + 1:i + 2]
+            if nxt == "\r" and text[i + 2:i + 3] == "\n":
+                out.append(" ")
+                i += 3
+                continue
+            if nxt == "\n":
+                out.append(" ")
+                i += 2
+                continue
+            if nxt:                     # ^^ -> ^ ; ^X -> X
+                out.append(nxt)
+                i += 2
+                continue
+            # trailing caret at end-of-text escapes nothing: drop
+        else:
+            out.append(ch)
+        i += 1
+    return "".join(out)
+
+
 def _normalized_shell_text(text, filename=""):
     """ONE shared lexical normalization for every carrier lane, with
     PLATFORM-SCOPED continuation semantics (B-105-1: each platform's
@@ -1486,7 +1533,7 @@ def _normalized_shell_text(text, filename=""):
     if suffix.endswith(".ps1"):
         normalized = re.sub(r"`\r?\n", " ", normalized)  # PowerShell continuation
     if suffix.endswith((".bat", ".cmd")):
-        normalized = re.sub(r"\^\r?\n", " ", normalized)  # CMD caret continuation
+        normalized = _cmd_unescape(normalized)  # B-107-1: quote-aware caret
         normalized = re.sub(r"(?im)^\s*(?:rem\s|::).*$", "", normalized)
     normalized = re.sub(r"(^|\s)#.*?$", r"\1", normalized, flags=re.MULTILINE)
     return re.sub(r"[`();&|]", " ", normalized)
@@ -2466,3 +2513,74 @@ def test_staged_executable_identity_probes_fail_closed_at_inventory():
     assert set(detected) == set(_S107_PROBES)
     offenders = _classify_offenders(detected)
     assert sorted(offenders) == sorted(_S107_PROBES)
+
+
+# --- B-107-1: CMD in-token caret escaping, T's four carriers VERBATIM -------
+
+_S108_PROBES = {
+    "round17-caret-executable.cmd":
+        "gcl^oud.cmd --project=synthetic-project builds submit\n",
+    "round17-caret-tree.cmd":
+        "gcloud.cmd bu^ilds submit\n",
+    "round17-caret-verb.cmd":
+        "gcloud.cmd builds sub^mit\n",
+    "round17-caret-flag.cmd":
+        "gcloud.cmd ^--project=synthetic-project builds submit\n",
+}
+
+
+def test_all_four_in_token_caret_carriers_are_detected():
+    """B-107-1 verbatim — CMD's caret escapes the NEXT CHARACTER outside
+    quotes, so all four fragmented spellings execute as the governed
+    `gcloud builds submit` (T's shim received canonical args, exit 0
+    on the installed SDK's help surface for each)."""
+    for name, text in _S108_PROBES.items():
+        families = _detect_deploy_capability(text, name)
+        assert "default_config_build" in families, name
+
+
+def test_in_token_caret_marker_parity():
+    """Marker-present parity per contract 4 — including the executable-
+    fragment carrier that the broad script_indirection lane could never
+    rescue (its lowered text carries no contiguous `gcloud`)."""
+    for name, text in _S108_PROBES.items():
+        with_marker = _detect_deploy_capability(
+            text + "REM verifimind-mcp-server\n", name)
+        without_marker = _detect_deploy_capability(text, name)
+        assert with_marker, name
+        assert without_marker, name
+
+
+def test_caret_semantics_preserved():
+    """T contract 2: no global caret deletion. Doubled `^^` is a LITERAL
+    caret (the unescaped token is not the executable); quoted carets are
+    literal (a quoted `"bu^ilds"` reaches the program WITH its caret and
+    is not the governed verb)."""
+    doubled = _detect_deploy_capability(
+        "gcl^^oud.cmd builds submit\n", "doubled.cmd")
+    assert "default_config_build" not in doubled
+    quoted = _detect_deploy_capability(
+        'gcloud.cmd "bu^ilds" submit\n', "quoted.cmd")
+    assert "default_config_build" not in quoted
+
+
+def test_in_token_caret_is_cmd_scoped_not_posix():
+    """Platform negative per contract 4: identical caret bytes in `.sh`
+    are just characters — POSIX has no caret escaping."""
+    for text in ("gcl^oud.cmd builds submit\n",
+                 "gcloud.cmd bu^ilds submit\n"):
+        families = _detect_deploy_capability(text, "posix.sh")
+        assert "default_config_build" not in families, text
+
+
+def test_staged_in_token_caret_carriers_fail_closed_at_inventory():
+    """B-107-1 contract 3: all four carriers, staged as tracked
+    surfaces, fail closed through the production detector + classifier
+    with offender identity asserted."""
+    detected = {
+        name: text for name, text in _S108_PROBES.items()
+        if _detect_deploy_capability(text, name)
+    }
+    assert set(detected) == set(_S108_PROBES)
+    offenders = _classify_offenders(detected)
+    assert sorted(offenders) == sorted(_S108_PROBES)
