@@ -62,6 +62,15 @@ from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy
 from verifimind_mcp.utils.trinity_history import read_trinity_history
 from verifimind_mcp.llm.provider import PROVIDER_CONFIGS, PROVIDER_DEFAULT_GEMINI_MODEL
 
+# VM-IR-2026-07-28-COORD-01: the three coordination tools are contained
+# (fail closed) while owner-scoped access control is rebuilt. Advertised
+# descriptions must state that, so discovery surfaces cannot promise a
+# capability the server now denies.
+COORDINATION_MAINTENANCE_PREFIX = "TEMPORARILY UNAVAILABLE (maintenance) — "
+COORDINATION_MAINTENANCE_USE_FOR = (
+    "Temporarily unavailable; keep handoff state in your own repository"
+)
+
 # v0.5.51 (D-85-2): display copy for the free-tier Gemini default is projected
 # from the runtime constant - a model migration updates every surface at once.
 GEMINI_DEFAULT_DISPLAY = f"Gemini ({PROVIDER_DEFAULT_GEMINI_MODEL})"
@@ -350,17 +359,17 @@ async def mcp_config_handler(request):
             # v0.5.16 Coordination Tools (free for everyone since v0.5.28)
             {
                 "name": "coordination_handoff_create",
-                "description": "TEMPORARILY UNAVAILABLE (maintenance) — Create a structured agent handoff record",
+                "description": COORDINATION_MAINTENANCE_PREFIX + "Create a structured agent handoff record",
                 "parameters": ["agent_id", "session_type", "completed", "decisions", "artifacts", "pending", "pioneer_key"]
             },
             {
                 "name": "coordination_handoff_read",
-                "description": "TEMPORARILY UNAVAILABLE (maintenance) — Read the latest handoff record for a given agent",
+                "description": COORDINATION_MAINTENANCE_PREFIX + "Read the latest handoff record for a given agent",
                 "parameters": ["pioneer_key", "agent_id (optional)", "count (default: 1)"]
             },
             {
                 "name": "coordination_team_status",
-                "description": "TEMPORARILY UNAVAILABLE (maintenance) — Get current status of all coordination agents",
+                "description": COORDINATION_MAINTENANCE_PREFIX + "Get current status of all coordination agents",
                 "parameters": ["pioneer_key"]
             }
         ],
@@ -713,19 +722,19 @@ async def setup_handler(request):
             },
             "coordination": {
                 "coordination_handoff_create": {
-                    "description": "TEMPORARILY UNAVAILABLE (maintenance) — Create a structured agent handoff record",
+                    "description": COORDINATION_MAINTENANCE_PREFIX + "Create a structured agent handoff record",
                     "tier": "Free (all 13 tools free since v0.5.28) — coordination tools temporarily disabled for maintenance",
-                    "use_for": "Temporarily unavailable; keep handoff state in your own repository"
+                    "use_for": COORDINATION_MAINTENANCE_USE_FOR
                 },
                 "coordination_handoff_read": {
-                    "description": "TEMPORARILY UNAVAILABLE (maintenance) — Read the latest handoff record for a given agent",
+                    "description": COORDINATION_MAINTENANCE_PREFIX + "Read the latest handoff record for a given agent",
                     "tier": "Free (all 13 tools free since v0.5.28)",
-                    "use_for": "Temporarily unavailable; keep handoff state in your own repository"
+                    "use_for": COORDINATION_MAINTENANCE_USE_FOR
                 },
                 "coordination_team_status": {
-                    "description": "TEMPORARILY UNAVAILABLE (maintenance) — Get the current status of all coordination agents",
+                    "description": COORDINATION_MAINTENANCE_PREFIX + "Get the current status of all coordination agents",
                     "tier": "Free (all 13 tools free since v0.5.28)",
-                    "use_for": "Temporarily unavailable; keep handoff state in your own repository"
+                    "use_for": COORDINATION_MAINTENANCE_USE_FOR
                 }
             }
         },
@@ -1103,7 +1112,7 @@ async def smithery_server_card_handler(request):
             },
             {
                 "name": "coordination_handoff_create",
-                "description": "TEMPORARILY UNAVAILABLE (maintenance) — Create a structured agent handoff record for multi-agent session continuity.",
+                "description": COORDINATION_MAINTENANCE_PREFIX + "Create a structured agent handoff record for multi-agent session continuity.",
                 "inputSchema": {
                     "type": "object",
                     "required": ["agent_id", "session_type", "completed", "decisions", "artifacts", "pending", "pioneer_key"],
