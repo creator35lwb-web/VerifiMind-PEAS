@@ -1674,7 +1674,61 @@ def _create_mcp_instance():
                 "error": str(e)
             })
 
-    # ===== v0.5.11 COORDINATION TOOLS (Pioneer Tier) =====
+    # ===== v0.5.11 COORDINATION TOOLS — CONTAINED (VM-IR-2026-07-28-COORD-01) =====
+    #
+    # P0 containment. These three handlers previously resolved a CALLER-SUPPLIED
+    # `pioneer_key` string into a storage namespace, defaulting to the shared
+    # literal "anonymous" when the argument was omitted or blank. Any anonymous
+    # internet caller could therefore read full handoff bodies, agent identities,
+    # pending actions, and blockers written by anyone else who omitted the key —
+    # and could write records under an arbitrary `agent_id` into the same shared
+    # state that AI agents consume as authoritative coordination truth.
+    #
+    # Root cause (T S111 RC-1..RC-3): free ACCESS was implemented as unauthenticated
+    # SHARED DATA. The invariant we violated:
+    #
+    #     Free access to a tool does not imply shared access to the data
+    #     created through that tool.
+    #
+    # A supplied key was never an authorization boundary either: `check_tier()` was
+    # called and its `allowed` result discarded, so any arbitrary string selected a
+    # namespace. Bearer-string obscurity is not authenticated isolation, so
+    # containment denies EVERY caller — keyed or keyless — rather than preserving an
+    # undocumented compatibility path (T D-111-2/D-111-5).
+    #
+    # The tools remain registered so the published tool contract and manifests stay
+    # truthful about the surface's existence; they return a stable, non-reflecting
+    # maintenance denial that stores nothing, reads nothing, and echoes no caller
+    # input. Re-enablement is gated on server-derived ownership, owner-scoped
+    # storage, an adversarial isolation matrix, independent CS + T review, and
+    # explicit Alton authorization (T D-111-9).
+    COORDINATION_CONTAINMENT_INCIDENT = "VM-IR-2026-07-28-COORD-01"
+
+    def _coordination_contained(tool_name: str) -> dict:
+        """Stable fail-closed denial for every contained coordination handler.
+
+        Deliberately reflects NO caller-supplied value (no key, no agent_id, no
+        namespace) and exposes no stored state, so the denial itself cannot be
+        used to probe the affected namespaces.
+        """
+        return wrap_response(build_error_response(
+            error_code="COORDINATION_TEMPORARILY_DISABLED",
+            message=(
+                "The coordination layer is temporarily disabled while its access "
+                "control is rebuilt. Records created through this tool were stored "
+                "in a shared, unauthenticated namespace; they are no longer "
+                "readable or writable through the public API. No other VerifiMind "
+                "tool is affected, and validation tools remain fully available."
+            ),
+            recovery_hint=(
+                "Keep coordination state in your own repository (the handoff "
+                "markdown format is documented at "
+                "https://github.com/creator35lwb-web/VerifiMind-PEAS). This tool "
+                "will return only after private, owner-scoped storage ships. "
+                f"Incident reference: {COORDINATION_CONTAINMENT_INCIDENT}."
+            ),
+            agent=tool_name,
+        ))
 
     @app.tool()
     async def coordination_handoff_create(
@@ -1692,79 +1746,21 @@ def _create_mcp_instance():
         """
         Create a structured MACP v2.5 handoff record.
 
-        Free for everyone (Option B, May 9 2026 — Core Tools Always Free pledge).
+        TEMPORARILY DISABLED — this tool is contained pending a security repair
+        (incident VM-IR-2026-07-28-COORD-01) and always returns a denial.
 
-        Generates a MACP v2.5 compliant handoff document and stores it in
-        the coordination layer. Returns the formatted markdown content
-        and suggested filename for saving to .macp/handoffs/ in your repository.
+        Handoff bodies written through this tool were stored in a shared namespace
+        that any unauthenticated caller could read. Nothing is stored or returned
+        while containment is in force. Coordination state belongs in your own
+        repository until private, owner-scoped storage ships.
 
-        Args:
-            agent_id: Identifier for the agent creating this handoff (e.g. "RNA", "cursor").
-            session_type: Type of session (e.g. "development", "research", "review").
-            completed: List of completed items this session.
-            decisions: List of decisions made (each as a string).
-            artifacts: List of artifact paths or descriptions created.
-            pending: List of pending items for the next agent.
-            blockers: List of current blockers (empty list if none).
-            pioneer_key: Optional access key. If provided, your handoffs are namespaced
-                privately under this key. If omitted, handoffs go to the shared
-                "anonymous" namespace.
-            next_agent: Recommended next agent ID (optional).
+        All arguments are accepted for schema stability and are ignored; no
+        supplied value is stored, logged, or echoed back.
 
         Returns:
-            Handoff record with filename, content, and storage confirmation.
+            A COORDINATION_TEMPORARILY_DISABLED error with an incident reference.
         """
-        from .middleware.tier_gate import check_tier, sanitize_handoff_content
-        from .coordination import get_store, format_handoff_markdown
-        from .coordination.handoff_store import build_handoff_record
-
-        # Tier identity for analytics (no longer a gate — Option B, May 9 2026)
-        _, tier = await check_tier(pioneer_key or "")
-        namespace = pioneer_key.strip() if pioneer_key and pioneer_key.strip() else "anonymous"
-
-        # AZ UUID Bridge: emit namespace to stdout for AY analytics ingestion (v0.5.12)
-        print(f"TRACER_UUID: {namespace} tool=coordination_handoff_create", flush=True)
-
-        try:
-            record = build_handoff_record(
-                agent_id=agent_id,
-                session_type=session_type,
-                completed=[str(x) for x in completed],
-                decisions=[str(x) for x in decisions],
-                artifacts=[str(x) for x in artifacts],
-                pending=[str(x) for x in pending],
-                blockers=[str(x) for x in blockers],
-                next_agent=next_agent,
-            )
-            content = format_handoff_markdown(record)
-            content = sanitize_handoff_content(content)
-            record["content"] = content
-
-            store = get_store()
-            store.add(namespace, record)
-
-            return wrap_response({
-                "status": "success",
-                "handoff_id": record["handoff_id"],
-                "filename": record["filename"],
-                "suggested_path": f".macp/handoffs/{record['filename']}",
-                "content": content,
-                "agent_id": agent_id,
-                "timestamp": record["timestamp"],
-                "tier": tier,
-                "message": (
-                    f"Handoff record created. Save content to "
-                    f".macp/handoffs/{record['filename']} in your repository."
-                ),
-            })
-        except Exception as e:
-            return wrap_response(build_error_response(
-                error_code="COORDINATION_CREATE_ERROR",
-                message=str(e),
-                recovery_hint="Check that all list fields contain strings.",
-                agent="coordination_handoff_create",
-                original_error=e,
-            ))
+        return _coordination_contained("coordination_handoff_create")
 
     @app.tool()
     async def coordination_handoff_read(
@@ -1776,65 +1772,20 @@ def _create_mcp_instance():
         """
         Read the most recent coordination handoff record(s).
 
-        Free for everyone (Option B, May 9 2026 — Core Tools Always Free pledge).
+        TEMPORARILY DISABLED — this tool is contained pending a security repair
+        (incident VM-IR-2026-07-28-COORD-01) and always returns a denial.
 
-        Retrieves handoff records previously created via coordination_handoff_create.
-        Records are namespaced by pioneer_key — you only see handoffs created with
-        the same key. Omit pioneer_key to read from the shared "anonymous" namespace.
+        This read path returned complete handoff bodies from a caller-selected
+        namespace with no authenticated ownership check. It is closed to every
+        caller — with or without a key — while owner-scoped access control is
+        rebuilt. No record body is returned.
 
-        Args:
-            pioneer_key: Optional access key. If omitted, reads from the shared
-                "anonymous" namespace.
-            agent_id: Filter to handoffs from this agent only (optional).
-            count: Number of records to return (default: 1, max: 50).
+        All arguments are accepted for schema stability and are ignored.
 
         Returns:
-            List of handoff records (most recent first) with full content.
+            A COORDINATION_TEMPORARILY_DISABLED error with an incident reference.
         """
-        from .middleware.tier_gate import check_tier
-        from .coordination import get_store
-
-        # Tier identity for analytics (no longer a gate — Option B, May 9 2026)
-        _, tier = await check_tier(pioneer_key or "")
-        namespace = pioneer_key.strip() if pioneer_key and pioneer_key.strip() else "anonymous"
-
-        # AZ UUID Bridge: emit namespace to stdout for AY analytics ingestion (v0.5.12)
-        print(f"TRACER_UUID: {namespace} tool=coordination_handoff_read", flush=True)
-
-        try:
-            count = max(1, min(int(count), 50))
-            store = get_store()
-            records = store.get(namespace, agent_id=agent_id, count=count)
-
-            return wrap_response({
-                "status": "success",
-                "count": len(records),
-                "filter_agent_id": agent_id,
-                "tier": tier,
-                "handoffs": [
-                    {
-                        "handoff_id": r["handoff_id"],
-                        "filename": r["filename"],
-                        "agent_id": r["agent_id"],
-                        "session_type": r["session_type"],
-                        "timestamp": r["timestamp"],
-                        "status": r["status"],
-                        "pending": r["pending"],
-                        "blockers": r["blockers"],
-                        "next_agent": r["next_agent"],
-                        "content": r.get("content", ""),
-                    }
-                    for r in records
-                ],
-            })
-        except Exception as e:
-            return wrap_response(build_error_response(
-                error_code="COORDINATION_READ_ERROR",
-                message=str(e),
-                recovery_hint="Verify your pioneer_key and try again.",
-                agent="coordination_handoff_read",
-                original_error=e,
-            ))
+        return _coordination_contained("coordination_handoff_read")
 
     @app.tool()
     async def coordination_team_status(
@@ -1844,112 +1795,21 @@ def _create_mcp_instance():
         """
         Return current team coordination state and session summary.
 
-        Free for everyone (Option B, May 9 2026 — Core Tools Always Free pledge).
+        TEMPORARILY DISABLED — this tool is contained pending a security repair
+        (incident VM-IR-2026-07-28-COORD-01) and always returns a denial.
 
-        Aggregates all stored handoff records to provide a snapshot of:
-        - Which agents have been active
-        - All pending actions (from latest handoff per agent)
-        - All open blockers
-        - Recent activity timeline
-        - Recommended next actions
+        This summary exposed agent identities, pending actions, open blockers, and
+        a timestamped activity index from a caller-selected namespace with no
+        authenticated ownership check — enough to enumerate a namespace before
+        reading it. It is closed to every caller while owner-scoped access control
+        is rebuilt.
 
-        Args:
-            pioneer_key: Optional access key. If omitted, reads from the shared
-                "anonymous" namespace.
+        All arguments are accepted for schema stability and are ignored.
 
         Returns:
-            Team state summary with agent activity, pending actions, and blockers.
+            A COORDINATION_TEMPORARILY_DISABLED error with an incident reference.
         """
-        from .middleware.tier_gate import check_tier
-        from .coordination import get_store
-
-        # Tier identity for analytics (no longer a gate — Option B, May 9 2026)
-        _, tier = await check_tier(pioneer_key or "")
-        namespace = pioneer_key.strip() if pioneer_key and pioneer_key.strip() else "anonymous"
-
-        # AZ UUID Bridge: emit namespace to stdout for AY analytics ingestion (v0.5.12)
-        print(f"TRACER_UUID: {namespace} tool=coordination_team_status", flush=True)
-
-        try:
-            store = get_store()
-            all_records = store.get_all(namespace)
-            total = len(all_records)
-
-            if not all_records:
-                return wrap_response({
-                    "status": "success",
-                    "message": "No handoff records found. Create your first handoff with coordination_handoff_create.",
-                    "total_handoffs": 0,
-                    "active_agents": [],
-                    "pending_actions": [],
-                    "open_blockers": [],
-                    "recent_activity": [],
-                    "recommended_next": None,
-                    "tier": tier,
-                })
-
-            # Latest handoff per agent (for pending/blockers)
-            latest_per_agent: dict[str, dict] = {}
-            for r in all_records:
-                aid = r["agent_id"]
-                if aid not in latest_per_agent or r["timestamp"] > latest_per_agent[aid]["timestamp"]:
-                    latest_per_agent[aid] = r
-
-            active_agents = list(latest_per_agent.keys())
-
-            pending_actions = []
-            for aid, r in latest_per_agent.items():
-                for item in r.get("pending", []):
-                    pending_actions.append({"agent": aid, "item": item})
-
-            open_blockers = []
-            for aid, r in latest_per_agent.items():
-                for b in r.get("blockers", []):
-                    open_blockers.append({"agent": aid, "blocker": b})
-
-            # Most recent 5 handoffs as activity log
-            recent = list(reversed(all_records))[:5]
-            recent_activity = [
-                {
-                    "handoff_id": r["handoff_id"],
-                    "agent_id": r["agent_id"],
-                    "session_type": r["session_type"],
-                    "timestamp": r["timestamp"],
-                    "completed_count": len(r.get("completed", [])),
-                    "pending_count": len(r.get("pending", [])),
-                    "has_blockers": bool(r.get("blockers", [])),
-                }
-                for r in recent
-            ]
-
-            # Recommended next: agent from the most recent handoff's next_agent field
-            most_recent = all_records[-1]
-            recommended_next = most_recent.get("next_agent") or None
-
-            return wrap_response({
-                "status": "success",
-                "total_handoffs": total,
-                "active_agents": active_agents,
-                "pending_actions": pending_actions,
-                "open_blockers": open_blockers,
-                "recent_activity": recent_activity,
-                "recommended_next": recommended_next,
-                "most_recent_handoff": {
-                    "handoff_id": most_recent["handoff_id"],
-                    "agent_id": most_recent["agent_id"],
-                    "session_type": most_recent["session_type"],
-                    "timestamp": most_recent["timestamp"],
-                },
-                "tier": tier,
-            })
-        except Exception as e:
-            return wrap_response(build_error_response(
-                error_code="COORDINATION_STATUS_ERROR",
-                message=str(e),
-                recovery_hint="Verify your pioneer_key and try again.",
-                agent="coordination_team_status",
-                original_error=e,
-            ))
+        return _coordination_contained("coordination_team_status")
 
     return app
 

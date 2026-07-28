@@ -27,6 +27,8 @@ from fastmcp import Client
 from verifimind_mcp.server import create_http_server
 from verifimind_mcp.llm.provider import MockProvider
 
+from .mcp_tool_harness import call
+
 
 CONCEPT = {
     "concept_name": "Robustness walk probe",
@@ -38,25 +40,6 @@ CONCEPT = {
 def app():
     return create_http_server()
 
-
-def payload_of(result):
-    """Extract the tool's dict payload from a fastmcp CallToolResult."""
-    data = getattr(result, "data", None)
-    if isinstance(data, dict):
-        return data
-    for block in getattr(result, "content", []) or []:
-        text = getattr(block, "text", None)
-        if text:
-            try:
-                return json.loads(text)
-            except json.JSONDecodeError:
-                continue
-    raise AssertionError(f"no dict payload in tool result: {result!r}")
-
-
-async def call(app, name, args):
-    async with Client(app) as client:
-        return payload_of(await client.call_tool(name, args))
 
 
 # ---------------------------------------------------------------------------
@@ -113,6 +96,13 @@ async def test_template_tools_walk(app):
 
 @pytest.mark.asyncio
 async def test_coordination_tools_walk(app, tmp_path):
+    """INVERTED by VM-IR-2026-07-28-COORD-01 (T S111 RC-5).
+
+    This test previously asserted that a KEYLESS `coordination_handoff_create`
+    returns success — which made the fail-open default an intentional, tested
+    contract and is why the exposure survived review. The walk now asserts the
+    containment contract: the keyless path must be DENIED, and denial must not
+    leak a handoff id."""
     created = await call(app, "coordination_handoff_create", {
         "agent_id": "RNA-TEST",
         "session_type": "robustness-walk",
@@ -122,11 +112,14 @@ async def test_coordination_tools_walk(app, tmp_path):
         "pending": [],
         "blockers": [],
     })
-    assert created.get("status") == "success", created
-    assert created.get("handoff_id")
+    assert created.get("status") == "error", created
+    assert created.get("error_code") == "COORDINATION_TEMPORARILY_DISABLED", created
+    assert not created.get("handoff_id"), created
+    assert not created.get("content"), created
 
     status = await call(app, "coordination_team_status", {})
-    assert status, status
+    assert status.get("error_code") == "COORDINATION_TEMPORARILY_DISABLED", status
+    assert "total_handoffs" not in status, status
 
 
 # ---------------------------------------------------------------------------

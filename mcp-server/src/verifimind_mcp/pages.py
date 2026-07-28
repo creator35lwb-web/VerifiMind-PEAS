@@ -593,7 +593,7 @@ def _shell(title: str, body: str, script: str = "") -> str:
     <a class="site-logo" href="https://verifimind.ysenseai.org">
       VerifiMind<span>-PEAS</span>
     </a>
-    <span class="version-badge">v0.5.6 Gateway</span>
+    <span class="version-badge">Live version: /health</span>
   </header>
 
   {body}
@@ -1543,8 +1543,10 @@ _TERMS_BODY = """
 </div>
 
 <h2>4. Payment and Billing</h2>
-<p>There are <strong>no active paid services</strong> at this time. All 13 tools, including
-  coordination tools, are free for everyone.</p>
+<p>There are <strong>no active paid services</strong> at this time. All 13 tools are free for
+  everyone. The three coordination tools are <strong>temporarily disabled for maintenance</strong>
+  while their access control is rebuilt; this does not affect the validation tools or change the
+  free-for-everyone pledge.</p>
 <p>When future paid services (such as expert-orchestrated consultation reports) become available,
   this section will be updated with specific billing terms, the payment processor, and any
   additional agreements required at the time of purchase. You will not be charged for any service
