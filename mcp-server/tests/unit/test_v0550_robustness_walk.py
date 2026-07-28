@@ -27,6 +27,8 @@ from fastmcp import Client
 from verifimind_mcp.server import create_http_server
 from verifimind_mcp.llm.provider import MockProvider
 
+from .mcp_tool_harness import call, payload_of
+
 
 CONCEPT = {
     "concept_name": "Robustness walk probe",
@@ -38,25 +40,6 @@ CONCEPT = {
 def app():
     return create_http_server()
 
-
-def payload_of(result):
-    """Extract the tool's dict payload from a fastmcp CallToolResult."""
-    data = getattr(result, "data", None)
-    if isinstance(data, dict):
-        return data
-    for block in getattr(result, "content", []) or []:
-        text = getattr(block, "text", None)
-        if text:
-            try:
-                return json.loads(text)
-            except json.JSONDecodeError:
-                continue
-    raise AssertionError(f"no dict payload in tool result: {result!r}")
-
-
-async def call(app, name, args):
-    async with Client(app) as client:
-        return payload_of(await client.call_tool(name, args))
 
 
 # ---------------------------------------------------------------------------

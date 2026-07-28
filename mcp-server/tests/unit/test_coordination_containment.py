@@ -35,6 +35,8 @@ from fastmcp import Client
 
 from verifimind_mcp.server import create_http_server
 
+from .mcp_tool_harness import call
+
 
 CONTAINED_TOOLS = (
     "coordination_handoff_create",
@@ -78,24 +80,6 @@ DISCLOSURE_FIELDS = (
 def app():
     return create_http_server()
 
-
-def payload_of(result):
-    data = getattr(result, "data", None)
-    if isinstance(data, dict):
-        return data
-    for block in getattr(result, "content", []) or []:
-        text = getattr(block, "text", None)
-        if text:
-            try:
-                return json.loads(text)
-            except json.JSONDecodeError:
-                continue
-    raise AssertionError(f"no dict payload in tool result: {result!r}")
-
-
-async def call(app, name, args):
-    async with Client(app) as client:
-        return payload_of(await client.call_tool(name, args))
 
 
 def args_for(tool, credential):
