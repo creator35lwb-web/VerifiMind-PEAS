@@ -27,7 +27,7 @@ from fastmcp import Client
 from verifimind_mcp.server import create_http_server
 from verifimind_mcp.llm.provider import MockProvider
 
-from .mcp_tool_harness import call, payload_of
+from .mcp_tool_harness import call
 
 
 CONCEPT = {
