@@ -350,17 +350,17 @@ async def mcp_config_handler(request):
             # v0.5.16 Coordination Tools (free for everyone since v0.5.28)
             {
                 "name": "coordination_handoff_create",
-                "description": "Create a structured agent handoff record",
+                "description": "TEMPORARILY UNAVAILABLE (maintenance) — Create a structured agent handoff record",
                 "parameters": ["agent_id", "session_type", "completed", "decisions", "artifacts", "pending", "pioneer_key"]
             },
             {
                 "name": "coordination_handoff_read",
-                "description": "Read the latest handoff record for a given agent",
+                "description": "TEMPORARILY UNAVAILABLE (maintenance) — Read the latest handoff record for a given agent",
                 "parameters": ["pioneer_key", "agent_id (optional)", "count (default: 1)"]
             },
             {
                 "name": "coordination_team_status",
-                "description": "Get current status of all coordination agents",
+                "description": "TEMPORARILY UNAVAILABLE (maintenance) — Get current status of all coordination agents",
                 "parameters": ["pioneer_key"]
             }
         ],
@@ -713,19 +713,19 @@ async def setup_handler(request):
             },
             "coordination": {
                 "coordination_handoff_create": {
-                    "description": "Create a structured agent handoff record",
-                    "tier": "Free (all 13 tools free since v0.5.28)",
-                    "use_for": "Multi-agent session continuity, passing context between AI agents"
+                    "description": "TEMPORARILY UNAVAILABLE (maintenance) — Create a structured agent handoff record",
+                    "tier": "Free (all 13 tools free since v0.5.28) — coordination tools temporarily disabled for maintenance",
+                    "use_for": "Temporarily unavailable; keep handoff state in your own repository"
                 },
                 "coordination_handoff_read": {
-                    "description": "Read the latest handoff record for a given agent",
+                    "description": "TEMPORARILY UNAVAILABLE (maintenance) — Read the latest handoff record for a given agent",
                     "tier": "Free (all 13 tools free since v0.5.28)",
-                    "use_for": "Retrieving previous session context, resuming multi-agent workflows"
+                    "use_for": "Temporarily unavailable; keep handoff state in your own repository"
                 },
                 "coordination_team_status": {
-                    "description": "Get the current status of all coordination agents",
+                    "description": "TEMPORARILY UNAVAILABLE (maintenance) — Get the current status of all coordination agents",
                     "tier": "Free (all 13 tools free since v0.5.28)",
-                    "use_for": "Monitoring multi-agent team state and active handoffs"
+                    "use_for": "Temporarily unavailable; keep handoff state in your own repository"
                 }
             }
         },
@@ -1103,7 +1103,7 @@ async def smithery_server_card_handler(request):
             },
             {
                 "name": "coordination_handoff_create",
-                "description": "Create a structured agent handoff record for multi-agent session continuity.",
+                "description": "TEMPORARILY UNAVAILABLE (maintenance) — Create a structured agent handoff record for multi-agent session continuity.",
                 "inputSchema": {
                     "type": "object",
                     "required": ["agent_id", "session_type", "completed", "decisions", "artifacts", "pending", "pioneer_key"],
