@@ -34,6 +34,7 @@ from pydantic import BaseModel, Field
 
 from verifimind_mcp.utils.uuid_tracer import emit_tracer
 from verifimind_mcp.utils.trinity_history import persist_trinity_result
+from verifimind_mcp.llm.failover import FailoverExhaustedError, FailoverTerminalError
 
 # Initialize logger for security events
 logger = logging.getLogger(__name__)
@@ -88,6 +89,103 @@ def wrap_response(response: dict) -> dict:
         response["_system_notice"] = SYSTEM_NOTICE
     response["_server_version"] = SERVER_VERSION
     return response
+
+
+def actual_provider_used(result, provider) -> str:
+    """WP-B honest disclosure: when runtime failover hopped, `_provider_used`
+    must name the provider that actually served the request, not the primary
+    the handler constructed. Without failover attempts (the normal/dark
+    path), this is exactly `provider.get_model_name()` as before."""
+    attempts = getattr(result, "_provider_attempts", None)
+    if attempts:
+        final = attempts[-1]
+        if final.get("outcome_class") == "success" and final.get("model"):
+            return final["model"]
+    return provider.get_model_name()
+
+
+def attach_failover_disclosure(payload: dict, result) -> None:
+    """Add the privacy-minimal attempt trail to a tool payload when the
+    failover executor ran (absent otherwise — strictly additive). B-92-3:
+    the ephemeral consultation correlation is part of the success contract,
+    not only the error contract."""
+    attempts = getattr(result, "_provider_attempts", None)
+    if attempts:
+        payload["_provider_attempts"] = attempts
+        payload["_failover_occurred"] = getattr(result, "_failover_occurred", False)
+        correlation = getattr(result, "_failover_correlation", None)
+        if correlation:
+            payload["_failover_correlation"] = correlation
+
+
+def trinity_failover_meta(stage_results: dict) -> dict:
+    """Trinity-level failover disclosure (B-92-3): per-stage attempt trails
+    and correlations, present only when at least one stage ran the executor."""
+    stage_attempts = {
+        aid: getattr(res, "_provider_attempts", None)
+        for aid, res in stage_results.items()
+    }
+    if not any(stage_attempts.values()):
+        return {}
+    meta = {
+        "_provider_attempts": {
+            aid: attempts for aid, attempts in stage_attempts.items() if attempts
+        },
+        "_failover_occurred": any(
+            getattr(res, "_failover_occurred", False)
+            for res in stage_results.values()
+        ),
+    }
+    correlations = {
+        aid: getattr(res, "_failover_correlation", None)
+        for aid, res in stage_results.items()
+        if getattr(res, "_failover_correlation", None)
+    }
+    if correlations:
+        meta["_failover_correlations"] = correlations
+    return meta
+
+
+def failover_error_payload(exc, agent: str, concept_name: Optional[str] = None) -> dict:
+    """B-90-8: the stable terminal contract for failover-lane failures.
+
+    FAILOVER_EXHAUSTED = all bounded attempts failed (explicit instead of a
+    silent mock). HOSTED_PROVIDER_TERMINAL = auth/config or invalid-request
+    on the HOSTED lane — distinct from BYOK_AUTH_FAILED by construction,
+    because BYOK providers never enter the executor. Both carry the
+    privacy-minimal attempt trail (provider/model/class/duration only) and an
+    ephemeral per-consultation correlation value; no prompts, responses, or
+    user/registration identifiers."""
+    exhausted = getattr(exc, "error_code", "") == "FAILOVER_EXHAUSTED"
+    if exhausted:
+        message = "All bounded runtime-failover attempts failed."
+        hint = ("The hosted providers for this agent are currently failing. "
+                "Try again shortly, or pass BYOK params to use your own provider.")
+    else:
+        message = f"Hosted provider terminal failure ({exc.final_reason_class})."
+        hint = ("This hosted-lane failure is not retryable (auth/config or "
+                "invalid request) — the operator has been signalled via logs. "
+                "BYOK requests are unaffected.")
+    payload = build_error_response(
+        error_code=exc.error_code,
+        message=message,
+        recovery_hint=hint,
+        agent=agent,
+        original_error=exc,
+    )
+    payload["_provider_attempts"] = exc.attempts
+    payload["attempt_count"] = len(exc.attempts)
+    payload["final_reason_class"] = exc.final_reason_class
+    # B-92-1: EXPLICIT terminal truth from the executor — never inferred
+    # from the trail. A proposed-but-rejected hop is not failover, and the
+    # final provider is the one that actually executed inference (or None).
+    payload["_failover_occurred"] = exc.hop_executed
+    payload["final_provider"] = exc.final_provider
+    payload["_failover_correlation"] = exc.correlation
+    payload["_inference_quality"] = "unavailable"
+    if concept_name is not None:
+        payload["concept"] = concept_name
+    return payload
 
 
 def build_error_response(
@@ -555,7 +653,7 @@ def _create_mcp_instance():
                 "recommendation": result.recommendation,
                 "confidence": result.confidence,
                 "_inference_quality": _iq,
-                "_provider_used": provider.get_model_name(),
+                "_provider_used": actual_provider_used(result, provider),
                 "_byok": byok_used
             }
             # v0.5.44: structured fields at standard+; heaviest at full
@@ -567,9 +665,13 @@ def _create_mcp_instance():
                 payload["competitive_analysis"] = getattr(result, "competitive_analysis", None)
             if _iq == "mock":
                 payload["_warning"] = MOCK_MODE_WARNING
+            attach_failover_disclosure(payload, result)
             persist_trinity_result(user_uuid, "consult_agent_x", payload)
             return wrap_response(payload)
 
+        except (FailoverExhaustedError, FailoverTerminalError) as e:
+            # B-90-8: the executor's typed contract survives the MCP boundary
+            return wrap_response(failover_error_payload(e, AGENT_X_NAME, concept_name))
         except Exception as e:
             return wrap_response({
                 "agent": AGENT_X_NAME,
@@ -684,7 +786,7 @@ def _create_mcp_instance():
                 "veto_triggered": result.veto_triggered,
                 "confidence": result.confidence,
                 "_inference_quality": _iq,
-                "_provider_used": provider.get_model_name(),
+                "_provider_used": actual_provider_used(result, provider),
                 "_byok": byok_used
             }
             # v0.5.44: framework citations + scoring breakdown at standard+
@@ -697,9 +799,12 @@ def _create_mcp_instance():
                 payload["total_frameworks_evaluated"] = getattr(result, "total_frameworks_evaluated", None)
             if _iq == "mock":
                 payload["_warning"] = MOCK_MODE_WARNING
+            attach_failover_disclosure(payload, result)
             persist_trinity_result(user_uuid, "consult_agent_z", payload)
             return wrap_response(payload)
 
+        except (FailoverExhaustedError, FailoverTerminalError) as e:
+            return wrap_response(failover_error_payload(e, AGENT_Z_NAME, concept_name))
         except Exception as e:
             return wrap_response({
                 "agent": AGENT_Z_NAME,
@@ -809,7 +914,7 @@ def _create_mcp_instance():
                 "recommendation": result.recommendation,
                 "confidence": result.confidence,
                 "_inference_quality": getattr(result, '_inference_quality', 'unknown'),
-                "_provider_used": provider.get_model_name(),
+                "_provider_used": actual_provider_used(result, provider),
                 "_byok": byok_used
             }
             # v0.5.44: threat assessment at standard+; 12-dim/6-stage/MACP at full
@@ -824,9 +929,12 @@ def _create_mcp_instance():
                 payload["standards_referenced"] = getattr(result, "standards_referenced", None)
             if payload["_inference_quality"] == "mock":
                 payload["_warning"] = MOCK_MODE_WARNING
+            attach_failover_disclosure(payload, result)
             persist_trinity_result(user_uuid, "consult_agent_cs", payload)
             return wrap_response(payload)
 
+        except (FailoverExhaustedError, FailoverTerminalError) as e:
+            return wrap_response(failover_error_payload(e, AGENT_CS_NAME, concept_name))
         except Exception as e:
             return wrap_response({
                 "agent": AGENT_CS_NAME,
@@ -1052,14 +1160,18 @@ def _create_mcp_instance():
                 save_validation_history(history)
 
             # BYOK metadata for response
+            _stage_results = {"X": x_result, "Z": z_result, "CS": cs_result}
             _byok_meta = {
                 "_byok": any(byok_status.values()),
                 "_byok_agents": byok_status,
+                # WP-B: names the provider that ACTUALLY served each stage
+                # (identical to the resolved provider unless a runtime hop ran)
                 "_providers_used": {
-                    aid: resolved_providers[aid].get_model_name()
+                    aid: actual_provider_used(_stage_results[aid], resolved_providers[aid])
                     for aid in ("X", "Z", "CS")
                 },
             }
+            _byok_meta.update(trinity_failover_meta(_stage_results))
 
             # Return result — Markdown-first if requested (v0.4.1)
             if output_format == "markdown":
@@ -1136,6 +1248,10 @@ def _create_mcp_instance():
             persist_trinity_result(user_uuid, "run_full_trinity", payload)
             return wrap_response(payload)
 
+        except (FailoverExhaustedError, FailoverTerminalError) as e:
+            # B-90-8: hosted-lane typed contract — distinct from BYOK_AUTH_FAILED
+            # below (BYOK providers never enter the failover executor).
+            return wrap_response(failover_error_payload(e, "Trinity", concept_name))
         except Exception as e:
             err_str = str(e).lower()
             # Detect BYOK authentication failures for targeted recovery hints

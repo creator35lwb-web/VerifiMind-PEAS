@@ -1,0 +1,24 @@
+# Manual-deploy image build (used by deploy-cloudrun.sh / the
+# /verifimind-deploy skill). Exists because `gcloud builds submit --tag`
+# cannot pass --build-arg, and B-94-1 requires EVERY live deploy path to
+# bake the immutable build identity into the image:
+#   Dockerfile ARG COMMIT_SHA -> image-owned file /app/.build_commit_sha
+# The WP-B failover evidence gate binds FAILOVER_EVIDENCE_BUILD against
+# that image-carried value, so artifact B can never inherit artifact A's
+# evidence. NEVER set BUILD_COMMIT_SHA at the Cloud Run service level.
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - '$_IMAGE_TAG'
+      - '--build-arg'
+      - 'COMMIT_SHA=$_COMMIT_SHA'
+      - '.'
+images:
+  - '$_IMAGE_TAG'
+options:
+  logging: CLOUD_LOGGING_ONLY
+substitutions:
+  _IMAGE_TAG: ''
+  _COMMIT_SHA: ''

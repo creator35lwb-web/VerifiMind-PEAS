@@ -1,6 +1,7 @@
 # /verifimind-deploy
 
-Deploy VerifiMind-PEAS to GCP Cloud Run.
+Deploy VerifiMind-PEAS to GCP Cloud Run — by delegating to the ONE guarded
+canonical implementation.
 
 ## Usage
 
@@ -10,44 +11,37 @@ Deploy VerifiMind-PEAS to GCP Cloud Run.
 
 ## Workflow
 
+**This command maintains NO build or deploy recipe of its own** (B-96-1:
+a duplicated recipe here once bypassed the provenance guards — the skill
+now delegates exclusively). All guards live in the canonical script:
+clean-worktree check, `origin/main` parity, exact-committed-bytes source
+archive, image-baked build identity.
+
 1. **Pre-flight checks:**
    - Verify GCP authentication
    - Check current server health
-   - Confirm version number
+   - Confirm the version number matches `SERVER_VERSION`
 
-2. **Build container:**
+2. **Build + deploy — delegate to the canonical guarded script:**
    ```bash
    cd mcp-server
-   gcloud builds submit --tag gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:v{VERSION}
+   ./deploy-cloudrun.sh
    ```
+   Do NOT invoke the underlying build or run commands directly; if the
+   script's guards fail closed (dirty worktree, unpushed HEAD), fix the
+   cause — never bypass.
 
-3. **Deploy to Cloud Run:**
-   ```bash
-   gcloud run deploy verifimind-mcp-server \
-     --image gcr.io/YOUR_GCP_PROJECT_ID/verifimind-mcp-server:v{VERSION} \
-     --region us-central1 \
-     --max-instances 3 \
-     --min-instances 0 \
-     --concurrency 10 \
-     --timeout 60s \
-     --memory 512Mi \
-     --cpu 1 \
-     --allow-unauthenticated \
-     --port 8080
-   ```
-
-4. **Post-deployment:**
-   - Verify health check
+3. **Post-deployment:**
+   - Verify health check (`/health` serves the new version)
    - Update SERVER_STATUS.md
-   - Update http_server.py version
    - Commit and push changes
 
-5. **Update PRIVATE repo:**
+4. **Update PRIVATE repo:**
    - Create alignment issue for CTO
    - Sync deployment status
 
 ## Example
 
 ```
-/verifimind-deploy 0.3.5
+/verifimind-deploy 0.5.55
 ```

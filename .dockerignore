@@ -15,7 +15,10 @@
 mcp-server/tests
 mcp-server/docs
 mcp-server/examples
-mcp-server/.env
+mcp-server/.env*
+mcp-server/**/*.db
+mcp-server/**/*.sqlite*
+mcp-server/**/*.log
 mcp-server/.venv
 mcp-server/venv
 mcp-server/.git

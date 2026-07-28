@@ -54,14 +54,31 @@ def get_public_contract() -> Dict[str, Any]:
         if name not in ("mock", "ollama")
     }
 
+    # WP-B: the runtime hop chain is config truth (what failover WOULD do
+    # under normal resolution), served even while disabled. B-90-2: the chain
+    # excludes mock AND the primary's own family — a same-family "hop" is not
+    # failover. The flag is a LIVE, FAIL-CLOSED read (env switch + validated
+    # evidence tuple, B-90-7); default off => False, same as v0.5.54.
+    from .llm.failover import runtime_failover_enabled
+    for agent_id, entry in free_tier_routing.items():
+        cfg = AGENT_PROVIDER_DEFAULTS.get(agent_id, {})
+        fallback = cfg.get("fallback")
+        primary = entry["provider"]
+        entry["runtime_hop_chain"] = (
+            [fallback] if fallback and fallback not in ("mock", primary) else []
+        )
+
+    enabled = runtime_failover_enabled()
     return {
         "version": SERVER_VERSION,
         "free_tier_routing": free_tier_routing,
-        # v0.5.54 (T S88 D-88-1/D-88-2): honest failover semantics. WP-B's
-        # FailoverExecutor flips this to True ONLY after deploy + failure-
-        # injection evidence; until then no surface may claim runtime failover.
-        "runtime_failover_enabled": False,
+        # v0.5.54 (T S88 D-88-1/D-88-2): honest failover semantics. Serving
+        # True requires the WP-B deploy + failure-injection evidence + the
+        # Alton-gated env flip; no surface may claim runtime failover before.
+        "runtime_failover_enabled": enabled,
         "fallback_semantics": (
+            "bounded runtime failover between hosted free-tier providers"
+            if enabled else
             "construction-time provider selection; an in-flight request does "
             "not fail over between providers"
         ),

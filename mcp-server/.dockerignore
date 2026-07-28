@@ -32,7 +32,11 @@ htmlcov
 .tox
 
 # Secrets / local environments (MUST NOT ship in image)
-.env
+# B-96-2: full pattern class — `.env` alone missed `.env.local`/`.env.production`
+.env*
+*.db
+*.sqlite*
+*.log
 .venv
 venv/
 ENV/

@@ -150,7 +150,7 @@ async def health_handler(request):
     uptime_seconds = int(time.time() - _SERVER_START_TIME)
     contract = get_public_contract()
 
-    return JSONResponse({
+    payload = {
         "status": "healthy",
         "server": "verifimind-genesis",
         "version": SERVER_VERSION,
@@ -179,7 +179,7 @@ async def health_handler(request):
         "tools": 13,
         "features": {
             "construction_fallback": True,
-            "runtime_failover": False,
+            "runtime_failover": contract["runtime_failover_enabled"],
             "per_agent_providers": True,
             "multi_model_routing": True,
             "quality_markers": True,
@@ -195,7 +195,24 @@ async def health_handler(request):
             "current_load": f"{rate_stats['global_requests_in_window']}/{rate_stats['global_limit']}"
         },
         "quick_start": f"Run: {MCP_REMOTE_QUICKSTART}"
-    })
+    }
+    # WP-B (D-88-5 + B-90-7): evidence + aggregate circuit state, served ONLY
+    # when the runtime flag is on — and the flag itself FAILS CLOSED unless
+    # the evidence tuple (tested-at timestamp + build identity) validates, so
+    # this block can never advertise enablement with "unset" evidence. The
+    # tuple is stamped by the same env update that flips the flag.
+    if contract["runtime_failover_enabled"]:
+        from verifimind_mcp.llm.failover import (
+            ADMISSION_SCOPE, circuit_snapshot, evidence_state,
+        )
+        evidence = evidence_state()
+        payload["failover"] = {
+            "failover_contract_tested_at": evidence["tested_at"],
+            "build": evidence["build"],
+            "circuit": circuit_snapshot(),
+            "admission_scope": ADMISSION_SCOPE,
+        }
+    return JSONResponse(payload)
 
 async def mcp_config_handler(request):
     """MCP configuration endpoint for Claude Desktop and other MCP clients.
@@ -212,7 +229,10 @@ async def mcp_config_handler(request):
 
     # v0.5.54 (T S88 criterion 4): hosted-route copy is GENERATED from the
     # truth contract so tool descriptions cannot drift from actual routing.
-    _routing = get_public_contract()["free_tier_routing"]
+    # B-90-7: the SAME contract read feeds the runtime-failover flag below —
+    # every surface projects one live truth, never a hardcoded copy.
+    _contract = get_public_contract()
+    _routing = _contract["free_tier_routing"]
     _rx, _rz, _rcs = _routing["X"], _routing["Z"], _routing["CS"]
 
     return JSONResponse({
@@ -232,7 +252,7 @@ async def mcp_config_handler(request):
                     "cost_per_validation": "$0 (FREE tier)",
                     "byok": True,
                     "construction_fallback": True,
-                    "runtime_failover": False,
+                    "runtime_failover": _contract["runtime_failover_enabled"],
                     "rate_limiting": True
                 },
                 "headers": {

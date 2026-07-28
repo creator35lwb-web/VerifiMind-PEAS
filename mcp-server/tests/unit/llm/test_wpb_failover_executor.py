@@ -1,0 +1,2586 @@
+"""
+WP-B — FailoverExecutor deterministic failure injection (T S88 D-88-2..5 +
+S90 B-90-1..9 amendment regressions)
+=========================================================================
+
+The runtime-failover contract, enforced with shaped fakes (no SDK, no
+network). v2 adds a named regression for each of T's five independently
+reproduced S90 counterexamples — terminal-auth circuit poisoning, the
+same-family "hop", the blind 429 retry, the stranded half-open probe, and
+fail-open evidence — plus backup admission, MCP terminal payloads, and the
+Z-veto / degraded-cap synthesis invariants after a hop.
+
+Design: Hub #81 (WP-B design v2); reviews:
+.macp/reviews/20260723_T_wpA_exit_and_wpB_design_review.md (S88) and
+.macp/reviews/20260724_T_pr304_wpb_implementation_review.md (S90).
+"""
+
+import asyncio
+import json
+import re
+import shlex  # hard requirement: the shell lexical layer (v8) must fail
+              # LOUD if absent, never silently degrade to raw-text matching
+import time
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+import pytest
+import yaml  # hard requirement: the semantic oracle layer must fail LOUD,
+             # never silently degrade to text-only detection (fail-open)
+
+import verifimind_mcp.llm as llm_pkg
+import verifimind_mcp.llm.failover as fo
+from verifimind_mcp.server import (
+    attach_failover_disclosure,
+    failover_error_payload,
+    trinity_failover_meta,
+)
+
+
+# --- shaped fakes (duck-typed like the raw SDK exceptions) -------------------
+
+class RateLimitError(Exception):
+    def __init__(self, retry_after=None):
+        super().__init__("rate limited")
+        if retry_after is not None:
+            self.retry_after = retry_after
+
+
+class _Headers(dict):
+    pass
+
+
+class _HeaderResponse:
+    def __init__(self, headers):
+        self.headers = _Headers(headers)
+        self.status_code = 429
+
+
+class RateLimitHeaderError(Exception):
+    """429 whose Retry-After lives on response.headers (either HTTP form)."""
+
+    def __init__(self, headers):
+        super().__init__("rate limited")
+        self.response = _HeaderResponse(headers)
+
+
+class AuthenticationError(Exception):
+    pass
+
+
+class APIConnectionError(Exception):
+    pass
+
+
+class InternalServerError(Exception):
+    pass
+
+
+class APITimeoutError(Exception):
+    pass
+
+
+class BadRequestError(Exception):
+    pass
+
+
+def _ok(quality="real"):
+    return {"content": {"x": 1}, "usage": {"output_tokens": 5},
+            "_inference_quality": quality}
+
+
+class FakeProvider:
+    """Scripted provider: each generate() pops one item — an Exception to
+    raise or a response dict to return. Records every call's kwargs so tests
+    can assert the per-attempt token bound (B-92-4)."""
+
+    def __init__(self, script, model_name="groq/test-model"):
+        self._script = list(script)
+        self._model_name = model_name
+        self.calls = 0
+        self.seen_kwargs = []
+
+    async def generate(self, **kwargs):
+        await asyncio.sleep(0)
+        self.calls += 1
+        self.seen_kwargs.append(kwargs)
+        item = self._script.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+    def get_model_name(self):
+        return self._model_name
+
+
+class HangingProvider(FakeProvider):
+    async def generate(self, **kwargs):
+        self.calls += 1
+        await asyncio.Event().wait()  # blocks until cancelled / timed out
+
+
+EVIDENCE_BUILD = "abc1234"
+
+
+@pytest.fixture(autouse=True)
+def _failover_env(monkeypatch, tmp_path):
+    """Every test starts flag-ON with a VALID evidence tuple (fail-closed
+    otherwise, B-90-7), clean circuits/admission, fast budgets; dark-mode and
+    evidence tests override explicitly. The tested-at stamp is generated
+    fresh per test — B-92-2's future-rejection correctly invalidated a
+    hardcoded midnight stamp the first time it ran (the validator catching
+    its own suite's stale evidence). B-95-1: the build identity is an
+    IMAGE-OWNED FILE (never an env var) — the fixture writes a per-test
+    identity file matching the evidence value. Yields the stamp for tests
+    that assert surface projection."""
+    tested_at = datetime.now(timezone.utc).isoformat()
+    monkeypatch.setenv(fo.ENABLE_ENV, "true")
+    monkeypatch.setenv(fo.EVIDENCE_TESTED_ENV, tested_at)
+    monkeypatch.setenv(fo.EVIDENCE_BUILD_ENV, EVIDENCE_BUILD)
+    identity_file = tmp_path / "build_commit_sha"
+    identity_file.write_text(EVIDENCE_BUILD, encoding="utf-8")
+    monkeypatch.setattr(fo, "_BUILD_IDENTITY_FILE", str(identity_file))
+    monkeypatch.delenv("K_REVISION", raising=False)
+    monkeypatch.delenv("BUILD_COMMIT_SHA", raising=False)
+    monkeypatch.setenv(fo.ATTEMPT_TIMEOUT_ENV, "0.5")
+    monkeypatch.setenv(fo.TOTAL_DEADLINE_ENV, "5")
+    fo.reset_circuits()
+    yield tested_at
+    fo.reset_circuits()
+
+
+@pytest.fixture
+def gemini_backup(monkeypatch):
+    """Route the resolved 'gemini' hop target to a scripted fake."""
+    backup = FakeProvider([_ok()], model_name="gemini/backup-model")
+
+    def _fake_get_provider(name):
+        assert name == "gemini"
+        return backup
+    monkeypatch.setattr(llm_pkg, "get_provider", _fake_get_provider)
+    return backup
+
+
+def _marked(script, agent="Z", active="groq", fallback="gemini",
+            model_name="groq/test-model"):
+    return fo.mark_hosted_failover(
+        FakeProvider(script, model_name), agent, active, fallback)
+
+
+def _run(provider, prompt="p", **kwargs):
+    return asyncio.run(fo.generate_with_failover(
+        provider, prompt=prompt, output_schema={}, temperature=0.2,
+        max_tokens=64, **kwargs))
+
+
+async def _await_cancelled(task):
+    """Effectful cancellation receipt (replaces a bare `await` inside a
+    raises block, which scanners flag as an ineffectual statement): awaiting
+    a cancelled task raises CancelledError — captured as a boolean."""
+    try:
+        await task
+    except asyncio.CancelledError:
+        return True
+    return False
+
+
+# ---------------------------------------------------------------------------
+# Dark mode + locality consent (D-88-3)
+# ---------------------------------------------------------------------------
+
+def test_flag_off_is_plain_delegation(monkeypatch):
+    monkeypatch.setenv(fo.ENABLE_ENV, "")
+    provider = _marked([_ok()])
+    response = _run(provider)
+    assert "_provider_attempts" not in response  # no telemetry keys added
+    assert provider.calls == 1
+
+
+def test_flag_off_failure_raises_raw_exception(monkeypatch):
+    monkeypatch.setenv(fo.ENABLE_ENV, "")
+    provider = _marked([APIConnectionError()])
+    with pytest.raises(APIConnectionError):
+        _run(provider)
+
+
+def test_unmarked_byok_provider_never_hops(monkeypatch):
+    """A session/ephemeral BYOK provider (no marker) raises straight through
+    even with the flag ON — a bad user key must never consume hosted keys."""
+    hop_calls = []
+    monkeypatch.setattr(llm_pkg, "get_provider",
+                        lambda name: hop_calls.append(name))
+    provider = FakeProvider([AuthenticationError()])  # NOT marked
+    with pytest.raises(AuthenticationError):
+        _run(provider)
+    assert hop_calls == []
+
+
+def test_unmarked_ollama_stays_local(monkeypatch):
+    hop_calls = []
+    monkeypatch.setattr(llm_pkg, "get_provider",
+                        lambda name: hop_calls.append(name))
+    provider = FakeProvider([APIConnectionError()],
+                            model_name="ollama/llama3.2")  # NOT marked
+    with pytest.raises(APIConnectionError):
+        _run(provider)
+    assert hop_calls == []
+
+
+def test_hosted_resolution_marks_with_resolved_chain(monkeypatch):
+    """config_helper wiring: the hosted env-key branch marks AND attaches the
+    resolved chain (B-90-2); session BYOK gets neither."""
+    for key in ("GROQ_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY",
+                "X_AGENT_PROVIDER", "Z_AGENT_PROVIDER"):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_hosted")
+    from verifimind_mcp.config_helper import get_agent_provider
+    hosted = get_agent_provider("Z")
+    assert fo.hosted_failover_agent(hosted) == "Z"
+    assert fo.hosted_hop_chain(hosted) == ("gemini",)
+
+    class Cfg:
+        llm_provider = "groq"
+        groq_api_key = "gsk_byok_user"
+
+    class Ctx:
+        session_config = Cfg()
+
+    byok = get_agent_provider("Z", Ctx())
+    assert fo.hosted_failover_agent(byok) is None
+    assert fo.hosted_hop_chain(byok) == ()
+
+
+def test_marker_excludes_mock_and_same_family_targets():
+    same_family = _marked([_ok()], active="gemini", fallback="gemini",
+                          model_name="gemini/gemini-3.5-flash-lite")
+    assert fo.hosted_hop_chain(same_family) == ()          # B-90-2
+    mock_fallback = _marked([_ok()], agent="X", active="gemini",
+                            fallback="mock",
+                            model_name="gemini/gemini-3.5-flash-lite")
+    assert fo.hosted_hop_chain(mock_fallback) == ()        # no-silent-mock
+    normal = _marked([_ok()])
+    assert fo.hosted_hop_chain(normal) == ("gemini",)
+
+
+def test_no_silent_mock_on_exhaustion():
+    """Agent X (empty chain): a hop-class failure surfaces an explicit
+    error — never a synthetic response."""
+    provider = _marked([APITimeoutError()], agent="X", active="gemini",
+                       fallback="mock",
+                       model_name="gemini/gemini-3.5-flash-lite")
+    with pytest.raises(fo.FailoverExhaustedError) as excinfo:
+        _run(provider)
+    assert excinfo.value.error_code == "FAILOVER_EXHAUSTED"
+    assert excinfo.value.attempts[0]["outcome_class"] == "attempt_timeout"
+
+
+# ---------------------------------------------------------------------------
+# B-90-2 regression: a hop must cross provider families
+# ---------------------------------------------------------------------------
+
+def test_gemini_primary_never_hops_to_gemini(monkeypatch):
+    """T's reproduced counterexample: gemini -> gemini with
+    _failover_occurred=true. Now: empty resolved chain -> explicit
+    exhaustion, single family in the trail, no fake failover."""
+    hop_calls = []
+    monkeypatch.setattr(llm_pkg, "get_provider",
+                        lambda name: hop_calls.append(name))
+    provider = _marked([InternalServerError(), InternalServerError()],
+                       active="gemini", fallback="gemini",
+                       model_name="gemini/gemini-3.5-flash-lite")
+    with pytest.raises(fo.FailoverExhaustedError) as excinfo:
+        _run(provider)
+    assert hop_calls == []
+    assert {a["provider"] for a in excinfo.value.attempts} == {"gemini"}
+
+
+def test_hop_crosses_provider_families(gemini_backup):
+    provider = _marked([APITimeoutError()])
+    response = _run(provider)
+    families = [a["provider"] for a in response["_provider_attempts"]]
+    assert families == ["groq", "gemini"]
+    assert response["_failover_occurred"] is True
+
+
+# ---------------------------------------------------------------------------
+# Failure-class policy (D-88-2) + B-90-1 circuit hygiene
+# ---------------------------------------------------------------------------
+
+def test_classify_auth_is_terminal_and_circuit_neutral():
+    decision = fo.classify_failure(AuthenticationError())
+    assert decision.action == fo.TERMINAL
+    assert decision.circuit_relevant is False
+
+
+def test_classify_invalid_request_is_terminal():
+    assert fo.classify_failure(BadRequestError()).action == fo.TERMINAL
+
+
+def test_classify_429_with_retry_after_retries():
+    decision = fo.classify_failure(RateLimitError(retry_after=7))
+    assert decision.action == fo.RETRY
+    assert decision.retry_after == pytest.approx(7.0)
+    assert decision.circuit_relevant is False
+
+
+def test_classify_429_without_retry_after_hops():
+    """B-90-3 regression: absent Retry-After must NOT blind-retry."""
+    decision = fo.classify_failure(RateLimitError())
+    assert decision.action == fo.HOP
+    assert decision.reason_class == "rate_limited_no_retry_after"
+
+
+def test_classify_timeout_hops():
+    assert fo.classify_failure(APITimeoutError()).action == fo.HOP
+
+
+def test_classify_unknown_is_terminal_conservative():
+    assert fo.classify_failure(ValueError("weird")).action == fo.TERMINAL
+
+
+def test_terminal_auth_failures_do_not_poison_circuit(monkeypatch):
+    """B-90-1 regression: T reproduced terminal_auth_circuit_state=open after
+    three auth failures. Terminal classes are circuit-neutral now."""
+    monkeypatch.setattr(llm_pkg, "get_provider", lambda name: None)
+    for _ in range(fo.CIRCUIT_FAILURE_THRESHOLD + 1):
+        provider = _marked([AuthenticationError()])
+        with pytest.raises(fo.FailoverTerminalError):
+            _run(provider)
+    assert fo.circuit_snapshot().get("groq", "closed") == "closed"
+    healthy = _marked([_ok()])
+    response = _run(healthy)          # a valid request still uses the primary
+    assert healthy.calls == 1
+    assert response["_failover_occurred"] is False
+
+
+def test_rate_limit_failures_do_not_poison_circuit(gemini_backup):
+    for _ in range(fo.CIRCUIT_FAILURE_THRESHOLD + 1):
+        gemini_backup._script.append(_ok())
+        provider = _marked([RateLimitError()])   # no Retry-After -> hop
+        _run(provider)
+    assert fo.circuit_snapshot().get("groq", "closed") == "closed"
+
+
+def test_terminal_failure_is_typed_with_original_cause(gemini_backup):
+    provider = _marked([AuthenticationError()])
+    with pytest.raises(fo.FailoverTerminalError) as excinfo:
+        _run(provider)
+    assert excinfo.value.error_code == "HOSTED_PROVIDER_TERMINAL"
+    assert excinfo.value.final_reason_class == "auth_or_config"
+    assert isinstance(excinfo.value.__cause__, AuthenticationError)
+    assert gemini_backup.calls == 0
+
+
+def test_safety_refusal_is_a_response_not_a_failure(gemini_backup):
+    """A refusal arrives as a normal completion — the executor returns it
+    verbatim and never consults the classifier."""
+    refusal = {"content": {"analysis": "I cannot help with that."},
+               "usage": {}, "_inference_quality": "real"}
+    provider = _marked([refusal])
+    response = _run(provider)
+    assert response["content"]["analysis"].startswith("I cannot")
+    assert gemini_backup.calls == 0
+    assert response["_failover_occurred"] is False
+
+
+# ---------------------------------------------------------------------------
+# Retry / hop execution paths (incl. B-90-3 Retry-After forms)
+# ---------------------------------------------------------------------------
+
+def test_primary_success_no_failover_machinery(gemini_backup):
+    provider = _marked([_ok()])
+    response = _run(provider)
+    assert response["_failover_occurred"] is False
+    assert [a["outcome_class"] for a in response["_provider_attempts"]] == ["success"]
+    assert len(response["_failover_correlation"]) == 8
+    assert gemini_backup.calls == 0
+
+
+def test_connection_error_retries_same_provider(gemini_backup):
+    provider = _marked([APIConnectionError(), _ok()])
+    response = _run(provider)
+    assert provider.calls == 2
+    assert gemini_backup.calls == 0
+    assert response["_failover_occurred"] is False
+    assert [a["outcome_class"] for a in response["_provider_attempts"]] == [
+        "connection_error", "success"]
+
+
+def test_retry_spent_then_hop(gemini_backup):
+    provider = _marked([InternalServerError(), InternalServerError()])
+    response = _run(provider)
+    assert provider.calls == 2
+    assert gemini_backup.calls == 1
+    assert response["_failover_occurred"] is True
+    assert response["_provider_attempts"][-1]["provider"] == "gemini"
+    assert response["_provider_attempts"][-1]["outcome_class"] == "success"
+
+
+def test_timeout_class_hops_without_retry(gemini_backup):
+    provider = _marked([APITimeoutError()])
+    response = _run(provider)
+    assert provider.calls == 1          # no same-provider retry
+    assert gemini_backup.calls == 1
+    assert response["_failover_occurred"] is True
+
+
+def test_429_with_small_retry_after_waits_and_retries(gemini_backup):
+    provider = _marked([RateLimitError(retry_after=0.01), _ok()])
+    response = _run(provider)
+    assert provider.calls == 2
+    assert gemini_backup.calls == 0
+    assert response["_failover_occurred"] is False
+
+
+def test_429_without_retry_after_hops_immediately(gemini_backup):
+    """B-90-3 regression: T reproduced primary=2 backup=0 on a bare 429."""
+    provider = _marked([RateLimitError()])
+    response = _run(provider)
+    assert provider.calls == 1          # exactly one primary call — no blind retry
+    assert gemini_backup.calls == 1
+    assert response["_failover_occurred"] is True
+
+
+def test_429_with_http_date_retry_after_waits(gemini_backup):
+    from email.utils import format_datetime
+    soon = format_datetime(datetime.now(timezone.utc))  # ~0s wait
+    provider = _marked([RateLimitHeaderError({"Retry-After": soon}), _ok()])
+    response = _run(provider)
+    assert provider.calls == 2
+    assert gemini_backup.calls == 0
+    assert response["_failover_occurred"] is False
+
+
+def test_429_with_malformed_retry_after_hops(gemini_backup):
+    provider = _marked([RateLimitHeaderError({"Retry-After": "soonish"})])
+    _run(provider)
+    assert provider.calls == 1
+    assert gemini_backup.calls == 1
+
+
+def test_429_with_negative_retry_after_clamps_to_immediate_retry(gemini_backup):
+    provider = _marked([RateLimitError(retry_after=-5), _ok()])
+    _run(provider)
+    assert provider.calls == 2          # negative clamps to 0 => one retry
+    assert gemini_backup.calls == 0
+
+
+def test_429_with_retry_after_beyond_budget_hops_immediately(gemini_backup):
+    provider = _marked([RateLimitError(retry_after=9999)])
+    response = _run(provider)
+    assert provider.calls == 1          # no blind wait on a drained quota
+    assert gemini_backup.calls == 1
+    assert response["_failover_occurred"] is True
+
+
+def test_hop_budget_is_one(gemini_backup):
+    """Backup failure after the single hop is exhaustion — never a 2nd hop."""
+    gemini_backup._script = [InternalServerError()]
+    provider = _marked([APITimeoutError()])
+    with pytest.raises(fo.FailoverExhaustedError) as excinfo:
+        _run(provider)
+    assert [a["provider"] for a in excinfo.value.attempts] == ["groq", "gemini"]
+
+
+def test_attempt_cap_is_three(gemini_backup):
+    gemini_backup._script = [APIConnectionError()]
+    provider = _marked([APIConnectionError(), APIConnectionError()])
+    with pytest.raises(fo.FailoverExhaustedError) as excinfo:
+        _run(provider)
+    assert len(excinfo.value.attempts) == 3
+
+
+def test_hop_construction_failure_is_explicit(monkeypatch):
+
+    def _boom(name):
+        raise ValueError("GEMINI_API_KEY not configured")
+    monkeypatch.setattr(llm_pkg, "get_provider", _boom)
+    provider = _marked([APITimeoutError()])
+    with pytest.raises(fo.FailoverExhaustedError) as excinfo:
+        _run(provider)
+    assert excinfo.value.attempts[-1]["outcome_class"] == "hop_construction_failed"
+
+
+# ---------------------------------------------------------------------------
+# Bounded execution + cancellation (D-88-4, B-90-4)
+# ---------------------------------------------------------------------------
+
+def test_per_attempt_timeout_fires_and_hops(monkeypatch, gemini_backup):
+    monkeypatch.setenv(fo.ATTEMPT_TIMEOUT_ENV, "0.05")
+    provider = fo.mark_hosted_failover(HangingProvider([]), "Z", "groq", "gemini")
+    response = _run(provider)
+    assert gemini_backup.calls == 1
+    assert response["_provider_attempts"][0]["outcome_class"] == "attempt_timeout"
+
+
+def test_total_deadline_exhaustion(monkeypatch):
+    monkeypatch.setenv(fo.TOTAL_DEADLINE_ENV, "-1")  # already expired
+    provider = _marked([_ok()])
+    with pytest.raises(fo.FailoverExhaustedError) as excinfo:
+        _run(provider)
+    assert "deadline" in str(excinfo.value)
+    assert provider.calls == 0
+
+
+def test_cancellation_propagates():
+    provider = fo.mark_hosted_failover(HangingProvider([]), "Z", "groq", "gemini")
+
+    async def _cancel_run():
+        task = asyncio.ensure_future(fo.generate_with_failover(
+            provider, prompt="p", output_schema={}, temperature=0.2,
+            max_tokens=64))
+        await asyncio.sleep(0.05)
+        task.cancel()
+        assert await _await_cancelled(task) is True
+    asyncio.run(_cancel_run())
+
+
+def test_cancellation_releases_half_open_probe():
+    """B-90-4 regression: T reproduced half_open_allows_after_cancel=False.
+    A cancelled probe attempt must release the permit so a later request can
+    probe the half-open circuit."""
+    opened = time.monotonic() - fo.CIRCUIT_COOLDOWN_S - 1
+    for _ in range(fo.CIRCUIT_FAILURE_THRESHOLD):
+        fo.record_provider_failure("groq", now=opened)
+    assert fo._circuit_for("groq").state(time.monotonic()) == "half_open"
+
+    provider = fo.mark_hosted_failover(HangingProvider([]), "Z", "groq", "gemini")
+
+    async def _cancel_run():
+        task = asyncio.ensure_future(fo.generate_with_failover(
+            provider, prompt="p", output_schema={}, temperature=0.2,
+            max_tokens=64))
+        await asyncio.sleep(0.05)
+        task.cancel()
+        assert await _await_cancelled(task) is True
+    asyncio.run(_cancel_run())
+    allowed, probe = fo.acquire_slot("groq")
+    assert allowed is True              # the permit was released, not stranded
+    assert probe is True
+
+
+def test_circuit_neutral_failure_releases_half_open_probe(monkeypatch):
+    """A terminal failure during a half-open probe must not strand the
+    permit either (it records no circuit outcome by design)."""
+    monkeypatch.setattr(llm_pkg, "get_provider", lambda name: None)
+    opened = time.monotonic() - fo.CIRCUIT_COOLDOWN_S - 1
+    for _ in range(fo.CIRCUIT_FAILURE_THRESHOLD):
+        fo.record_provider_failure("groq", now=opened)
+    provider = _marked([AuthenticationError()])
+    with pytest.raises(fo.FailoverTerminalError):
+        _run(provider)
+    allowed, _ = fo.acquire_slot("groq")
+    assert allowed is True
+
+
+# ---------------------------------------------------------------------------
+# Cooldown circuit (D-88-4)
+# ---------------------------------------------------------------------------
+
+def test_circuit_opens_after_threshold_and_cools_down():
+    for _ in range(fo.CIRCUIT_FAILURE_THRESHOLD):
+        fo.record_provider_failure("groq", now=100.0)
+    assert fo.circuit_allows("groq", now=101.0) is False          # open
+    half_open_at = 100.0 + fo.CIRCUIT_COOLDOWN_S + 1
+    assert fo.circuit_allows("groq", now=half_open_at) is True    # one probe
+    assert fo.circuit_allows("groq", now=half_open_at) is False   # only one
+
+
+def test_circuit_open_skips_doomed_primary(gemini_backup):
+    for _ in range(fo.CIRCUIT_FAILURE_THRESHOLD):
+        fo.record_provider_failure("groq")
+    provider = _marked([_ok()])           # primary WOULD succeed, but is open
+    response = _run(provider)
+    assert provider.calls == 0
+    assert gemini_backup.calls == 1
+    assert response["_failover_occurred"] is True
+
+
+def test_circuit_success_closes():
+    for _ in range(fo.CIRCUIT_FAILURE_THRESHOLD):
+        fo.record_provider_failure("groq", now=100.0)
+    fo.record_provider_success("groq")
+    assert fo.circuit_allows("groq", now=101.0) is True
+    assert fo.circuit_snapshot()["groq"] == "closed"
+
+
+def test_circuit_snapshot_is_aggregate_only():
+    fo.record_provider_failure("groq")
+    snapshot = fo.circuit_snapshot()
+    assert set(snapshot) == {"groq"}
+    assert snapshot["groq"] in ("closed", "open", "half_open")
+
+
+# ---------------------------------------------------------------------------
+# Backup admission bulkhead (B-90-5, per-process)
+# ---------------------------------------------------------------------------
+
+def test_backup_admission_rejects_at_limit(gemini_backup):
+    for _ in range(fo.DEFAULT_BACKUP_ADMISSION_LIMIT):
+        assert fo.admit_backup("gemini") is True     # saturate the bulkhead
+    provider = _marked([APITimeoutError()])
+    with pytest.raises(fo.FailoverExhaustedError) as excinfo:
+        _run(provider)
+    assert excinfo.value.attempts[-1]["outcome_class"] == "backup_admission_rejected"
+    assert gemini_backup.calls == 0
+
+
+def test_backup_admission_released_after_attempt(gemini_backup):
+    provider = _marked([APITimeoutError()])
+    _run(provider)                        # hop succeeds
+    assert fo.admission_snapshot() == {}  # nothing held after completion
+
+
+def test_backup_admission_released_on_backup_failure(gemini_backup):
+    gemini_backup._script = [InternalServerError()]
+    provider = _marked([APITimeoutError()])
+    with pytest.raises(fo.FailoverExhaustedError):
+        _run(provider)
+    assert fo.admission_snapshot() == {}
+
+
+def test_admission_scope_is_labeled_per_process():
+    assert fo.ADMISSION_SCOPE == "per-process"
+
+
+# ---------------------------------------------------------------------------
+# Evidence semantics (B-90-7): fail-closed enablement
+# ---------------------------------------------------------------------------
+
+def test_flag_without_evidence_stays_disabled(monkeypatch):
+    """B-90-7 regression: T reproduced runtime env true while surfaces
+    disagreed. The flag alone must never enable."""
+    monkeypatch.delenv(fo.EVIDENCE_TESTED_ENV, raising=False)
+    monkeypatch.delenv(fo.EVIDENCE_BUILD_ENV, raising=False)
+    assert fo.runtime_failover_enabled() is False
+    provider = _marked([_ok()])
+    response = _run(provider)
+    assert "_provider_attempts" not in response   # dark path — fail closed
+
+
+def test_malformed_evidence_timestamp_stays_disabled(monkeypatch):
+    monkeypatch.setenv(fo.EVIDENCE_TESTED_ENV, "soon")
+    assert fo.runtime_failover_enabled() is False
+
+
+def test_evidence_without_build_stays_disabled(monkeypatch):
+    monkeypatch.delenv(fo.EVIDENCE_BUILD_ENV, raising=False)
+    assert fo.runtime_failover_enabled() is False
+
+
+def test_full_evidence_tuple_enables():
+    assert fo.evidence_state()["valid"] is True
+    assert fo.runtime_failover_enabled() is True
+
+
+def test_contract_flips_live_with_the_flag(monkeypatch):
+    from verifimind_mcp.contract import get_public_contract
+    on = get_public_contract()
+    assert on["runtime_failover_enabled"] is True
+    assert "bounded runtime failover" in on["fallback_semantics"]
+    assert on["free_tier_routing"]["Z"]["runtime_hop_chain"] == ["gemini"]
+    assert on["free_tier_routing"]["X"]["runtime_hop_chain"] == []
+
+    monkeypatch.setenv(fo.ENABLE_ENV, "")
+    off = get_public_contract()
+    assert off["runtime_failover_enabled"] is False
+    assert "does not fail over" in off["fallback_semantics"]
+
+
+def test_health_failover_block_carries_validated_evidence(monkeypatch, _failover_env):
+    import http_server
+
+    lit = json.loads(asyncio.run(http_server.health_handler(None)).body)
+    assert lit["runtime_failover_enabled"] is True
+    assert lit["features"]["runtime_failover"] is True
+    assert lit["failover"]["failover_contract_tested_at"] == _failover_env
+    assert lit["failover"]["build"] == EVIDENCE_BUILD
+    assert lit["failover"]["admission_scope"] == "per-process"
+    assert isinstance(lit["failover"]["circuit"], dict)
+
+    monkeypatch.setenv(fo.ENABLE_ENV, "")
+    dark = json.loads(asyncio.run(http_server.health_handler(None)).body)
+    assert dark["runtime_failover_enabled"] is False
+    assert "failover" not in dark
+
+
+def test_mcp_config_projects_the_live_flag(monkeypatch):
+    """B-90-7 regression: T reproduced MCP config reporting false while the
+    runtime env was true. The features block now reads the contract."""
+    import http_server
+
+    class _URL:
+        scheme = "https"
+        netloc = "verifimind.ysenseai.org"
+
+    class _Req:
+        headers = {"host": "verifimind.ysenseai.org"}
+        url = _URL()
+
+    lit = json.loads(asyncio.run(http_server.mcp_config_handler(_Req())).body)
+    assert lit["mcpServers"]["verifimind-genesis"]["features"]["runtime_failover"] is True
+
+    monkeypatch.setenv(fo.ENABLE_ENV, "")
+    dark = json.loads(asyncio.run(http_server.mcp_config_handler(_Req())).body)
+    assert dark["mcpServers"]["verifimind-genesis"]["features"]["runtime_failover"] is False
+
+
+# ---------------------------------------------------------------------------
+# MCP boundary contract (B-90-8)
+# ---------------------------------------------------------------------------
+
+def test_failover_error_payload_exhausted_contract():
+    exc = fo.FailoverExhaustedError(
+        "hop budget exhausted",
+        [{"provider": "groq", "model": "groq/test-model",
+          "outcome_class": "server_error", "duration_ms": 20},
+         {"provider": "gemini", "model": "gemini/backup-model",
+          "outcome_class": "server_error", "duration_ms": 30}],
+        "server_error", "abcd1234",
+        final_provider="gemini", hop_executed=True)
+    payload = failover_error_payload(exc, "Trinity", "TestConcept")
+    assert payload["error_code"] == "FAILOVER_EXHAUSTED"
+    assert payload["attempt_count"] == 2
+    assert payload["final_reason_class"] == "server_error"
+    assert payload["_failover_occurred"] is True
+    assert payload["final_provider"] == "gemini"
+    assert payload["_failover_correlation"] == "abcd1234"
+    assert payload["_inference_quality"] == "unavailable"
+    assert payload["concept"] == "TestConcept"
+
+
+def test_failover_error_payload_never_infers_failover_from_trail():
+    """B-92-1 regression (T's probe): a proposed-but-REJECTED hop leaves two
+    provider names in the trail, but the payload must carry the executor's
+    explicit truth — no failover, no backup provider."""
+    exc = fo.FailoverExhaustedError(
+        "backup gemini admission limit reached",
+        [{"provider": "groq", "model": "groq/test-model",
+          "outcome_class": "attempt_timeout", "duration_ms": 30},
+         {"provider": "gemini", "model": "gemini",
+          "outcome_class": "backup_admission_rejected", "duration_ms": 0}],
+        "backup_admission_rejected", "feed4321",
+        final_provider="groq", hop_executed=False)
+    payload = failover_error_payload(exc, "Z")
+    assert payload["final_reason_class"] == "backup_admission_rejected"
+    assert payload["_failover_occurred"] is False   # trail has 2 names — irrelevant
+    assert payload["final_provider"] == "groq"      # the one that actually ran
+
+
+def test_failover_error_payload_terminal_distinct_from_byok():
+    exc = fo.FailoverTerminalError(
+        "hosted provider groq terminal failure (auth_or_config)",
+        [{"provider": "groq", "model": "groq/test-model",
+          "outcome_class": "auth_or_config", "duration_ms": 10}],
+        "auth_or_config", "beef5678",
+        final_provider="groq", hop_executed=False)
+    payload = failover_error_payload(exc, "Z")
+    assert payload["error_code"] == "HOSTED_PROVIDER_TERMINAL"
+    assert payload["error_code"] != "BYOK_AUTH_FAILED"
+    assert payload["_failover_occurred"] is False
+    assert payload["final_reason_class"] == "auth_or_config"
+
+
+def test_error_payload_carries_no_prompt_content():
+    exc = fo.FailoverExhaustedError("x", [{"provider": "groq", "model": "m",
+                                        "outcome_class": "server_error",
+                                        "duration_ms": 1}],
+                                 "server_error", "cafe0000")
+    secret = "TOP-SECRET-CONCEPT-TEXT"
+    payload = failover_error_payload(exc, "Z")
+    assert secret not in json.dumps(payload)
+
+
+# ---------------------------------------------------------------------------
+# Quality / veto / synthesis invariants after a hop (B-90-9)
+# ---------------------------------------------------------------------------
+
+class _XStub:
+    innovation_score = 8.0
+    strategic_value = 8.0
+
+
+class _ZStub:
+    def __init__(self, ethics_score=8.0, veto=False):
+        self.ethics_score = ethics_score
+        self.veto_triggered = veto
+
+
+class _CSStub:
+    security_score = 8.0
+
+
+def test_hop_never_upgrades_inference_quality(gemini_backup):
+    gemini_backup._script = [_ok(quality="fallback")]
+    provider = _marked([APITimeoutError()])
+    response = _run(provider)
+    assert response["_inference_quality"] == "fallback"   # degraded stays degraded
+
+
+def test_degraded_hop_quality_still_caps_synthesis_at_revise(gemini_backup):
+    """B-90-9: the degraded-cap consumers read the hop's TRUE final quality —
+    a hopped consultation that landed degraded cannot auto-clear a concept."""
+    from verifimind_mcp.utils.synthesis import (
+        calculate_overall_score, determine_recommendation,
+    )
+    gemini_backup._script = [_ok(quality="fallback")]
+    provider = _marked([APITimeoutError()])
+    z_quality = _run(provider)["_inference_quality"]
+    assert z_quality == "fallback"
+
+    score = calculate_overall_score(_XStub(), _ZStub(), _CSStub(), z_quality)
+    assert score <= 4.0                                    # degraded cap holds
+    assert determine_recommendation(score, _ZStub(), _CSStub(), z_quality) == "revise"
+
+
+def test_z_veto_preserved_after_hop(gemini_backup):
+    """B-90-9: a veto carried by a hopped-to provider's output still rejects
+    and still caps the score at 3.0 — failover never dilutes the veto."""
+    from verifimind_mcp.utils.synthesis import (
+        calculate_overall_score, determine_recommendation,
+    )
+    gemini_backup._script = [_ok(quality="real")]
+    provider = _marked([APITimeoutError()])
+    z_quality = _run(provider)["_inference_quality"]
+
+    veto_z = _ZStub(ethics_score=2.0, veto=True)
+    score = calculate_overall_score(_XStub(), veto_z, _CSStub(), z_quality)
+    assert score <= 3.0                                    # veto cap holds
+    assert determine_recommendation(score, veto_z, _CSStub(), z_quality) == "reject"
+
+
+def test_telemetry_is_privacy_minimal(gemini_backup):
+    provider = _marked([InternalServerError(), InternalServerError()])
+    response = _run(provider)
+    for attempt in response["_provider_attempts"]:
+        assert set(attempt) == {"provider", "model", "outcome_class", "duration_ms"}
+
+
+def test_terminal_error_carries_no_prompt_content():
+    provider = _marked([AuthenticationError()])
+    secret_prompt = "TOP-SECRET-CONCEPT-TEXT"
+    with pytest.raises(fo.FailoverTerminalError) as excinfo:
+        _run(provider, prompt=secret_prompt)
+    assert secret_prompt not in repr(excinfo.value)
+    assert secret_prompt not in repr(excinfo.value.attempts)
+
+
+# ---------------------------------------------------------------------------
+# B-92-1: explicit terminal truth — the payload carries what ACTUALLY happened
+# ---------------------------------------------------------------------------
+
+def test_admission_rejected_terminal_truth(gemini_backup):
+    """T's S92 probe, permanent: saturated admission => the terminal reason is
+    the rejection (not the preceding timeout), no failover is reported, and
+    the final provider is the one that actually ran inference."""
+    for _ in range(fo.DEFAULT_BACKUP_ADMISSION_LIMIT):
+        assert fo.admit_backup("gemini") is True
+    provider = _marked([APITimeoutError()])
+    with pytest.raises(fo.FailoverExhaustedError) as excinfo:
+        _run(provider)
+    exc = excinfo.value
+    assert exc.final_reason_class == "backup_admission_rejected"
+    assert exc.final_provider == "groq"
+    assert exc.hop_executed is False
+    assert exc.attempts[-1]["outcome_class"] == "backup_admission_rejected"
+    assert gemini_backup.calls == 0     # backup inference never executed
+
+
+def test_hop_target_circuit_skip_terminal_truth(gemini_backup):
+    for _ in range(fo.CIRCUIT_FAILURE_THRESHOLD):
+        fo.record_provider_failure("gemini")
+    provider = _marked([APITimeoutError()])
+    with pytest.raises(fo.FailoverExhaustedError) as excinfo:
+        _run(provider)
+    exc = excinfo.value
+    assert exc.final_reason_class == "hop_target_circuit_open"
+    assert exc.final_provider == "groq"
+    assert exc.hop_executed is False
+    assert gemini_backup.calls == 0
+
+
+def test_construction_failure_terminal_truth(monkeypatch):
+
+    def _boom(name):
+        raise ValueError("GEMINI_API_KEY not configured")
+    monkeypatch.setattr(llm_pkg, "get_provider", _boom)
+    provider = _marked([APITimeoutError()])
+    with pytest.raises(fo.FailoverExhaustedError) as excinfo:
+        _run(provider)
+    exc = excinfo.value
+    assert exc.final_reason_class == "hop_construction_failed"
+    assert exc.final_provider == "groq"
+    assert exc.hop_executed is False
+
+
+def test_deadline_terminal_truth(monkeypatch):
+    monkeypatch.setenv(fo.TOTAL_DEADLINE_ENV, "-1")
+    provider = _marked([_ok()])
+    with pytest.raises(fo.FailoverExhaustedError) as excinfo:
+        _run(provider)
+    exc = excinfo.value
+    assert exc.final_reason_class == "total_deadline_exhausted"
+    assert exc.final_provider is None   # no inference attempt ever ran
+    assert exc.hop_executed is False
+
+
+def test_executed_hop_reports_true_final_provider(gemini_backup):
+    gemini_backup._script = [InternalServerError()]
+    provider = _marked([APITimeoutError()])
+    with pytest.raises(fo.FailoverExhaustedError) as excinfo:
+        _run(provider)
+    exc = excinfo.value
+    assert exc.hop_executed is True            # backup inference DID run
+    assert exc.final_provider == "gemini"
+    assert exc.final_reason_class == "server_error"
+
+
+# ---------------------------------------------------------------------------
+# B-92-2: evidence validation is genuinely fail-closed
+# ---------------------------------------------------------------------------
+
+def test_evidence_rejects_date_only(monkeypatch):
+    """T's S92 probe: FAILOVER_CONTRACT_TESTED_AT=2026-07-25 must NOT validate."""
+    monkeypatch.setenv(fo.EVIDENCE_TESTED_ENV, "2026-07-25")
+    assert fo.evidence_state()["valid"] is False
+    assert fo.runtime_failover_enabled() is False
+
+
+def test_evidence_rejects_naive_timestamp(monkeypatch):
+    monkeypatch.setenv(fo.EVIDENCE_TESTED_ENV, "2026-07-25T00:00:00")
+    assert fo.evidence_state()["valid"] is False
+
+
+def test_evidence_rejects_material_future_timestamp(monkeypatch):
+    """T's S92 probe: 2999-01-01T00:00:00Z must NOT validate (evidence cannot
+    postdate reality beyond bounded clock skew)."""
+    monkeypatch.setenv(fo.EVIDENCE_TESTED_ENV, "2999-01-01T00:00:00Z")
+    assert fo.evidence_state()["valid"] is False
+
+
+def test_evidence_allows_bounded_clock_skew(monkeypatch):
+    near = (datetime.now(timezone.utc) + timedelta(seconds=60)).isoformat()
+    monkeypatch.setenv(fo.EVIDENCE_TESTED_ENV, near)
+    assert fo.evidence_state()["valid"] is True
+    far = (datetime.now(timezone.utc)
+           + timedelta(seconds=2 * fo.EVIDENCE_CLOCK_SKEW_S)).isoformat()
+    monkeypatch.setenv(fo.EVIDENCE_TESTED_ENV, far)
+    assert fo.evidence_state()["valid"] is False
+
+
+def test_evidence_rejects_weak_build_identity(monkeypatch):
+    """T's S92 probe: FAILOVER_EVIDENCE_BUILD=x must NOT validate."""
+    monkeypatch.setenv(fo.EVIDENCE_BUILD_ENV, "x")
+    assert fo.evidence_state()["valid"] is False
+    assert fo.runtime_failover_enabled() is False
+
+
+def _write_identity(monkeypatch, tmp_path, value):
+    """Point the image-owned identity file at a fresh per-test value
+    (None = the file is absent, as in an image built without the bake)."""
+    identity_file = tmp_path / "identity_override"
+    if value is None:
+        monkeypatch.setattr(fo, "_BUILD_IDENTITY_FILE",
+                            str(tmp_path / "missing_identity"))
+        return
+    identity_file.write_text(value, encoding="utf-8")
+    monkeypatch.setattr(fo, "_BUILD_IDENTITY_FILE", str(identity_file))
+
+
+def test_unrelated_sha_never_validates_against_live_revision(monkeypatch, tmp_path):
+    """B-93-1 regression — T's S93 counterexample verbatim: a SHA-shaped but
+    unrelated value ('deadbee') must NOT enable when the live revision names
+    a different artifact and no image identity matches."""
+    monkeypatch.setenv("K_REVISION", "verifimind-mcp-server-00484-qrt")
+    _write_identity(monkeypatch, tmp_path, None)
+    monkeypatch.setenv(fo.EVIDENCE_BUILD_ENV, "deadbee")
+    assert fo.evidence_state()["valid"] is False
+    assert fo.runtime_failover_enabled() is False
+
+
+def test_sha_syntax_alone_never_validates(monkeypatch, tmp_path):
+    """B-93-1: with NO binding source at all (no K_REVISION, no image
+    identity file), a well-formed SHA identifies nothing and must fail."""
+    _write_identity(monkeypatch, tmp_path, None)
+    monkeypatch.setenv(fo.EVIDENCE_BUILD_ENV, "abc1234")
+    assert fo.evidence_state()["valid"] is False
+    assert fo.runtime_failover_enabled() is False
+
+
+def test_sha_binds_only_to_image_owned_identity(monkeypatch, tmp_path):
+    """The Cloud Run flip path: FAILOVER_EVIDENCE_BUILD must equal the
+    identity the image itself carries — matching enables, any other fails."""
+    _write_identity(monkeypatch, tmp_path, "9352f4cabc")
+    monkeypatch.setenv(fo.EVIDENCE_BUILD_ENV, "9352f4cabc")
+    assert fo.evidence_state()["valid"] is True
+    monkeypatch.setenv(fo.EVIDENCE_BUILD_ENV, "deadbee")
+    assert fo.evidence_state()["valid"] is False
+
+
+def test_service_env_can_never_shadow_image_identity(monkeypatch, tmp_path):
+    """B-95-1 regression — T's S95 reproduction: a PERSISTED service-level
+    BUILD_COMMIT_SHA env var (inherited from artifact A across revisions)
+    must be IGNORED — env vars are not a trust source. Only the image-owned
+    file binds; with image B's file absent or different, A's evidence dies
+    even though the stale env var still matches it."""
+    monkeypatch.setenv("K_REVISION", "verifimind-mcp-server-00500-bbb")
+    monkeypatch.setenv("BUILD_COMMIT_SHA", "aaaa111")   # stale service override
+    monkeypatch.setenv(fo.EVIDENCE_BUILD_ENV, "aaaa111")
+    _write_identity(monkeypatch, tmp_path, None)        # image B: no bake
+    assert fo.evidence_state()["valid"] is False
+    assert fo.runtime_failover_enabled() is False
+    _write_identity(monkeypatch, tmp_path, "bbbb222")   # image B: own identity
+    assert fo.evidence_state()["valid"] is False
+    assert fo.runtime_failover_enabled() is False
+
+
+def test_evidence_accepts_running_revision_binding(monkeypatch):
+    monkeypatch.setenv("K_REVISION", "verifimind-mcp-server-00490-abc")
+    monkeypatch.setenv(fo.EVIDENCE_BUILD_ENV, "verifimind-mcp-server-00490-abc")
+    assert fo.evidence_state()["valid"] is True
+    monkeypatch.setenv(fo.EVIDENCE_BUILD_ENV, "verifimind-mcp-server-00489-old")
+    assert fo.evidence_state()["valid"] is False   # stale revision != running
+
+
+# ---------------------------------------------------------------------------
+# B-92-3: correlation survives to SUCCESSFUL MCP-facing payloads
+# ---------------------------------------------------------------------------
+
+def test_base_agent_lifts_correlation_end_to_end(gemini_backup):
+    """Full stack: marked provider -> failover hop -> BaseAgent.analyze ->
+    result carries attempts + correlation -> the payload writer exposes them.
+    This asserts the actual MCP-facing success contract, not the executor."""
+    from verifimind_mcp.agents.x_agent import XAgent
+    from verifimind_mcp.models import Concept
+
+    valid_x = {
+        "reasoning_steps": [{"step_number": 1, "thought": "t"}],
+        "innovation_score": 7.0, "strategic_value": 7.0,
+        "opportunities": [], "risks": [], "recommendation": "proceed",
+        "confidence": 0.8,
+    }
+    gemini_backup._script = [{"content": valid_x,
+                              "usage": {"output_tokens": 5},
+                              "_inference_quality": "real"}]
+    provider = _marked([APITimeoutError()])
+    agent = XAgent(llm_provider=provider)
+    result = asyncio.run(agent.analyze(Concept(name="C", description="D")))
+
+    assert result._failover_occurred is True
+    assert len(result._failover_correlation) == 8
+    payload = {}
+    attach_failover_disclosure(payload, result)
+    assert payload["_failover_correlation"] == result._failover_correlation
+    assert payload["_failover_occurred"] is True
+    assert payload["_provider_attempts"][-1]["provider"] == "gemini"
+
+
+def test_trinity_meta_exposes_per_stage_correlations():
+
+    class _Plain:
+        pass
+
+    class _Hopped:
+        _provider_attempts = [
+            {"provider": "groq", "model": "m",
+             "outcome_class": "attempt_timeout", "duration_ms": 3},
+            {"provider": "gemini", "model": "m2",
+             "outcome_class": "success", "duration_ms": 9}]
+        _failover_occurred = True
+        _failover_correlation = "cafe1234"
+
+    meta = trinity_failover_meta({"X": _Plain(), "Z": _Hopped(), "CS": _Plain()})
+    assert set(meta["_provider_attempts"]) == {"Z"}
+    assert meta["_failover_occurred"] is True
+    assert meta["_failover_correlations"] == {"Z": "cafe1234"}
+    assert trinity_failover_meta({"X": _Plain(), "Z": _Plain(), "CS": _Plain()}) == {}
+
+
+# ---------------------------------------------------------------------------
+# B-92-4: permanent concurrency + aggregate-budget evidence
+# ---------------------------------------------------------------------------
+
+class HangingBackup:
+    """Backup that holds its admission slot until released — lets tests prove
+    CONCURRENT bulkhead behavior deterministically."""
+
+    def __init__(self, release):
+        self._release = release
+        self.calls = 0
+
+    async def generate(self, **kwargs):
+        self.calls += 1
+        await self._release.wait()
+        return _ok()
+
+    def get_model_name(self):
+        return "gemini/backup-model"
+
+
+def test_concurrent_backup_admission_bulkhead(monkeypatch):
+    """Executor-level (T B-92-4): four concurrent consultations hop; with
+    limit 2, exactly two hold admission while two reject; released holders
+    complete as genuine failover; nothing stays held."""
+    monkeypatch.setenv(fo.ADMISSION_LIMIT_ENV, "2")
+
+    async def scenario():
+        release = asyncio.Event()
+        backup = HangingBackup(release)
+        monkeypatch.setattr(llm_pkg, "get_provider", lambda name: backup)
+
+        async def one():
+            return await fo.generate_with_failover(
+                _marked([APITimeoutError()]), prompt="p", output_schema={},
+                temperature=0.2, max_tokens=64)
+
+        tasks = [asyncio.ensure_future(one()) for _ in range(4)]
+        for _ in range(200):                      # bounded wait, no fixed sleep
+            await asyncio.sleep(0.01)
+            if sum(t.done() for t in tasks) >= 2 and backup.calls >= 2:
+                break
+        assert fo.admission_snapshot() == {"gemini": 2}   # exactly limit held
+        rejected = [t.exception() for t in tasks if t.done()]
+        assert len(rejected) == 2
+        for exc in rejected:
+            assert isinstance(exc, fo.FailoverExhaustedError)
+            assert exc.final_reason_class == "backup_admission_rejected"
+            assert exc.hop_executed is False
+        release.set()
+        results = await asyncio.gather(*[t for t in tasks if not t.done()])
+        assert all(r["_failover_occurred"] is True for r in results)
+        assert fo.admission_snapshot() == {}              # every hold returned
+    asyncio.run(scenario())
+
+
+def test_cancelled_admitted_backup_returns_hold(monkeypatch):
+
+    async def scenario():
+        release = asyncio.Event()
+        backup = HangingBackup(release)
+        monkeypatch.setattr(llm_pkg, "get_provider", lambda name: backup)
+        task = asyncio.ensure_future(fo.generate_with_failover(
+            _marked([APITimeoutError()]), prompt="p", output_schema={},
+            temperature=0.2, max_tokens=64))
+        for _ in range(200):
+            await asyncio.sleep(0.01)
+            if backup.calls == 1:
+                break
+        assert fo.admission_snapshot() == {"gemini": 1}   # admitted + in flight
+        task.cancel()
+        assert await _await_cancelled(task) is True
+        assert fo.admission_snapshot() == {}              # hold returned on cancel
+    asyncio.run(scenario())
+
+
+def test_consultation_call_and_token_ceiling(gemini_backup):
+    """The aggregate consultation budget, stated and enforced: at most
+    MAX_ATTEMPTS inference calls, each bounded by the caller's max_tokens —
+    the worst-case output-token ceiling is MAX_ATTEMPTS x max_tokens."""
+    gemini_backup._script = [APIConnectionError()]
+    provider = _marked([APIConnectionError(), APIConnectionError()])
+    with pytest.raises(fo.FailoverExhaustedError):
+        _run(provider)
+    assert provider.calls + gemini_backup.calls == fo.MAX_ATTEMPTS
+    for kwargs in provider.seen_kwargs + gemini_backup.seen_kwargs:
+        assert kwargs["max_tokens"] == 64
+
+
+# ---------------------------------------------------------------------------
+# B-94-1: identity binds ACROSS deployment transitions — machine-checkable
+# receipts that every live deploy path bakes the comparator INTO the image
+# and never sets it at the service level (a service value would let artifact
+# B inherit artifact A's evidence).
+# ---------------------------------------------------------------------------
+
+_MCP_SERVER_DIR = Path(__file__).resolve().parents[3]
+_REPO_ROOT = _MCP_SERVER_DIR.parent
+
+
+def test_artifact_b_cannot_inherit_artifact_a_evidence(monkeypatch, tmp_path):
+    """B-94-1 regression — T's S94 counterexample: image A stamps evidence A
+    and enables; a different artifact B must NOT stay enabled on A's
+    evidence, whether B carries no identity file or its own different one."""
+    _write_identity(monkeypatch, tmp_path, "aaaa111")     # image A, baked file
+    monkeypatch.setenv(fo.EVIDENCE_BUILD_ENV, "aaaa111")  # operator stamped A
+    assert fo.runtime_failover_enabled() is True          # artifact A: enabled
+
+    # transition 1: image B built WITHOUT the bake (a non-conforming path) —
+    # image-carried semantics mean the identity file VANISHES with the image
+    _write_identity(monkeypatch, tmp_path, None)
+    monkeypatch.setenv("K_REVISION", "verifimind-mcp-server-00500-bbb")
+    assert fo.evidence_state()["valid"] is False
+    assert fo.runtime_failover_enabled() is False         # stale evidence dies
+
+    # transition 2: image B carries its OWN identity — A's evidence still dies
+    _write_identity(monkeypatch, tmp_path, "bbbb222")
+    assert fo.evidence_state()["valid"] is False
+    assert fo.runtime_failover_enabled() is False
+
+
+def test_dockerfiles_bake_immutable_identity():
+    """Both production Dockerfiles must carry the ARG->ENV bake so the
+    comparator travels with the image, never with the service."""
+    for dockerfile in (_REPO_ROOT / "Dockerfile", _MCP_SERVER_DIR / "Dockerfile"):
+        src = dockerfile.read_text(encoding="utf-8")
+        assert "ARG COMMIT_SHA" in src, dockerfile
+        # B-95-1: the identity is a FILE (service-unshadowable), never ENV
+        assert '> /app/.build_commit_sha' in src, dockerfile
+        assert "ENV BUILD_COMMIT_SHA" not in src, dockerfile
+
+
+def test_trigger_pipeline_bakes_identity_and_never_service_sets_it():
+    """Root cloudbuild.yaml (the trigger path): --build-arg present in the
+    build step; BUILD_COMMIT_SHA absent from every service env-var flag."""
+    src = (_REPO_ROOT / "cloudbuild.yaml").read_text(encoding="utf-8")
+    assert "--build-arg" in src
+    assert "COMMIT_SHA=$COMMIT_SHA" in src
+    for line in src.splitlines():
+        if "env-vars" in line or "BUILD_COMMIT_SHA=" in line:
+            assert "BUILD_COMMIT_SHA=" not in line, (
+                "service-level comparator reintroduces cross-deploy inheritance")
+
+
+def test_manual_deploy_path_bakes_identity():
+    """deploy-cloudrun.sh (the /verifimind-deploy path) must build via
+    cloudbuild-image.yaml with the commit substitution — `gcloud builds
+    submit --tag` cannot pass --build-arg, which was B-94-1's opening."""
+    script = (_MCP_SERVER_DIR / "deploy-cloudrun.sh").read_text(encoding="utf-8")
+    assert "cloudbuild-image.yaml" in script
+    assert "_COMMIT_SHA=" in script
+    assert "git rev-parse HEAD" in script
+    config = (_MCP_SERVER_DIR / "cloudbuild-image.yaml").read_text(encoding="utf-8")
+    assert "--build-arg" in config
+    assert "COMMIT_SHA=$_COMMIT_SHA" in config
+    for line in script.splitlines():
+        if "BUILD_COMMIT_SHA=" in line and not line.strip().startswith("#"):
+            raise AssertionError("deploy script must never service-set the comparator")
+
+
+def test_manual_deploy_rejects_dirty_source():
+    """B-95-2 receipt: `gcloud builds submit` uploads WORKING-DIRECTORY
+    bytes while `git rev-parse HEAD` names the committed tree — the script
+    must refuse dirty/untracked state and require origin/main parity BEFORE
+    computing the identity label, so bytes B can never wear label A."""
+    script = (_MCP_SERVER_DIR / "deploy-cloudrun.sh").read_text(encoding="utf-8")
+    assert "git status --porcelain" in script
+    assert "git fetch origin" in script
+    assert "origin/main" in script
+    # the guards must run BEFORE the build is submitted
+    assert script.index("git status --porcelain") < script.index("cloudbuild-image.yaml")
+    assert script.index("origin/main") < script.index("cloudbuild-image.yaml")
+
+
+def test_legacy_deploy_path_hard_retired():
+    """B-95-3 receipt: deploy-gcp.sh must be a fail-closed stub — no build,
+    no push, no deploy commands; execution exits 1."""
+    stub = (_MCP_SERVER_DIR / "deploy-gcp.sh").read_text(encoding="utf-8")
+    assert "RETIREMENT-STUB-MARKER" in stub
+    assert "exit 1" in stub
+    for live_command in ("gcloud run deploy", "gcloud builds submit",
+                         "docker build", "docker push"):
+        assert live_command not in stub, f"retired stub still carries: {live_command}"
+
+
+# B-97-1/B-98-1/B-99-1/B-100-1/B-101-1: a VERSIONED deployment-capability
+# signature registry. Lineage: v1 extension filter (missed a live .md
+# command — B-96-1); v2 literal markers over all files (missed a GitHub
+# Actions deploy wrapper — B-97-1: capability-equivalent execution); v3
+# encoding families (missed valid GRAMMAR variants — B-98-1: unquoted
+# YAML, Windows casing); v4 grammar normalization by regex (missed
+# SEMANTIC equivalence — B-99-1: comments, flow style, services-replace);
+# v5 parses structured config on the semantic token sequence (missed the
+# COMMAND grammar's optional dimension — B-100-1: release-track
+# prefixes); v6 expresses the gcloud shell family as GRAMMAR with the
+# alpha/beta release-track POSITION modeled (missed the gcloud-WIDE FLAG
+# slot — B-101-1: `gcloud --project=x run deploy` is SDK-accepted with
+# global flags legally preceding the command tree); v7 models the
+# gcloud-wide flag slot as bounded tokens before the track AND before
+# the effect group, covering both value encodings (`--flag=value`,
+# `--flag value`) and bare boolean flags (missed the ORDER of
+# interpretation — B-102: raw source-character adjacency cannot see
+# quoted values with spaces, POSIX backslash-newline continuations, or
+# flags between LATER command-tree tokens like `gcloud run --project=x
+# deploy`); v8 LEXES BEFORE GRAMMAR — supported shell presentation
+# (quotes, unquoted continuations) normalizes into bounded argv-like
+# tokens FIRST, then a token-level command grammar with flag slots at
+# EVERY tree boundary classifies the effect; unlexable gcloud candidates
+# fail CLOSED as their own family (missed CROSS-FILE effect binding —
+# B-103-1: a marker-free `gcloud builds submit` resolves the DEFAULT
+# repository cloudbuild.yaml which deploys the service, so the same-file
+# service-marker guard hid the carrier); v9 checks the builds-submit
+# tree BEFORE the marker guard (conservative: run/services trees name
+# their target as an argument, builds-submit binds its target through a
+# separately resolved config) and lexes substitution delimiters
+# (backticks, parens) as token boundaries (missed CARRIER-GRAMMAR PARITY
+# — B-104-1: the pre-marker lane preserved only the Unix `is True` token
+# result, so five presentation forms the SAME-marker lane already
+# recognizes — uppercase Windows scripts, ambiguous/unlexable shell,
+# quoted command words, semicolon-delimited commands, PowerShell
+# backtick continuations — became invisible when the target was
+# inherited cross-file: "moving target binding across files must not
+# shrink the supported carrier grammar"); v10 factors carrier semantics
+# into ONE shared normalization + capability path used by BOTH lanes
+# (Windows script formats case-insensitive, ambiguity propagates
+# fail-closed pre-marker, command separators and PowerShell
+# continuations are lexical structure) (missed that SHARED NORMALIZATION
+# IS NOT SHARED CAPABILITY — B-105-1: CMD caret-newline continuation in
+# a marker-free `.cmd` escaped because the normalizer knew POSIX and
+# PowerShell continuations but not CMD's, and the two lanes still made
+# DIFFERENT capability decisions; the textual fallback also classified
+# bare prose and `othercli builds submit` — a phrase is not a command
+# identity); v11 makes ONE filename- and platform-aware capability
+# decision (`_builds_submit_capability`) consumed by BOTH lanes —
+# platform-scoped continuations (POSIX backslash / PS backtick `.ps1` /
+# CMD caret `.bat`/`.cmd`), CMD REM/:: comments, and an identity-bound
+# textual fallback (gcloud + bounded grammar, never a phrase). Bounded
+# goal unchanged: truthful coverage of the repo's supported deployment
+# grammars — not universal shell AST or working-directory analysis.
+# (v11 missed EXECUTABLE-IDENTITY × GRAMMAR COMPOSITION — B-106-1:
+# `gcloud.cmd --project=x builds submit` is SDK-accepted, but the token
+# walk demanded literal `gcloud` at token zero while the textual
+# fallback knew `.cmd`/`.exe` only in direct adjacency — identity
+# spellings and command grammar behaved as ALTERNATIVES, not composed
+# dimensions); v12 canonicalizes supported executable spellings
+# (`gcloud` / `gcloud.cmd` / `gcloud.exe`, quoted/path forms via the
+# existing anchor) to ONE identity BEFORE the token grammar, so every
+# already-modeled slot (global flags, release tracks, inter-tree flags)
+# composes with every supported spelling. (v12 missed CMD IN-TOKEN
+# caret ESCAPING — B-107-1: outside double quotes CMD's caret escapes
+# the NEXT CHARACTER, so `gcl^oud.cmd` / `bu^ilds` / `sub^mit` /
+# `^--project` all execute as the governed command while the detector
+# saw fragmented literals; caret-newline continuation was only the
+# special case of escaping a newline); v13 applies quote-aware bounded
+# CMD unescaping (`^^`→`^` literal, `^X`→`X`, caret-newline→join,
+# quoted carets stay literal) for `.bat`/`.cmd` ONLY, before identity
+# and grammar — POSIX carets are just characters (named negative).
+
+DEPLOY_CAPABILITY_SIGNATURES = {
+    "version": 13,
+    "families": {
+        "github_actions_wrapper": ("deploy-cloudrun@",
+                                   "google-github-actions/deploy-cloudrun"),
+        "declarative_cloud_run": ("run.googleapis.com",
+                                  "serving.knative.dev"),
+    },
+    # v8 token grammar (B-102): the shell family is matched on LEXED
+    # tokens, not source characters. Unix commands stay CASE-SENSITIVE.
+    # Effect trees are finite token sequences; the optional release track
+    # precedes the tree; gcloud-wide flag slots exist at EVERY tree
+    # boundary (before the track, before the tree, and between tree
+    # tokens — `gcloud run --project=x deploy` is SDK-accepted). Flag
+    # arity (equals / split value / bare boolean / short form) resolves
+    # by token-level backtracking, not a per-flag table.
+    "effect_token_trees": (("run", "deploy"),
+                           ("run", "services", "update"),
+                           ("run", "services", "replace"),
+                           ("builds", "submit")),
+    "release_tracks": ("alpha", "beta"),
+    # Non-gcloud shell literals (docker: different executable, no
+    # tracks). B-105-1 removed the bare 'builds submit' phrase — the
+    # builds-submit family now binds gcloud COMMAND IDENTITY through the
+    # one shared capability decision, never a phrase.
+    "shell_literals": ("docker push",),
+    # Textual fallback layer for yaml-esque fragments EMBEDDED in prose
+    # (a .md carrying a snippet won't parse as a whole document); the
+    # semantic layer below supersedes this for parseable documents.
+    "cloudbuild_deploy_token": re.compile(
+        r"^\s*-\s*['\"]?deploy['\"]?\s*(#.*)?$", re.MULTILINE),
+    # Windows script formats: suffix and command text are CASE-INSENSITIVE
+    # on the executing platform (B-98-1 B), so detection normalizes case
+    # WITHIN these formats only.
+    "script_suffixes": (".bat", ".cmd", ".ps1"),
+    "script_marker": "gcloud",
+    # Semantic layer (v5): args tokens that constitute a same-service
+    # deployment when found in a parsed Cloud Build step.
+    "semantic_deploy_verbs": ("deploy", "replace", "update"),
+}
+
+SERVICE_NAME_MARKER = "verifimind-mcp-server"
+
+
+def _cloudbuild_semantic_capability(text):
+    """Parse candidate structured config (YAML or JSON — YAML is a
+    superset) and authorize on the SEMANTIC token sequence (B-99-1):
+    block/flow style, quotation, and inline comments are presentation
+    detail; `steps[*].entrypoint` + the parsed `args` list are the truth.
+
+    Returns: True (deploy-capable), False (not), or "malformed" — a file
+    that LOOKS like structured build config but cannot be parsed cannot
+    prove its innocence and must fail CLOSED (T contract 3)."""
+    if "args" not in text and "steps" not in text:
+        return False        # not candidate structured config at all
+    try:
+        docs = list(yaml.safe_load_all(text))
+    except yaml.YAMLError:
+        return "malformed"
+    verbs = DEPLOY_CAPABILITY_SIGNATURES["semantic_deploy_verbs"]
+    for doc in docs:
+        if not isinstance(doc, dict):
+            continue
+        steps = doc.get("steps")
+        candidates = steps if isinstance(steps, list) else [doc]
+        for step in candidates:
+            if not isinstance(step, dict):
+                continue
+            args = step.get("args")
+            if not isinstance(args, list):
+                continue
+            tokens = [str(item) for item in args]
+            entrypoint = str(step.get("entrypoint", "")).lower()
+            name = str(step.get("name", "")).lower()
+            gcloudish = ("gcloud" in entrypoint or "cloud-sdk" in name
+                         or "cloud-builders" in name or not (entrypoint or name))
+            if gcloudish and any(verb in tokens for verb in verbs):
+                return True
+            if "push" in tokens and "docker" in (entrypoint + name):
+                return True
+    return False
+
+
+def _tokens_reach_effect(tokens, trees=None):
+    """Token-level command grammar (v8): can `tokens` (starting at the
+    token AFTER `gcloud`) be read as [flag-slot] [track] [flag-slot]
+    tree-token [flag-slot] tree-token ... for any bounded effect tree?
+    A flag token is dash-prefixed; without `=` it MAY consume one
+    following non-dash token as its value — both readings are tried
+    (backtracking), so bare booleans release the next command token."""
+    if trees is None:
+        trees = DEPLOY_CAPABILITY_SIGNATURES["effect_token_trees"]
+    tracks = DEPLOY_CAPABILITY_SIGNATURES["release_tracks"]
+
+    def walk(ti, tree, ci, track_allowed):
+        if ci == len(tree):
+            return True
+        if ti >= len(tokens):
+            return False
+        tok = tokens[ti]
+        if tok.startswith("-") and len(tok) > 1:
+            if walk(ti + 1, tree, ci, track_allowed):     # bare flag
+                return True
+            if ("=" not in tok and ti + 1 < len(tokens)
+                    and not tokens[ti + 1].startswith("-")):
+                return walk(ti + 2, tree, ci, track_allowed)  # flag + value
+            return False
+        if track_allowed and ci == 0 and tok in tracks:
+            return walk(ti + 1, tree, ci, False)
+        if tok == tree[ci]:
+            return walk(ti + 1, tree, ci + 1, False)
+        return False
+
+    return any(walk(0, tree, 0, True) for tree in trees)
+
+
+def _cmd_unescape(text):
+    """CMD unquoted caret semantics (B-107-1, T's shim proof: all four
+    fragmented carriers execute as the governed command). Outside double
+    quotes the caret escapes the NEXT character: `^^` -> literal `^`,
+    `^X` -> `X` (so `gcl^oud` IS `gcloud` to CMD), caret-newline -> line
+    continuation (the special case of escaping a newline). Inside double
+    quotes carets are LITERAL — a quoted `"bu^ilds"` reaches the program
+    with its caret and is NOT the governed verb (quote semantics
+    preserved per T contract 2). Applied to `.bat`/`.cmd` lanes only —
+    a POSIX caret is just a character."""
+    out = []
+    in_quote = False
+    i = 0
+    while i < len(text):
+        ch = text[i]
+        if ch == '"':
+            in_quote = not in_quote
+            out.append(ch)
+        elif ch == "^" and not in_quote:
+            nxt = text[i + 1:i + 2]
+            if nxt == "\r" and text[i + 2:i + 3] == "\n":
+                out.append(" ")
+                i += 3
+                continue
+            if nxt == "\n":
+                out.append(" ")
+                i += 2
+                continue
+            if nxt:                     # ^^ -> ^ ; ^X -> X
+                out.append(nxt)
+                i += 2
+                continue
+            # trailing caret at end-of-text escapes nothing: drop
+        else:
+            out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def _normalized_shell_text(text, filename=""):
+    """ONE shared lexical normalization for every carrier lane, with
+    PLATFORM-SCOPED continuation semantics (B-105-1: each platform's
+    presentation rules apply where that platform executes).
+
+    - POSIX: an unquoted backslash-newline pair is removed before token
+      splitting (the continuation joins one logical command line).
+    - PowerShell: backtick-newline continuation joins — scoped to `.ps1`.
+    - CMD: caret-newline continuation joins — scoped to `.bat`/`.cmd`
+      (T's shim proof: CMD delivers `gcloud builds ^\\n submit` to the
+      executable as joined `builds submit`).
+    - Comments are lexical and platform-true: unquoted `#` everywhere;
+      `REM`/`::` lines in CMD formats — a comment MENTION cannot execute
+      (capability claims, not mentions). The quoted-# edge degrades to
+      an unbalanced-quote lex failure = ambiguous = fail CLOSED.
+    - Substitution delimiters (backticks, parens) and command separators
+      (`;`, `&`, `|`) EXECUTE or delimit their content — they lex as
+      token boundaries. Quoted values keep token integrity regardless;
+      replacing errs toward detection — the safe direction."""
+    suffix = filename.lower()
+    normalized = re.sub(r"\\\r?\n", " ", text)          # POSIX continuation
+    if suffix.endswith(".ps1"):
+        normalized = re.sub(r"`\r?\n", " ", normalized)  # PowerShell continuation
+    if suffix.endswith((".bat", ".cmd")):
+        normalized = _cmd_unescape(normalized)  # B-107-1: quote-aware caret
+        normalized = re.sub(r"(?im)^\s*(?:rem\s|::).*$", "", normalized)
+    normalized = re.sub(r"(^|\s)#.*?$", r"\1", normalized, flags=re.MULTILINE)
+    return re.sub(r"[`();&|]", " ", normalized)
+
+
+# B-106-1: supported executable SPELLINGS canonicalize to one identity
+# BEFORE the grammar — `gcloud`, `gcloud.cmd`, `gcloud.exe` are the same
+# executable, so every modeled grammar slot (global flags, release
+# tracks, inter-tree flags) must compose with every spelling. fullmatch
+# keeps the bound honest: `gcloud-related`/`gcloud.command` are NOT the
+# executable.
+_EXECUTABLE_SPELLINGS = re.compile(r"gcloud(?:\.cmd|\.exe)?")
+
+
+def _canonical_executable(token):
+    return "gcloud" if _EXECUTABLE_SPELLINGS.fullmatch(token) else token
+
+
+def _gcloud_token_capability(text, filename="", trees=None):
+    """Shell lexical layer (v8, B-102): normalize supported presentation
+    into bounded argv-like tokens BEFORE grammar matching. Supported
+    subset: single/double quoted values, POSIX unquoted backslash-newline
+    continuation (LF and CRLF), command-substitution delimiters. A gcloud
+    candidate the lexer cannot tokenize (e.g. unbalanced quote) cannot
+    prove its innocence — returns "ambiguous" (fail closed as its own
+    family).
+
+    Returns: True (deploy tokens reached), False, or "ambiguous"."""
+    normalized = _normalized_shell_text(text, filename)
+    ambiguous = False
+    for line in normalized.splitlines():
+        for hit in re.finditer(r"\bgcloud\b", line):   # case-sensitive: Unix
+            candidate = line[hit.start():]
+            try:
+                tokens = shlex.split(candidate, posix=True)
+            except ValueError:
+                ambiguous = True
+                continue
+            if tokens and _canonical_executable(tokens[0]) == "gcloud" \
+                    and _tokens_reach_effect(tokens[1:], trees):
+                return True
+    return "ambiguous" if ambiguous else False
+
+
+# B-105-1 guardrail: the textual fallback must bind the GCLOUD COMMAND
+# IDENTITY, never a bare phrase — prose ("how builds submit jobs are
+# queued") and other executables ("othercli builds submit") are not the
+# governed capability. Optional quotes tolerate the quoted-command
+# presentation ('"gcloud" builds submit'); optional .cmd/.exe tolerate
+# Windows executable spellings.
+_GCLOUD_BUILDS_SUBMIT_TEXTUAL = re.compile(
+    r"[\"']?\bgcloud\b(?:\.cmd|\.exe)?[\"']?\s+builds\s+submit\b")
+
+
+def _builds_submit_capability(text, filename):
+    """THE one filename- and platform-aware capability decision for the
+    builds-submit family (B-105-1: "sharing a normalizer is an
+    implementation fact; capability parity is the safety invariant").
+    Consumed by BOTH the marker-free lane and the post-marker lane —
+    there is no second decision to diverge. Supports: Unix
+    case-sensitive tokens, Windows case-INSENSITIVE script formats
+    (platform scope — Unix stays exact), platform-scoped continuations
+    (POSIX backslash / PS backtick / CMD caret via the shared
+    normalizer), the identity-bound textual fallback, and fail-closed
+    ambiguity. Returns True / False / "ambiguous"."""
+    trees = (("builds", "submit"),)
+    lanes = [text]
+    if filename.lower().endswith(DEPLOY_CAPABILITY_SIGNATURES["script_suffixes"]):
+        lanes.append(text.lower())
+    ambiguous = False
+    for lane in lanes:
+        token_result = _gcloud_token_capability(lane, filename, trees=trees)
+        if token_result is True:
+            return True
+        if token_result == "ambiguous":
+            ambiguous = True
+        if _GCLOUD_BUILDS_SUBMIT_TEXTUAL.search(
+                _normalized_shell_text(lane, filename)):
+            return True
+    return "ambiguous" if ambiguous else False
+
+
+def _detect_deploy_capability(text, filename):
+    """Pure detector: which encoding families make this content capable of
+    deploying the service? (Empty set = not deploy-capable.) Pure so each
+    family's known-negative fixture can be asserted without staging files."""
+    families = set()
+    # B-103-1 (checked BEFORE the same-file marker guard): effect binding
+    # crosses carriers — a lexable `gcloud builds submit` resolves the
+    # DEFAULT repository cloudbuild.yaml, which deploys the service, so
+    # the wrapper never needs the service literal in its own bytes.
+    # Conservative bound (T round-13 contract 5): the builds-submit tree
+    # ONLY — run deploy / services update|replace name their target as an
+    # argument, so the marker guard remains correct for those trees.
+    # B-104-1/B-105-1: this lane consumes THE one platform-aware
+    # capability decision ("moving target binding across files must not
+    # shrink the supported carrier grammar") — the SAME decision the
+    # post-marker lane consumes below, so parity holds by construction.
+    cross = _builds_submit_capability(text, filename)
+    if cross is True:
+        families.add("default_config_build")
+    elif cross == "ambiguous":
+        families.add("ambiguous_shell_candidate")   # fail closed
+    if SERVICE_NAME_MARKER not in text:
+        return families
+    for family, markers in DEPLOY_CAPABILITY_SIGNATURES["families"].items():
+        if any(marker in text for marker in markers):
+            families.add(family)
+    # v8 (B-102): LEX before grammar — the gcloud family is matched on
+    # normalized shell tokens; unlexable gcloud candidates fail CLOSED.
+    # B-105-1: the builds-submit binding reuses the ONE decision computed
+    # above (`cross`) — no post-marker phrase fallback remains; only the
+    # docker literal stays textual (different executable, no tracks).
+    shell = _gcloud_token_capability(text, filename)
+    if shell is True or cross is True \
+            or any(lit in text
+                   for lit in DEPLOY_CAPABILITY_SIGNATURES["shell_literals"]):
+        families.add("shell_command")
+    elif "ambiguous" in (shell, cross):
+        families.add("ambiguous_shell_candidate")   # fail closed
+    # Semantic layer applies to CANDIDATE structured config only: Cloud
+    # Build consumes YAML/JSON files (`--config=FILE`); prose and source
+    # files cannot BE a build config (their embedded snippets are covered
+    # by the textual token layer below).
+    if filename.lower().endswith((".yaml", ".yml", ".json")):
+        semantic = _cloudbuild_semantic_capability(text)
+        if semantic is True:
+            families.add("cloudbuild_args_semantic")
+        elif semantic == "malformed":
+            families.add("malformed_structured_config")   # fail closed
+    if DEPLOY_CAPABILITY_SIGNATURES["cloudbuild_deploy_token"].search(text):
+        families.add("cloudbuild_args_list")
+    # Windows semantics: case-insensitive suffix AND case-insensitive
+    # command text — but only within script formats (contract 3)
+    if filename.lower().endswith(DEPLOY_CAPABILITY_SIGNATURES["script_suffixes"]):
+        if DEPLOY_CAPABILITY_SIGNATURES["script_marker"] in text.lower():
+            families.add("script_indirection")
+    return families
+
+
+def _tracked_deploy_surfaces():
+    """Scan ALL tracked files through the capability detector."""
+    import subprocess
+    listing = subprocess.run(
+        ["git", "ls-files"], cwd=str(_REPO_ROOT),
+        capture_output=True, text=True, check=True).stdout.splitlines()
+    surfaces = {}
+    for name in listing:
+        try:
+            text = (_REPO_ROOT / name).read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        if _detect_deploy_capability(text, name):
+            surfaces[name] = text
+    return surfaces
+
+
+# --- B-97-1 known-negative fixtures: one per encoding family (T contract 3) --
+
+T_S97_ACTIONS_WRAPPER = """- uses: google-github-actions/deploy-cloudrun@v2
+  with:
+    service: verifimind-mcp-server
+    image: gcr.io/example/verifimind-mcp-server:synthetic
+"""
+
+
+def test_actions_wrapper_counterexample_is_detected():
+    """B-97-1 named regression — T's S97 staged workflow VERBATIM: this
+    exact content passed the v2 oracle; the v3 detector must flag it."""
+    families = _detect_deploy_capability(
+        T_S97_ACTIONS_WRAPPER, ".github/workflows/synthetic.yml")
+    assert "github_actions_wrapper" in families
+
+
+def test_shell_command_family_detected():
+    families = _detect_deploy_capability(
+        "gcloud run deploy verifimind-mcp-server --region us-central1",
+        "anyfile.md")
+    assert "shell_command" in families
+    # the service-MUTATION verb is capability too (it changes env/image on
+    # the same service — the flip mechanism itself); caught by the
+    # probe-both-sides rule against the registry, disclosed + fixed pre-review
+    assert "shell_command" in _detect_deploy_capability(
+        "gcloud run services update verifimind-mcp-server --update-env-vars X=1",
+        "runbook.md")
+
+
+def test_cloudbuild_args_list_family_detected():
+    content = ("args:\n  - 'run'\n  - 'deploy'\n"
+               "  - 'verifimind-mcp-server'\n")
+    assert "cloudbuild_args_list" in _detect_deploy_capability(
+        content, "some-pipeline.yaml")
+
+
+def test_declarative_cloud_run_family_detected():
+    content = ("apiVersion: serving.knative.dev/v1\nkind: Service\n"
+               "metadata:\n  name: verifimind-mcp-server\n")
+    assert "declarative_cloud_run" in _detect_deploy_capability(
+        content, "service.yaml")
+
+
+def test_script_indirection_family_detected():
+    content = ("set SERVICE=verifimind-mcp-server\n"
+               "gcloud run services update %SERVICE%\n")
+    assert "script_indirection" in _detect_deploy_capability(
+        content, "deploy.bat")
+    # the same content in a prose file is NOT script indirection
+    assert "script_indirection" not in _detect_deploy_capability(
+        content, "notes.md")
+
+
+def test_detector_ignores_other_services():
+    """Capability requires OUR service name — other services are out of the
+    closure scope by definition."""
+    assert _detect_deploy_capability(
+        "gcloud run deploy some-other-service", "x.sh") == set()
+
+
+AUTHORIZED_EXEC = {
+    "cloudbuild.yaml",                    # trigger path (attested)
+    "mcp-server/deploy-cloudrun.sh",      # manual path (guards + archive)
+}
+RETIRED_STUBS = {"mcp-server/deploy-gcp.sh"}
+DELEGATING_DOCS = {".claude/commands/verifimind-deploy.md"}
+SUPERSEDED_DOCS = {                       # banner-redirected, non-operational
+    "mcp-server/DEPLOY_GCP.md",
+    "docs/GCP_DEPLOYMENT_GUIDE.md",
+    "mcp-server/DEPLOYMENT_CHECKLIST_V2.0.md",
+}
+HISTORICAL_OR_CONFIG = {                  # narrative / permission entries
+    "docs/DEVELOPMENT_JOURNEY.md",
+    ".claude/settings.local.json",
+}
+_CLASSIFIED = (AUTHORIZED_EXEC | RETIRED_STUBS | DELEGATING_DOCS
+               | SUPERSEDED_DOCS | HISTORICAL_OR_CONFIG)
+
+
+def _classify_offenders(surfaces):
+    """The classification oracle as a pure function (B-98-1 contract 5:
+    staged-inventory regressions reuse the EXACT production classifier)."""
+    return [
+        name for name in surfaces
+        if name not in _CLASSIFIED and not name.startswith("mcp-server/tests/")
+    ]
+
+
+def test_deploy_surface_inventory_closed():
+    """B-95-3 + B-96-1 receipt: EVERY tracked surface whose CONTENT can build
+    or deploy verifimind-mcp-server is explicitly classified — authorized
+    executable, retirement stub, delegating command doc, superseded doc, test
+    oracle, or historical narrative. An unclassified new surface fails."""
+    surfaces = _tracked_deploy_surfaces()
+    unclassified = _classify_offenders(surfaces)
+    assert unclassified == [], f"unclassified deploy-capable surfaces: {unclassified}"
+    for name in RETIRED_STUBS & set(surfaces):
+        raise AssertionError(f"retired stub {name} still deploy-capable")
+    for name in SUPERSEDED_DOCS & set(surfaces):
+        assert "SUPERSEDED — HISTORICAL REFERENCE ONLY" in surfaces[name] \
+            or "HARD-RETIRED" in surfaces[name], name
+
+
+# --- B-98-1: T's two grammar counterexamples, VERBATIM (contract 4) ---------
+
+T_S98_UNQUOTED_CLOUDBUILD = """steps:
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - verifimind-mcp-server
+      - --image
+      - gcr.io/example/verifimind-mcp-server:round8-synthetic
+"""
+
+T_S98_UPPERCASE_PS1 = """$ServiceName = "verifimind-mcp-server"
+GCLOUD run services update $ServiceName --image "gcr.io/example/verifimind-mcp-server:round8-synthetic"
+"""
+
+
+def test_unquoted_yaml_scalar_counterexample_is_detected():
+    """B-98-1 Probe A verbatim: the ordinary unquoted YAML scalar `- deploy`
+    is grammar-equivalent to the quoted forms and must be detected."""
+    families = _detect_deploy_capability(
+        T_S98_UNQUOTED_CLOUDBUILD, "round8-synthetic-cloudbuild.yaml")
+    assert "cloudbuild_args_list" in families
+
+
+def test_uppercase_ps1_counterexample_is_detected():
+    """B-98-1 Probe B verbatim: Windows treats `.PS1` and `GCLOUD` case-
+    insensitively — the executable form must be detected."""
+    families = _detect_deploy_capability(
+        T_S98_UPPERCASE_PS1, "round8-synthetic-deploy.PS1")
+    assert "script_indirection" in families
+
+
+def test_unix_shell_case_semantics_preserved():
+    """B-98-1 contract 3: case normalization is scoped to case-insensitive
+    platforms — `GCLOUD RUN DEPLOY` in a Unix shell script or prose is NOT
+    a command and must NOT be flagged as the shell family."""
+    families = _detect_deploy_capability(
+        "GCLOUD RUN DEPLOY verifimind-mcp-server", "notes.sh")
+    assert "shell_command" not in families
+    assert "script_indirection" not in families   # .sh is not a Windows format
+
+
+def test_staged_grammar_probes_fail_closed_at_inventory():
+    """B-98-1 contract 5: a tracked file carrying either grammar variant is
+    an UNCLASSIFIED capable surface — the inventory pipeline (detector +
+    classifier, the same functions the real test runs) fails closed on it."""
+    staged = {
+        "round8-synthetic-cloudbuild.yaml": T_S98_UNQUOTED_CLOUDBUILD,
+        "round8-synthetic-deploy.PS1": T_S98_UPPERCASE_PS1,
+    }
+    detected = {
+        name: text for name, text in staged.items()
+        if _detect_deploy_capability(text, name)
+    }
+    assert set(detected) == set(staged)           # both probes detected
+    offenders = _classify_offenders(detected)
+    assert sorted(offenders) == sorted(staged)    # both fail closed
+
+
+def test_md_command_surface_cannot_carry_own_recipe():
+    """B-96-1 named regression — T's exact counterexample: the tracked
+    /verifimind-deploy command must DELEGATE to the guarded canonical script
+    and carry NO standalone build/deploy recipe of its own."""
+    skill = (_REPO_ROOT / ".claude/commands/verifimind-deploy.md").read_text(
+        encoding="utf-8")
+    assert "deploy-cloudrun.sh" in skill          # the delegation
+    assert "gcloud builds submit" not in skill    # no second recipe
+    assert "gcloud run deploy" not in skill
+
+
+def test_manual_build_consumes_exact_committed_bytes():
+    """B-96-2 named regression: `gcloud builds submit <dir>` uploads the
+    WORKING DIRECTORY, where Git-ignored files (.env.local) hide from
+    `git status --porcelain` yet enter the upload and COPY. The manual path
+    must therefore submit a `git archive` of the verified commit — local
+    ignored/untracked bytes structurally cannot enter."""
+    script = (_MCP_SERVER_DIR / "deploy-cloudrun.sh").read_text(encoding="utf-8")
+    assert "git archive" in script
+    assert "HEAD:mcp-server" in script
+    assert 'gcloud builds submit "$SRC_ARCHIVE"' in script
+    # and never a bare directory submit
+    for line in script.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("gcloud builds submit") and "SRC_ARCHIVE" not in stripped:
+            raise AssertionError("manual build must submit the exact archive")
+
+
+def test_ignore_files_cover_secret_and_local_classes():
+    """B-96-2 receipt: the FULL `.env*` secret class plus local artifact
+    classes are excluded from every build context — `.env` alone missed
+    `.env.local`/`.env.production` (T's exact pattern gap)."""
+    gcloud = (_MCP_SERVER_DIR / ".gcloudignore").read_text(encoding="utf-8")
+    docker = (_MCP_SERVER_DIR / ".dockerignore").read_text(encoding="utf-8")
+    for content, where in ((gcloud, ".gcloudignore"), (docker, ".dockerignore")):
+        for pattern in (".env*", "*.db", "*.log"):
+            assert pattern in content, f"{pattern} missing from {where}"
+    root_docker = (_REPO_ROOT / ".dockerignore").read_text(encoding="utf-8")
+    for pattern in ("mcp-server/.env*", "mcp-server/**/*.db", "mcp-server/**/*.log"):
+        assert pattern in root_docker, f"{pattern} missing from root .dockerignore"
+
+
+# --- B-99-1: T's three semantic counterexamples, VERBATIM (contract 5) ------
+
+T_S99_SERVICES_REPLACE = (
+    "gcloud run services replace verifimind-mcp-server.yaml --region us-central1\n"
+)
+
+T_S99_COMMENTED_BLOCK_LIST = """args:
+  - run
+  - deploy # deploy the service
+  - verifimind-mcp-server
+"""
+
+T_S99_FLOW_STYLE = (
+    "args: [run, deploy, verifimind-mcp-server, --image, "
+    "gcr.io/example/verifimind-mcp-server:round9-synthetic]\n"
+)
+
+
+def test_services_replace_counterexample_is_detected():
+    """B-99-1 Probe C verbatim — the create-or-replace verb has the same
+    deployment effect and belongs to the shell mechanism model. (Disclosed
+    as a residual in RNA S88 pre-review; held for T's exact-head replay.)"""
+    families = _detect_deploy_capability(T_S99_SERVICES_REPLACE, "runbook.md")
+    assert "shell_command" in families
+
+
+def test_commented_block_list_counterexample_is_detected():
+    """B-99-1 Probe D verbatim — a YAML inline comment is presentation
+    detail; the parsed scalar is `deploy` and must be detected."""
+    families = _detect_deploy_capability(
+        T_S99_COMMENTED_BLOCK_LIST, "round9-synthetic-comment.yaml")
+    assert "cloudbuild_args_semantic" in families or \
+        "cloudbuild_args_list" in families
+
+
+def test_flow_style_counterexample_is_detected():
+    """B-99-1 Probe E verbatim — a flow-style sequence is the same YAML
+    sequence data model as a block sequence; the parsed args must match."""
+    families = _detect_deploy_capability(
+        T_S99_FLOW_STYLE, "round9-synthetic-flow.yaml")
+    assert "cloudbuild_args_semantic" in families
+
+
+def test_presentation_forms_parse_to_identical_semantics():
+    """The core B-99-1 principle as a direct assertion: comment-carrying
+    block style and flow style resolve to the SAME token sequence."""
+    block = yaml.safe_load(T_S99_COMMENTED_BLOCK_LIST)["args"]
+    flow = yaml.safe_load(T_S99_FLOW_STYLE)["args"][:3]
+    assert block == flow == ["run", "deploy", "verifimind-mcp-server"]
+
+
+def test_malformed_structured_config_fails_closed():
+    """B-99-1 contract 3: a candidate structured config that cannot be
+    parsed cannot prove its innocence — detected as its own fail-closed
+    family, never silently skipped."""
+    broken = "steps:\n  - args: [run, deploy\nverifimind-mcp-server: {{{"
+    families = _detect_deploy_capability(broken, "broken-pipeline.yaml")
+    assert "malformed_structured_config" in families
+
+
+def test_full_cloudbuild_document_semantic_detection():
+    """A complete steps-document (entrypoint + parsed args) is authorized
+    on semantics — T's Probe D/E embedded in the real document shape."""
+    doc = """steps:
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args: [run, deploy, verifimind-mcp-server, --image, gcr.io/example/verifimind-mcp-server:x]
+"""
+    assert "cloudbuild_args_semantic" in _detect_deploy_capability(
+        doc, "pipeline.yaml")
+
+
+def test_staged_semantic_probes_fail_closed_at_inventory():
+    """B-99-1 contract 5: all three probes, staged as tracked surfaces,
+    fail closed through the EXACT production detector + classifier."""
+    staged = {
+        "round9-synthetic-replace.md": T_S99_SERVICES_REPLACE,
+        "round9-synthetic-comment.yaml": T_S99_COMMENTED_BLOCK_LIST,
+        "round9-synthetic-flow.yaml": T_S99_FLOW_STYLE,
+    }
+    detected = {
+        name: text for name, text in staged.items()
+        if _detect_deploy_capability(text, name)
+    }
+    assert set(detected) == set(staged)           # all three detected
+    offenders = _classify_offenders(detected)
+    assert sorted(offenders) == sorted(staged)    # all three fail closed
+
+
+# --- B-100-1: release-track command grammar, T's probe VERBATIM -------------
+
+T_S100_BETA_DEPLOY = """gcloud beta run deploy verifimind-mcp-server \\
+  --image gcr.io/example/verifimind-mcp-server:round10-synthetic
+"""
+
+T_S100_ALPHA_DEPLOY = """gcloud alpha run deploy verifimind-mcp-server \\
+  --image gcr.io/example/verifimind-mcp-server:round10-synthetic
+"""
+
+
+def test_beta_release_track_counterexample_is_detected():
+    """B-100-1 verbatim — T's staged beta-prefixed deploy: the documented
+    release-track token changes the text, not the deployment effect."""
+    families = _detect_deploy_capability(
+        T_S100_BETA_DEPLOY, "round10-synthetic-beta.sh")
+    assert "shell_command" in families
+
+
+def test_alpha_release_track_counterexample_is_detected():
+    families = _detect_deploy_capability(
+        T_S100_ALPHA_DEPLOY, "round10-synthetic-alpha.sh")
+    assert "shell_command" in families
+
+
+def test_release_track_grammar_covers_all_bounded_verbs():
+    """The grammar expresses the optional TRACK POSITION (per T S100:
+    'adding only the exact beta string would repeat the spelling-list
+    failure') — every bounded verb accepts the optional prefix."""
+    for track in ("", "alpha ", "beta "):
+        for verb in ("run deploy", "run services update",
+                     "run services replace", "builds submit"):
+            cmd = f"gcloud {track}{verb} verifimind-mcp-server"
+            assert "shell_command" in _detect_deploy_capability(cmd, "x.md"), cmd
+
+
+def test_release_track_grammar_stays_case_sensitive_on_unix():
+    """Unix command lookup is case-sensitive — GCLOUD BETA RUN DEPLOY in a
+    non-Windows context is not a command (the Windows script layer handles
+    its own case-insensitive world)."""
+    families = _detect_deploy_capability(
+        "GCLOUD BETA RUN DEPLOY verifimind-mcp-server", "notes.sh")
+    assert "shell_command" not in families
+
+
+def test_staged_release_track_probes_fail_closed_at_inventory():
+    """B-100-1 contract 3: both track-prefixed files, staged as tracked
+    surfaces, fail closed through the production detector + classifier."""
+    staged = {
+        "round10-synthetic-beta.sh": T_S100_BETA_DEPLOY,
+        "round10-synthetic-alpha.sh": T_S100_ALPHA_DEPLOY,
+    }
+    detected = {
+        name: text for name, text in staged.items()
+        if _detect_deploy_capability(text, name)
+    }
+    assert set(detected) == set(staged)
+    offenders = _classify_offenders(detected)
+    assert sorted(offenders) == sorted(staged)
+
+
+# --- B-101-1: gcloud-wide flag slot, T's probes VERBATIM --------------------
+
+T_S101_GLOBAL_FLAG_STABLE = """gcloud --project=synthetic-project run deploy verifimind-mcp-server \\
+  --image gcr.io/example/verifimind-mcp-server:round11-synthetic
+"""
+
+T_S101_GLOBAL_FLAG_BETA = """gcloud --project=synthetic-project beta run deploy verifimind-mcp-server \\
+  --image gcr.io/example/verifimind-mcp-server:round11-synthetic
+"""
+
+T_S101_GLOBAL_FLAG_ALPHA = """gcloud --project=synthetic-project alpha run deploy verifimind-mcp-server \\
+  --image gcr.io/example/verifimind-mcp-server:round11-synthetic
+"""
+
+
+def test_global_flag_stable_counterexample_is_detected():
+    """B-101-1 verbatim — T's staged stable deploy with a gcloud-wide flag
+    before the command tree. The SDK accepted this exact grammar (help
+    exit 0): the flag changes the text, not the deployment effect."""
+    families = _detect_deploy_capability(
+        T_S101_GLOBAL_FLAG_STABLE, "round11-synthetic-global-flag.sh")
+    assert "shell_command" in families
+
+
+def test_global_flag_beta_counterexample_is_detected():
+    families = _detect_deploy_capability(
+        T_S101_GLOBAL_FLAG_BETA, "round11-synthetic-global-flag-beta.sh")
+    assert "shell_command" in families
+
+
+def test_global_flag_alpha_variant_is_detected():
+    families = _detect_deploy_capability(
+        T_S101_GLOBAL_FLAG_ALPHA, "round11-synthetic-global-flag-alpha.sh")
+    assert "shell_command" in families
+
+
+def test_global_flag_both_value_encodings_across_tracks():
+    """B-101-1 contract 2: the SDK accepts `--project=value` AND
+    `--project value` — both encodings, at every track, with the flag
+    before the track. The SLOT is modeled, not a flag spelling list."""
+    for track in ("", "beta ", "alpha "):
+        for flag in ("--project=synthetic-project ",
+                     "--project synthetic-project "):
+            cmd = f"gcloud {flag}{track}run deploy verifimind-mcp-server"
+            assert "shell_command" in _detect_deploy_capability(cmd, "x.md"), cmd
+
+
+def test_global_flag_slot_after_release_track():
+    """gcloud-wide flags are also legal BETWEEN the track and the effect
+    group (`gcloud beta --project=x run deploy`) — the slot exists at
+    both documented positions."""
+    cmd = "gcloud beta --project=synthetic-project run deploy verifimind-mcp-server"
+    assert "shell_command" in _detect_deploy_capability(cmd, "x.md")
+
+
+def test_bare_boolean_flag_backtracks_into_verb_grammar():
+    """A value-less flag directly before the effect group must not eat
+    `run` as its value — the optional value group releases the token on
+    backtracking (`gcloud --quiet run deploy` is a valid deploy)."""
+    for cmd in ("gcloud --quiet run deploy verifimind-mcp-server",
+                "gcloud --quiet --project=x run deploy verifimind-mcp-server",
+                "gcloud --project x --quiet beta run deploy verifimind-mcp-server"):
+        assert "shell_command" in _detect_deploy_capability(cmd, "x.md"), cmd
+
+
+def test_short_form_global_flag_is_detected():
+    """Pre-review self-probe (the S87/S91 ring discipline): the SDK also
+    documents SHORT-form global flags (`-q` = `--quiet`) — the slot
+    models dash-prefixed tokens, not just the double-dash spelling."""
+    cmd = "gcloud -q run deploy verifimind-mcp-server"
+    assert "shell_command" in _detect_deploy_capability(cmd, "x.md")
+
+
+def test_flag_slot_does_not_skip_arbitrary_prose():
+    """Honest bound (contract 6): only `--`-prefixed tokens (plus at most
+    one value each) are skippable — prose between `gcloud` and deploy
+    verbs stays undetected, and the Unix case invariant survives the
+    flag slot."""
+    families = _detect_deploy_capability(
+        "gcloud is the CLI we use. Later, run deploy scripts by hand for "
+        "verifimind-mcp-server.", "notes.sh")
+    assert "shell_command" not in families
+    families = _detect_deploy_capability(
+        "GCLOUD --PROJECT=X RUN DEPLOY verifimind-mcp-server", "notes.sh")
+    assert "shell_command" not in families
+
+
+def test_staged_global_flag_probes_fail_closed_at_inventory():
+    """B-101-1 contract 3: all three flag-prefixed files (stable / beta /
+    alpha), staged as tracked surfaces, fail closed through the
+    production detector + classifier."""
+    staged = {
+        "round11-synthetic-global-flag.sh": T_S101_GLOBAL_FLAG_STABLE,
+        "round11-synthetic-global-flag-beta.sh": T_S101_GLOBAL_FLAG_BETA,
+        "round11-synthetic-global-flag-alpha.sh": T_S101_GLOBAL_FLAG_ALPHA,
+    }
+    detected = {
+        name: text for name, text in staged.items()
+        if _detect_deploy_capability(text, name)
+    }
+    assert set(detected) == set(staged)
+    offenders = _classify_offenders(detected)
+    assert sorted(offenders) == sorted(staged)
+
+
+# --- B-102: lex before grammar — T's six probes VERBATIM --------------------
+
+T_S102_TREE_FLAG_DEPLOY = """gcloud run --project=synthetic-project deploy verifimind-mcp-server \\
+  --image gcr.io/example/verifimind-mcp-server:round12-synthetic
+"""
+
+T_S102_TREE_FLAG_SERVICES = """gcloud run services --project=synthetic-project update verifimind-mcp-server \\
+  --region us-central1
+"""
+
+T_S102_QUOTED_FORMAT_EQUALS = """gcloud --format="table(name, status)" run deploy verifimind-mcp-server \\
+  --image gcr.io/example/verifimind-mcp-server:round12-synthetic
+"""
+
+T_S102_QUOTED_FORMAT_SPLIT = """gcloud --format "table(name, status)" run deploy verifimind-mcp-server \\
+  --image gcr.io/example/verifimind-mcp-server:round12-synthetic
+"""
+
+T_S102_CONTINUATION_BEFORE_RUN = """gcloud \\
+  run deploy verifimind-mcp-server --image gcr.io/example/verifimind-mcp-server:round12-synthetic
+"""
+
+T_S102_CONTINUATION_INSIDE_TREE = """gcloud run \\
+  deploy verifimind-mcp-server --image gcr.io/example/verifimind-mcp-server:round12-synthetic
+"""
+
+_S102_PROBES = {
+    "round12-tree-flag-deploy.sh": T_S102_TREE_FLAG_DEPLOY,
+    "round12-tree-flag-services.sh": T_S102_TREE_FLAG_SERVICES,
+    "round12-quoted-format-equals.sh": T_S102_QUOTED_FORMAT_EQUALS,
+    "round12-quoted-format-split.sh": T_S102_QUOTED_FORMAT_SPLIT,
+    "round12-continuation-before-run.sh": T_S102_CONTINUATION_BEFORE_RUN,
+    "round12-continuation-inside-tree.sh": T_S102_CONTINUATION_INSIDE_TREE,
+}
+
+
+def test_all_six_shell_token_counterexamples_are_detected():
+    """B-102 verbatim — T's six SDK-accepted forms: flags at LATER tree
+    boundaries, quoted values containing spaces (both encodings), and
+    POSIX continuations before and inside the tree. Presentation changed;
+    the argv-level command did not."""
+    for name, text in _S102_PROBES.items():
+        families = _detect_deploy_capability(text, name)
+        assert "shell_command" in families, name
+
+
+def test_staged_shell_token_probes_fail_closed_at_inventory():
+    """B-102 contract 4: all six files, staged as tracked surfaces, fail
+    closed through the production detector + classifier with offender
+    identity asserted."""
+    detected = {
+        name: text for name, text in _S102_PROBES.items()
+        if _detect_deploy_capability(text, name)
+    }
+    assert set(detected) == set(_S102_PROBES)
+    offenders = _classify_offenders(detected)
+    assert sorted(offenders) == sorted(_S102_PROBES)
+
+
+def test_crlf_continuation_is_normalized():
+    """Repo files may carry CRLF line endings — the continuation rule
+    covers backslash + CRLF as well as backslash + LF."""
+    text = ("gcloud run \\\r\n  deploy verifimind-mcp-server "
+            "--image gcr.io/example/verifimind-mcp-server:x\r\n")
+    assert "shell_command" in _detect_deploy_capability(text, "x.sh")
+
+
+def test_unlexable_gcloud_candidate_fails_closed():
+    """B-102 contract 1: a gcloud candidate the lexer cannot tokenize
+    (unbalanced quote) cannot prove its innocence — it is detected as its
+    own fail-closed family and must be classified at inventory."""
+    text = ('gcloud run deploy "verifimind-mcp-server --image '
+            "gcr.io/example/verifimind-mcp-server:x\n")
+    families = _detect_deploy_capability(text, "broken.sh")
+    assert "ambiguous_shell_candidate" in families
+    offenders = _classify_offenders({"broken.sh": text})
+    assert offenders == ["broken.sh"]
+
+
+def test_backtick_substitution_wrapped_command_is_detected():
+    """Pre-review self-probe (4th instance): backtick command
+    substitution EXECUTES its content — a trailing backtick must not
+    glue to the effect verb and hide the command."""
+    text = ("OUTPUT=`gcloud builds submit --config=cloudbuild-image.yaml` "
+            "# verifimind-mcp-server manual build\n")
+    assert "shell_command" in _detect_deploy_capability(text, "x.sh")
+
+
+def test_lexer_keeps_prose_and_case_bounds():
+    """The token path preserves the honest bounds: prose between `gcloud`
+    and deploy verbs stays undetected (non-flag tokens are never
+    skipped), and Unix case sensitivity survives lexing."""
+    prose = ("gcloud is the CLI we use. Later, run deploy scripts by hand "
+             "for verifimind-mcp-server.")
+    assert "shell_command" not in _detect_deploy_capability(prose, "notes.sh")
+    upper = "GCLOUD RUN DEPLOY verifimind-mcp-server"
+    assert "shell_command" not in _detect_deploy_capability(upper, "notes.sh")
+
+
+# --- B-103-1: effect binding crosses carriers, T's probes VERBATIM ----------
+
+T_S104_MARKER_FREE_PLAIN = "gcloud builds submit\n"
+
+T_S104_MARKER_FREE_SUBSTITUTION = "RESULT=$(gcloud builds submit)\n"
+
+
+def test_marker_free_builds_submit_is_detected():
+    """B-103-1 verbatim — T's staged marker-free carrier: `gcloud builds
+    submit` resolves the DEFAULT repository cloudbuild.yaml, which
+    deploys verifimind-mcp-server. The wrapper's own bytes never name
+    the service; capability and target binding CROSS files."""
+    families = _detect_deploy_capability(
+        T_S104_MARKER_FREE_PLAIN, "round13-marker-free-plain.sh")
+    assert "default_config_build" in families
+
+
+def test_marker_free_substitution_builds_submit_is_detected():
+    """B-103-1 verbatim — the $() carrier form: substitution delimiters
+    lex as token boundaries, so the closing paren no longer glues to the
+    final effect token."""
+    families = _detect_deploy_capability(
+        T_S104_MARKER_FREE_SUBSTITUTION, "round13-marker-free-subst.sh")
+    assert "default_config_build" in families
+
+
+def test_staged_marker_free_carriers_fail_closed_at_inventory():
+    """B-103-1 contract 3: both marker-free carriers, staged as tracked
+    surfaces, fail closed through the production detector + classifier
+    with offender identity asserted."""
+    staged = {
+        "round13-marker-free-plain.sh": T_S104_MARKER_FREE_PLAIN,
+        "round13-marker-free-subst.sh": T_S104_MARKER_FREE_SUBSTITUTION,
+    }
+    detected = {
+        name: text for name, text in staged.items()
+        if _detect_deploy_capability(text, name)
+    }
+    assert set(detected) == set(staged)
+    offenders = _classify_offenders(detected)
+    assert sorted(offenders) == sorted(staged)
+
+
+def test_comment_mentions_are_not_commands():
+    """Comments are lexical structure: `# gcloud builds submit` cannot
+    execute in any format this layer scans (the three real repo files
+    that documented the deploy path in comments must NOT be claimed
+    deploy-capable) — while an inline comment AFTER a real command does
+    not hide it."""
+    comment_only = ("# Mirrors .gcloudignore so `gcloud builds submit` "
+                    "and docker build match\n")
+    assert _detect_deploy_capability(comment_only, ".dockerignore") == set()
+    inline = "gcloud builds submit # kick the default-config build\n"
+    families = _detect_deploy_capability(inline, "x.sh")
+    assert "default_config_build" in families
+
+
+def test_marker_free_named_target_trees_stay_unflagged():
+    """The conservative bound (T round-13 contract 5), documented as a
+    named negative: run/services trees bind their target as a command
+    ARGUMENT, so a marker-free `gcloud run deploy other-service` cannot
+    deploy verifimind-mcp-server and stays undetected — only the
+    builds-submit tree binds its target through a separately resolved
+    default config."""
+    families = _detect_deploy_capability(
+        "gcloud run deploy other-service --image gcr.io/x/y:z\n",
+        "other-deploy.sh")
+    assert families == set()
+
+
+# --- B-104-1: carrier-grammar parity, T's five carriers VERBATIM ------------
+# "Moving target binding across files must not shrink the supported
+# carrier grammar" — every presentation the same-marker lane recognizes
+# must survive the lane change to cross-file target binding.
+
+T_S105_UPPERCASE_BAT = ("round14-marker-free-uppercase.bat",
+                        "GCLOUD BUILDS SUBMIT\n")
+T_S105_AMBIGUOUS = ("round14-marker-free-ambiguous.sh",
+                    'gcloud builds submit "round14-synthetic\n')
+T_S105_QUOTED_COMMAND = ("round14-marker-free-quoted-command.sh",
+                         '"gcloud" builds submit\n')
+T_S105_SEMICOLON = ("round14-marker-free-semicolon.sh",
+                    "gcloud builds submit; echo done\n")
+T_S105_PS_CONTINUATION = ("round14-marker-free-continuation.ps1",
+                          "gcloud builds `\n  submit\n")
+
+_S105_PROBES = dict([T_S105_UPPERCASE_BAT, T_S105_AMBIGUOUS,
+                     T_S105_QUOTED_COMMAND, T_S105_SEMICOLON,
+                     T_S105_PS_CONTINUATION])
+
+
+def test_all_five_marker_free_carriers_are_detected():
+    """B-104-1 verbatim — each of T's five carriers must be detected
+    marker-free (uppercase Windows script, unlexable shell, quoted
+    command word, semicolon separator, PowerShell continuation)."""
+    for name, text in _S105_PROBES.items():
+        families = _detect_deploy_capability(text, name)
+        assert families, name
+
+
+def test_carrier_grammar_parity_is_metamorphic():
+    """The governing invariant, asserted directly: for every carrier,
+    detection with the service marker present implies detection with
+    the marker absent — only target binding moved, not the grammar."""
+    for name, text in _S105_PROBES.items():
+        with_marker = _detect_deploy_capability(
+            text + "# verifimind-mcp-server\n", name)
+        without_marker = _detect_deploy_capability(text, name)
+        assert with_marker, name
+        assert without_marker, name
+
+
+def test_marker_free_pure_ambiguity_fails_closed():
+    """B-104-1 contract 3: a marker-free unlexable gcloud candidate with
+    NO recoverable textual evidence still propagates to the explicit
+    fail-closed family before the service-marker return."""
+    families = _detect_deploy_capability(
+        'gcloud "builds sub\n', "broken-marker-free.sh")
+    assert "ambiguous_shell_candidate" in families
+
+
+def test_staged_marker_free_carrier_probes_fail_closed_at_inventory():
+    """B-104-1 contract 5: all five carriers, staged as tracked
+    surfaces, fail closed through the production detector + classifier
+    with offender identity asserted."""
+    detected = {
+        name: text for name, text in _S105_PROBES.items()
+        if _detect_deploy_capability(text, name)
+    }
+    assert set(detected) == set(_S105_PROBES)
+    offenders = _classify_offenders(detected)
+    assert sorted(offenders) == sorted(_S105_PROBES)
+
+
+# --- B-105-1: CMD caret parity + identity-bound fallback, T VERBATIM --------
+
+T_S106_CMD_CARET = ("round15-marker-free-caret.cmd",
+                    "gcloud builds ^\n  submit\n")
+T_S106_PROSE_NEGATIVE = ("round15-prose.md",
+                         "This guide explains how builds submit jobs "
+                         "are queued.\n")
+T_S106_OTHER_CLI_NEGATIVE = ("round15-other-cli.sh",
+                             "othercli builds submit\n")
+
+
+def test_marker_free_cmd_caret_carrier_is_detected():
+    """B-105-1 verbatim — CMD joins caret-newline before invocation
+    (T's shim received `builds submit` joined), so the marker-free
+    `.cmd` carrier is the governed capability in CMD presentation."""
+    name, text = T_S106_CMD_CARET
+    families = _detect_deploy_capability(text, name)
+    assert "default_config_build" in families
+
+
+def test_cmd_caret_carrier_parity_with_marker():
+    """B-105-1 contract 4: the same carrier plus the (CMD-comment)
+    service marker is detected identically — only marker co-location
+    changed, never the capability."""
+    name, text = T_S106_CMD_CARET
+    with_marker = _detect_deploy_capability(
+        text + "REM verifimind-mcp-server\n", name)
+    assert with_marker
+    assert "default_config_build" in with_marker
+
+
+def test_caret_is_cmd_scoped_not_posix():
+    """Platform scope: caret-newline is NOT a continuation on POSIX —
+    the identical bytes in a `.sh` stay undetected (a caret is just a
+    character there)."""
+    families = _detect_deploy_capability(
+        "gcloud builds ^\n  submit\n", "not-cmd.sh")
+    assert "default_config_build" not in families
+
+
+def test_textual_fallback_binds_gcloud_identity():
+    """B-105-1 guardrails verbatim: bare prose and another executable
+    carrying the words 'builds submit' are NOT the governed capability
+    — the fallback binds gcloud command identity, never a phrase."""
+    for name, text in (T_S106_PROSE_NEGATIVE, T_S106_OTHER_CLI_NEGATIVE):
+        families = _detect_deploy_capability(text, name)
+        assert families == set(), name
+
+
+def test_cmd_rem_comment_mention_is_not_a_command():
+    """CMD comment semantics (REM / ::) join the comment principle: a
+    `REM gcloud builds submit` mention cannot execute."""
+    families = _detect_deploy_capability(
+        "REM gcloud builds submit\n:: gcloud builds submit\n",
+        "notes.cmd")
+    assert families == set()
+
+
+def test_staged_cmd_caret_and_negatives_at_inventory():
+    """B-105-1 contract 6: the positive staged path is named by the
+    closed-inventory failure; the two negatives stage clean."""
+    name, text = T_S106_CMD_CARET
+    detected = {name: text} if _detect_deploy_capability(text, name) else {}
+    assert set(detected) == {name}
+    assert _classify_offenders(detected) == [name]
+    for neg_name, neg_text in (T_S106_PROSE_NEGATIVE,
+                               T_S106_OTHER_CLI_NEGATIVE):
+        assert not _detect_deploy_capability(neg_text, neg_name), neg_name
+
+
+# --- B-106-1: executable identity x grammar composition, T VERBATIM ---------
+
+T_S107_CMD_GLOBAL_FLAG = ("round16-marker-free-cmd-global-flag.cmd",
+                          "gcloud.cmd --project=synthetic-project builds submit\n")
+T_S107_CMD_INTERTREE_FLAG = ("round16-marker-free-cmd-intertree-flag.cmd",
+                             "gcloud.cmd builds --project=synthetic-project submit\n")
+T_S107_CMD_RELEASE_TRACK = ("round16-marker-free-cmd-beta.cmd",
+                            "gcloud.cmd beta builds submit\n")
+
+_S107_PROBES = dict([T_S107_CMD_GLOBAL_FLAG, T_S107_CMD_INTERTREE_FLAG,
+                     T_S107_CMD_RELEASE_TRACK])
+
+
+def test_executable_spellings_compose_with_grammar():
+    """B-106-1 verbatim — `gcloud.cmd` is the SAME executable identity
+    (SDK-accepted, shim-proven), so every modeled grammar slot must
+    compose with every supported spelling: global flag before the tree,
+    flag between tree tokens, and the release track."""
+    for name, text in _S107_PROBES.items():
+        families = _detect_deploy_capability(text, name)
+        assert "default_config_build" in families, name
+
+
+def test_cmd_executable_identity_marker_parity():
+    """B-106-1 contract 3: marker-free and marker-present verdicts
+    converge for the composed carriers — only marker co-location
+    changed, never capability."""
+    for name, text in _S107_PROBES.items():
+        with_marker = _detect_deploy_capability(
+            text + "REM verifimind-mcp-server\n", name)
+        without_marker = _detect_deploy_capability(text, name)
+        assert with_marker, name
+        assert without_marker, name
+
+
+def test_executable_identity_bound_is_honest():
+    """The canonicalization is fullmatch-bounded: lookalike tokens are
+    NOT the executable (`gcloud.command`, `gcloud-related`, `gcloudx`)
+    — the identity claim stays exact."""
+    for lookalike in ("gcloud.command builds submit\n",
+                      "gcloud-related builds submit\n",
+                      "gcloudx builds submit\n"):
+        families = _detect_deploy_capability(lookalike, "notes.sh")
+        assert "default_config_build" not in families, lookalike
+
+
+def test_staged_executable_identity_probes_fail_closed_at_inventory():
+    """B-106-1 contract 3: all three composed carriers, staged as
+    tracked surfaces, fail closed through the production detector +
+    classifier with offender identity asserted."""
+    detected = {
+        name: text for name, text in _S107_PROBES.items()
+        if _detect_deploy_capability(text, name)
+    }
+    assert set(detected) == set(_S107_PROBES)
+    offenders = _classify_offenders(detected)
+    assert sorted(offenders) == sorted(_S107_PROBES)
+
+
+# --- B-107-1: CMD in-token caret escaping, T's four carriers VERBATIM -------
+
+_S108_PROBES = {
+    "round17-caret-executable.cmd":
+        "gcl^oud.cmd --project=synthetic-project builds submit\n",
+    "round17-caret-tree.cmd":
+        "gcloud.cmd bu^ilds submit\n",
+    "round17-caret-verb.cmd":
+        "gcloud.cmd builds sub^mit\n",
+    "round17-caret-flag.cmd":
+        "gcloud.cmd ^--project=synthetic-project builds submit\n",
+}
+
+
+def test_all_four_in_token_caret_carriers_are_detected():
+    """B-107-1 verbatim — CMD's caret escapes the NEXT CHARACTER outside
+    quotes, so all four fragmented spellings execute as the governed
+    `gcloud builds submit` (T's shim received canonical args, exit 0
+    on the installed SDK's help surface for each)."""
+    for name, text in _S108_PROBES.items():
+        families = _detect_deploy_capability(text, name)
+        assert "default_config_build" in families, name
+
+
+def test_in_token_caret_marker_parity():
+    """Marker-present parity per contract 4 — including the executable-
+    fragment carrier that the broad script_indirection lane could never
+    rescue (its lowered text carries no contiguous `gcloud`)."""
+    for name, text in _S108_PROBES.items():
+        with_marker = _detect_deploy_capability(
+            text + "REM verifimind-mcp-server\n", name)
+        without_marker = _detect_deploy_capability(text, name)
+        assert with_marker, name
+        assert without_marker, name
+
+
+def test_caret_semantics_preserved():
+    """T contract 2: no global caret deletion. Doubled `^^` is a LITERAL
+    caret (the unescaped token is not the executable); quoted carets are
+    literal (a quoted `"bu^ilds"` reaches the program WITH its caret and
+    is not the governed verb)."""
+    doubled = _detect_deploy_capability(
+        "gcl^^oud.cmd builds submit\n", "doubled.cmd")
+    assert "default_config_build" not in doubled
+    quoted = _detect_deploy_capability(
+        'gcloud.cmd "bu^ilds" submit\n', "quoted.cmd")
+    assert "default_config_build" not in quoted
+
+
+def test_in_token_caret_is_cmd_scoped_not_posix():
+    """Platform negative per contract 4: identical caret bytes in `.sh`
+    are just characters — POSIX has no caret escaping."""
+    for text in ("gcl^oud.cmd builds submit\n",
+                 "gcloud.cmd bu^ilds submit\n"):
+        families = _detect_deploy_capability(text, "posix.sh")
+        assert "default_config_build" not in families, text
+
+
+def test_staged_in_token_caret_carriers_fail_closed_at_inventory():
+    """B-107-1 contract 3: all four carriers, staged as tracked
+    surfaces, fail closed through the production detector + classifier
+    with offender identity asserted."""
+    detected = {
+        name: text for name, text in _S108_PROBES.items()
+        if _detect_deploy_capability(text, name)
+    }
+    assert set(detected) == set(_S108_PROBES)
+    offenders = _classify_offenders(detected)
+    assert sorted(offenders) == sorted(_S108_PROBES)
