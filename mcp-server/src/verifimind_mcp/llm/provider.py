@@ -386,15 +386,20 @@ def _first_text_block(blocks) -> str:
     content is deliberately discarded — it is the model's scratchpad, not its
     answer, and must never reach a caller as if it were the response.
     """
-    text_parts = [
-        getattr(b, "text", None)
-        for b in (blocks or [])
-        if getattr(b, "type", None) == "text" or (
-            getattr(b, "text", None) is not None
-            and getattr(b, "type", None) is None
-        )
-    ]
-    text_parts = [t for t in text_parts if t]
+    # Exclude by KNOWN NON-TEXT type rather than admitting only type=="text".
+    # Both directions matter: an allow-list rejects any block whose `type` is
+    # absent or unrecognised (including legitimately-shaped test doubles and
+    # future SDK block types that do carry text), while a deny-list keeps the
+    # one property that must hold — reasoning scratchpads never surface as the
+    # answer.
+    _NON_TEXT = {"thinking", "redacted_thinking", "tool_use", "server_tool_use"}
+    text_parts = []
+    for b in blocks or []:
+        if getattr(b, "type", None) in _NON_TEXT:
+            continue
+        value = getattr(b, "text", None)
+        if isinstance(value, str) and value:
+            text_parts.append(value)
     if text_parts:
         return "".join(text_parts)
 
