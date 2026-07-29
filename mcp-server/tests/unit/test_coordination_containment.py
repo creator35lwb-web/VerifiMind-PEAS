@@ -222,3 +222,104 @@ def test_every_discovery_surface_marks_coordination_tools_contained():
     assert not unmarked, (
         "discovery surface advertises a contained tool as working: " + "; ".join(unmarked)
     )
+
+
+# --- T S113 hardening residual: the parity oracle must not go vacuous -------
+#
+# T PASSED the parity test above with a bounded residual: it checks the prefix
+# ONLY when a description is present, and never asserts how many entries it
+# expected to find. A deleted entry, or an entry that loses its description,
+# would make the loop silently examine LESS and still pass — the "gate that
+# examines nothing" failure mode, the same disease as an untested secret scan.
+# The contract below binds the SET of (surface x tool), which is strictly
+# stronger than binding a count: a count can be satisfied by the wrong six
+# entries, a set cannot.
+
+DISCOVERY_SURFACES = ("mcp_config_handler", "smithery_server_card_handler")
+
+
+def _coordination_entries():
+    """Map every coordination tool entry in http_server.py to the handler
+    function that serves it: {surface: {tool: description_or_None}}."""
+    import re
+    from pathlib import Path as _Path
+
+    source = _Path(__file__).resolve().parents[2] / "http_server.py"
+    text = source.read_text(encoding="utf-8")
+
+    definitions = [
+        (m.start(), m.group(1))
+        for m in re.finditer(r"^(?:async )?def (\w+)", text, re.MULTILINE)
+    ]
+
+    def owning_function(position):
+        name = "<module>"
+        for start, function_name in definitions:
+            if start < position:
+                name = function_name
+            else:
+                break
+        return name
+
+    found = {}
+    for tool in CONTAINED_TOOLS:
+        for match in re.finditer(r'"name":\s*"%s"' % re.escape(tool), text):
+            window = text[match.end():match.end() + 700]
+            description = re.search(r'"description":\s*([^\n]*)', window)
+            surface = owning_function(match.start())
+            found.setdefault(surface, {})[tool] = (
+                description.group(1) if description else None
+            )
+    return found
+
+
+def _assert_parity_contract(entries):
+    """The contract itself, factored out so the oracle can be exercised
+    against deliberately broken inputs as well as the real source."""
+    assert set(entries) == set(DISCOVERY_SURFACES), (
+        f"discovery surfaces changed: {sorted(entries)} != "
+        f"{sorted(DISCOVERY_SURFACES)} — a new or removed surface must be "
+        "added to this contract deliberately, not silently"
+    )
+    for surface in DISCOVERY_SURFACES:
+        assert set(entries[surface]) == set(CONTAINED_TOOLS), (
+            f"{surface} does not carry every contained tool: "
+            f"{sorted(entries[surface])}"
+        )
+        for tool, description in entries[surface].items():
+            assert description is not None, (
+                f"{surface}.{tool} has no description — the parity check "
+                "would skip it silently"
+            )
+            assert "COORDINATION_MAINTENANCE_PREFIX" in description, (
+                f"{surface}.{tool} advertises a contained tool as working"
+            )
+
+
+def test_discovery_entry_set_is_complete_and_marked():
+    """Every known discovery surface carries EVERY contained tool, every entry
+    HAS a description, and every description carries the maintenance marker."""
+    _assert_parity_contract(_coordination_entries())
+
+
+@pytest.mark.parametrize("defect,mutate", [
+    ("removed surface",
+     lambda e: e.pop(DISCOVERY_SURFACES[1])),
+    ("removed tool entry",
+     lambda e: e[DISCOVERY_SURFACES[0]].pop(CONTAINED_TOOLS[0])),
+    ("entry lost its description",
+     lambda e: e[DISCOVERY_SURFACES[0]].update({CONTAINED_TOOLS[0]: None})),
+    ("description no longer marked",
+     lambda e: e[DISCOVERY_SURFACES[0]].update(
+         {CONTAINED_TOOLS[0]: '"Read the latest handoff record for a given agent."'})),
+])
+def test_parity_oracle_fires_on_each_defect_class(defect, mutate):
+    """Known-positive test of the oracle itself: a gate that has never fired is
+    not a gate. Each mutation is a defect class the contract claims to catch —
+    including the two vacuity modes T identified — and each must fail."""
+    import copy
+
+    broken = copy.deepcopy(_coordination_entries())
+    mutate(broken)
+    with pytest.raises(AssertionError):
+        _assert_parity_contract(broken)
