@@ -357,6 +357,10 @@ class OpenAIProvider(LLMProvider):
 # accounting. Same family as the Gemini 3.5-flash thinking-token trap.
 _THINKING_MODEL_MARKERS = ("claude-opus-5", "claude-sonnet-5", "claude-fable-5")
 _THINKING_TOKEN_ALLOWANCE = 8192
+_ANTHROPIC_TRUNCATION_STOP_REASONS = frozenset({
+    "max_tokens",
+    "model_context_window_exceeded",
+})
 
 
 def _thinking_aware_max_tokens(model: str, requested: int) -> int:
@@ -369,6 +373,23 @@ def _thinking_aware_max_tokens(model: str, requested: int) -> int:
     if any(marker in (model or "") for marker in _THINKING_MODEL_MARKERS):
         return requested + _THINKING_TOKEN_ALLOWANCE
     return requested
+
+
+def _raise_if_anthropic_truncated(stop_reason: str | None, model: str) -> None:
+    """Reject every Anthropic stop reason that denotes truncated output.
+
+    `model_context_window_exceeded` was added as a distinct stop reason: the
+    API may return it instead of `max_tokens` when the model reaches its
+    context-window ceiling. Both mean the response is incomplete and therefore
+    unsafe to parse as a complete structured answer.
+    """
+    if stop_reason in _ANTHROPIC_TRUNCATION_STOP_REASONS:
+        raise ValueError(
+            "Anthropic response truncated before completion "
+            f"(model={model}, stop_reason={stop_reason}). The answer is "
+            "incomplete; reduce the input or increase the available output "
+            "budget rather than parsing a partial response."
+        )
 
 
 def _first_text_block(blocks) -> str:
@@ -459,13 +480,10 @@ class AnthropicProvider(LLMProvider):
             # Fail LOUD on truncation. A response cut off at the token ceiling
             # yields malformed JSON that a downstream parser reports as "the
             # model returned bad output" — blaming the model for OUR budget.
-            if getattr(response, "stop_reason", None) == "max_tokens":
-                raise ValueError(
-                    f"Anthropic response truncated at the token ceiling "
-                    f"(model={self.model}, stop_reason=max_tokens). The answer is "
-                    f"incomplete; raise max_tokens rather than parsing a partial "
-                    f"response."
-                )
+            _raise_if_anthropic_truncated(
+                getattr(response, "stop_reason", None),
+                self.model,
+            )
 
             content = _first_text_block(response.content)
 

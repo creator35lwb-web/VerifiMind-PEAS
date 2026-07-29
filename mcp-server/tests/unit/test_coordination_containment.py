@@ -231,20 +231,33 @@ def test_every_discovery_surface_marks_coordination_tools_contained():
 # expected to find. A deleted entry, or an entry that loses its description,
 # would make the loop silently examine LESS and still pass — the "gate that
 # examines nothing" failure mode, the same disease as an untested secret scan.
-# The contract below binds the SET of (surface x tool), which is strictly
-# stronger than binding a count: a count can be satisfied by the wrong six
-# entries, a set cannot.
+# The contract below binds the MULTISET of (surface x tool). A plain set still
+# misses duplicate entries, while a count can be satisfied by the wrong entry.
+# Root `server.json` is a public MCP Registry manifest and therefore part of
+# the same availability contract as the two HTTP discovery handlers.
 
-DISCOVERY_SURFACES = ("mcp_config_handler", "smithery_server_card_handler")
+DISCOVERY_SURFACES = (
+    "mcp_config_handler",
+    "smithery_server_card_handler",
+    "server.json",
+)
+_SOURCE_MARKER = "COORDINATION_MAINTENANCE_PREFIX"
+_MANIFEST_MARKER = "TEMPORARILY UNAVAILABLE (maintenance)"
 
 
 def _coordination_entries():
-    """Map every coordination tool entry in http_server.py to the handler
-    function that serves it: {surface: {tool: description_or_None}}."""
+    """Return every public coordination discovery occurrence.
+
+    A list is deliberate: dictionaries and sets silently collapse duplicate
+    entries, which would let a stale duplicate advertisement evade the oracle.
+    """
+    import json as _json
     import re
     from pathlib import Path as _Path
 
-    source = _Path(__file__).resolve().parents[2] / "http_server.py"
+    mcp_root = _Path(__file__).resolve().parents[2]
+    repository_root = mcp_root.parent
+    source = mcp_root / "http_server.py"
     text = source.read_text(encoding="utf-8")
 
     definitions = [
@@ -261,39 +274,63 @@ def _coordination_entries():
                 break
         return name
 
-    found = {}
+    found = []
     for tool in CONTAINED_TOOLS:
         for match in re.finditer(r'"name":\s*"%s"' % re.escape(tool), text):
             window = text[match.end():match.end() + 700]
             description = re.search(r'"description":\s*([^\n]*)', window)
             surface = owning_function(match.start())
-            found.setdefault(surface, {})[tool] = (
-                description.group(1) if description else None
-            )
+            found.append({
+                "surface": surface,
+                "tool": tool,
+                "description": description.group(1) if description else None,
+            })
+
+    registry = _json.loads(
+        (repository_root / "server.json").read_text(encoding="utf-8")
+    )
+    registry_tools = registry["_meta"][
+        "io.modelcontextprotocol.registry/publisher-provided"
+    ]["tools"]
+    for entry in registry_tools:
+        if entry.get("name") in CONTAINED_TOOLS:
+            found.append({
+                "surface": "server.json",
+                "tool": entry["name"],
+                "description": entry.get("description"),
+            })
     return found
 
 
 def _assert_parity_contract(entries):
     """The contract itself, factored out so the oracle can be exercised
     against deliberately broken inputs as well as the real source."""
-    assert set(entries) == set(DISCOVERY_SURFACES), (
-        f"discovery surfaces changed: {sorted(entries)} != "
-        f"{sorted(DISCOVERY_SURFACES)} — a new or removed surface must be "
-        "added to this contract deliberately, not silently"
+    from collections import Counter
+
+    expected = Counter(
+        (surface, tool)
+        for surface in DISCOVERY_SURFACES
+        for tool in CONTAINED_TOOLS
     )
-    for surface in DISCOVERY_SURFACES:
-        assert set(entries[surface]) == set(CONTAINED_TOOLS), (
-            f"{surface} does not carry every contained tool: "
-            f"{sorted(entries[surface])}"
+    actual = Counter((entry["surface"], entry["tool"]) for entry in entries)
+    assert actual == expected, (
+        f"discovery occurrence mismatch: actual={actual}, expected={expected}. "
+        "Missing, duplicate, or newly added public entries must be handled "
+        "deliberately."
+    )
+
+    for entry in entries:
+        surface = entry["surface"]
+        tool = entry["tool"]
+        description = entry["description"]
+        assert description is not None, (
+            f"{surface}.{tool} has no description — the parity check "
+            "would skip it silently"
         )
-        for tool, description in entries[surface].items():
-            assert description is not None, (
-                f"{surface}.{tool} has no description — the parity check "
-                "would skip it silently"
-            )
-            assert "COORDINATION_MAINTENANCE_PREFIX" in description, (
-                f"{surface}.{tool} advertises a contained tool as working"
-            )
+        marker = _MANIFEST_MARKER if surface == "server.json" else _SOURCE_MARKER
+        assert marker in description, (
+            f"{surface}.{tool} advertises a contained tool as working"
+        )
 
 
 def test_discovery_entry_set_is_complete_and_marked():
@@ -302,25 +339,45 @@ def test_discovery_entry_set_is_complete_and_marked():
     _assert_parity_contract(_coordination_entries())
 
 
-@pytest.mark.parametrize("defect,mutate", [
-    ("removed surface",
-     lambda e: e.pop(DISCOVERY_SURFACES[1])),
-    ("removed tool entry",
-     lambda e: e[DISCOVERY_SURFACES[0]].pop(CONTAINED_TOOLS[0])),
-    ("entry lost its description",
-     lambda e: e[DISCOVERY_SURFACES[0]].update({CONTAINED_TOOLS[0]: None})),
-    ("description no longer marked",
-     lambda e: e[DISCOVERY_SURFACES[0]].update(
-         {CONTAINED_TOOLS[0]: '"Read the latest handoff record for a given agent."'})),
+def _mutate_discovery_entries(entries, defect):
+    if defect == "removed surface":
+        entries[:] = [
+            entry for entry in entries
+            if entry["surface"] != DISCOVERY_SURFACES[1]
+        ]
+    elif defect == "removed tool entry":
+        entries.pop(0)
+    elif defect == "duplicate tool entry":
+        entries.append(dict(entries[0]))
+    elif defect == "entry lost its description":
+        entries[0]["description"] = None
+    elif defect == "description no longer marked":
+        entries[0]["description"] = '"Read the latest handoff record."'
+    elif defect == "stale registry manifest":
+        manifest_entry = next(
+            entry for entry in entries if entry["surface"] == "server.json"
+        )
+        manifest_entry["description"] = "Create a structured handoff record"
+    else:  # pragma: no cover - test helper guard
+        raise AssertionError(f"unknown test defect: {defect}")
+
+
+@pytest.mark.parametrize("defect", [
+    "removed surface",
+    "removed tool entry",
+    "duplicate tool entry",
+    "entry lost its description",
+    "description no longer marked",
+    "stale registry manifest",
 ])
-def test_parity_oracle_fires_on_each_defect_class(defect, mutate):
+def test_parity_oracle_fires_on_each_defect_class(defect):
     """Known-positive test of the oracle itself: a gate that has never fired is
     not a gate. Each mutation is a defect class the contract claims to catch —
     including the two vacuity modes T identified — and each must fail."""
     import copy
 
     broken = copy.deepcopy(_coordination_entries())
-    mutate(broken)
+    _mutate_discovery_entries(broken, defect)
     with pytest.raises(AssertionError):
         _assert_parity_contract(broken)
 

@@ -8,6 +8,51 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.55 - Integrated Security and Public-Truth Repair (Unreleased)
+
+This release candidate consolidates the bounded, independently reviewed parts
+of PRs #309, #310, and #312 on top of the post-containment `main` line. PR #311
+is deliberately excluded: its proposed Groq admission floor can make
+`estimated_input + reserved_output` exceed the claimed 8K limit, and the
+observed production status code is not yet sufficient root-cause evidence.
+
+### What changed
+
+- **Discovery containment parity (#309, repaired):** MCP config, server card,
+  and root `server.json` now describe all three coordination tools as
+  temporarily unavailable. The CI oracle binds the exact multiset of
+  `(surface, tool)` occurrences, so missing entries, duplicates, absent
+  descriptions, unmarked descriptions, and a stale registry manifest all fail.
+- **Anthropic thinking-model repair (#310, completed):** Claude 5 responses
+  select answer text without exposing thinking blocks, receive an explicit
+  thinking allowance, and fail loudly on both documented truncation reasons:
+  `max_tokens` and `model_context_window_exceeded`.
+- **Containment denial integrity (#312):** coordination denials no longer
+  inherit an ambient marketing notice that contradicts the denial itself.
+- **Current availability contract:** `/health`, MCP config, `/setup`, the root
+  page, server card, `/mcp/test`, and registry metadata now agree on **13
+  defined / 10 active / 3 temporarily unavailable**.
+- **Registration truth repair:** removed obsolete 3/6-month free-access and
+  checkout marketing. Legacy response fields remain present but serialize as
+  `null`; the API and UI state that registration is free and is not a
+  time-limited access entitlement.
+- **Policy representation alignment:** HTML and JSON policy endpoints now
+  report Terms v2.2 and Privacy v2.3 with the same effective date and current
+  availability/entitlement facts. Human publication approval remains a deploy
+  gate.
+- **Version surfaces:** runtime `0.5.55`; MCP Registry package `3.32.0`.
+
+### Verification
+
+- Focused integrated lane: **193 passed**
+- Full unit lane: **990 passed, 3 skipped**
+- Registration + integration lane: **86 passed, 11 skipped**
+- `git diff --check`: clean
+
+No production deployment is claimed by this entry.
+
+---
+
 ## v0.5.54 - Honest Fallback Semantics (July 24, 2026)
 
 T's Session 88 review (D-88-1) narrowed the WP-A exit: the route/version projection passed, but discovery still described **construction-time provider selection as "smart fallback"** — wording that reads as request-time failover, behavior the runtime does not execute (runtime failover is WP-B, designed but unbuilt). The label must describe the execution.

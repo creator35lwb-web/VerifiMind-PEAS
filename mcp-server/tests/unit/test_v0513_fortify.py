@@ -81,12 +81,12 @@ class TestRegisterUser:
         assert len(result.uuid) > 10
         assert result.tier == "ea"
 
-    async def test_returns_pioneer_checkout_url(self):
+    async def test_returns_no_checkout_when_no_paid_service_is_active(self):
         from verifimind_mcp.registration import UserRegistrationRequest, register_user
         req = UserRegistrationRequest(consent=True)
         result = await register_user(req)
-        assert "polar.sh" in result.pioneer_checkout or "polar" in result.pioneer_checkout.lower()
-        assert result.uuid in result.pioneer_checkout
+        assert result.pioneer_checkout is None
+        assert result.checkout_url is None
 
     async def test_uuid_in_opt_out_url(self):
         from verifimind_mcp.registration import UserRegistrationRequest, register_user
@@ -94,20 +94,19 @@ class TestRegisterUser:
         result = await register_user(req)
         assert result.uuid in result.opt_out_url
 
-    async def test_expires_at_is_future(self):
+    async def test_registration_has_no_access_expiry(self):
         from verifimind_mcp.registration import UserRegistrationRequest, register_user
-        from datetime import datetime, timezone
         req = UserRegistrationRequest(consent=True)
         result = await register_user(req)
-        expires = datetime.fromisoformat(result.expires_at.replace("Z", "+00:00"))
-        assert expires > datetime.now(timezone.utc)
+        assert result.expires_at is None
+        assert "not create a time-limited" in result.availability_notice
 
     async def test_policy_versions_returned(self):
         from verifimind_mcp.registration import UserRegistrationRequest, register_user
         req = UserRegistrationRequest(consent=True)
         result = await register_user(req)
-        assert result.privacy_version == "2.1"
-        assert result.tc_version == "2.0"
+        assert result.privacy_version == "2.3"
+        assert result.tc_version == "2.2"
 
     async def test_different_calls_return_different_uuids(self):
         from verifimind_mcp.registration import UserRegistrationRequest, register_user
@@ -719,11 +718,13 @@ class TestRegistrationBillingPaths:
         result = _build_benefit_summary("pilot", "Pilot Member", "2026-10-10T00:00:00+00:00")
         assert "Pilot Member" in result
         assert "50-slot" in result
+        assert "months" not in result
 
     def test_build_benefit_summary_early_adopter(self):
         from verifimind_mcp.registration import _build_benefit_summary
         result = _build_benefit_summary("early_adopter", "Early Adopter", "2026-07-10T00:00:00+00:00")
         assert "Early Adopter" in result
+        assert "months" not in result
 
     # --- _count_tier_slots exception path ---
 

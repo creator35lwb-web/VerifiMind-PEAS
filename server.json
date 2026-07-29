@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.creator35lwb-web/verifimind-genesis",
   "title": "VerifiMind PEAS - RefleXion Trinity",
-  "description": "Multi-Agent AI Validation: X-Z-CS Trinity. 13 tools FREE. Auditable reasoning. v0.5.54",
-  "version": "3.31.0",
+  "description": "Multi-Agent AI Validation: X-Z-CS Trinity. 10 active tools; 3 coordination tools temporarily unavailable. Auditable reasoning. v0.5.55",
+  "version": "3.32.0",
   "repository": {
     "url": "https://github.com/creator35lwb-web/VerifiMind-PEAS",
     "source": "github"
@@ -74,15 +74,15 @@
         },
         {
           "name": "coordination_handoff_create",
-          "description": "Create a structured MACP coordination handoff artifact between FLYWHEEL TEAM agents"
+          "description": "TEMPORARILY UNAVAILABLE (maintenance) — Create a structured MACP coordination handoff artifact between FLYWHEEL TEAM agents"
         },
         {
           "name": "coordination_handoff_read",
-          "description": "Read the latest MACP coordination handoff for a given agent"
+          "description": "TEMPORARILY UNAVAILABLE (maintenance) — Read the latest MACP coordination handoff for a given agent"
         },
         {
           "name": "coordination_team_status",
-          "description": "Get current FLYWHEEL TEAM status \u00e2\u20ac\u201d active agents, pending handoffs, last session summary"
+          "description": "TEMPORARILY UNAVAILABLE (maintenance) — Get current FLYWHEEL TEAM status: active agents, pending handoffs, and last session summary"
         }
       ]
     }

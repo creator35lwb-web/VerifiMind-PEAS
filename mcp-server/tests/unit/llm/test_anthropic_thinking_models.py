@@ -27,6 +27,7 @@ import pytest
 from verifimind_mcp.llm.provider import (
     PROVIDER_CONFIGS,
     _first_text_block,
+    _raise_if_anthropic_truncated,
     _thinking_aware_max_tokens,
 )
 
@@ -98,6 +99,23 @@ def test_allowance_covers_the_measured_real_world_thinking_usage():
     measured_thinking_tokens = 5437
     headroom = _thinking_aware_max_tokens("claude-opus-5", 8192) - 8192
     assert headroom > measured_thinking_tokens
+
+
+@pytest.mark.parametrize(
+    "stop_reason",
+    ["max_tokens", "model_context_window_exceeded"],
+)
+def test_every_anthropic_truncation_stop_reason_fails_loud(stop_reason):
+    """Both documented truncation reasons mean structured output is partial."""
+    with pytest.raises(ValueError) as exc:
+        _raise_if_anthropic_truncated(stop_reason, "claude-opus-5")
+    assert stop_reason in str(exc.value)
+    assert "incomplete" in str(exc.value)
+
+
+@pytest.mark.parametrize("stop_reason", [None, "end_turn", "stop_sequence"])
+def test_non_truncation_stop_reasons_are_accepted(stop_reason):
+    _raise_if_anthropic_truncated(stop_reason, "claude-opus-5")
 
 
 # --- Model currency ---------------------------------------------------------

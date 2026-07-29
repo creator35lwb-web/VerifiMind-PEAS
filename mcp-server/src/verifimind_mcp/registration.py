@@ -11,7 +11,7 @@ UUID format: UUIDv7-compatible (timestamp-ordered per AI Council recommendation)
 """
 import logging
 import os
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
@@ -23,12 +23,16 @@ logger = logging.getLogger(__name__)
 
 # ── Tier constants ─────────────────────────────────────────────────────────────
 # Pilot tier: active MCP users invited via SYSTEM_NOTICE
-PILOT_FREE_MONTHS = 6
 PILOT_MAX_SLOTS = 50
 
 # Early Adopter tier: public open registration
-EA_BETA_FREE_MONTHS = 3
 EA_MAX_SLOTS = 100
+
+CURRENT_AVAILABILITY_NOTICE = (
+    "Registration is free and does not create a time-limited access "
+    "entitlement. 10 tools are active; 3 coordination tools are temporarily "
+    "unavailable while owner-scoped access control is rebuilt."
+)
 
 # Pilot invite code (set via GCP env var — never hardcoded)
 PILOT_INVITE_CODE = os.environ.get("PILOT_INVITE_CODE", "")
@@ -114,9 +118,12 @@ class RegistrationResponse(BaseModel):
     email_masked: str  # e.g. "a***@example.com" — never echo full email in response
     tier: str = "early_adopter"
     tier_label: str = "Early Adopter"
-    free_months: int = EA_BETA_FREE_MONTHS
+    # Compatibility fields retained as null so existing clients do not fail
+    # schema decoding. They no longer describe an access entitlement.
+    free_months: Optional[int] = None
     registered_at: str
-    benefits_free_until: str
+    benefits_free_until: Optional[str] = None
+    availability_notice: str = CURRENT_AVAILABILITY_NOTICE
     tc_version: str
     privacy_version: str
     message: str
@@ -165,7 +172,8 @@ class EAStatusResponse(BaseModel):
     uuid: str
     tier: str
     registered_at: str
-    benefits_free_until: str
+    benefits_free_until: Optional[str] = None
+    availability_notice: str = CURRENT_AVAILABILITY_NOTICE
     status: str
     updates_consent: bool
 
@@ -229,18 +237,20 @@ class SlotCapReachedError(Exception):
         super().__init__(f"{tier} slots full ({max_slots}/{max_slots})")
 
 
-def _build_benefit_summary(tier: str, tier_label: str, benefits_until: str) -> str:
+def _build_benefit_summary(
+    tier: str,
+    tier_label: str,
+    benefits_until: Optional[str] = None,
+) -> str:
     """Build a clear human-readable benefit summary for the registration response."""
-    free_months = PILOT_FREE_MONTHS if tier == "pilot" else EA_BETA_FREE_MONTHS
-    until_date = benefits_until[:10]
     if tier == "pilot":
         return (
-            f"Pilot Member: {free_months} months FREE v0.6.0-Beta access (launching Jun 2026). "
-            f"Free until {until_date}. You are among our 50-slot exclusive Pilot cohort."
+            f"{tier_label}: member of the 50-slot Pilot feedback cohort. "
+            f"{CURRENT_AVAILABILITY_NOTICE}"
         )
     return (
-        f"Early Adopter: {free_months} months FREE v0.6.0-Beta access (launching Jun 2026). "
-        f"Free until {until_date}. One of 100 open Early Adopter slots."
+        f"{tier_label}: member of the 100-slot Early Adopter feedback cohort. "
+        f"{CURRENT_AVAILABILITY_NOTICE}"
     )
 
 
@@ -258,11 +268,6 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _benefits_until_iso(months: int) -> str:
-    dt = datetime.now(timezone.utc) + timedelta(days=months * 30)
-    return dt.isoformat()
-
-
 def _count_tier_slots(db, tier: str) -> int:
     """Count registered slots for a given tier. Returns 0 if Firestore unavailable."""
     try:
@@ -277,8 +282,8 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
     """Register a new Early Adopter or Pilot, or return existing record for duplicate email.
 
     Tier assignment:
-    - Pilot (6 months free, 50 slots): valid invite_code matching PILOT_INVITE_CODE env var
-    - Early Adopter (3 months free, 100 slots): everyone else
+    - Pilot (50-slot feedback cohort): valid invite_code matching PILOT_INVITE_CODE
+    - Early Adopter (100-slot feedback cohort): everyone else
 
     Idempotent: same email → returns existing UUID (no duplicate records).
     Slot cap: returns 410 Gone (raises ValueError with code) if tier is full.
@@ -294,9 +299,7 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
     )
     tier = "pilot" if is_pilot else "early_adopter"
     tier_label = "Pilot Member" if is_pilot else "Early Adopter"
-    free_months = PILOT_FREE_MONTHS if is_pilot else EA_BETA_FREE_MONTHS
     max_slots = PILOT_MAX_SLOTS if is_pilot else EA_MAX_SLOTS
-    benefits_until = _benefits_until_iso(free_months)
 
     if db is not None:
         # ── Slot cap check ──────────────────────────────────────────────────────
@@ -311,20 +314,20 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
             doc = existing[0].to_dict()
             existing_tier = doc.get("tier", "early_adopter")
             existing_label = "Pilot Member" if existing_tier == "pilot" else "Early Adopter"
-            existing_until = doc["benefits"]["v060_beta_free_until"]
             logger.info(f"Duplicate registration for masked email {_mask_email(str(data.email))} — returning existing UUID")
             return RegistrationResponse(
                 uuid=doc["uuid"],
                 email_masked=_mask_email(str(data.email)),
                 tier=existing_tier,
                 tier_label=existing_label,
-                free_months=doc.get("pilot_free_months", EA_BETA_FREE_MONTHS) if existing_tier == "pilot" else EA_BETA_FREE_MONTHS,
                 registered_at=doc["registered_at"],
-                benefits_free_until=existing_until,
                 tc_version=doc.get("tc_version", TERMS_VERSION),
                 privacy_version=doc.get("privacy_version", PRIVACY_POLICY_VERSION),
-                message=f"You're already registered as {existing_label}! Your UUID and benefits are unchanged.",
-                benefit_summary=_build_benefit_summary(existing_tier, existing_label, existing_until),
+                message=(
+                    f"You're already registered as {existing_label}. "
+                    "Your UUID and cohort membership are unchanged."
+                ),
+                benefit_summary=_build_benefit_summary(existing_tier, existing_label),
                 opt_out_url=f"/early-adopters/optout/{doc['uuid']}",
                 feedback_received=False,
             )
@@ -344,16 +347,11 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
             "privacy_version": PRIVACY_POLICY_VERSION,
             "privacy_acknowledged_at": now,
             "updates_consent": data.updates_consent,
-            "benefits": {
-                "v060_beta_free": True,
-                "v060_beta_free_until": benefits_until,
-            },
             "registration_feedback": data.feedback,
             "feedback_type": data.feedback_type or ("new_user" if not data.feedback else "general"),
             "status": "active",
         }
         if is_pilot:
-            record["pilot_free_months"] = PILOT_FREE_MONTHS
             record["pilot_source"] = "system_notice_invite"
         db.collection(COLLECTION_EA).document(new_uuid).set(record)
         logger.info(f"New {tier} registered: UUID={new_uuid}")
@@ -380,9 +378,7 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
             email_masked=_mask_email(str(data.email)),
             tier=tier,
             tier_label=tier_label,
-            free_months=free_months,
             registered_at=now,
-            benefits_free_until=benefits_until,
             tc_version=TERMS_VERSION,
             privacy_version=PRIVACY_POLICY_VERSION,
             persisted=False,
@@ -400,18 +396,17 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
         email_masked=_mask_email(str(data.email)),
         tier=tier,
         tier_label=tier_label,
-        free_months=free_months,
         registered_at=now,
-        benefits_free_until=benefits_until,
         tc_version=TERMS_VERSION,
         privacy_version=PRIVACY_POLICY_VERSION,
         message=(
             f"Welcome to the VerifiMind-PEAS {tier_label} program! "
-            f"Your UUID is your access key — save it. "
-            f"You receive {free_months} months free access to v0.6.0-Beta when it launches. "
-            f"Your free access runs until {benefits_until[:10]}."
+            "Your UUID is your identifier — save it. It is not an "
+            "authentication credential and does not authorize access to "
+            "another user's data. "
+            f"{CURRENT_AVAILABILITY_NOTICE}"
         ),
-        benefit_summary=_build_benefit_summary(tier, tier_label, benefits_until),
+        benefit_summary=_build_benefit_summary(tier, tier_label),
         opt_out_url=f"/early-adopters/optout/{new_uuid}",
         feedback_received=bool(data.feedback),
     )
@@ -432,7 +427,6 @@ async def get_ea_status(uuid: str) -> Optional[EAStatusResponse]:
         uuid=data["uuid"],
         tier=data.get("tier", "early_adopter"),
         registered_at=data["registered_at"],
-        benefits_free_until=data["benefits"]["v060_beta_free_until"],
         status=data.get("status", "active"),
         updates_consent=data.get("updates_consent", False),
     )
@@ -511,10 +505,11 @@ async def process_optout(uuid: str) -> OptOutResponse:
 _SERVER_BASE_URL = "https://verifimind.ysenseai.org"
 
 
-def _build_registration_extras(uuid: str, checkout: str) -> dict:
+def _build_registration_extras(uuid: str, checkout: Optional[str] = None) -> dict:
     """Build the P1-C enhanced fields for the registration response.
 
-    Returns dict with: checkout_url, test_url, dashboard_url, mcp_config.
+    Returns test/dashboard/config fields plus the deprecated checkout field,
+    which is null unless a separately reviewed paid service supplies a URL.
     Security: uuid is already validated (UUIDv7 from generate_ea_uuid()).
     """
     return {
@@ -534,12 +529,6 @@ def _build_registration_extras(uuid: str, checkout: str) -> dict:
             }
         },
     }
-
-# Polar Pioneer checkout URL — set via GCP env var
-_POLAR_CHECKOUT_URL = os.environ.get(
-    "POLAR_CHECKOUT_URL",
-    "https://polar.sh/ysenseai-ecosystem/pioneer",
-)
 
 # Firestore collection for lightweight registrations
 COLLECTION_REGISTRATIONS = "ea_registrations"
@@ -562,7 +551,10 @@ class UserRegistrationRequest(BaseModel):
     )
     consent: bool = Field(
         ...,
-        description="You consent to the Privacy Policy v2.0 and Terms & Conditions v2.0"
+        description=(
+            f"You consent to Privacy Policy v{PRIVACY_POLICY_VERSION} and "
+            f"Terms & Conditions v{TERMS_VERSION}"
+        )
     )
 
     @field_validator("consent")
@@ -581,9 +573,12 @@ class UserRegistrationResponse(BaseModel):
     uuid: str
     tier: str = "ea"
     registered_at: str
-    expires_at: str
-    pioneer_checkout: str
-    checkout_url: str
+    # Deprecated compatibility fields. No paid service or timed entitlement is
+    # currently offered, so these serialize as null.
+    expires_at: Optional[str] = None
+    pioneer_checkout: Optional[str] = None
+    checkout_url: Optional[str] = None
+    availability_notice: str = CURRENT_AVAILABILITY_NOTICE
     message: str
     opt_out_url: str
     test_url: str
@@ -599,9 +594,9 @@ async def register_user(data: UserRegistrationRequest) -> UserRegistrationRespon
     XV PIN #49 architecture (v0.5.13):
     - Email is optional: consent-only registration returns a UUID
     - UUID is UUIDv7 (time-ordered for Firestore query efficiency)
-    - UUID = Polar external_id when user upgrades to Pioneer
+    - UUID is a pseudonymous identifier, not an authorization credential
     - Anonymous Scholar users are NOT required to register (zero friction)
-    - pioneer_checkout URL embeds UUID as Polar customer_metadata.external_id
+    - legacy checkout response fields remain null while no paid service exists
 
     Idempotent by UUID — each call generates a new UUID (email-based
     dedup is best-effort only, not enforced for privacy-first anonymous path).
@@ -609,8 +604,6 @@ async def register_user(data: UserRegistrationRequest) -> UserRegistrationRespon
     db = _get_firestore()
     now = _now_iso()
     new_uuid = generate_ea_uuid()
-    expires_at = _benefits_until_iso(EA_BETA_FREE_MONTHS)
-
     # Best-effort email dedup (only when email provided and Firestore available)
     if data.email and db is not None:
         existing = (
@@ -625,17 +618,14 @@ async def register_user(data: UserRegistrationRequest) -> UserRegistrationRespon
                 "Lightweight register: duplicate email %s — returning existing UUID",
                 _mask_email(str(data.email)),
             )
-            checkout = f"{_POLAR_CHECKOUT_URL}?customer[external_id]={doc['uuid']}"
-            extras = _build_registration_extras(doc["uuid"], checkout)
+            extras = _build_registration_extras(doc["uuid"])
             return UserRegistrationResponse(
                 uuid=doc["uuid"],
                 tier=doc.get("tier", "ea"),
                 registered_at=doc["registered_at"],
-                expires_at=doc.get("expires_at", expires_at),
-                pioneer_checkout=checkout,
                 message=(
-                    "You're already registered! Your UUID and Pioneer checkout link are below. "
-                    "Save your UUID — it is your permanent identity."
+                    "You're already registered. Save your UUID — it is your "
+                    f"persistent identifier. {CURRENT_AVAILABILITY_NOTICE}"
                 ),
                 opt_out_url=f"/early-adopters/optout/{doc['uuid']}",
                 privacy_version=PRIVACY_POLICY_VERSION,
@@ -651,7 +641,6 @@ async def register_user(data: UserRegistrationRequest) -> UserRegistrationRespon
             "display_name": data.display_name,
             "tier": "ea",
             "registered_at": now,
-            "expires_at": expires_at,
             "consent": True,
             "consent_ts": now,
             "privacy_version": PRIVACY_POLICY_VERSION,
@@ -664,20 +653,17 @@ async def register_user(data: UserRegistrationRequest) -> UserRegistrationRespon
     else:
         logger.warning("Firestore unavailable — lightweight registration UUID=%s not persisted", new_uuid)
 
-    checkout = f"{_POLAR_CHECKOUT_URL}?customer[external_id]={new_uuid}"
-    extras = _build_registration_extras(new_uuid, checkout)
+    extras = _build_registration_extras(new_uuid)
 
     return UserRegistrationResponse(
         uuid=new_uuid,
         tier="ea",
         registered_at=now,
-        expires_at=expires_at,
-        pioneer_checkout=checkout,
         message=(
-            "Registration successful! Your UUID is your permanent identity — save it. "
+            "Registration successful! Your UUID is your persistent identifier — save it. "
             "Copy the mcp_config below into your Claude Desktop or Cursor config. "
             "Use test_url to verify your connection, dashboard_url to track your usage. "
-            f"Free EA access runs until {expires_at[:10]}."
+            f"{CURRENT_AVAILABILITY_NOTICE}"
         ),
         opt_out_url=f"/early-adopters/optout/{new_uuid}",
         privacy_version=PRIVACY_POLICY_VERSION,
