@@ -95,6 +95,26 @@ PROVIDER_DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b"
 # 4096 keeps ~4x headroom. Caught by the v0.5.49 post-deploy Trinity smoke (413).
 GROQ_8K_TPM_MODELS = frozenset({"openai/gpt-oss-120b", "qwen/qwen3.6-27b"})
 GROQ_8K_TPM_COMPLETION_CAP = 4096
+# S107: the flat cap above only fits SHORT prompts. Admission is
+# `input + reservation <= limit`, so the reservation must be computed from the
+# actual input — see the clamp in GroqProvider.generate for the measurements.
+GROQ_8K_TPM_LIMIT = 8000
+GROQ_TPM_SAFETY_MARGIN = 256   # covers token-estimate error (~4 chars/token)
+GROQ_MIN_COMPLETION = 1024     # observed Z/CS outputs run ~1k tokens
+
+
+def _estimate_tokens(messages) -> int:
+    """Rough token estimate for admission arithmetic (~4 chars/token).
+
+    Deliberately an over-estimate rather than an under-estimate: guessing high
+    shrinks our own completion reservation (recoverable — a shorter answer),
+    while guessing low re-creates the 413 this exists to prevent.
+    """
+    total_chars = 0
+    for message in messages or []:
+        content = message.get("content", "") if isinstance(message, dict) else str(message)
+        total_chars += len(content or "")
+    return total_chars // 4 + 1
 PROVIDER_DEFAULT_CEREBRAS_MODEL = "llama-3.3-70b"
 
 PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
@@ -863,10 +883,31 @@ class GroqProvider(LLMProvider):
                 f"Respond ONLY with the JSON object, no other text.\n\nJSON:"
             )
 
-        # v0.5.49 TPM-admission clamp: keep input + completion reservation under
-        # the 8k on_demand limit for gpt-oss/qwen (see GROQ_8K_TPM_MODELS above).
+        # v0.5.49 TPM-admission clamp, made INPUT-AWARE (S107).
+        # Groq admits only when input + completion reservation <= the model TPM
+        # limit. A FLAT 4096 reservation leaves an input budget of 8000-4096 =
+        # 3,904 tokens, which the ORCHESTRATED Z/CS prompts sit right on top of:
+        # measured ~2,799 tokens standalone (1,105 headroom) but ~3,690 with a
+        # typical X prior-reasoning payload — only ~214 tokens of slack. X's
+        # output length varies per run, so the same concept crosses the ceiling
+        # on some runs and not others, producing a 413 that surfaces as an
+        # INTERMITTENT Z "fallback". It was diagnosed as a provider blip; it is
+        # arithmetic.
+        #
+        # Reserving from the ACTUAL input keeps admission satisfied at any prompt
+        # size instead of guessing a constant that only fits short prompts.
         if self.model in GROQ_8K_TPM_MODELS:
-            max_tokens = min(max_tokens, GROQ_8K_TPM_COMPLETION_CAP)
+            estimated_input = _estimate_tokens(messages)
+            available = GROQ_8K_TPM_LIMIT - estimated_input - GROQ_TPM_SAFETY_MARGIN
+            max_tokens = min(max_tokens, GROQ_8K_TPM_COMPLETION_CAP, max(available, GROQ_MIN_COMPLETION))
+            if available < GROQ_MIN_COMPLETION:
+                logger.warning(
+                    "Groq TPM admission: estimated input %d tokens leaves only %d "
+                    "for completion on %s (limit %d). Reserving the %d-token floor; "
+                    "the request may still be rejected. Shorten the prompt or move "
+                    "this agent off an 8k-TPM model.",
+                    estimated_input, available, self.model,
+                    GROQ_8K_TPM_LIMIT, GROQ_MIN_COMPLETION)
 
         try:
             response = await self.client.chat.completions.create(
