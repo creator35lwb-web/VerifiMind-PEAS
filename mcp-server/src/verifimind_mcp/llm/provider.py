@@ -121,8 +121,13 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     },
     "anthropic": {
         "name": "Anthropic Claude",
+        # Claude 5 family live-verified available on a real key 2026-07-29
+        # (RNA S106). These are extended-thinking models — see
+        # `_thinking_aware_max_tokens`. Default stays on the 4.x line until a
+        # deliberate default change is reviewed; the 5 IDs are opt-in via BYOK.
         "default_model": os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
-        "models": ["claude-sonnet-4-6", "claude-opus-4-8", "claude-haiku-4-5-20251001"],
+        "models": ["claude-opus-5", "claude-sonnet-5", "claude-fable-5",
+                   "claude-sonnet-4-6", "claude-opus-4-8", "claude-haiku-4-5-20251001"],
         "api_key_env": "ANTHROPIC_API_KEY",
         "base_url": "https://api.anthropic.com/v1",
         "free_tier": False,
@@ -344,6 +349,63 @@ class OpenAIProvider(LLMProvider):
         return f"openai/{self.model}"
 
 
+# Models that emit extended-thinking blocks. Thinking tokens are drawn from the
+# SAME `max_tokens` budget as the answer, so a budget sized for the answer alone
+# silently truncates it. Measured on a real Z-agent assessment: 5,437 thinking
+# tokens on one call — at our 8,192 agent budget the JSON answer was cut mid-
+# object and surfaced as a parse failure, i.e. the model was blamed for our
+# accounting. Same family as the Gemini 3.5-flash thinking-token trap.
+_THINKING_MODEL_MARKERS = ("claude-opus-5", "claude-sonnet-5", "claude-fable-5")
+_THINKING_TOKEN_ALLOWANCE = 8192
+
+
+def _thinking_aware_max_tokens(model: str, requested: int) -> int:
+    """Add a thinking allowance so `requested` remains available for the ANSWER.
+
+    Callers size `max_tokens` for the output they need. On extended-thinking
+    models that number must additionally cover the model's scratchpad, so the
+    allowance is added rather than the caller's budget being reinterpreted.
+    """
+    if any(marker in (model or "") for marker in _THINKING_MODEL_MARKERS):
+        return requested + _THINKING_TOKEN_ALLOWANCE
+    return requested
+
+
+def _first_text_block(blocks) -> str:
+    """Return the first TEXT block's content from an Anthropic response.
+
+    Anthropic responses are a LIST of typed content blocks, and `content[0]`
+    is not guaranteed to be the text. Extended-thinking models (the Claude 5
+    family) emit a `thinking` block first, so indexing position zero raised
+    `'ThinkingBlock' object has no attribute 'text'` and BYOK failed for every
+    such model — found by dogfooding a real Z-agent assessment on
+    `claude-opus-5`.
+
+    Selecting by TYPE rather than by POSITION is also forward-compatible: any
+    future non-text block prepended to the list leaves this correct. Thinking
+    content is deliberately discarded — it is the model's scratchpad, not its
+    answer, and must never reach a caller as if it were the response.
+    """
+    text_parts = [
+        getattr(b, "text", None)
+        for b in (blocks or [])
+        if getattr(b, "type", None) == "text" or (
+            getattr(b, "text", None) is not None
+            and getattr(b, "type", None) is None
+        )
+    ]
+    text_parts = [t for t in text_parts if t]
+    if text_parts:
+        return "".join(text_parts)
+
+    # Fail LOUD with a diagnosable message rather than returning empty content
+    # that a downstream parser would report as a malformed model answer.
+    seen = [getattr(b, "type", type(b).__name__) for b in (blocks or [])]
+    raise ValueError(
+        f"Anthropic response contained no text block (block types: {seen})"
+    )
+
+
 class AnthropicProvider(LLMProvider):
     """
     Anthropic Claude provider implementation.
@@ -385,12 +447,23 @@ class AnthropicProvider(LLMProvider):
         try:
             response = await self.client.messages.create(
                 model=self.model,
-                max_tokens=max_tokens,
+                max_tokens=_thinking_aware_max_tokens(self.model, max_tokens),
                 messages=[{"role": "user", "content": prompt}]
             )
-            
-            content = response.content[0].text
-            
+
+            # Fail LOUD on truncation. A response cut off at the token ceiling
+            # yields malformed JSON that a downstream parser reports as "the
+            # model returned bad output" — blaming the model for OUR budget.
+            if getattr(response, "stop_reason", None) == "max_tokens":
+                raise ValueError(
+                    f"Anthropic response truncated at the token ceiling "
+                    f"(model={self.model}, stop_reason=max_tokens). The answer is "
+                    f"incomplete; raise max_tokens rather than parsing a partial "
+                    f"response."
+                )
+
+            content = _first_text_block(response.content)
+
             # Extract token usage
             usage = {
                 "input_tokens": response.usage.input_tokens if hasattr(response, 'usage') else 0,
