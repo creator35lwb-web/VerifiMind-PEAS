@@ -222,3 +222,25 @@ def test_every_discovery_surface_marks_coordination_tools_contained():
     assert not unmarked, (
         "discovery surface advertises a contained tool as working: " + "; ".join(unmarked)
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("tool", CONTAINED_TOOLS)
+async def test_denial_carries_no_marketing_notice(app, tool, monkeypatch):
+    """Finding V-6, external validation 2026-07-29: the ambient SYSTEM_NOTICE
+    advertises "All 13 tools free forever", and emitting it inside the denial
+    put a product claim and its own falsification in ONE JSON object — the
+    service asserting availability it was simultaneously refusing.
+
+    A denial must say only that it is denying, and how to proceed."""
+    import verifimind_mcp.server as server_module
+
+    monkeypatch.setattr(server_module, "SYSTEM_NOTICE",
+                        "All 13 tools free forever. Register at example.invalid")
+    result = await call(app, tool, args_for(tool, {}))
+
+    assert result.get("error_code") == DENIAL_CODE, result
+    assert "_system_notice" not in result, result
+    assert "free forever" not in json.dumps(result).lower(), result
+    # the diagnostic field a caller legitimately needs is retained
+    assert result.get("_server_version"), result
