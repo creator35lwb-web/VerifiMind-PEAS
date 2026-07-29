@@ -1129,7 +1129,7 @@ async def smithery_server_card_handler(request):
             },
             {
                 "name": "coordination_handoff_read",
-                "description": "Read the latest handoff record for a given agent.",
+                "description": COORDINATION_MAINTENANCE_PREFIX + "Read the latest handoff record for a given agent.",
                 "inputSchema": {
                     "type": "object",
                     "required": ["pioneer_key"],
@@ -1142,7 +1142,7 @@ async def smithery_server_card_handler(request):
             },
             {
                 "name": "coordination_team_status",
-                "description": "Get current status of all coordination agents and active handoffs.",
+                "description": COORDINATION_MAINTENANCE_PREFIX + "Get current status of all coordination agents and active handoffs.",
                 "inputSchema": {
                     "type": "object",
                     "required": ["pioneer_key"],

@@ -192,3 +192,33 @@ def test_no_handler_resolves_a_caller_supplied_namespace():
             assert "pioneer_key" not in stripped, (
                 f"namespace is still derived from caller input: {stripped}"
             )
+
+
+def test_every_discovery_surface_marks_coordination_tools_contained():
+    """Found by an independent security review of the containment commit
+    itself: the S100 edit matched description STRINGS, so two entries in the
+    Smithery server card kept advertising working capability ("Read the
+    latest handoff record...", "Get current status of all coordination
+    agents...") while the server denied every call.
+
+    The repair enumerates by TOOL ENTRY rather than by wording, and this test
+    pins that invariant: for EVERY place a discovery surface names a
+    coordination tool, its description must carry the maintenance marker.
+    Discovery surfaces must not promise a capability the server denies."""
+    import re
+    from pathlib import Path
+
+    source = Path(__file__).resolve().parents[2] / "http_server.py"
+    text = source.read_text(encoding="utf-8")
+
+    unmarked = []
+    for tool in CONTAINED_TOOLS:
+        for m in re.finditer(r'"name":\s*"%s"' % re.escape(tool), text):
+            window = text[m.end():m.end() + 700]
+            desc = re.search(r'"description":\s*[^\n]*', window)
+            if desc and "COORDINATION_MAINTENANCE_PREFIX" not in desc.group(0):
+                unmarked.append(f"{tool}: {desc.group(0)[:80]}")
+
+    assert not unmarked, (
+        "discovery surface advertises a contained tool as working: " + "; ".join(unmarked)
+    )
