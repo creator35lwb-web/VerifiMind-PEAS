@@ -39,12 +39,18 @@ from verifimind_mcp.llm.provider import (
 
 
 def _clamp(messages, requested, model="openai/gpt-oss-120b"):
-    """Mirror of the production clamp, so the arithmetic is asserted directly."""
+    """Mirror of the production clamp, so the arithmetic is asserted directly.
+
+    Raises ValueError when the minimum useful output cannot fit — the
+    fail-closed behaviour T S114 required, replacing an unconditional floor
+    that admitted over-budget requests."""
     if model not in GROQ_8K_TPM_MODELS:
         return requested
     estimated = _estimate_tokens(messages)
     available = GROQ_8K_TPM_LIMIT - estimated - GROQ_TPM_SAFETY_MARGIN
-    return min(requested, GROQ_8K_TPM_COMPLETION_CAP, max(available, GROQ_MIN_COMPLETION))
+    if available < GROQ_MIN_COMPLETION:
+        raise ValueError("not admissible")
+    return min(requested, GROQ_8K_TPM_COMPLETION_CAP, available)
 
 
 def _messages(token_count):
@@ -61,12 +67,49 @@ def test_orchestrated_sized_prompt_admits_under_the_tpm_limit():
     assert _estimate_tokens(messages) + reservation <= GROQ_8K_TPM_LIMIT
 
 
-@pytest.mark.parametrize("input_tokens", [500, 2799, 3690, 4428, 5500, 6500])
+# Derived, not hardcoded: the last admissible input is the one that still
+# leaves the minimum useful output inside the limit. Deriving it means the
+# boundary cases follow the constants instead of drifting from them — and it
+# is how the off-by-one in the estimator's `+1` was caught.
+MAX_ADMISSIBLE_INPUT = (GROQ_8K_TPM_LIMIT - GROQ_TPM_SAFETY_MARGIN
+                        - GROQ_MIN_COMPLETION)
+_LAST_ADMISSIBLE = MAX_ADMISSIBLE_INPUT - 1      # _messages(n) estimates n + 1
+
+
+@pytest.mark.parametrize("input_tokens",
+                         [500, 2799, 3690, 4428, 5500, 6500,
+                          _LAST_ADMISSIBLE - 1, _LAST_ADMISSIBLE])
 def test_admission_holds_across_the_whole_prompt_range(input_tokens):
-    """Admission must be satisfied at ANY prompt size — the property the flat
-    cap could not provide, since it only fitted short prompts."""
+    """Admission must hold at every ADMISSIBLE prompt size.
+
+    T S114 caught that the original parametrisation stopped at 6,500 — just
+    short of 6,721, where the old unconditional floor began admitting
+    over-budget requests. A range test that stops before the failing zone is
+    the vacuous-verification failure mode in a test asserting a range."""
     messages = _messages(input_tokens)
     assert _estimate_tokens(messages) + _clamp(messages, 8192) <= GROQ_8K_TPM_LIMIT
+
+
+@pytest.mark.parametrize("input_tokens",
+                         [_LAST_ADMISSIBLE + 1, 7001, 7500, 7999])
+def test_inadmissible_inputs_fail_closed_rather_than_being_sent(input_tokens):
+    """Beyond the floor-binding boundary the request cannot carry a useful
+    answer within the limit. It must be REFUSED, not sent over-budget and
+    blamed on the provider — the defect T S114 found in the first version:
+    at 7,001 estimated input the old code reserved 1,024 for a total of 8,025
+    against an 8,000 ceiling."""
+    with pytest.raises(ValueError):
+        _clamp(_messages(input_tokens), 8192)
+
+
+def test_the_old_unconditional_floor_would_have_exceeded_the_limit():
+    """Known-positive against the FIRST version of this fix (not just against
+    the original flat cap): reproduce `max(available, FLOOR)` and show it
+    admits an over-budget request. This is the arithmetic T verified."""
+    estimated = 7001
+    available = GROQ_8K_TPM_LIMIT - estimated - GROQ_TPM_SAFETY_MARGIN
+    old_reservation = max(available, GROQ_MIN_COMPLETION)
+    assert estimated + old_reservation > GROQ_8K_TPM_LIMIT
 
 
 def test_flat_cap_would_have_failed_the_orchestrated_case():
@@ -85,11 +128,12 @@ def test_short_prompts_keep_the_full_reservation():
     assert _clamp(_messages(2799), 8192) == GROQ_8K_TPM_COMPLETION_CAP
 
 
-def test_reservation_never_falls_below_the_observed_output_size():
-    """Observed Z/CS outputs run ~1k tokens. Even a very large input must not
-    reserve less than that floor — better to surface a loud admission error
-    than to silently truncate every answer."""
-    assert _clamp(_messages(7000), 8192) >= GROQ_MIN_COMPLETION
+def test_admitted_requests_always_carry_a_useful_output_budget():
+    """Observed Z/CS outputs run ~1k tokens. Any request that IS admitted must
+    reserve at least that; anything that cannot is refused (test above). The
+    original version asserted this by forcing the floor, which is what broke
+    the admission invariant."""
+    assert _clamp(_messages(_LAST_ADMISSIBLE), 8192) >= GROQ_MIN_COMPLETION
 
 
 def test_caller_budget_is_still_respected_when_smaller():

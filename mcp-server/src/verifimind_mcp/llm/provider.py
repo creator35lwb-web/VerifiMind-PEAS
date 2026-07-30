@@ -899,15 +899,23 @@ class GroqProvider(LLMProvider):
         if self.model in GROQ_8K_TPM_MODELS:
             estimated_input = _estimate_tokens(messages)
             available = GROQ_8K_TPM_LIMIT - estimated_input - GROQ_TPM_SAFETY_MARGIN
-            max_tokens = min(max_tokens, GROQ_8K_TPM_COMPLETION_CAP, max(available, GROQ_MIN_COMPLETION))
             if available < GROQ_MIN_COMPLETION:
-                logger.warning(
-                    "Groq TPM admission: estimated input %d tokens leaves only %d "
-                    "for completion on %s (limit %d). Reserving the %d-token floor; "
-                    "the request may still be rejected. Shorten the prompt or move "
-                    "this agent off an 8k-TPM model.",
-                    estimated_input, available, self.model,
-                    GROQ_8K_TPM_LIMIT, GROQ_MIN_COMPLETION)
+                # T S114: a FLOOR that is applied unconditionally breaks the very
+                # invariant this clamp exists to hold. `max(available, FLOOR)` at
+                # an estimated 7,001-token input reserves 1,024 for a total of
+                # 8,025 against an 8,000 ceiling — an over-budget request admitted
+                # by the code meant to prevent exactly that. Fail closed instead:
+                # when the minimum useful output cannot fit, the request is not
+                # admissible on this model and saying so is more honest than
+                # sending it and blaming the provider for the rejection.
+                raise ValueError(
+                    f"Request not admissible on {self.model}: estimated input "
+                    f"{estimated_input} tokens leaves {available} for completion, "
+                    f"below the {GROQ_MIN_COMPLETION}-token minimum useful output "
+                    f"(limit {GROQ_8K_TPM_LIMIT}). Shorten the prompt or route this "
+                    f"call to a model with a larger budget."
+                )
+            max_tokens = min(max_tokens, GROQ_8K_TPM_COMPLETION_CAP, available)
 
         try:
             response = await self.client.chat.completions.create(
