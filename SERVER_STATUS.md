@@ -36,14 +36,16 @@ Included:
 - PR #310 Anthropic Claude 5 thinking-block and token-budget repair, completed
   for both documented truncation stop reasons.
 - PR #312 containment-denial integrity repair.
+- S114 bounded Groq 8K TPM admission repair after exact-head review found PR
+  #311 rejected the measured orchestrated CS prompt shape it claimed to fix.
 - Cross-surface availability truth: 13 defined / 10 active / 3 unavailable.
 - Registration and policy-surface truth repair.
 
 Explicitly excluded:
 
-- PR #311 Groq admission logic. The observed failures justify investigation,
-  but not the submitted causal claim or an algorithm that can violate its own
-  reservation invariant.
+- PR #311 as submitted. The issue is valid, but its submitted estimator does
+  not pass exact-head validation; the release candidate carries a narrower
+  locally verified repair instead.
 - MCP protocol 2026-07-28 support. This remains a separate compatibility lane.
 - Re-enabling coordination tools. Re-enablement requires owner-scoped access
   control, migration handling, and adversarial authorization tests.
@@ -52,9 +54,9 @@ Explicitly excluded:
 
 | Gate | Result |
 |---|---:|
-| Focused security/truth/registration lane | 193 passed |
-| Full unit suite | 990 passed, 3 skipped |
-| Registration + integration suite | 86 passed, 11 skipped |
+| Groq focused lane | 18 passed |
+| Full unit suite | 997 passed, 3 skipped |
+| Registration + integration suite | 86 passed, 11 skipped before Groq repair |
 | Diff whitespace gate | Clean |
 | Production deployment | Not performed |
 
@@ -76,8 +78,8 @@ integration configuration; they are not counted as passes.
 
 - Design the authenticated, owner-scoped coordination replacement and data
   migration/retention plan.
-- Diagnose Groq failures from provider evidence before changing admission
-  arithmetic; preserve request privacy in diagnostics.
+- Replace the scoped Groq estimator with an exact packaged tokenizer or
+  provider-informed retry path when that can be done without runtime downloads.
 - Add MCP 2026-07-28 dual-version support without conflating it with this
   security release.
 - Complete L/Manus publication verification for the landing source of truth.

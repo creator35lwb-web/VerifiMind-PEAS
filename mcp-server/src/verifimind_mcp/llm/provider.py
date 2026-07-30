@@ -89,13 +89,88 @@ PROVIDER_DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b"
 
 # Groq on_demand admission rejects any request whose input + max_tokens reservation
 # exceeds the model's TPM limit. gpt-oss-120b and qwen3.6-27b sit at 8,000 TPM
-# (llama-3.3 was 12,000, which absorbed the v0.5.46 8192 reservation) — limits
-# live-read from x-ratelimit-limit-tokens headers 2026-07-16. Clamp the completion
-# reservation so admission always fits: observed Z/CS outputs run ~1k tokens, so
-# 4096 keeps ~4x headroom. Caught by the v0.5.49 post-deploy Trinity smoke (413).
+# (llama-3.3 was 12,000, which absorbed the v0.5.46 8192 reservation). v0.5.49
+# clamped completion only; S114 showed that this still 413s for orchestrated Z/CS
+# prompts. v0.5.55 makes the reservation input-aware using provider-measured
+# prompt shapes, keeps a safety margin, and fails closed when useful output cannot
+# fit. Limits were live-read from x-ratelimit-limit-tokens headers 2026-07-16.
 GROQ_8K_TPM_MODELS = frozenset({"openai/gpt-oss-120b", "qwen/qwen3.6-27b"})
+GROQ_8K_TPM_LIMIT = 8000
 GROQ_8K_TPM_COMPLETION_CAP = 4096
+GROQ_TPM_SAFETY_MARGIN = 512
+GROQ_MIN_COMPLETION_TOKENS = 1024
+GROQ_TOKEN_ESTIMATE_CHARS_PER_TOKEN = 4
+GROQ_MESSAGE_TOKEN_OVERHEAD = 8
 PROVIDER_DEFAULT_CEREBRAS_MODEL = "llama-3.3-70b"
+
+
+def _groq_message_content_text(content: Any) -> str:
+    """Normalize OpenAI/Groq message content to text for local token estimation."""
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, dict):
+                for key in ("text", "input_text", "content"):
+                    if key in item:
+                        parts.append(str(item[key]))
+                        break
+                else:
+                    parts.append(json.dumps(item, sort_keys=True, default=str))
+            else:
+                parts.append(str(item))
+        return "\n".join(parts)
+    if isinstance(content, (dict, tuple)):
+        return json.dumps(content, sort_keys=True, default=str)
+    return str(content)
+
+
+def _estimate_groq_input_tokens(messages: List[Dict[str, Any]]) -> int:
+    """Estimate Groq prompt tokens for TPM admission budgeting.
+
+    The divisor is calibrated against provider-reported Z/CS prompt measurements
+    from S109/S114. The separate safety margin absorbs modest tokenizer overhead
+    without rejecting the observed orchestrated CS shape.
+    """
+    total_chars = 0
+    message_count = 0
+    for message in messages:
+        message_count += 1
+        if isinstance(message, dict):
+            total_chars += len(str(message.get("role", "")))
+            total_chars += len(_groq_message_content_text(message.get("content", "")))
+        else:
+            total_chars += len(str(message))
+
+    if message_count == 0:
+        return 0
+    return (
+        ((total_chars + GROQ_TOKEN_ESTIMATE_CHARS_PER_TOKEN - 1) // GROQ_TOKEN_ESTIMATE_CHARS_PER_TOKEN)
+        + (message_count * GROQ_MESSAGE_TOKEN_OVERHEAD)
+        + 1
+    )
+
+
+def _groq_8k_tpm_max_tokens(model: str, messages: List[Dict[str, Any]], requested: int) -> int:
+    """Return the completion reservation that can fit under Groq 8k TPM admission."""
+    if model not in GROQ_8K_TPM_MODELS:
+        return requested
+
+    estimated_input_tokens = _estimate_groq_input_tokens(messages)
+    available_completion = GROQ_8K_TPM_LIMIT - estimated_input_tokens - GROQ_TPM_SAFETY_MARGIN
+    if available_completion < GROQ_MIN_COMPLETION_TOKENS:
+        raise ValueError(
+            f"Request not admissible on {model}: estimated input {estimated_input_tokens} tokens "
+            f"leaves {available_completion} for completion under {GROQ_8K_TPM_LIMIT} TPM "
+            f"after {GROQ_TPM_SAFETY_MARGIN} safety margin, below the "
+            f"{GROQ_MIN_COMPLETION_TOKENS}-token minimum useful output. Reduce prompt size "
+            "or use a higher-TPM provider/model."
+        )
+
+    return min(requested, GROQ_8K_TPM_COMPLETION_CAP, available_completion)
 
 PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     "gemini": {
@@ -959,10 +1034,8 @@ class GroqProvider(LLMProvider):
                 f"Respond ONLY with the JSON object, no other text.\n\nJSON:"
             )
 
-        # v0.5.49 TPM-admission clamp: keep input + completion reservation under
-        # the 8k on_demand limit for gpt-oss/qwen (see GROQ_8K_TPM_MODELS above).
-        if self.model in GROQ_8K_TPM_MODELS:
-            max_tokens = min(max_tokens, GROQ_8K_TPM_COMPLETION_CAP)
+        # v0.5.55: Groq admission is input + completion, not completion alone.
+        max_tokens = _groq_8k_tpm_max_tokens(self.model, messages, max_tokens)
 
         try:
             response = await self.client.chat.completions.create(

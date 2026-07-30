@@ -11,10 +11,10 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 ## v0.5.55 - Integrated Security and Public-Truth Repair (Unreleased)
 
 This release candidate consolidates the bounded, independently reviewed parts
-of PRs #309, #310, and #312 on top of the post-containment `main` line. PR #311
-is deliberately excluded: its proposed Groq admission floor can make
-`estimated_input + reserved_output` exceed the claimed 8K limit, and the
-observed production status code is not yet sufficient root-cause evidence.
+of PRs #309, #310, and #312 on top of the post-containment `main` line, plus the
+S114 bounded repair for Groq 8K TPM admission. PR #311 is not merged as
+submitted: exact-head review showed its `//3` estimator rejects the measured
+orchestrated CS prompt shape it claimed to fix.
 
 ### What changed
 
@@ -29,6 +29,12 @@ observed production status code is not yet sufficient root-cause evidence.
   `max_tokens` and `model_context_window_exceeded`.
 - **Containment denial integrity (#312):** coordination denials no longer
   inherit an ambient marketing notice that contradicts the denial itself.
+- **Groq 8K TPM admission repair (S114 bounded repair; PR #311 not taken
+  as-is):** `GroqProvider.generate()` now budgets completion from input-aware
+  prompt estimation, keeps a 512-token safety margin, and fails closed when
+  less than 1024 useful output tokens remain. Regression coverage pins the
+  provider-measured Z standalone, Z orchestrated, CS standalone, and CS
+  orchestrated prompt shapes, including the CS case PR #311 rejected locally.
 - **Current availability contract:** `/health`, MCP config, `/setup`, the root
   page, server card, `/mcp/test`, and registry metadata now agree on **13
   defined / 10 active / 3 temporarily unavailable**.
@@ -44,9 +50,10 @@ observed production status code is not yet sufficient root-cause evidence.
 
 ### Verification
 
-- Focused integrated lane: **193 passed**
-- Full unit lane: **990 passed, 3 skipped**
-- Registration + integration lane: **86 passed, 11 skipped**
+- Groq focused lane: **18 passed**
+- Full unit lane: **997 passed, 3 skipped**
+- Registration + integration lane: **86 passed, 11 skipped** before the Groq
+  admission repair; unaffected surfaces, still rechecked by CI on pushed head.
 - `git diff --check`: clean
 
 No production deployment is claimed by this entry.
