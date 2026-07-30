@@ -103,18 +103,36 @@ GROQ_TPM_SAFETY_MARGIN = 256   # covers token-estimate error (~4 chars/token)
 GROQ_MIN_COMPLETION = 1024     # observed Z/CS outputs run ~1k tokens
 
 
-def _estimate_tokens(messages) -> int:
-    """Rough token estimate for admission arithmetic (~4 chars/token).
+# Calibrated against the PROVIDER tokenizer 2026-07-30 (S109 evidence capture),
+# not against the folklore 4-chars/token figure. Measured `estimate/actual` with
+# the old //4 divisor:
+#     Z standalone        0.95  <- UNDER-counted our own prompt
+#     Z orchestrated      1.09
+#     CS standalone       1.02
+#     CS orchestrated     1.20
+#     json-ish schema     0.86  <- UNDER
+#     dense punctuation   0.44  <- UNDER by 56%
+# `//4` is therefore NOT a conservative bound, and our prompts embed JSON
+# schemas and punctuation-dense content — exactly the shapes it under-counts.
+# //3 covers every measured real-agent prompt with margin. Pathological inputs
+# (base64, minified JSON, CJK) can still exceed it; those are caught by the
+# fail-closed branch and by the provider 413, which is why neither was removed.
+_TOKEN_ESTIMATE_CHARS_PER_TOKEN = 3
 
-    Deliberately an over-estimate rather than an under-estimate: guessing high
-    shrinks our own completion reservation (recoverable — a shorter answer),
-    while guessing low re-creates the 413 this exists to prevent.
+
+def _estimate_tokens(messages) -> int:
+    """Conservative token estimate for admission arithmetic.
+
+    Must OVER-estimate: guessing high shrinks our own completion reservation
+    (recoverable — a shorter answer), while guessing low re-creates the very
+    413 this exists to prevent. See the calibration table above; this is a
+    measured bound for our prompt shapes, not a guaranteed universal one.
     """
     total_chars = 0
     for message in messages or []:
         content = message.get("content", "") if isinstance(message, dict) else str(message)
         total_chars += len(content or "")
-    return total_chars // 4 + 1
+    return total_chars // _TOKEN_ESTIMATE_CHARS_PER_TOKEN + 1
 PROVIDER_DEFAULT_CEREBRAS_MODEL = "llama-3.3-70b"
 
 PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {

@@ -29,6 +29,7 @@ Reserving from the ACTUAL input keeps admission satisfied at any prompt size.
 import pytest
 
 from verifimind_mcp.llm.provider import (
+    _TOKEN_ESTIMATE_CHARS_PER_TOKEN,
     GROQ_8K_TPM_COMPLETION_CAP,
     GROQ_8K_TPM_LIMIT,
     GROQ_8K_TPM_MODELS,
@@ -54,7 +55,14 @@ def _clamp(messages, requested, model="openai/gpt-oss-120b"):
 
 
 def _messages(token_count):
-    return [{"role": "user", "content": "x" * (token_count * 4)}]
+    """Build a message whose ESTIMATED token count is `token_count`.
+
+    Derives the char count from the production constant rather than assuming a
+    ratio — the same hardcoding mistake that hid an off-by-one earlier, and that
+    would silently shift every boundary case if the estimator is recalibrated."""
+    from verifimind_mcp.llm.provider import _TOKEN_ESTIMATE_CHARS_PER_TOKEN
+    chars = (token_count - 1) * _TOKEN_ESTIMATE_CHARS_PER_TOKEN
+    return [{"role": "user", "content": "x" * chars}]
 
 
 # --- the defect this exists to prevent --------------------------------------
@@ -73,7 +81,10 @@ def test_orchestrated_sized_prompt_admits_under_the_tpm_limit():
 # is how the off-by-one in the estimator's `+1` was caught.
 MAX_ADMISSIBLE_INPUT = (GROQ_8K_TPM_LIMIT - GROQ_TPM_SAFETY_MARGIN
                         - GROQ_MIN_COMPLETION)
-_LAST_ADMISSIBLE = MAX_ADMISSIBLE_INPUT - 1      # _messages(n) estimates n + 1
+# _messages(n) now estimates EXACTLY n, so the last admissible input is the
+# boundary itself — the earlier `- 1` compensated for a helper off-by-one that
+# no longer exists. Left explicit because a stale compensation is invisible.
+_LAST_ADMISSIBLE = MAX_ADMISSIBLE_INPUT
 
 
 @pytest.mark.parametrize("input_tokens",
@@ -149,11 +160,24 @@ def test_non_8k_models_are_untouched():
     assert _clamp(_messages(6000), 8192, model="meta-llama/llama-4-scout-17b-16e-instruct") == 8192
 
 
-def test_estimator_errs_high_not_low():
-    """Guessing high shrinks our own reservation (recoverable). Guessing low
-    re-creates the 413. The estimate must never undercount."""
-    text = "a" * 4000          # 1,000 tokens at 4 chars/token
-    assert _estimate_tokens([{"role": "user", "content": text}]) >= 1000
+def test_estimator_over_counts_real_agent_prompt_shapes():
+    """Calibrated against PROVIDER token counts captured 2026-07-30, not folklore.
+
+    The previous version of this test used `"a" * 4000` — a single repeated
+    character, the most favourable possible input — and passed while the
+    estimator UNDER-counted every real prompt shape we actually send. These
+    ratios are measured against the provider tokenizer:
+
+        Z standalone 2,935 actual · CS orchestrated 4,794 actual
+
+    The estimate must exceed the measured actual for our own agent prompts."""
+    measured = [(11183, 2935), (17013, 3886), (12571, 3072), (23017, 4794)]
+    for chars, actual_tokens in measured:
+        estimate = _estimate_tokens([{"role": "user", "content": "x" * chars}])
+        assert estimate >= actual_tokens, (
+            f"estimator under-counts a real prompt shape: {chars} chars -> "
+            f"estimate {estimate} < provider actual {actual_tokens}"
+        )
 
 
 def test_estimator_sums_all_messages():
