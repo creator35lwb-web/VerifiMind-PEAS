@@ -28,8 +28,12 @@ class TestGroqModelStack:
     def test_qwen_fast_option_listed(self):
         assert "qwen/qwen3.6-27b" in PROVIDER_CONFIGS["groq"]["models"]
 
-    def test_llama4_scout_retained(self):
-        assert "meta-llama/llama-4-scout-17b-16e-instruct" in PROVIDER_CONFIGS["groq"]["models"]
+    def test_llama4_scout_removed_after_retirement(self):
+        """D-115-5: Groq retired llama-4-scout 2026-07-17. This test previously
+        asserted it stayed LISTED — a test pinning a decommissioned model in
+        place, which is how a guaranteed-404 BYOK option survives a currency
+        sweep. Inverted to assert its absence."""
+        assert "meta-llama/llama-4-scout-17b-16e-instruct" not in PROVIDER_CONFIGS["groq"]["models"]
 
     def test_decommissioned_models_absent(self):
         models = PROVIDER_CONFIGS["groq"]["models"]
@@ -114,7 +118,7 @@ class TestGroqTpmClamp:
 
     def test_high_tpm_model_not_clamped(self):
         import asyncio
-        provider, captured = self._capture_provider("meta-llama/llama-4-scout-17b-16e-instruct")
+        provider, captured = self._capture_provider("some-other-provider/unknown-model")
         asyncio.run(provider.generate("hi", max_tokens=8192))
         assert captured["max_tokens"] == 8192
 

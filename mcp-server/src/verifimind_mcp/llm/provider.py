@@ -154,9 +154,86 @@ def _estimate_groq_input_tokens(messages: List[Dict[str, Any]]) -> int:
     )
 
 
+# D-115-1/2: character heuristics cannot be made safe across scripts. An external
+# reviewer showed a 20,000-character CJK aggregate estimating only ~5,010 tokens
+# and still admitting 2,478 completion tokens — CJK, dense JSON and code all
+# tokenize far denser than Latin prose, and no divisor fixes every script at once.
+# The provider's own accounting is the only authoritative source, so a structured
+# rejection is treated as MEASUREMENT rather than as failure: Groq states both the
+# limit and what it computed for the request, which is enough to derive the true
+# prompt cost and retry once with a budget grounded in provider numbers.
+#
+# Deliberately NOT retried (D-115-2): generic body-size 413s, and any error whose
+# structure we cannot parse. Retrying an error we do not understand is how a
+# single rejection becomes a loop.
+_GROQ_REQUESTED_RE = re.compile(r"Requested\s+(\d+)", re.IGNORECASE)
+_GROQ_LIMIT_RE = re.compile(r"Limit\s+(\d+)", re.IGNORECASE)
+_GROQ_TPM_ERROR_CODE = "rate_limit_exceeded"
+
+
+def _groq_error_field(error: Any, *names: str) -> Optional[str]:
+    """Pull a field from a provider error body regardless of SDK wrapping."""
+    body = getattr(error, "body", None)
+    candidates = []
+    if isinstance(body, dict):
+        candidates.append(body.get("error") if isinstance(body.get("error"), dict) else body)
+    for candidate in candidates:
+        if not isinstance(candidate, dict):
+            continue
+        for name in names:
+            value = candidate.get(name)
+            if value is not None:
+                return str(value)
+    return None
+
+
+def _groq_provider_informed_budget(error: Any, sent_max_tokens: int) -> Optional[int]:
+    """Derive a safe completion budget from a STRUCTURED Groq TPM rejection.
+
+    Returns None when the error is not a structured TPM rejection, when the
+    numbers cannot be parsed, or when no useful output would fit — every one of
+    which must fail rather than retry.
+    """
+    if _groq_error_field(error, "code") != _GROQ_TPM_ERROR_CODE:
+        return None                      # generic 413 / unrelated error: do not retry
+
+    message = _groq_error_field(error, "message") or ""
+    requested_match = _GROQ_REQUESTED_RE.search(message)
+    if not requested_match:
+        return None                      # malformed/ambiguous: do not retry
+
+    # Prefer the authoritative header; fall back to the limit stated in the message.
+    limit = None
+    headers = getattr(getattr(error, "response", None), "headers", None)
+    if headers is not None:
+        header_limit = headers.get("x-ratelimit-limit-tokens")
+        if header_limit and str(header_limit).isdigit():
+            limit = int(header_limit)
+    if limit is None:
+        limit_match = _GROQ_LIMIT_RE.search(message)
+        if not limit_match:
+            return None                  # no trustworthy limit: fail, do not guess
+        limit = int(limit_match.group(1))
+
+    # The provider computed `requested = prompt_cost + max_tokens` (verified
+    # S109: 3000+6000 -> 9072, 8500+512 -> 9084), so this inverts to the REAL
+    # prompt cost — the number the character heuristic got wrong.
+    actual_prompt_tokens = int(requested_match.group(1)) - sent_max_tokens
+    if actual_prompt_tokens <= 0:
+        return None
+
+    safe_budget = limit - actual_prompt_tokens - GROQ_TPM_SAFETY_MARGIN
+    if safe_budget < GROQ_MIN_COMPLETION_TOKENS:
+        return None                      # cannot carry useful output: fail closed
+    return min(safe_budget, GROQ_8K_TPM_COMPLETION_CAP)
+
+
 def _groq_8k_tpm_max_tokens(model: str, messages: List[Dict[str, Any]], requested: int) -> int:
     """Return the completion reservation that can fit under Groq 8k TPM admission."""
     if model not in GROQ_8K_TPM_MODELS:
+        # D-115-3: unknown / BYOK models have no limit we can trust, so no clamp
+        # is applied and no universal 8K ceiling is invented. If such a model is
+        # rejected, the provider-informed retry supplies real numbers.
         return requested
 
     estimated_input_tokens = _estimate_groq_input_tokens(messages)
@@ -212,10 +289,13 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "default_model": PROVIDER_DEFAULT_GROQ_MODEL,
         # v0.5.49 (D-65-6/7): gpt-oss-120b default (open-source flagship) + qwen3.6-27b fast
         # (replaces deprecated llama-3.1-8b-instant). Both live-verified 2026-07-16.
+        # D-115-5: meta-llama/llama-4-scout-17b-16e-instruct REMOVED — Groq
+        # retired it 2026-07-17. Advertising a decommissioned model hands BYOK
+        # callers a guaranteed 404 and is the same claim-vs-runtime drift class
+        # as the stale discovery entries repaired in v0.5.55.
         "models": [
             PROVIDER_DEFAULT_GROQ_MODEL,
             "qwen/qwen3.6-27b",
-            "meta-llama/llama-4-scout-17b-16e-instruct",
         ],
         "api_key_env": "GROQ_API_KEY",
         "base_url": "https://api.groq.com/openai/v1",
@@ -1038,12 +1118,35 @@ class GroqProvider(LLMProvider):
         max_tokens = _groq_8k_tpm_max_tokens(self.model, messages, max_tokens)
 
         try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens
-            )
+            try:
+                response = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens
+                )
+            except Exception as admission_error:
+                # D-115-1: exactly ONE retry, and only when the provider supplied
+                # real numbers. `_groq_provider_informed_budget` returns None for
+                # generic body-size 413s, unparseable errors, missing limits, or
+                # budgets below the useful-output floor — all of which re-raise
+                # unchanged. No second retry is possible by construction: the
+                # recovery path calls `create` directly rather than recursing.
+                retry_budget = _groq_provider_informed_budget(admission_error, max_tokens)
+                if retry_budget is None:
+                    raise
+                logger.warning(
+                    "Groq admission rejected on %s; the local character estimate "
+                    "under-counted this prompt. Retrying ONCE with a "
+                    "provider-derived budget of %d completion tokens (was %d).",
+                    self.model, retry_budget, max_tokens)
+                max_tokens = retry_budget
+                response = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens
+                )
 
             content = response.choices[0].message.content
 
