@@ -89,13 +89,179 @@ PROVIDER_DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b"
 
 # Groq on_demand admission rejects any request whose input + max_tokens reservation
 # exceeds the model's TPM limit. gpt-oss-120b and qwen3.6-27b sit at 8,000 TPM
-# (llama-3.3 was 12,000, which absorbed the v0.5.46 8192 reservation) — limits
-# live-read from x-ratelimit-limit-tokens headers 2026-07-16. Clamp the completion
-# reservation so admission always fits: observed Z/CS outputs run ~1k tokens, so
-# 4096 keeps ~4x headroom. Caught by the v0.5.49 post-deploy Trinity smoke (413).
+# (llama-3.3 was 12,000, which absorbed the v0.5.46 8192 reservation). v0.5.49
+# clamped completion only; S114 showed that this still 413s for orchestrated Z/CS
+# prompts. v0.5.55 makes the reservation input-aware using provider-measured
+# prompt shapes, keeps a safety margin, and fails closed when useful output cannot
+# fit. Limits were live-read from x-ratelimit-limit-tokens headers 2026-07-16.
 GROQ_8K_TPM_MODELS = frozenset({"openai/gpt-oss-120b", "qwen/qwen3.6-27b"})
+GROQ_8K_TPM_LIMIT = 8000
 GROQ_8K_TPM_COMPLETION_CAP = 4096
+GROQ_TPM_SAFETY_MARGIN = 512
+GROQ_MIN_COMPLETION_TOKENS = 1024
+GROQ_TOKEN_ESTIMATE_CHARS_PER_TOKEN = 4
+GROQ_MESSAGE_TOKEN_OVERHEAD = 8
 PROVIDER_DEFAULT_CEREBRAS_MODEL = "llama-3.3-70b"
+
+
+def _groq_message_content_text(content: Any) -> str:
+    """Normalize OpenAI/Groq message content to text for local token estimation."""
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, dict):
+                for key in ("text", "input_text", "content"):
+                    if key in item:
+                        parts.append(str(item[key]))
+                        break
+                else:
+                    parts.append(json.dumps(item, sort_keys=True, default=str))
+            else:
+                parts.append(str(item))
+        return "\n".join(parts)
+    if isinstance(content, (dict, tuple)):
+        return json.dumps(content, sort_keys=True, default=str)
+    return str(content)
+
+
+def _estimate_groq_input_tokens(messages: List[Dict[str, Any]]) -> int:
+    """Estimate Groq prompt tokens for TPM admission budgeting.
+
+    The divisor is calibrated against provider-reported Z/CS prompt measurements
+    from S109/S114. The separate safety margin absorbs modest tokenizer overhead
+    without rejecting the observed orchestrated CS shape.
+    """
+    total_chars = 0
+    message_count = 0
+    for message in messages:
+        message_count += 1
+        if isinstance(message, dict):
+            total_chars += len(str(message.get("role", "")))
+            total_chars += len(_groq_message_content_text(message.get("content", "")))
+        else:
+            total_chars += len(str(message))
+
+    if message_count == 0:
+        return 0
+    return (
+        ((total_chars + GROQ_TOKEN_ESTIMATE_CHARS_PER_TOKEN - 1) // GROQ_TOKEN_ESTIMATE_CHARS_PER_TOKEN)
+        + (message_count * GROQ_MESSAGE_TOKEN_OVERHEAD)
+        + 1
+    )
+
+
+# D-115-1/2: character heuristics cannot be made safe across scripts. An external
+# reviewer showed a 20,000-character CJK aggregate estimating only ~5,010 tokens
+# and still admitting 2,478 completion tokens — CJK, dense JSON and code all
+# tokenize far denser than Latin prose, and no divisor fixes every script at once.
+# The provider's own accounting is the only authoritative source, so a structured
+# rejection is treated as MEASUREMENT rather than as failure: Groq states both the
+# limit and what it computed for the request, which is enough to derive the true
+# prompt cost and retry once with a budget grounded in provider numbers.
+#
+# Deliberately NOT retried (D-115-2): generic body-size 413s, and any error whose
+# structure we cannot parse. Retrying an error we do not understand is how a
+# single rejection becomes a loop.
+_GROQ_REQUESTED_RE = re.compile(r"Requested\s+(\d+)", re.IGNORECASE)
+_GROQ_LIMIT_RE = re.compile(r"Limit\s+(\d+)", re.IGNORECASE)
+_GROQ_TPM_ERROR_CODE = "rate_limit_exceeded"
+
+
+def _groq_error_field(error: Any, *names: str) -> Optional[str]:
+    """Pull a field from a provider error body regardless of SDK wrapping."""
+    body = getattr(error, "body", None)
+    candidates = []
+    if isinstance(body, dict):
+        candidates.append(body.get("error") if isinstance(body.get("error"), dict) else body)
+    for candidate in candidates:
+        if not isinstance(candidate, dict):
+            continue
+        for name in names:
+            value = candidate.get(name)
+            if value is not None:
+                return str(value)
+    return None
+
+
+def _groq_provider_informed_budget(error: Any, sent_max_tokens: int) -> Optional[int]:
+    """Derive a safe completion budget from a STRUCTURED Groq TPM rejection.
+
+    Only the live-observed HTTP 413 admission shape is recoverable. HTTP 429 is
+    rolling-window rate-limit exhaustion and must be left to the caller's
+    throttling/backoff layer rather than retried immediately. Returns None when
+    the status or body is not the structured admission shape, when the numbers
+    cannot be parsed, or when no useful output would fit — every one of which
+    must fail rather than retry.
+    """
+    response = getattr(error, "response", None)
+    status_code = getattr(error, "status_code", None)
+    if status_code is None:
+        status_code = getattr(response, "status_code", None)
+    try:
+        status_code = int(status_code)
+    except (TypeError, ValueError):
+        return None
+    if status_code != 413:
+        return None                      # 429/backoff and all other statuses: do not retry
+
+    if _groq_error_field(error, "code") != _GROQ_TPM_ERROR_CODE:
+        return None                      # generic 413 / unrelated error: do not retry
+
+    message = _groq_error_field(error, "message") or ""
+    requested_match = _GROQ_REQUESTED_RE.search(message)
+    if not requested_match:
+        return None                      # malformed/ambiguous: do not retry
+
+    # Prefer the authoritative header; fall back to the limit stated in the message.
+    limit = None
+    headers = getattr(response, "headers", None)
+    if headers is not None:
+        header_limit = headers.get("x-ratelimit-limit-tokens")
+        if header_limit and str(header_limit).isdigit():
+            limit = int(header_limit)
+    if limit is None:
+        limit_match = _GROQ_LIMIT_RE.search(message)
+        if not limit_match:
+            return None                  # no trustworthy limit: fail, do not guess
+        limit = int(limit_match.group(1))
+
+    # The provider computed `requested = prompt_cost + max_tokens` (verified
+    # S109: 3000+6000 -> 9072, 8500+512 -> 9084), so this inverts to the REAL
+    # prompt cost — the number the character heuristic got wrong.
+    actual_prompt_tokens = int(requested_match.group(1)) - sent_max_tokens
+    if actual_prompt_tokens <= 0:
+        return None
+
+    safe_budget = limit - actual_prompt_tokens - GROQ_TPM_SAFETY_MARGIN
+    if safe_budget < GROQ_MIN_COMPLETION_TOKENS:
+        return None                      # cannot carry useful output: fail closed
+    return min(safe_budget, GROQ_8K_TPM_COMPLETION_CAP)
+
+
+def _groq_8k_tpm_max_tokens(model: str, messages: List[Dict[str, Any]], requested: int) -> int:
+    """Return the completion reservation that can fit under Groq 8k TPM admission."""
+    if model not in GROQ_8K_TPM_MODELS:
+        # D-115-3: unknown / BYOK models have no limit we can trust, so no clamp
+        # is applied and no universal 8K ceiling is invented. If such a model is
+        # rejected, the provider-informed retry supplies real numbers.
+        return requested
+
+    estimated_input_tokens = _estimate_groq_input_tokens(messages)
+    available_completion = GROQ_8K_TPM_LIMIT - estimated_input_tokens - GROQ_TPM_SAFETY_MARGIN
+    if available_completion < GROQ_MIN_COMPLETION_TOKENS:
+        raise ValueError(
+            f"Request not admissible on {model}: estimated input {estimated_input_tokens} tokens "
+            f"leaves {available_completion} for completion under {GROQ_8K_TPM_LIMIT} TPM "
+            f"after {GROQ_TPM_SAFETY_MARGIN} safety margin, below the "
+            f"{GROQ_MIN_COMPLETION_TOKENS}-token minimum useful output. Reduce prompt size "
+            "or use a higher-TPM provider/model."
+        )
+
+    return min(requested, GROQ_8K_TPM_COMPLETION_CAP, available_completion)
 
 PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     "gemini": {
@@ -121,8 +287,13 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
     },
     "anthropic": {
         "name": "Anthropic Claude",
+        # Claude 5 family live-verified available on a real key 2026-07-29
+        # (RNA S106). These are extended-thinking models — see
+        # `_thinking_aware_max_tokens`. Default stays on the 4.x line until a
+        # deliberate default change is reviewed; the 5 IDs are opt-in via BYOK.
         "default_model": os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
-        "models": ["claude-sonnet-4-6", "claude-opus-4-8", "claude-haiku-4-5-20251001"],
+        "models": ["claude-opus-5", "claude-sonnet-5", "claude-fable-5",
+                   "claude-sonnet-4-6", "claude-opus-4-8", "claude-haiku-4-5-20251001"],
         "api_key_env": "ANTHROPIC_API_KEY",
         "base_url": "https://api.anthropic.com/v1",
         "free_tier": False,
@@ -132,10 +303,13 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "default_model": PROVIDER_DEFAULT_GROQ_MODEL,
         # v0.5.49 (D-65-6/7): gpt-oss-120b default (open-source flagship) + qwen3.6-27b fast
         # (replaces deprecated llama-3.1-8b-instant). Both live-verified 2026-07-16.
+        # D-115-5: meta-llama/llama-4-scout-17b-16e-instruct REMOVED — Groq
+        # retired it 2026-07-17. Advertising a decommissioned model hands BYOK
+        # callers a guaranteed 404 and is the same claim-vs-runtime drift class
+        # as the stale discovery entries repaired in v0.5.55.
         "models": [
             PROVIDER_DEFAULT_GROQ_MODEL,
             "qwen/qwen3.6-27b",
-            "meta-llama/llama-4-scout-17b-16e-instruct",
         ],
         "api_key_env": "GROQ_API_KEY",
         "base_url": "https://api.groq.com/openai/v1",
@@ -344,6 +518,89 @@ class OpenAIProvider(LLMProvider):
         return f"openai/{self.model}"
 
 
+# Models that emit extended-thinking blocks. Thinking tokens are drawn from the
+# SAME `max_tokens` budget as the answer, so a budget sized for the answer alone
+# silently truncates it. Measured on a real Z-agent assessment: 5,437 thinking
+# tokens on one call — at our 8,192 agent budget the JSON answer was cut mid-
+# object and surfaced as a parse failure, i.e. the model was blamed for our
+# accounting. Same family as the Gemini 3.5-flash thinking-token trap.
+_THINKING_MODEL_MARKERS = ("claude-opus-5", "claude-sonnet-5", "claude-fable-5")
+_THINKING_TOKEN_ALLOWANCE = 8192
+_ANTHROPIC_TRUNCATION_STOP_REASONS = frozenset({
+    "max_tokens",
+    "model_context_window_exceeded",
+})
+
+
+def _thinking_aware_max_tokens(model: str, requested: int) -> int:
+    """Add a thinking allowance so `requested` remains available for the ANSWER.
+
+    Callers size `max_tokens` for the output they need. On extended-thinking
+    models that number must additionally cover the model's scratchpad, so the
+    allowance is added rather than the caller's budget being reinterpreted.
+    """
+    if any(marker in (model or "") for marker in _THINKING_MODEL_MARKERS):
+        return requested + _THINKING_TOKEN_ALLOWANCE
+    return requested
+
+
+def _raise_if_anthropic_truncated(stop_reason: str | None, model: str) -> None:
+    """Reject every Anthropic stop reason that denotes truncated output.
+
+    `model_context_window_exceeded` was added as a distinct stop reason: the
+    API may return it instead of `max_tokens` when the model reaches its
+    context-window ceiling. Both mean the response is incomplete and therefore
+    unsafe to parse as a complete structured answer.
+    """
+    if stop_reason in _ANTHROPIC_TRUNCATION_STOP_REASONS:
+        raise ValueError(
+            "Anthropic response truncated before completion "
+            f"(model={model}, stop_reason={stop_reason}). The answer is "
+            "incomplete; reduce the input or increase the available output "
+            "budget rather than parsing a partial response."
+        )
+
+
+def _first_text_block(blocks) -> str:
+    """Return the first TEXT block's content from an Anthropic response.
+
+    Anthropic responses are a LIST of typed content blocks, and `content[0]`
+    is not guaranteed to be the text. Extended-thinking models (the Claude 5
+    family) emit a `thinking` block first, so indexing position zero raised
+    `'ThinkingBlock' object has no attribute 'text'` and BYOK failed for every
+    such model — found by dogfooding a real Z-agent assessment on
+    `claude-opus-5`.
+
+    Selecting by TYPE rather than by POSITION is also forward-compatible: any
+    future non-text block prepended to the list leaves this correct. Thinking
+    content is deliberately discarded — it is the model's scratchpad, not its
+    answer, and must never reach a caller as if it were the response.
+    """
+    # Exclude by KNOWN NON-TEXT type rather than admitting only type=="text".
+    # Both directions matter: an allow-list rejects any block whose `type` is
+    # absent or unrecognised (including legitimately-shaped test doubles and
+    # future SDK block types that do carry text), while a deny-list keeps the
+    # one property that must hold — reasoning scratchpads never surface as the
+    # answer.
+    _NON_TEXT = {"thinking", "redacted_thinking", "tool_use", "server_tool_use"}
+    text_parts = []
+    for b in blocks or []:
+        if getattr(b, "type", None) in _NON_TEXT:
+            continue
+        value = getattr(b, "text", None)
+        if isinstance(value, str) and value:
+            text_parts.append(value)
+    if text_parts:
+        return "".join(text_parts)
+
+    # Fail LOUD with a diagnosable message rather than returning empty content
+    # that a downstream parser would report as a malformed model answer.
+    seen = [getattr(b, "type", type(b).__name__) for b in (blocks or [])]
+    raise ValueError(
+        f"Anthropic response contained no text block (block types: {seen})"
+    )
+
+
 class AnthropicProvider(LLMProvider):
     """
     Anthropic Claude provider implementation.
@@ -385,12 +642,20 @@ class AnthropicProvider(LLMProvider):
         try:
             response = await self.client.messages.create(
                 model=self.model,
-                max_tokens=max_tokens,
+                max_tokens=_thinking_aware_max_tokens(self.model, max_tokens),
                 messages=[{"role": "user", "content": prompt}]
             )
-            
-            content = response.content[0].text
-            
+
+            # Fail LOUD on truncation. A response cut off at the token ceiling
+            # yields malformed JSON that a downstream parser reports as "the
+            # model returned bad output" — blaming the model for OUR budget.
+            _raise_if_anthropic_truncated(
+                getattr(response, "stop_reason", None),
+                self.model,
+            )
+
+            content = _first_text_block(response.content)
+
             # Extract token usage
             usage = {
                 "input_tokens": response.usage.input_tokens if hasattr(response, 'usage') else 0,
@@ -863,18 +1128,39 @@ class GroqProvider(LLMProvider):
                 f"Respond ONLY with the JSON object, no other text.\n\nJSON:"
             )
 
-        # v0.5.49 TPM-admission clamp: keep input + completion reservation under
-        # the 8k on_demand limit for gpt-oss/qwen (see GROQ_8K_TPM_MODELS above).
-        if self.model in GROQ_8K_TPM_MODELS:
-            max_tokens = min(max_tokens, GROQ_8K_TPM_COMPLETION_CAP)
+        # v0.5.55: Groq admission is input + completion, not completion alone.
+        max_tokens = _groq_8k_tpm_max_tokens(self.model, messages, max_tokens)
 
         try:
-            response = await self.client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens
-            )
+            try:
+                response = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens
+                )
+            except Exception as admission_error:
+                # D-115-1: exactly ONE retry, and only when the provider supplied
+                # real numbers. `_groq_provider_informed_budget` returns None for
+                # generic body-size 413s, unparseable errors, missing limits, or
+                # budgets below the useful-output floor — all of which re-raise
+                # unchanged. No second retry is possible by construction: the
+                # recovery path calls `create` directly rather than recursing.
+                retry_budget = _groq_provider_informed_budget(admission_error, max_tokens)
+                if retry_budget is None:
+                    raise
+                logger.warning(
+                    "Groq admission rejected on %s; the local character estimate "
+                    "under-counted this prompt. Retrying ONCE with a "
+                    "provider-derived budget of %d completion tokens (was %d).",
+                    self.model, retry_budget, max_tokens)
+                max_tokens = retry_budget
+                response = await self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens
+                )
 
             content = response.choices[0].message.content
 

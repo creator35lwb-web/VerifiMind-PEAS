@@ -604,7 +604,7 @@ def _shell(title: str, body: str, script: str = "") -> str:
       <a href="/terms" target="_blank" rel="noopener">Terms &amp; Conditions</a> &nbsp;·&nbsp;
       <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS" target="_blank" rel="noopener">GitHub</a>
     </p>
-    <p style="margin-top:0.5rem">Z-Protocol v1.1 · GDPR/PDPA Compliant · Open Source (MIT)</p>
+    <p style="margin-top:0.5rem">Z-Protocol v1.1 · Privacy-conscious · Open Source (MIT)</p>
   </footer>
 
 </div>
@@ -619,20 +619,21 @@ _REGISTER_BODY = """
 <div class="card">
   <h1 class="card-title">Join as an Early Adopter</h1>
   <p class="card-subtitle">
-    Register for free priority access to VerifiMind-PEAS v0.6.0-Beta
-    when it launches. No credit card required.
+    Register for a free VerifiMind UUID, higher rate limits, and a voice in
+    the v0.6.0 roadmap. Registration is not a paid plan or a time-limited
+    free-access offer.
   </p>
 
   <div class="benefits-strip">
     <div class="benefit-item">
       <span class="benefit-icon">&#x2705;</span>
-      <strong>All 13 tools</strong>
-      <div class="benefit-label">Free forever</div>
+      <strong>10 active tools</strong>
+      <div class="benefit-label">Available now</div>
     </div>
     <div class="benefit-item">
       <span class="benefit-icon">&#x1F9EA;</span>
-      <strong>Beta access</strong>
-      <div class="benefit-label">v0.6.0 Beta</div>
+      <strong>3 contained</strong>
+      <div class="benefit-label">Coordination maintenance</div>
     </div>
     <div class="benefit-item">
       <span class="benefit-icon">&#x1F4AC;</span>
@@ -734,13 +735,13 @@ _REGISTER_BODY = """
 
     <div id="benefit-summary" style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:0.875rem 1rem;margin-bottom:1.25rem;font-size:0.9rem;line-height:1.6;"></div>
 
-    <p class="text-sm muted" style="margin-bottom:0.25rem">Your UUID (access key):</p>
+    <p class="text-sm muted" style="margin-bottom:0.25rem">Your UUID (identifier):</p>
     <div class="uuid-box">
       <code class="uuid-code" id="uuid-value"></code>
       <button id="copy-btn" class="btn btn-secondary" type="button">Copy</button>
     </div>
     <div class="uuid-save-notice" id="copy-confirm">
-      &#x26A0;&#xFE0F; Save this UUID &mdash; you will need it to access v0.6.0-Beta and to opt out.
+      &#x26A0;&#xFE0F; Save this UUID &mdash; you will need it to check your tier or opt out.
     </div>
 
     <ul class="benefits-list" id="benefits-list"></ul>
@@ -771,7 +772,7 @@ _REGISTER_BODY = """
 _REGISTER_SCRIPT = r"""
 // ── Pilot tier detection (page load) ──────────────────────────────────────────
 // If ?invite= param is present the user arrived via SYSTEM_NOTICE Pilot link.
-// We optimistically show Pilot benefits (6 months); server validates the code.
+// The server validates the invite code; the page makes no timed entitlement claim.
 (function() {
   var hasInvite = !!new URLSearchParams(window.location.search).get('invite');
   if (hasInvite) {
@@ -781,15 +782,15 @@ _REGISTER_SCRIPT = r"""
 
     // Update subtitle
     var sub = document.querySelector('.card-subtitle');
-    if (sub) sub.textContent = 'You have been invited to join the exclusive Pilot Program — 6 months FREE v0.6.0-Beta access. No credit card required.';
+    if (sub) sub.textContent = 'You have been invited to join the 50-slot Pilot feedback cohort. Registration is free and does not create a time-limited access entitlement.';
 
-    // Update benefits strip: 6 months free + Pilot cohort (50 slots)
+    // Update benefits strip: cohort identity + current service availability
     var strip = document.querySelector('.benefits-strip');
     if (strip) {
       strip.innerHTML =
-        '<div class="benefit-item"><span class="benefit-icon">&#x23F0;</span><strong>6 months free</strong><div class="benefit-label">Pilot tier</div></div>' +
-        '<div class="benefit-item"><span class="benefit-icon">&#x1F9EA;</span><strong>Beta access</strong><div class="benefit-label">v0.6.0 Pilot</div></div>' +
-        '<div class="benefit-item"><span class="benefit-icon">&#x1F511;</span><strong>50-slot cohort</strong><div class="benefit-label">Founding members</div></div>';
+        '<div class="benefit-item"><span class="benefit-icon">&#x1F511;</span><strong>50-slot cohort</strong><div class="benefit-label">Pilot feedback</div></div>' +
+        '<div class="benefit-item"><span class="benefit-icon">&#x2705;</span><strong>10 active tools</strong><div class="benefit-label">Available now</div></div>' +
+        '<div class="benefit-item"><span class="benefit-icon">&#x1F4AC;</span><strong>Shape it</strong><div class="benefit-label">Direct feedback</div></div>';
     }
   }
 })();
@@ -888,8 +889,8 @@ document.getElementById('register-form').addEventListener('submit', async functi
       // Benefit summary
       var summaryEl = document.getElementById('benefit-summary');
       summaryEl.textContent = data.benefit_summary || (
-        tierLabel + ': ' + (data.free_months || 3) + ' months FREE v0.6.0-Beta access. '
-        + 'Free until: ' + (data.benefits_free_until ? data.benefits_free_until.split('T')[0] : 'n/a') + '.'
+        tierLabel + ': registration is free and is not a time-limited access entitlement. '
+        + '10 tools are active; 3 coordination tools are temporarily unavailable during access-control maintenance.'
       );
 
       document.getElementById('uuid-value').textContent = data.uuid;
@@ -1310,7 +1311,7 @@ def _legal_shell(title: str, body: str) -> str:
       <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS" target="_blank" rel="noopener">GitHub</a> &nbsp;·&nbsp;
       <a href="/register">Register</a>
     </p>
-    <p style="margin-top:0.5rem">Z-Protocol v1.1 · GDPR/PDPA Compliant · Open Source (MIT)</p>
+    <p style="margin-top:0.5rem">Z-Protocol v1.1 · Privacy-conscious · Open Source (MIT)</p>
   </footer>
 
 </div>
@@ -1321,10 +1322,10 @@ def _legal_shell(title: str, body: str) -> str:
 _PRIVACY_BODY = """
 <h1>Privacy Policy</h1>
 <div class="meta">
-  <span>Version 2.2</span>
-  <span>Effective: May 12, 2026</span>
-  <span>Updated: May 12, 2026 (Growth First — no current paid services)</span>
-  <span>Previous: v2.1 (April 20, 2026)</span>
+  <span>Version 2.3</span>
+  <span>Effective: July 30, 2026</span>
+  <span>Updated: July 30, 2026 (availability and entitlement clarification)</span>
+  <span>Previous: v2.2 (May 12, 2026)</span>
 </div>
 
 <h2>Who We Are</h2>
@@ -1332,8 +1333,9 @@ _PRIVACY_BODY = """
   VerifiMind-PEAS is an open-source multi-model AI validation framework created by
   Alton Lee (Human Orchestrator, YSenseAI). This Privacy Policy applies to the
   VerifiMind-PEAS service at verifimind.ysenseai.org, including the Early Adopter (EA) and
-  PILOT programs. As of May 12, 2026, all 13 tools are free for everyone (Core Tools
-  Always Free pledge) and no paid services are active.
+  PILOT programs. 10 tools are currently active. Three coordination tools are
+  temporarily unavailable while owner-scoped access control is rebuilt. No paid
+  services are active.
 </p>
 
 <h2>What We Collect</h2>
@@ -1372,7 +1374,7 @@ _PRIVACY_BODY = """
 
 <h2>Why We Collect Your Data</h2>
 <ul>
-  <li>To grant program benefits (EA: 3 months free Beta access; PILOT: 6 months free Beta access — both grant the same free 13-tool access today, with cohort-specific coordination)</li>
+  <li>To identify EA and PILOT feedback cohorts; registration does not create a time-limited access entitlement</li>
   <li>To allocate rate limits per tier (Anonymous 10 / Scholar 30 / EA/PILOT 100 req/60s — see Terms Section 3)</li>
   <li>To communicate product updates if you opted in</li>
   <li>To improve VerifiMind-PEAS based on aggregate, anonymised feedback</li>
@@ -1475,31 +1477,32 @@ _PRIVACY_BODY = """
 _TERMS_BODY = """
 <h1>Terms &amp; Conditions</h1>
 <div class="meta">
-  <span>Version 2.1</span>
-  <span>Effective: May 12, 2026</span>
-  <span>Updated: May 12, 2026 (Growth First — paid tier removed)</span>
-  <span>Previous: v2.0 (April 8, 2026)</span>
+  <span>Version 2.2</span>
+  <span>Effective: July 30, 2026</span>
+  <span>Updated: July 30, 2026 (availability and entitlement clarification)</span>
+  <span>Previous: v2.1 (May 12, 2026)</span>
 </div>
 
 <h2>1. Service Description</h2>
 <p>VerifiMind-PEAS is an open-source multi-model AI validation framework that provides structured,
-  multi-agent validation and orchestration tools. As of May 9, 2026, all 13 tools are free for
-  everyone under the <strong>Core Tools Always Free</strong> pledge. Access levels are described
-  in Section 3.</p>
+  multi-agent validation and orchestration tools. 10 tools are currently active. The three
+  coordination tools are temporarily unavailable while owner-scoped access control is rebuilt.
+  There are no current paid services. Access levels are described in Section 3.</p>
 
 <h2>2. Acceptance of Terms</h2>
 <p>By registering for any VerifiMind-PEAS program or using the service, you confirm that you have
   read and accept:</p>
 <ul>
-  <li>These Terms &amp; Conditions v2.1</li>
+  <li>These Terms &amp; Conditions v2.2</li>
   <li>The <a href="/privacy">Privacy Policy</a></li>
 </ul>
 <p>When future paid services launch, additional terms (including any payment-processor agreements)
   will be presented and accepted separately at the time of purchase.</p>
 
 <h2>3. Service Tiers</h2>
-<p>All current tiers grant access to <strong>all 13 tools</strong>. Tier identity is used only for
-  rate limit allocation and personal dashboard scoping — not as a paywall.</p>
+<p>Every current tier may use the same <strong>10 active tools</strong>. The three coordination
+  tools are listed for discovery but temporarily unavailable to every tier. Tier identity is used
+  only for rate-limit allocation, cohort management, and personal dashboard scoping.</p>
 <table class="legal-table">
   <thead>
     <tr><th>Tier</th><th>Identity</th><th>Access</th><th>Price</th><th>Rate Limit</th></tr>
@@ -1508,43 +1511,44 @@ _TERMS_BODY = """
     <tr>
       <td><span class="tier-badge">Anonymous</span></td>
       <td>None (IP only)</td>
-      <td>All 13 tools. No registration needed.</td>
+      <td>10 active tools. No registration needed.</td>
       <td>Free</td>
       <td>10 req/60s per IP</td>
     </tr>
     <tr>
       <td><span class="tier-badge">Scholar</span></td>
       <td>UUID (consent)</td>
-      <td>All 13 tools + usage dashboard + Trinity history. Register at /register.</td>
+      <td>10 active tools + usage dashboard + Trinity history. Register at /register.</td>
       <td>Free</td>
       <td>30 req/60s per UUID</td>
     </tr>
     <tr>
       <td><span class="tier-badge">Early Adopter</span></td>
       <td>UUID + email</td>
-      <td>All 13 tools + EA program benefits</td>
+      <td>10 active tools + EA feedback cohort</td>
       <td>Free</td>
       <td>100 req/60s per UUID</td>
     </tr>
     <tr>
       <td><span class="tier-badge">PILOT</span></td>
       <td>UUID + email + invite</td>
-      <td>All 13 tools + PILOT cohort coordination</td>
+      <td>10 active tools + PILOT feedback cohort</td>
       <td>Free</td>
       <td>100 req/60s per UUID</td>
     </tr>
   </tbody>
 </table>
 <div class="notice-box">
-  <strong>Growth First, Monetization Later.</strong> All 13 tools are free for every tier today.
+  <strong>Growth First, Monetization Later.</strong> The 10 active tools are free for every tier.
+  The 3 coordination tools remain unavailable to every tier during security maintenance.
   Pricing for future premium services (such as expert-orchestrated reports) will be announced
   separately and will not change the free-tools pledge. The VerifiMind-PEAS core is MIT licensed —
   you may self-host at any time.
 </div>
 
 <h2>4. Payment and Billing</h2>
-<p>There are <strong>no active paid services</strong> at this time. All 13 tools are free for
-  everyone. The three coordination tools are <strong>temporarily disabled for maintenance</strong>
+<p>There are <strong>no active paid services</strong> at this time. The 10 active tools are free
+  for everyone. The three coordination tools are <strong>temporarily disabled for maintenance</strong>
   while their access control is rebuilt; this does not affect the validation tools or change the
   free-for-everyone pledge.</p>
 <p>When future paid services (such as expert-orchestrated consultation reports) become available,
@@ -1576,7 +1580,7 @@ _TERMS_BODY = """
 <h2>8. Acceptable Use</h2>
 <p>You agree not to:</p>
 <ul>
-  <li>Share, resell, or redistribute any access keys or credentials issued to you</li>
+  <li>Share, resell, or redistribute authentication credentials if explicitly issued to you</li>
   <li>Use automated scraping or excessive API calls that degrade service for other users</li>
   <li>Use VerifiMind-PEAS tools to generate harmful, misleading, or unethical content</li>
 </ul>
@@ -1623,12 +1627,12 @@ _TERMS_BODY = """
 
 
 def get_privacy_page() -> str:
-    """Return the full HTML for GET /privacy — Privacy Policy v2.1."""
+    """Return the full HTML for GET /privacy — Privacy Policy v2.3."""
     return _legal_shell(title="Privacy Policy", body=_PRIVACY_BODY)
 
 
 def get_terms_page() -> str:
-    """Return the full HTML for GET /terms — Terms &amp; Conditions v2.0 (updated April 20, 2026)."""
+    """Return the full HTML for GET /terms — Terms &amp; Conditions v2.2."""
     return _legal_shell(title="Terms &amp; Conditions", body=_TERMS_BODY)
 
 
@@ -1726,7 +1730,7 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 
 <div class="notice-box" style="margin-top:2rem;">
   <strong>Privacy:</strong> No concept names or descriptions are stored — only scores,
-  recommendations, and timestamps. See <a href="/privacy">Privacy Policy v2.1</a>.
+  recommendations, and timestamps. See <a href="/privacy">Privacy Policy v2.3</a>.
 </div>
 
 <style>

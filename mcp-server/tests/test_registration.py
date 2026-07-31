@@ -75,13 +75,13 @@ class TestPolicyDocuments:
         assert "opt" in PRIVACY_POLICY.lower()
 
     def test_privacy_policy_version_set(self):
-        assert PRIVACY_POLICY_VERSION == "2.1"
+        assert PRIVACY_POLICY_VERSION == "2.3"
 
     def test_terms_not_empty(self):
         assert len(TERMS_AND_CONDITIONS) > 100
 
     def test_terms_version_set(self):
-        assert TERMS_VERSION == "2.0"  # Updated v0.5.12 — Polar MOR
+        assert TERMS_VERSION == "2.2"
 
     def test_privacy_mentions_right_to_deletion(self):
         assert "delet" in PRIVACY_POLICY.lower()
@@ -89,8 +89,10 @@ class TestPolicyDocuments:
     def test_terms_mentions_beta_disclaimer(self):
         assert "beta" in TERMS_AND_CONDITIONS.lower()
 
-    def test_terms_mentions_pricing(self):
-        assert "9" in TERMS_AND_CONDITIONS
+    def test_terms_discloses_current_no_paid_service(self):
+        assert "no active paid services" in TERMS_AND_CONDITIONS.lower()
+        assert "3 months" not in TERMS_AND_CONDITIONS.lower()
+        assert "6 months" not in TERMS_AND_CONDITIONS.lower()
 
 
 # ─────────────────────────────────────────────
@@ -235,16 +237,13 @@ class TestRegisterEarlyAdopter:
         assert result.uuid == existing_uuid
         assert "already registered" in result.message
 
-    async def test_benefits_free_until_is_3_months_out(self):
-        from datetime import datetime, timezone
+    async def test_registration_has_no_timed_access_entitlement(self):
         with patch("verifimind_mcp.registration._get_firestore", return_value=None):
             result = await register_early_adopter(_make_registration())
 
-        free_until = datetime.fromisoformat(result.benefits_free_until)
-        now = datetime.now(timezone.utc)
-        delta_days = (free_until - now).days
-        # Should be roughly 90 days (±2 days tolerance)
-        assert 88 <= delta_days <= 92
+        assert result.free_months is None
+        assert result.benefits_free_until is None
+        assert "not create a time-limited" in result.availability_notice
 
 
 # ─────────────────────────────────────────────

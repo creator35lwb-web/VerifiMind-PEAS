@@ -22,7 +22,6 @@ import json
 import pytest
 from unittest.mock import patch
 
-from fastmcp import Client
 
 from verifimind_mcp.server import create_http_server
 from verifimind_mcp.llm.provider import MockProvider

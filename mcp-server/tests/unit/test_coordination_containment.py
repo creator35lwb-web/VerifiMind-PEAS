@@ -33,7 +33,7 @@ import pytest
 
 from fastmcp import Client
 
-from verifimind_mcp.server import create_http_server
+import verifimind_mcp.server as server_module
 
 from .mcp_tool_harness import call
 
@@ -78,7 +78,7 @@ DISCLOSURE_FIELDS = (
 
 @pytest.fixture(scope="module")
 def app():
-    return create_http_server()
+    return server_module.create_http_server()
 
 
 
@@ -222,3 +222,181 @@ def test_every_discovery_surface_marks_coordination_tools_contained():
     assert not unmarked, (
         "discovery surface advertises a contained tool as working: " + "; ".join(unmarked)
     )
+
+
+# --- T S113 hardening residual: the parity oracle must not go vacuous -------
+#
+# T PASSED the parity test above with a bounded residual: it checks the prefix
+# ONLY when a description is present, and never asserts how many entries it
+# expected to find. A deleted entry, or an entry that loses its description,
+# would make the loop silently examine LESS and still pass — the "gate that
+# examines nothing" failure mode, the same disease as an untested secret scan.
+# The contract below binds the MULTISET of (surface x tool). A plain set still
+# misses duplicate entries, while a count can be satisfied by the wrong entry.
+# Root `server.json` is a public MCP Registry manifest and therefore part of
+# the same availability contract as the two HTTP discovery handlers.
+
+DISCOVERY_SURFACES = (
+    "mcp_config_handler",
+    "smithery_server_card_handler",
+    "server.json",
+)
+_SOURCE_MARKER = "COORDINATION_MAINTENANCE_PREFIX"
+_MANIFEST_MARKER = "TEMPORARILY UNAVAILABLE (maintenance)"
+
+
+def _coordination_entries():
+    """Return every public coordination discovery occurrence.
+
+    A list is deliberate: dictionaries and sets silently collapse duplicate
+    entries, which would let a stale duplicate advertisement evade the oracle.
+    """
+    import json as _json
+    import re
+    from pathlib import Path as _Path
+
+    mcp_root = _Path(__file__).resolve().parents[2]
+    repository_root = mcp_root.parent
+    source = mcp_root / "http_server.py"
+    text = source.read_text(encoding="utf-8")
+
+    definitions = [
+        (m.start(), m.group(1))
+        for m in re.finditer(r"^(?:async )?def (\w+)", text, re.MULTILINE)
+    ]
+
+    def owning_function(position):
+        name = "<module>"
+        for start, function_name in definitions:
+            if start < position:
+                name = function_name
+            else:
+                break
+        return name
+
+    found = []
+    for tool in CONTAINED_TOOLS:
+        for match in re.finditer(r'"name":\s*"%s"' % re.escape(tool), text):
+            window = text[match.end():match.end() + 700]
+            description = re.search(r'"description":\s*([^\n]*)', window)
+            surface = owning_function(match.start())
+            found.append({
+                "surface": surface,
+                "tool": tool,
+                "description": description.group(1) if description else None,
+            })
+
+    registry = _json.loads(
+        (repository_root / "server.json").read_text(encoding="utf-8")
+    )
+    registry_tools = registry["_meta"][
+        "io.modelcontextprotocol.registry/publisher-provided"
+    ]["tools"]
+    for entry in registry_tools:
+        if entry.get("name") in CONTAINED_TOOLS:
+            found.append({
+                "surface": "server.json",
+                "tool": entry["name"],
+                "description": entry.get("description"),
+            })
+    return found
+
+
+def _assert_parity_contract(entries):
+    """The contract itself, factored out so the oracle can be exercised
+    against deliberately broken inputs as well as the real source."""
+    from collections import Counter
+
+    expected = Counter(
+        (surface, tool)
+        for surface in DISCOVERY_SURFACES
+        for tool in CONTAINED_TOOLS
+    )
+    actual = Counter((entry["surface"], entry["tool"]) for entry in entries)
+    assert actual == expected, (
+        f"discovery occurrence mismatch: actual={actual}, expected={expected}. "
+        "Missing, duplicate, or newly added public entries must be handled "
+        "deliberately."
+    )
+
+    for entry in entries:
+        surface = entry["surface"]
+        tool = entry["tool"]
+        description = entry["description"]
+        assert description is not None, (
+            f"{surface}.{tool} has no description — the parity check "
+            "would skip it silently"
+        )
+        marker = _MANIFEST_MARKER if surface == "server.json" else _SOURCE_MARKER
+        assert marker in description, (
+            f"{surface}.{tool} advertises a contained tool as working"
+        )
+
+
+def test_discovery_entry_set_is_complete_and_marked():
+    """Every known discovery surface carries EVERY contained tool, every entry
+    HAS a description, and every description carries the maintenance marker."""
+    _assert_parity_contract(_coordination_entries())
+
+
+def _mutate_discovery_entries(entries, defect):
+    if defect == "removed surface":
+        entries[:] = [
+            entry for entry in entries
+            if entry["surface"] != DISCOVERY_SURFACES[1]
+        ]
+    elif defect == "removed tool entry":
+        entries.pop(0)
+    elif defect == "duplicate tool entry":
+        entries.append(dict(entries[0]))
+    elif defect == "entry lost its description":
+        entries[0]["description"] = None
+    elif defect == "description no longer marked":
+        entries[0]["description"] = '"Read the latest handoff record."'
+    elif defect == "stale registry manifest":
+        manifest_entry = next(
+            entry for entry in entries if entry["surface"] == "server.json"
+        )
+        manifest_entry["description"] = "Create a structured handoff record"
+    else:  # pragma: no cover - test helper guard
+        raise AssertionError(f"unknown test defect: {defect}")
+
+
+@pytest.mark.parametrize("defect", [
+    "removed surface",
+    "removed tool entry",
+    "duplicate tool entry",
+    "entry lost its description",
+    "description no longer marked",
+    "stale registry manifest",
+])
+def test_parity_oracle_fires_on_each_defect_class(defect):
+    """Known-positive test of the oracle itself: a gate that has never fired is
+    not a gate. Each mutation is a defect class the contract claims to catch —
+    including the two vacuity modes T identified — and each must fail."""
+    import copy
+
+    broken = copy.deepcopy(_coordination_entries())
+    _mutate_discovery_entries(broken, defect)
+    with pytest.raises(AssertionError):
+        _assert_parity_contract(broken)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("tool", CONTAINED_TOOLS)
+async def test_denial_carries_no_marketing_notice(app, tool, monkeypatch):
+    """Finding V-6, external validation 2026-07-29: the ambient SYSTEM_NOTICE
+    advertises "All 13 tools free forever", and emitting it inside the denial
+    put a product claim and its own falsification in ONE JSON object — the
+    service asserting availability it was simultaneously refusing.
+
+    A denial must say only that it is denying, and how to proceed."""
+    monkeypatch.setattr(server_module, "SYSTEM_NOTICE",
+                        "All 13 tools free forever. Register at example.invalid")
+    result = await call(app, tool, args_for(tool, {}))
+
+    assert result.get("error_code") == DENIAL_CODE, result
+    assert "_system_notice" not in result, result
+    assert "free forever" not in json.dumps(result).lower(), result
+    # the diagnostic field a caller legitimately needs is retained
+    assert result.get("_server_version"), result

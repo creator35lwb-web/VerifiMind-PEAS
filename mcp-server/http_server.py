@@ -57,7 +57,14 @@ from verifimind_mcp.contract import (
     get_public_contract,
     free_tier_models_display,
 )
-from verifimind_mcp.policies import PRIVACY_POLICY, TERMS_AND_CONDITIONS
+from verifimind_mcp.policies import (
+    PRIVACY_POLICY,
+    PRIVACY_POLICY_VERSION,
+    TERMS_AND_CONDITIONS,
+    TERMS_VERSION,
+)
+from verifimind_mcp.policies.privacy_policy import PRIVACY_POLICY_EFFECTIVE_DATE
+from verifimind_mcp.policies.terms import TERMS_EFFECTIVE_DATE
 from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_research_page, get_library_page, get_dashboard_page, get_paradox_page, get_cowork_page, get_evaluation_roadmap_page
 from verifimind_mcp.utils.trinity_history import read_trinity_history
 from verifimind_mcp.llm.provider import PROVIDER_CONFIGS, PROVIDER_DEFAULT_GEMINI_MODEL
@@ -70,6 +77,24 @@ COORDINATION_MAINTENANCE_PREFIX = "TEMPORARILY UNAVAILABLE (maintenance) — "
 COORDINATION_MAINTENANCE_USE_FOR = (
     "Temporarily unavailable; keep handoff state in your own repository"
 )
+COORDINATION_TOOL_NAMES = (
+    "coordination_handoff_create",
+    "coordination_handoff_read",
+    "coordination_team_status",
+)
+DEFINED_TOOL_COUNT = 13
+ACTIVE_TOOL_COUNT = 10
+
+
+def _tool_availability() -> dict:
+    """Canonical current availability projected onto every public surface."""
+    return {
+        "defined": DEFINED_TOOL_COUNT,
+        "active": ACTIVE_TOOL_COUNT,
+        "temporarily_unavailable": len(COORDINATION_TOOL_NAMES),
+        "unavailable_tools": list(COORDINATION_TOOL_NAMES),
+        "reason": "owner-scoped access-control maintenance",
+    }
 
 # v0.5.51 (D-85-2): display copy for the free-tier Gemini default is projected
 # from the runtime constant - a model migration updates every surface at once.
@@ -84,7 +109,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.54"
+SERVER_VERSION = "0.5.55"
 
 # MCP protocol version the server speaks (v0.5.49, AY/AZ ask from the MCP RC
 # assessment) — surfaced in /health so clients can check compatibility pre-connect.
@@ -185,7 +210,8 @@ async def health_handler(request):
             "changelog": "/changelog"
         },
         "resources": 4,
-        "tools": 13,
+        "tools": DEFINED_TOOL_COUNT,
+        "tool_availability": _tool_availability(),
         "features": {
             "construction_fallback": True,
             "runtime_failover": contract["runtime_failover_enabled"],
@@ -253,7 +279,8 @@ async def mcp_config_handler(request):
                 "version": SERVER_VERSION,
                 "transport": "streamable-http",
                 "resources": 4,
-                "tools": 13,
+                "tools": DEFINED_TOOL_COUNT,
+                "tool_availability": _tool_availability(),
                 "features": {
                     "agents": ["X (Innovation)", "Z (Ethics)", "CS (Security)"],
                     # v0.5.51 (D-85-2): generated from the truth contract — never hand-edit
@@ -541,7 +568,7 @@ Connect using an MCP client such as Claude Desktop, Claude Code, or Cursor.</p>
 </div>
 <p class="note">Replace <code>your-uuid-here</code> with the UUID from your
 <a href="/register">Scholar registration</a>.
-Verify your key: <a href="/mcp/test?key=your-uuid-here"><code>/mcp/test?key=&lt;uuid&gt;</code></a></p>
+Verify your UUID: <a href="/mcp/test?key=your-uuid-here"><code>/mcp/test?key=&lt;uuid&gt;</code></a></p>
 </div>
 
 <h3>Links</h3>
@@ -554,7 +581,7 @@ Verify your key: <a href="/mcp/test?key=your-uuid-here"><code>/mcp/test?key=&lt;
   <li><a href=SETUP_PATH>Setup Guide (JSON)</a></li>
   <li><a href="/changelog">Changelog</a></li>
 </ul>
-<p><small>13 tools &middot; 4 resources &middot; X-Z-CS RefleXion Trinity &middot;
+<p><small>10 active tools &middot; 3 coordination tools temporarily unavailable &middot; 4 resources &middot; X-Z-CS RefleXion Trinity &middot;
 <a href="https://doi.org/10.5281/zenodo.17972751">DOI 10.5281/zenodo.17972751</a></small></p>
 
 <script>
@@ -696,7 +723,8 @@ async def setup_handler(request):
         },
 
         "available_tools": {
-            "_total": "13 tools (4 Trinity + 6 template + 3 coordination) - all free",
+            "_total": "13 defined: 10 active (4 Trinity + 6 template); 3 coordination tools temporarily unavailable",
+            "_availability": _tool_availability(),
             "trinity": {
                 "consult_agent_x": {
                     "description": "Innovation & Strategy analysis",
@@ -723,17 +751,17 @@ async def setup_handler(request):
             "coordination": {
                 "coordination_handoff_create": {
                     "description": COORDINATION_MAINTENANCE_PREFIX + "Create a structured agent handoff record",
-                    "tier": "Free (all 13 tools free since v0.5.28) — coordination tools temporarily disabled for maintenance",
+                    "tier": "Free pricing; temporarily unavailable during security maintenance",
                     "use_for": COORDINATION_MAINTENANCE_USE_FOR
                 },
                 "coordination_handoff_read": {
                     "description": COORDINATION_MAINTENANCE_PREFIX + "Read the latest handoff record for a given agent",
-                    "tier": "Free (all 13 tools free since v0.5.28)",
+                    "tier": "Free pricing; temporarily unavailable during security maintenance",
                     "use_for": COORDINATION_MAINTENANCE_USE_FOR
                 },
                 "coordination_team_status": {
                     "description": COORDINATION_MAINTENANCE_PREFIX + "Get the current status of all coordination agents",
-                    "tier": "Free (all 13 tools free since v0.5.28)",
+                    "tier": "Free pricing; temporarily unavailable during security maintenance",
                     "use_for": COORDINATION_MAINTENANCE_USE_FOR
                 }
             }
@@ -965,8 +993,8 @@ async def smithery_server_card_handler(request):
         "description": (
             "Multi-model AI validation framework. Validate concepts end-to-end across "
             "innovation (X Agent), ethics & compliance (Z Agent), and security (CS Agent) "
-            "via the X-Z-CS RefleXion Trinity. 13 free MCP tools (Trinity validation, "
-            "prompt-template library, and cross-session coordination). Auditable reasoning "
+            "via the X-Z-CS RefleXion Trinity. 10 MCP tools are active; 3 coordination "
+            "tools are temporarily unavailable during access-control maintenance. Auditable reasoning "
             "returned by default — per-step reasoning, framework citations, ethics scoring "
             "breakdown, and Socratic questions. BYOK across 6 providers (Gemini, Anthropic, "
             "OpenAI, Groq, Cerebras, Mistral). Free tier powered by "
@@ -1348,7 +1376,7 @@ async def whoami_handler(request):
             "tier": ea_status.tier,
             "status": ea_status.status,
             "registered_at": ea_status.registered_at,
-            "benefits_free_until": ea_status.benefits_free_until,
+            "availability_notice": ea_status.availability_notice,
             "rate_limit": "100 req/60s",
         }, status_code=200)
 
@@ -1359,7 +1387,8 @@ async def whoami_handler(request):
         "rate_limit": "30 req/60s",
         "message": (
             "You have a valid Scholar UUID (30 req/60s, BYOK enabled). "
-            "Register as an Early Adopter for higher limits and v0.6.0-Beta benefits."
+            "Register as an Early Adopter for higher limits and the feedback cohort. "
+            "Registration is not a time-limited access entitlement."
         ),
         "register_url": "https://verifimind.ysenseai.org/register",
     }, status_code=200)
@@ -1412,13 +1441,13 @@ async def ea_optout_handler(request):
 
 
 async def privacy_handler(request):
-    """GET /privacy — Privacy Policy v2.0 (HTML by default, JSON if requested)."""
+    """GET /privacy — current Privacy Policy (HTML by default, JSON if requested)."""
     accept = request.headers.get("accept", "")
     if CT_JSON in accept:
         return JSONResponse({
             "title": "VerifiMind-PEAS Privacy Policy",
-            "version": "2.0",
-            "effective_date": "2026-04-08",
+            "version": PRIVACY_POLICY_VERSION,
+            "effective_date": PRIVACY_POLICY_EFFECTIVE_DATE,
             "content": PRIVACY_POLICY,
             "url": "https://verifimind.ysenseai.org/privacy",
         })
@@ -1426,13 +1455,13 @@ async def privacy_handler(request):
 
 
 async def terms_handler(request):
-    """GET /terms — Terms & Conditions v2.0 (HTML by default, JSON if requested)."""
+    """GET /terms — current Terms & Conditions (HTML by default, JSON if requested)."""
     accept = request.headers.get("accept", "")
     if CT_JSON in accept:
         return JSONResponse({
             "title": "VerifiMind-PEAS Terms & Conditions",
-            "version": "2.0",
-            "effective_date": "2026-04-08",
+            "version": TERMS_VERSION,
+            "effective_date": TERMS_EFFECTIVE_DATE,
             "content": TERMS_AND_CONDITIONS,
             "url": "https://verifimind.ysenseai.org/terms",
         })
@@ -1534,7 +1563,9 @@ async def mcp_test_handler(request):
         "server_version": SERVER_VERSION,
         "message": (
             f"Connection verified! Your tier: {tier}. "
-            "All 13 tools (Trinity + templates + coordination) are free for everyone."
+            "10 tools are active. The 3 coordination tools are temporarily "
+            "unavailable during owner-scoped access-control maintenance. "
+            "No paid service is currently active."
         )
     })
 

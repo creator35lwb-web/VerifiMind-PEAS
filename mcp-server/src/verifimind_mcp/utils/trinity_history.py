@@ -4,7 +4,7 @@ P1-B: Fire-and-forget Firestore persistence for Scholar Trinity history.
 Writes validation metadata to:
   trinity_history/{uuid}/validations/{validation_id}
 
-Privacy invariants (consistent with Privacy Policy v2.1):
+Privacy invariants (consistent with Privacy Policy v2.3):
   - NO concept names or descriptions stored
   - NO agent response content stored
   - Only scores, recommendations, timestamps, session IDs

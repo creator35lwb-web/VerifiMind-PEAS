@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 _RAW_SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.5.54"
+SERVER_VERSION = "0.5.55"
 
 # Agent role names + master prompt filename — single source of truth.
 # (SonarCloud P2 batch-2: extracted in v0.5.39 from 13 dup-literal occurrences
@@ -1711,7 +1711,16 @@ def _create_mcp_instance():
         namespace) and exposes no stored state, so the denial itself cannot be
         used to probe the affected namespaces.
         """
-        return wrap_response(build_error_response(
+        # V-6 (external validation, 2026-07-29): the ambient SYSTEM_NOTICE
+        # advertises "All 13 tools free forever". Emitting it inside THIS
+        # payload put a product claim and its own falsification in one JSON
+        # object — a caller reading the denial saw the service assert
+        # availability it was simultaneously refusing. The notice is a
+        # marketing surface and has no business on a denial, so it is dropped
+        # here rather than reworded: a response that says no should say only
+        # that, plus how to proceed. `_server_version` is kept because a
+        # caller diagnosing the denial legitimately needs it.
+        contained = wrap_response(build_error_response(
             error_code="COORDINATION_TEMPORARILY_DISABLED",
             message=(
                 "The coordination layer is temporarily disabled while its access "
@@ -1729,6 +1738,8 @@ def _create_mcp_instance():
             ),
             agent=tool_name,
         ))
+        contained.pop("_system_notice", None)
+        return contained
 
     @app.tool()
     async def coordination_handoff_create(
