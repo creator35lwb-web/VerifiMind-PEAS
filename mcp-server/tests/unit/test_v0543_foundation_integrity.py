@@ -54,13 +54,13 @@ def test_degraded_z_inference_never_auto_passes(degraded):
     assert score <= 4.0, f"degraded score must stay out of proceed bands, got {score}"
 
 
-def test_mock_inference_excluded_from_failsafe():
-    """'mock' is test-mode with its own synthetic warning — it must NOT trip the
-    degraded-inference fail-safe (would break every mock-based test)."""
+def test_mock_inference_fails_closed():
+    """Synthetic inference is never eligible for a founder-facing auto-pass."""
     z = _z(ethics=9.0, veto=False, quality="mock")
     score = calculate_overall_score(_x(9.0), z, _cs(9.0), z_quality="mock")
     rec = determine_recommendation(score, z, _cs(9.0), z_quality="mock")
-    assert rec == "proceed"
+    assert rec == "revise"
+    assert score <= 4.0
 
 
 def test_veto_still_rejects_regardless_of_quality():

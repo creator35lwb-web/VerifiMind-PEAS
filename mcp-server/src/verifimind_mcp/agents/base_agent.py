@@ -154,7 +154,8 @@ class BaseAgent(ABC):
         # Build prompt
         prompt = self.build_prompt(concept, prior_reasoning)
         
-        logger.debug(f"{self.config.name} analyzing concept: {concept.name}")
+        # Privacy contract: concept names/descriptions are never written to logs.
+        logger.debug("%s analysis started", self.config.name)
         
         # Get output schema
         output_schema = self.OUTPUT_MODEL.model_json_schema()
@@ -177,17 +178,44 @@ class BaseAgent(ABC):
                 content = response["content"]
                 usage = response.get("usage", {})
                 inference_quality = response.get("_inference_quality", "unknown")
+                schema_repaired_fields = response.get(
+                    "_schema_repaired_fields", []
+                )
+                schema_incomplete_fields = response.get(
+                    "_schema_incomplete_fields", []
+                )
             else:
                 # Backward compatibility: response is content directly
                 content = response
                 usage = {}
                 inference_quality = "unknown"
+                schema_repaired_fields = []
+                schema_incomplete_fields = []
+
+            # Provider-independent quality oracle. Hosted Gemini/Groq/Cerebras
+            # already emit these diagnostics, but BYOK providers must not be
+            # able to label a structurally valid yet evidence-incomplete Z
+            # payload as real merely because their adapter lacks that feature.
+            if isinstance(content, dict):
+                provider_independent_incomplete = [
+                    field
+                    for field, prop in output_schema.get("properties", {}).items()
+                    if prop.get("quality_required") is True
+                    and (field not in content or content[field] is None)
+                ]
+                schema_incomplete_fields = sorted(set(
+                    schema_incomplete_fields
+                ).union(provider_independent_incomplete))
+                if schema_incomplete_fields and inference_quality == "real":
+                    inference_quality = "partial"
 
             # Parse response into model
             result = self.OUTPUT_MODEL.model_validate(content)
 
             # v0.4.3.1 C-S-P State: attach inference quality marker to result
             result._inference_quality = inference_quality
+            result._schema_repaired_fields = list(schema_repaired_fields)
+            result._schema_incomplete_fields = list(schema_incomplete_fields)
 
             # WP-B: attempt disclosure (present only when the failover
             # executor ran for a marked hosted provider; absent otherwise).
@@ -220,10 +248,14 @@ class BaseAgent(ABC):
             return result
             
         except Exception as e:
-            logger.error(f"{self.config.name} analysis failed: {e}")
+            logger.error(
+                "%s analysis failed (exception_type=%s)",
+                self.config.name,
+                type(e).__name__,
+            )
             if metrics:
                 metrics.error_count += 1
-                metrics.error_message = str(e)
+                metrics.error_message = type(e).__name__
                 metrics.finish()
             raise
     

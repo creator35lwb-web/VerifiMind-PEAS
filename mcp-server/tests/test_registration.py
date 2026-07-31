@@ -75,13 +75,13 @@ class TestPolicyDocuments:
         assert "opt" in PRIVACY_POLICY.lower()
 
     def test_privacy_policy_version_set(self):
-        assert PRIVACY_POLICY_VERSION == "2.3"
+        assert PRIVACY_POLICY_VERSION == "2.4"
 
     def test_terms_not_empty(self):
         assert len(TERMS_AND_CONDITIONS) > 100
 
     def test_terms_version_set(self):
-        assert TERMS_VERSION == "2.2"
+        assert TERMS_VERSION == "2.3"
 
     def test_privacy_mentions_right_to_deletion(self):
         assert "delet" in PRIVACY_POLICY.lower()

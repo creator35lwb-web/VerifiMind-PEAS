@@ -45,34 +45,32 @@ def test_validate_url_github_raw():
 
 
 @pytest.mark.unit
-def test_validate_url_raw_json():
-    """Test raw JSON file URL validation."""
+def test_validate_url_arbitrary_json_host_rejected():
+    """A file extension must not turn an arbitrary host into an SSRF target."""
     url = "https://example.com/templates/my-template.json"
     is_valid, source_type, error = validate_template_url(url)
 
-    assert is_valid is True
-    assert source_type == "raw_url"
-    assert error is None
+    assert is_valid is False
+    assert source_type == ""
+    assert "host" in error.lower()
 
 
 @pytest.mark.unit
-def test_validate_url_raw_yaml():
-    """Test raw YAML file URL validation."""
+def test_validate_url_arbitrary_yaml_host_rejected():
     url = "https://example.com/templates/my-template.yaml"
     is_valid, source_type, error = validate_template_url(url)
 
-    assert is_valid is True
-    assert source_type == "raw_url"
+    assert is_valid is False
+    assert "host" in error.lower()
 
 
 @pytest.mark.unit
-def test_validate_url_https_generic():
-    """Test generic HTTPS URL validation."""
+def test_validate_url_generic_https_rejected():
     url = "https://example.com/api/template"
     is_valid, source_type, error = validate_template_url(url)
 
-    assert is_valid is True
-    assert source_type == "raw_url"
+    assert is_valid is False
+    assert "host" in error.lower()
 
 
 @pytest.mark.unit
@@ -82,7 +80,7 @@ def test_validate_url_invalid_scheme():
     is_valid, source_type, error = validate_template_url(url)
 
     assert is_valid is False
-    assert "scheme" in error.lower()
+    assert "https" in error.lower()
 
 
 @pytest.mark.unit

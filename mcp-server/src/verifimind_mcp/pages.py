@@ -627,13 +627,13 @@ _REGISTER_BODY = """
   <div class="benefits-strip">
     <div class="benefit-item">
       <span class="benefit-icon">&#x2705;</span>
-      <strong>10 active tools</strong>
+      <strong>8 active tools</strong>
       <div class="benefit-label">Available now</div>
     </div>
     <div class="benefit-item">
       <span class="benefit-icon">&#x1F9EA;</span>
-      <strong>3 contained</strong>
-      <div class="benefit-label">Coordination maintenance</div>
+      <strong>5 contained</strong>
+      <div class="benefit-label">Security maintenance</div>
     </div>
     <div class="benefit-item">
       <span class="benefit-icon">&#x1F4AC;</span>
@@ -789,7 +789,7 @@ _REGISTER_SCRIPT = r"""
     if (strip) {
       strip.innerHTML =
         '<div class="benefit-item"><span class="benefit-icon">&#x1F511;</span><strong>50-slot cohort</strong><div class="benefit-label">Pilot feedback</div></div>' +
-        '<div class="benefit-item"><span class="benefit-icon">&#x2705;</span><strong>10 active tools</strong><div class="benefit-label">Available now</div></div>' +
+        '<div class="benefit-item"><span class="benefit-icon">&#x2705;</span><strong>8 active tools</strong><div class="benefit-label">Available now</div></div>' +
         '<div class="benefit-item"><span class="benefit-icon">&#x1F4AC;</span><strong>Shape it</strong><div class="benefit-label">Direct feedback</div></div>';
     }
   }
@@ -890,7 +890,7 @@ document.getElementById('register-form').addEventListener('submit', async functi
       var summaryEl = document.getElementById('benefit-summary');
       summaryEl.textContent = data.benefit_summary || (
         tierLabel + ': registration is free and is not a time-limited access entitlement. '
-        + '10 tools are active; 3 coordination tools are temporarily unavailable during access-control maintenance.'
+        + '8 tools are active; 3 coordination and 2 custom-template mutation tools are temporarily unavailable during security maintenance.'
       );
 
       document.getElementById('uuid-value').textContent = data.uuid;
@@ -1322,10 +1322,10 @@ def _legal_shell(title: str, body: str) -> str:
 _PRIVACY_BODY = """
 <h1>Privacy Policy</h1>
 <div class="meta">
-  <span>Version 2.3</span>
-  <span>Effective: July 30, 2026</span>
-  <span>Updated: July 30, 2026 (availability and entitlement clarification)</span>
-  <span>Previous: v2.2 (May 12, 2026)</span>
+  <span>Version 2.4</span>
+  <span>Effective: August 1, 2026</span>
+  <span>Updated: August 1, 2026 (template isolation and availability clarification)</span>
+  <span>Previous: v2.3 (July 30, 2026)</span>
 </div>
 
 <h2>Who We Are</h2>
@@ -1333,9 +1333,9 @@ _PRIVACY_BODY = """
   VerifiMind-PEAS is an open-source multi-model AI validation framework created by
   Alton Lee (Human Orchestrator, YSenseAI). This Privacy Policy applies to the
   VerifiMind-PEAS service at verifimind.ysenseai.org, including the Early Adopter (EA) and
-  PILOT programs. 10 tools are currently active. Three coordination tools are
-  temporarily unavailable while owner-scoped access control is rebuilt. No paid
-  services are active.
+  PILOT programs. Eight tools are currently active. Three coordination tools and
+  two custom-template mutation tools are temporarily unavailable while owner-scoped
+  storage and URL-fetch protections are completed. No paid services are active.
 </p>
 
 <h2>What We Collect</h2>
@@ -1411,6 +1411,11 @@ _PRIVACY_BODY = """
   patterns. <strong>Log retention: 30 days</strong> (GCP Cloud Logging auto-purge). You may stop
   UUID analytics at any time by simply omitting <code>user_uuid</code> from tool calls.</p>
 
+<h2>Prompt Templates</h2>
+<p>The hosted service currently exposes only the built-in prompt-template library. Runtime
+  custom-template registration and URL import are disabled. Custom prompt content is not accepted,
+  listed, exported, or retained by the public service while owner-scoped storage is being built.</p>
+
 <h2>How Long We Keep Your Data</h2>
 <table class="legal-table">
   <thead>
@@ -1477,31 +1482,33 @@ _PRIVACY_BODY = """
 _TERMS_BODY = """
 <h1>Terms &amp; Conditions</h1>
 <div class="meta">
-  <span>Version 2.2</span>
-  <span>Effective: July 30, 2026</span>
-  <span>Updated: July 30, 2026 (availability and entitlement clarification)</span>
-  <span>Previous: v2.1 (May 12, 2026)</span>
+  <span>Version 2.3</span>
+  <span>Effective: August 1, 2026</span>
+  <span>Updated: August 1, 2026 (template containment and availability clarification)</span>
+  <span>Previous: v2.2 (July 30, 2026)</span>
 </div>
 
 <h2>1. Service Description</h2>
 <p>VerifiMind-PEAS is an open-source multi-model AI validation framework that provides structured,
-  multi-agent validation and orchestration tools. 10 tools are currently active. The three
-  coordination tools are temporarily unavailable while owner-scoped access control is rebuilt.
+  multi-agent validation and orchestration tools. Eight tools are currently active. Three
+  coordination tools and two custom-template mutation tools are temporarily unavailable while
+  owner-scoped storage and URL-fetch protections are completed.
   There are no current paid services. Access levels are described in Section 3.</p>
 
 <h2>2. Acceptance of Terms</h2>
 <p>By registering for any VerifiMind-PEAS program or using the service, you confirm that you have
   read and accept:</p>
 <ul>
-  <li>These Terms &amp; Conditions v2.2</li>
+  <li>These Terms &amp; Conditions v2.3</li>
   <li>The <a href="/privacy">Privacy Policy</a></li>
 </ul>
 <p>When future paid services launch, additional terms (including any payment-processor agreements)
   will be presented and accepted separately at the time of purchase.</p>
 
 <h2>3. Service Tiers</h2>
-<p>Every current tier may use the same <strong>10 active tools</strong>. The three coordination
-  tools are listed for discovery but temporarily unavailable to every tier. Tier identity is used
+<p>Every current tier may use the same <strong>8 active tools</strong>. The three coordination
+  and two custom-template mutation tools are listed for discovery but temporarily unavailable to
+  every tier. Tier identity is used
   only for rate-limit allocation, cohort management, and personal dashboard scoping.</p>
 <table class="legal-table">
   <thead>
@@ -1511,45 +1518,46 @@ _TERMS_BODY = """
     <tr>
       <td><span class="tier-badge">Anonymous</span></td>
       <td>None (IP only)</td>
-      <td>10 active tools. No registration needed.</td>
+      <td>8 active tools. No registration needed.</td>
       <td>Free</td>
       <td>10 req/60s per IP</td>
     </tr>
     <tr>
       <td><span class="tier-badge">Scholar</span></td>
       <td>UUID (consent)</td>
-      <td>10 active tools + usage dashboard + Trinity history. Register at /register.</td>
+      <td>8 active tools + usage dashboard + Trinity history. Register at /register.</td>
       <td>Free</td>
       <td>30 req/60s per UUID</td>
     </tr>
     <tr>
       <td><span class="tier-badge">Early Adopter</span></td>
       <td>UUID + email</td>
-      <td>10 active tools + EA feedback cohort</td>
+      <td>8 active tools + EA feedback cohort</td>
       <td>Free</td>
       <td>100 req/60s per UUID</td>
     </tr>
     <tr>
       <td><span class="tier-badge">PILOT</span></td>
       <td>UUID + email + invite</td>
-      <td>10 active tools + PILOT feedback cohort</td>
+      <td>8 active tools + PILOT feedback cohort</td>
       <td>Free</td>
       <td>100 req/60s per UUID</td>
     </tr>
   </tbody>
 </table>
 <div class="notice-box">
-  <strong>Growth First, Monetization Later.</strong> The 10 active tools are free for every tier.
-  The 3 coordination tools remain unavailable to every tier during security maintenance.
+  <strong>Growth First, Monetization Later.</strong> The 8 active tools are free for every tier.
+  Five contained tools remain unavailable to every tier during security maintenance.
   Pricing for future premium services (such as expert-orchestrated reports) will be announced
   separately and will not change the free-tools pledge. The VerifiMind-PEAS core is MIT licensed —
   you may self-host at any time.
 </div>
 
 <h2>4. Payment and Billing</h2>
-<p>There are <strong>no active paid services</strong> at this time. The 10 active tools are free
-  for everyone. The three coordination tools are <strong>temporarily disabled for maintenance</strong>
-  while their access control is rebuilt; this does not affect the validation tools or change the
+<p>There are <strong>no active paid services</strong> at this time. The 8 active tools are free
+  for everyone. Three coordination and two custom-template mutation tools are
+  <strong>temporarily disabled for maintenance</strong> while owner-scoped controls are rebuilt;
+  this does not affect the validation tools or change the
   free-for-everyone pledge.</p>
 <p>When future paid services (such as expert-orchestrated consultation reports) become available,
   this section will be updated with specific billing terms, the payment processor, and any
@@ -1627,12 +1635,12 @@ _TERMS_BODY = """
 
 
 def get_privacy_page() -> str:
-    """Return the full HTML for GET /privacy — Privacy Policy v2.3."""
+    """Return the full HTML for GET /privacy — Privacy Policy v2.4."""
     return _legal_shell(title="Privacy Policy", body=_PRIVACY_BODY)
 
 
 def get_terms_page() -> str:
-    """Return the full HTML for GET /terms — Terms &amp; Conditions v2.2."""
+    """Return the full HTML for GET /terms — Terms &amp; Conditions v2.3."""
     return _legal_shell(title="Terms &amp; Conditions", body=_TERMS_BODY)
 
 
@@ -1730,7 +1738,7 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 
 <div class="notice-box" style="margin-top:2rem;">
   <strong>Privacy:</strong> No concept names or descriptions are stored — only scores,
-  recommendations, and timestamps. See <a href="/privacy">Privacy Policy v2.3</a>.
+  recommendations, and timestamps. See <a href="/privacy">Privacy Policy v2.4</a>.
 </div>
 
 <style>
@@ -1753,8 +1761,29 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 _CHANGELOG_BODY = """
 <h1>Changelog</h1>
 <div class="meta">
-  <span>Last updated: May 15, 2026 (v0.5.34)</span>
+  <span>Last updated: August 1, 2026 (v0.5.56)</span>
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
+</div>
+
+<div id="v0.5.56">
+<h2>v0.5.56 — Core Integrity + Custom-Template Containment</h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">August 1, 2026</p>
+<ul>
+  <li><strong>Trinity output integrity:</strong> a complete score, confidence, or verdict now requires real inference from X, Z, and CS. Any partial, fallback, mock, unknown, or unavailable stage produces an incomplete result for human review; generated defaults from that stage are withheld.</li>
+  <li><strong>Z evidence diagnostics:</strong> missing or null jurisdiction, compliance-timeline, framework, and scoring evidence now downgrades inference quality explicitly instead of being mistaken for a complete ethics analysis.</li>
+  <li><strong>Provider truncation guard:</strong> Groq responses cut off at the output-token ceiling are rejected before structured parsing.</li>
+  <li><strong>Custom-template containment:</strong> registration and URL import are temporarily unavailable while owner-scoped storage is completed. Built-in template reads remain active and exclude process-local custom entries.</li>
+  <li><strong>Public availability:</strong> every discovery, registration, and policy surface now reports 13 defined tools, 8 active tools, and 5 temporarily unavailable tools.</li>
+</ul>
+</div>
+
+<div id="v0.5.55">
+<h2>v0.5.55 — Integrated Security and Public-Truth Repair</h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">July 31, 2026</p>
+<ul>
+  <li>Aligned MCP discovery with coordination containment, corrected registration and policy claims, hardened Claude thinking-model parsing, and repaired Groq admission handling.</li>
+  <li>Production reported 13 defined tools, 10 active tools, and 3 temporarily unavailable coordination tools before the additional v0.5.56 containment.</li>
+</ul>
 </div>
 
 <div id="v0.5.34">

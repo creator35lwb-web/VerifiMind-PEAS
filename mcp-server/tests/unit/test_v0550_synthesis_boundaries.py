@@ -139,9 +139,9 @@ def test_veto_forces_reject_even_with_high_scores():
     assert determine_recommendation(10.0, za, cs(10)) == "reject"
 
 
-def test_veto_beats_degraded_z():
+def test_degraded_z_cannot_claim_a_trusted_veto():
     za = z(10, veto=True)
-    assert determine_recommendation(10.0, za, cs(10), z_quality="fallback") == "reject"
+    assert determine_recommendation(10.0, za, cs(10), z_quality="fallback") == "revise"
 
 
 # ---------------------------------------------------------------------------
@@ -158,11 +158,10 @@ def test_degraded_z_forces_revise_even_at_perfect_scores(quality):
     assert determine_recommendation(10.0, z(10), cs(10), z_quality=quality) == "revise"
 
 
-def test_mock_quality_is_excluded_from_the_fail_safe():
-    """'mock' is test-mode with its own synthetic warning — by design it does
-    NOT trigger the degraded cap (documented exclusion, v0.5.43)."""
-    assert calculate_overall_score(x(10), z(10), cs(10), z_quality="mock") == pytest.approx(10.0)
-    assert determine_recommendation(10.0, z(10), cs(10), z_quality="mock") == "proceed"
+def test_mock_quality_fails_closed():
+    """Test-mode placeholders cannot produce a decision-grade recommendation."""
+    assert calculate_overall_score(x(10), z(10), cs(10), z_quality="mock") == pytest.approx(4.0)
+    assert determine_recommendation(10.0, z(10), cs(10), z_quality="mock") == "revise"
 
 
 # ---------------------------------------------------------------------------

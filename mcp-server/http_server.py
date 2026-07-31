@@ -68,33 +68,22 @@ from verifimind_mcp.policies.terms import TERMS_EFFECTIVE_DATE
 from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_research_page, get_library_page, get_dashboard_page, get_paradox_page, get_cowork_page, get_evaluation_roadmap_page
 from verifimind_mcp.utils.trinity_history import read_trinity_history
 from verifimind_mcp.llm.provider import PROVIDER_CONFIGS, PROVIDER_DEFAULT_GEMINI_MODEL
+from verifimind_mcp.availability import (
+    ACTIVE_TOOL_COUNT,
+    COORDINATION_MAINTENANCE_PREFIX,
+    CUSTOM_TEMPLATE_MAINTENANCE_PREFIX,
+    DEFINED_TOOL_COUNT,
+    get_tool_availability,
+)
 
-# VM-IR-2026-07-28-COORD-01: the three coordination tools are contained
-# (fail closed) while owner-scoped access control is rebuilt. Advertised
-# descriptions must state that, so discovery surfaces cannot promise a
-# capability the server now denies.
-COORDINATION_MAINTENANCE_PREFIX = "TEMPORARILY UNAVAILABLE (maintenance) — "
 COORDINATION_MAINTENANCE_USE_FOR = (
     "Temporarily unavailable; keep handoff state in your own repository"
 )
-COORDINATION_TOOL_NAMES = (
-    "coordination_handoff_create",
-    "coordination_handoff_read",
-    "coordination_team_status",
-)
-DEFINED_TOOL_COUNT = 13
-ACTIVE_TOOL_COUNT = 10
 
 
 def _tool_availability() -> dict:
     """Canonical current availability projected onto every public surface."""
-    return {
-        "defined": DEFINED_TOOL_COUNT,
-        "active": ACTIVE_TOOL_COUNT,
-        "temporarily_unavailable": len(COORDINATION_TOOL_NAMES),
-        "unavailable_tools": list(COORDINATION_TOOL_NAMES),
-        "reason": "owner-scoped access-control maintenance",
-    }
+    return get_tool_availability()
 
 # v0.5.51 (D-85-2): display copy for the free-tier Gemini default is projected
 # from the runtime constant - a model migration updates every surface at once.
@@ -109,7 +98,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.55"
+SERVER_VERSION = "0.5.56"
 
 # MCP protocol version the server speaks (v0.5.49, AY/AZ ask from the MCP RC
 # assessment) — surfaced in /health so clients can check compatibility pre-connect.
@@ -370,12 +359,12 @@ async def mcp_config_handler(request):
             },
             {
                 "name": "register_custom_template",
-                "description": "Register a new custom prompt template",
+                "description": CUSTOM_TEMPLATE_MAINTENANCE_PREFIX + "Register a new custom prompt template",
                 "parameters": ["name", "agent_id", "content", "category", "description", "tags"]
             },
             {
                 "name": "import_template_from_url",
-                "description": "Import template from URL (GitHub Gist, raw file)",
+                "description": CUSTOM_TEMPLATE_MAINTENANCE_PREFIX + "Import template from URL (GitHub Gist, raw file)",
                 "parameters": ["url", "validate (default: true)"]
             },
             {
@@ -581,7 +570,7 @@ Verify your UUID: <a href="/mcp/test?key=your-uuid-here"><code>/mcp/test?key=&lt
   <li><a href=SETUP_PATH>Setup Guide (JSON)</a></li>
   <li><a href="/changelog">Changelog</a></li>
 </ul>
-<p><small>10 active tools &middot; 3 coordination tools temporarily unavailable &middot; 4 resources &middot; X-Z-CS RefleXion Trinity &middot;
+<p><small>8 active tools &middot; 5 tools temporarily unavailable &middot; 4 resources &middot; X-Z-CS RefleXion Trinity &middot;
 <a href="https://doi.org/10.5281/zenodo.17972751">DOI 10.5281/zenodo.17972751</a></small></p>
 
 <script>
@@ -723,7 +712,7 @@ async def setup_handler(request):
         },
 
         "available_tools": {
-            "_total": "13 defined: 10 active (4 Trinity + 6 template); 3 coordination tools temporarily unavailable",
+            "_total": "13 defined: 8 active (4 Trinity + 4 built-in template reads); 5 tools temporarily unavailable",
             "_availability": _tool_availability(),
             "trinity": {
                 "consult_agent_x": {
@@ -988,17 +977,29 @@ async def smithery_server_card_handler(request):
     publish spec; the Smithery listing sunset 2026-03-01, but this endpoint
     remains a valid MCP discovery card served directly at the deployment URL.
     """
+    contract = get_public_contract()
+    routing = contract["free_tier_routing"]
+    x_route = routing["X"]
+    z_route = routing["Z"]
+    cs_route = routing["CS"]
+    hosted_route_display = (
+        f"X: {x_route['model']} via {x_route['provider']}; "
+        f"Z: {z_route['model']} via {z_route['provider']}; "
+        f"CS: {cs_route['model']} via {cs_route['provider']}"
+    )
+
     return JSONResponse({
         "displayName": "VerifiMind-PEAS",
         "description": (
             "Multi-model AI validation framework. Validate concepts end-to-end across "
             "innovation (X Agent), ethics & compliance (Z Agent), and security (CS Agent) "
-            "via the X-Z-CS RefleXion Trinity. 10 MCP tools are active; 3 coordination "
-            "tools are temporarily unavailable during access-control maintenance. Auditable reasoning "
+            "via the X-Z-CS RefleXion Trinity. 8 MCP tools are active; 5 tools "
+            "are temporarily unavailable during access-control and custom-template "
+            "security maintenance. Auditable reasoning "
             "returned by default — per-step reasoning, framework citations, ethics scoring "
             "breakdown, and Socratic questions. BYOK across 6 providers (Gemini, Anthropic, "
-            "OpenAI, Groq, Cerebras, Mistral). Free tier powered by "
-            f"{GEMINI_DEFAULT_DISPLAY}."
+            "OpenAI, Groq, Cerebras, Mistral). Hosted free-tier routing — "
+            f"{hosted_route_display}."
         ),
         "version": SERVER_VERSION,
         "iconUrl": "https://verifimind.ysenseai.org/logo.png",
@@ -1009,14 +1010,14 @@ async def smithery_server_card_handler(request):
                 "configSchema": {
                     "type": "object",
                     "properties": {},
-                    "description": f"No configuration required. Free tier uses developer-hosted {GEMINI_DEFAULT_DISPLAY}. Optional: set LLM_PROVIDER + API key headers for BYOK (gemini, anthropic, openai, groq, cerebras, mistral)."
+                    "description": f"No configuration required. Hosted free-tier routing — {hosted_route_display}. Optional: set LLM_PROVIDER + API key headers for BYOK (gemini, anthropic, openai, groq, cerebras, mistral)."
                 }
             }
         ],
         "tools": [
             {
                 "name": "run_full_trinity",
-                "description": "Complete X → Z → CS Trinity validation. X (Innovation/Strategy) → Z (Ethics/Compliance, VETO power) → CS (Security/Feasibility) → Synthesis with overall score and PROCEED/REFINE/HALT verdict.",
+                "description": "Complete X → Z → CS Trinity validation. X (Innovation/Strategy) → Z (Ethics/Compliance, VETO power) → CS (Security/Feasibility) → synthesis with proceed/proceed_with_caution/revise/reject recommendation.",
                 "inputSchema": {
                     "type": "object",
                     "required": ["concept_name", "concept_description"],
@@ -1024,7 +1025,7 @@ async def smithery_server_card_handler(request):
                         "concept_name": {"type": "string"},
                         "concept_description": {"type": "string"},
                         "context": {"type": "string"},
-                        "save_to_history": {"type": "boolean", "default": True}
+                        "save_to_history": {"type": "boolean", "default": False}
                     }
                 }
             },
@@ -1107,7 +1108,7 @@ async def smithery_server_card_handler(request):
             },
             {
                 "name": "register_custom_template",
-                "description": "Register a new custom Genesis prompt template.",
+                "description": CUSTOM_TEMPLATE_MAINTENANCE_PREFIX + "Register a new custom Genesis prompt template.",
                 "inputSchema": {
                     "type": "object",
                     "required": ["name", "agent_id", "content", "category", "description"],
@@ -1123,7 +1124,7 @@ async def smithery_server_card_handler(request):
             },
             {
                 "name": "import_template_from_url",
-                "description": "Import a Genesis prompt template from a URL (GitHub Gist, raw file).",
+                "description": CUSTOM_TEMPLATE_MAINTENANCE_PREFIX + "Import a Genesis prompt template from a URL (GitHub Gist, raw file).",
                 "inputSchema": {
                     "type": "object",
                     "required": ["url"],
@@ -1563,8 +1564,8 @@ async def mcp_test_handler(request):
         "server_version": SERVER_VERSION,
         "message": (
             f"Connection verified! Your tier: {tier}. "
-            "10 tools are active. The 3 coordination tools are temporarily "
-            "unavailable during owner-scoped access-control maintenance. "
+            "8 tools are active. Five tools are temporarily unavailable during "
+            "owner-scoped access-control and custom-template security maintenance. "
             "No paid service is currently active."
         )
     })
@@ -1992,7 +1993,10 @@ print(f"  Health: /health")
 print(f"  Config: /.well-known/mcp-config")
 print(f"  Setup:  /setup")
 print("-" * 70)
-print("Resources: 4 | Tools: 13 (4 Trinity + 6 template + 3 coordination) - all free")
+print(
+    "Resources: 4 | Tools: 13 defined / 8 active / 5 temporarily unavailable "
+    "(security maintenance)"
+)
 print("Agents: X (Innovation) | Z (Ethics) | CS (Security)")
 print("-" * 70)
 print("Quick Start (Claude Code):")
@@ -2018,7 +2022,8 @@ if __name__ == "__main__":
     # container network. External access is controlled by Cloud Run ingress, not by this bind.
     uvicorn.run(
         app,
-        host=os.getenv("HOST", "0.0.0.0"),  # NOSONAR: 0.0.0.0 default required by Cloud Run; override via HOST env
+        # Cloud Run requires an all-interface container bind; ingress controls exposure.
+        host=os.getenv("HOST", "0.0.0.0"),  # nosec B104  # NOSONAR
         port=port,
         log_level="info"
     )

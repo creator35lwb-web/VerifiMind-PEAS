@@ -75,7 +75,7 @@ Each agent sees the prior agents' reasoning. You get a unified assessment with s
 
 ## The 13 tools
 
-All 13 tools are **free for everyone** under the [Core Tools Always Free pledge](#core-tools-always-free-pledge). **10 are currently active; the 3 coordination tools are temporarily unavailable** — see [Coordination](#coordination-3-tools--temporarily-unavailable) below.
+All 13 tools remain **free for everyone** under the [Core Tools Always Free pledge](#core-tools-always-free-pledge). **8 are currently active; 5 are temporarily unavailable for security maintenance** — three coordination tools plus two custom-template mutation tools.
 
 ### Trinity validation (4 tools)
 - `consult_agent_x` — Innovation analysis with competitive positioning
@@ -83,12 +83,18 @@ All 13 tools are **free for everyone** under the [Core Tools Always Free pledge]
 - `consult_agent_cs` — Security validation, OWASP Agentic AI Top 10
 - `run_full_trinity` — X → Z → CS pipeline with chain-of-thought, unified assessment
 
-### Template management (6 tools)
+**Output-integrity contract (v0.5.56):** an agent's generated scores, findings,
+recommendation, reasoning, and veto state are returned only when its inference
+quality is explicitly `real`. Partial, fallback, mock, unknown, or unavailable
+stages are marked incomplete and their generated fields are withheld. A Trinity
+aggregate score or confidence requires all three agents to pass this gate.
+
+### Template management (6 tools — 4 active, 2 temporarily unavailable)
 - `list_prompt_templates` — Browse templates by agent, category, or tag
 - `get_prompt_template` — Retrieve a template by ID
 - `export_prompt_template` — Export to Markdown or JSON
-- `register_custom_template` — Register a new template at runtime
-- `import_template_from_url` — Import from a GitHub Gist or raw URL
+- `register_custom_template` — **temporarily unavailable** pending owner-scoped storage
+- `import_template_from_url` — **temporarily unavailable** pending owner isolation and URL-fetch hardening
 - `get_template_statistics` — Registry stats by agent / phase / type
 
 ### Coordination (3 tools) — TEMPORARILY UNAVAILABLE
@@ -98,11 +104,17 @@ All 13 tools are **free for everyone** under the [Core Tools Always Free pledge]
 
 > **These three tools are disabled and currently return `COORDINATION_TEMPORARILY_DISABLED` for every caller.**
 >
-> Records created through them were stored in a shared, unauthenticated namespace; they are no longer readable or writable through the public API. **No other VerifiMind tool is affected, and the validation tools remain fully available.**
+> Records created through them were stored in a shared, unauthenticated namespace; they are no longer readable or writable through the public API. The four validation tools remain fully available.
 >
 > They will return only after private, owner-scoped storage ships. Until then, keep coordination state in your own repository — the handoff markdown format is documented in this repo. Incident reference: `VM-IR-2026-07-28-COORD-01`.
 
 > **The Always Free pledge is unchanged.** This is a security containment, not a paywall and not a tier change. Nothing here is or becomes a paid feature.
+
+### Custom-template mutation (2 tools) — TEMPORARILY UNAVAILABLE
+
+`register_custom_template` and `import_template_from_url` return `CUSTOM_TEMPLATE_TEMPORARILY_DISABLED` for every caller. Public built-in template listing, retrieval, export, and statistics remain available and exclude process-local custom entries.
+
+This containment prevents cross-caller custom-template visibility while owner-scoped storage is built and removes the public arbitrary URL-fetching path. Incident reference: `VM-IR-2026-08-01-TEMPLATE-01`.
 
 ---
 
@@ -181,7 +193,8 @@ For honest live metrics, see [`/changelog`](https://verifimind.ysenseai.org/chan
 | Using `https://verifimind.ysenseai.org/mcp` (no slash) | Use `/mcp/` with trailing slash — required by streamable-http transport |
 | Connecting via `server.smithery.ai/...` | Smithery legacy was sunset March 1, 2026. Use the direct URL above. |
 | Mixing transports | Use `streamable-http`, not `http-sse` |
-| Coordination tools returning `COORDINATION_TEMPORARILY_DISABLED` | Expected. They are disabled for every caller pending owner-scoped storage — see [Coordination](#coordination-3-tools--temporarily-unavailable). Not a paywall; the other 10 tools are unaffected. |
+| Coordination tools returning `COORDINATION_TEMPORARILY_DISABLED` | Expected. They are disabled for every caller pending owner-scoped storage — see [Coordination](#coordination-3-tools--temporarily-unavailable). Not a paywall; the 8 active tools remain available. |
+| Custom-template mutation returning `CUSTOM_TEMPLATE_TEMPORARILY_DISABLED` | Expected security containment. Use built-in templates or keep custom templates in your own repository until owner-scoped storage ships. |
 | Trying to call coordination tools and seeing "PIONEER_TIER_REQUIRED" | You're on v0.5.27 or older — the paywall was removed in v0.5.28 (May 10, 2026). Tool access is free; note the 3 coordination tools are separately disabled (row above). |
 
 For a fuller troubleshooting guide, see [docs/MCP_Server_Troubleshooting_Guide.md](docs/MCP_Server_Troubleshooting_Guide.md).

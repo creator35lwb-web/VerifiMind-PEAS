@@ -268,7 +268,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     tier = _resolve_uuid_tier(uuid_header)
                     active_limit = TIER_LIMITS[tier]
                     uuid_status = "valid"
-            except Exception:
+            # A malformed optional UUID header intentionally falls back to anonymous.
+            except Exception:  # nosec B110
                 pass  # invalid header → fall back to anonymous (uuid_status="invalid")
 
         if tier == "anonymous":

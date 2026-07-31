@@ -138,11 +138,29 @@ def build_reasoning_block(
     Caller must only invoke this for detail in ('standard', 'full'); 'summary'
     callers skip the block entirely to preserve the exact legacy shape.
     """
+    def _stage(
+        agent_id: str,
+        quality_key: str,
+        renderer,
+        result: Any,
+    ) -> Dict[str, Any]:
+        quality = chain_status.get(quality_key, "unknown")
+        if quality != "real":
+            return {
+                "withheld": True,
+                "quality": quality,
+                "reason": (
+                    "Generated reasoning from this incomplete stage is withheld "
+                    "until a clean real-inference rerun."
+                ),
+            }
+        return renderer(result, detail)
+
     return {
         "detail": detail,
-        "x": x_reasoning(x_result, detail),
-        "z": z_reasoning(z_result, detail),
-        "cs": cs_reasoning(cs_result, detail),
+        "x": _stage("X", "x_agent", x_reasoning, x_result),
+        "z": _stage("Z", "z_agent", z_reasoning, z_result),
+        "cs": _stage("CS", "cs_agent", cs_reasoning, cs_result),
         "inference": {
             "x": chain_status.get("x_agent"),
             "z": chain_status.get("z_agent"),

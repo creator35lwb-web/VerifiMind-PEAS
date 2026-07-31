@@ -1,27 +1,27 @@
 """Canonical plain-text Terms & Conditions served to JSON clients."""
 
-TERMS_VERSION = "2.2"
-TERMS_EFFECTIVE_DATE = "2026-07-30"
+TERMS_VERSION = "2.3"
+TERMS_EFFECTIVE_DATE = "2026-08-01"
 
 TERMS_AND_CONDITIONS = """
-VerifiMind-PEAS — Terms & Conditions v2.2
-Effective: July 30, 2026 (previous: v2.1, May 12, 2026)
+VerifiMind-PEAS — Terms & Conditions v2.3
+Effective: August 1, 2026 (previous: v2.2, July 30, 2026)
 
 1. SERVICE DESCRIPTION
-VerifiMind-PEAS is an open-source multi-model AI validation framework. 10 active
-validation and template tools are currently available. Three coordination tools
-are discoverable but temporarily unavailable while owner-scoped access control
-is rebuilt.
+VerifiMind-PEAS is an open-source multi-model AI validation framework. Eight
+validation and built-in template tools are currently available. Three coordination
+tools and two custom-template mutation tools are discoverable but temporarily
+unavailable while owner-scoped controls and URL-fetch protections are rebuilt.
 
 2. ACCEPTANCE
-By registering or using the hosted service, you accept these Terms v2.2 and the
-Privacy Policy v2.3 at verifimind.ysenseai.org/privacy.
+By registering or using the hosted service, you accept these Terms v2.3 and the
+Privacy Policy v2.4 at verifimind.ysenseai.org/privacy.
 
 3. ACCESS AND TIERS
-Anonymous, Scholar, Early Adopter, and PILOT users may use the same 10 active
+Anonymous, Scholar, Early Adopter, and PILOT users may use the same 8 active
 tools. Tier identity is used for rate-limit allocation, cohort management, and
-personal dashboard scoping. The three coordination tools are unavailable to
-every tier during maintenance.
+personal dashboard scoping. Three coordination and two custom-template mutation
+tools are unavailable to every tier during maintenance.
 
 Current rate-limit targets are:
   • Anonymous: 10 requests per 60 seconds per IP
@@ -85,7 +85,7 @@ GitHub Discussions:
 github.com/creator35lwb-web/VerifiMind-PEAS/discussions
 Email: creator35lwb@gmail.com
 
-The current terms are at verifimind.ysenseai.org/terms. This v2.2 revision
-corrects service-availability and registration-entitlement descriptions. It
-does not introduce a fee or shorten an existing entitlement.
+The current terms are at verifimind.ysenseai.org/terms. This v2.3 revision
+clarifies template containment and current availability. It does not introduce
+a fee or shorten an existing entitlement.
 """

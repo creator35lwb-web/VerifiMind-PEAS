@@ -160,12 +160,15 @@ class TemplateRegistry:
 
         return template
 
-    def get_template(self, template_id: str) -> Optional[PromptTemplate]:
+    def get_template(
+        self, template_id: str, include_custom: bool = True
+    ) -> Optional[PromptTemplate]:
         """
         Get a template by ID.
 
         Args:
             template_id: Unique template identifier
+            include_custom: Whether process-local custom templates are eligible
 
         Returns:
             PromptTemplate if found, None otherwise
@@ -175,7 +178,7 @@ class TemplateRegistry:
             return self._templates[template_id]
 
         # Check custom templates
-        if template_id in self._custom_templates:
+        if include_custom and template_id in self._custom_templates:
             return self._custom_templates[template_id]
 
         return None
@@ -359,7 +362,8 @@ class TemplateRegistry:
 
     def get_templates_by_genesis_phase(
         self,
-        phase: GenesisPhase
+        phase: GenesisPhase,
+        include_custom: bool = True,
     ) -> List[PromptTemplate]:
         """
         Get templates aligned with a specific Genesis phase.
@@ -370,7 +374,9 @@ class TemplateRegistry:
         Returns:
             List of templates for that phase
         """
-        return self.list_templates(tags=[phase.value])
+        return self.list_templates(
+            tags=[phase.value], include_custom=include_custom
+        )
 
     def get_agent_default_template(self, agent_id: str) -> Optional[PromptTemplate]:
         """
@@ -398,12 +404,13 @@ class TemplateRegistry:
         self._load_builtin_templates()
         logger.info("Reloaded all library templates")
 
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self, include_custom: bool = True) -> Dict[str, Any]:
         """Get registry statistics."""
+        custom_count = len(self._custom_templates) if include_custom else 0
         return {
-            "total_templates": len(self._templates) + len(self._custom_templates),
+            "total_templates": len(self._templates) + custom_count,
             "builtin_templates": len(self._templates),
-            "custom_templates": len(self._custom_templates),
+            "custom_templates": custom_count,
             "libraries": len(self._libraries),
             "templates_by_agent": {
                 "X": len(self.list_templates(agent_id="X", include_custom=False)),
@@ -412,7 +419,9 @@ class TemplateRegistry:
                 "all": len(self.list_templates(agent_id="all", include_custom=False)),
             },
             "templates_by_phase": {
-                phase.value: len(self.get_templates_by_genesis_phase(phase))
+                phase.value: len(self.get_templates_by_genesis_phase(
+                    phase, include_custom=include_custom
+                ))
                 for phase in GenesisPhase
             }
         }

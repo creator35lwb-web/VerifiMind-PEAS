@@ -30,8 +30,8 @@ EA_MAX_SLOTS = 100
 
 CURRENT_AVAILABILITY_NOTICE = (
     "Registration is free and does not create a time-limited access "
-    "entitlement. 10 tools are active; 3 coordination tools are temporarily "
-    "unavailable while owner-scoped access control is rebuilt."
+    "entitlement. 8 tools are active; 3 coordination and 2 custom-template "
+    "mutation tools are temporarily unavailable during security maintenance."
 )
 
 # Pilot invite code (set via GCP env var — never hardcoded)

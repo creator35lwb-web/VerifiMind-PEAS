@@ -1,11 +1,11 @@
 """Canonical plain-text Privacy Policy served to JSON clients."""
 
-PRIVACY_POLICY_VERSION = "2.3"
-PRIVACY_POLICY_EFFECTIVE_DATE = "2026-07-30"
+PRIVACY_POLICY_VERSION = "2.4"
+PRIVACY_POLICY_EFFECTIVE_DATE = "2026-08-01"
 
 PRIVACY_POLICY = """
-VerifiMind-PEAS — Privacy Policy v2.3
-Effective: July 30, 2026 (previous: v2.2, May 12, 2026)
+VerifiMind-PEAS — Privacy Policy v2.4
+Effective: August 1, 2026 (previous: v2.3, July 30, 2026)
 
 1. WHO WE ARE
 VerifiMind-PEAS is an open-source multi-model AI validation framework created
@@ -13,8 +13,9 @@ by Alton Lee (Human Orchestrator, YSenseAI). This policy applies to the hosted
 service at verifimind.ysenseai.org and its Early Adopter and PILOT programs.
 
 2. CURRENT SERVICE AVAILABILITY
-10 active validation and template tools are currently available. Three coordination
-tools are temporarily unavailable while owner-scoped access control is rebuilt.
+Eight validation and built-in template tools are currently available. Three
+coordination and two custom-template mutation tools are temporarily unavailable
+while owner-scoped controls and URL-fetch protections are rebuilt.
 No paid services are active. Registration does not create a time-limited
 access entitlement.
 
@@ -40,6 +41,10 @@ When a caller voluntarily supplies a UUID, the service may log the UUID, tool
 name, tier label, and UTC timestamp. It does not intentionally log the submitted
 concept or tool output as UUID-linked analytics. Operational infrastructure may
 process network metadata needed to secure and run the service.
+
+Runtime custom-template registration and URL import are disabled. The hosted
+service exposes built-in templates only and does not accept, list, export, or
+retain custom prompt content while owner-scoped storage is being built.
 
 6. STORAGE AND RETENTION
 Account records are stored in Google Cloud Firestore with restricted access.
@@ -76,6 +81,6 @@ Email: creator35lwb@gmail.com
 Material changes will be communicated according to the applicable terms. The
 current policy is always available at verifimind.ysenseai.org/privacy.
 
-This v2.3 revision corrects service-availability and registration-entitlement
-descriptions. It does not introduce a fee or shorten an existing entitlement.
+This v2.4 revision clarifies custom-template isolation and current availability.
+It does not introduce a fee or shorten an existing entitlement.
 """

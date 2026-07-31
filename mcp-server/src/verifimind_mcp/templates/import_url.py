@@ -2,21 +2,23 @@
 Template Import from URL for VerifiMind-PEAS v0.4.0
 ====================================================
 
-Import templates from URLs (GitHub Gists, raw files, etc.)
-for community template sharing.
+Internal template-import helpers. The public mutation tool is contained while
+owner-scoped storage is built; this dormant path remains hardened for a future
+authenticated reintroduction.
 
 Supports:
 - GitHub Gist URLs
-- Raw file URLs (JSON/YAML)
-- Standard HTTP/HTTPS URLs
+- Raw GitHub content URLs (JSON/YAML)
 
 Author: Alton Lee
 Version: 0.4.0
 """
 
 import json
+import ipaddress
 import logging
 import re
+import socket
 from typing import Optional, Tuple
 from urllib.parse import urlparse
 
@@ -32,11 +34,19 @@ logger = logging.getLogger(__name__)
 
 # URL patterns for different sources
 GITHUB_GIST_PATTERN = re.compile(
-    r'https?://gist\.github\.com/(?P<user>[^/]+)/(?P<gist_id>[a-f0-9]+)'
+    r'^https://gist\.github\.com/(?P<user>[^/]+)/(?P<gist_id>[a-fA-F0-9]+)(?:/)?(?:[?#].*)?$'
 )
 GITHUB_RAW_PATTERN = re.compile(
-    r'https?://raw\.githubusercontent\.com/.*'
+    r'^https://(?:raw\.githubusercontent\.com|gist\.githubusercontent\.com)/.+'
 )
+
+ALLOWED_TEMPLATE_HOSTS = frozenset({
+    "gist.github.com",
+    "gist.githubusercontent.com",
+    "raw.githubusercontent.com",
+})
+MAX_TEMPLATE_DOWNLOAD_BYTES = 256 * 1024
+TEMPLATE_FETCH_TIMEOUT_SECONDS = 15
 
 
 def validate_template_url(url: str) -> Tuple[bool, str, Optional[str]]:
@@ -48,36 +58,80 @@ def validate_template_url(url: str) -> Tuple[bool, str, Optional[str]]:
 
     Returns:
         Tuple of (is_valid, source_type, error_message)
-        source_type: 'gist', 'github_raw', 'raw_url'
+        source_type: 'gist' or 'github_raw'
     """
     try:
+        if not isinstance(url, str) or not url.strip():
+            return False, '', "URL must be a non-empty string"
+
         parsed = urlparse(url)
 
-        # Check scheme
-        if parsed.scheme not in ('http', 'https'):
-            return False, '', f"Invalid URL scheme: {parsed.scheme}. Must be http or https."
+        # Fail closed to a narrow HTTPS allowlist. Arbitrary URL fetching is an
+        # SSRF primitive even when the response is later parsed as JSON/YAML.
+        if parsed.scheme.lower() != 'https':
+            return False, '', "Template URL must use HTTPS"
+        if parsed.username or parsed.password:
+            return False, '', "Template URL must not contain user information"
+        try:
+            if parsed.port not in (None, 443):
+                return False, '', "Template URL must use the default HTTPS port"
+        except ValueError:
+            return False, '', "Template URL contains an invalid port"
+
+        hostname = (parsed.hostname or '').lower().rstrip('.')
+        if hostname not in ALLOWED_TEMPLATE_HOSTS:
+            return False, '', (
+                "Template URL host is not allowed; use GitHub Gist or raw GitHub content"
+            )
 
         # Check for GitHub Gist
-        if GITHUB_GIST_PATTERN.match(url):
+        if hostname == 'gist.github.com' and GITHUB_GIST_PATTERN.match(url):
             return True, 'gist', None
 
         # Check for GitHub raw content
-        if GITHUB_RAW_PATTERN.match(url):
+        if hostname in {
+            'raw.githubusercontent.com', 'gist.githubusercontent.com'
+        } and GITHUB_RAW_PATTERN.match(url):
             return True, 'github_raw', None
 
-        # Check for common file extensions
-        path_lower = parsed.path.lower()
-        if path_lower.endswith(('.json', '.yaml', '.yml')):
-            return True, 'raw_url', None
-
-        # Accept any HTTPS URL but warn
-        if parsed.scheme == 'https':
-            return True, 'raw_url', None
-
-        return False, '', "URL must be HTTPS or a recognized template source (GitHub Gist, raw file)"
+        return False, '', "URL is not a recognized GitHub Gist or raw-content URL"
 
     except Exception as e:
         return False, '', f"Invalid URL format: {str(e)}"
+
+
+def _validate_resolved_target(url: str) -> Optional[str]:
+    """Return an error if an allowed host resolves to a non-public address."""
+    is_valid, _, error = validate_template_url(url)
+    if not is_valid:
+        return error
+
+    parsed = urlparse(url)
+    hostname = parsed.hostname or ""
+    try:
+        addresses = {
+            item[4][0]
+            for item in socket.getaddrinfo(
+                hostname,
+                443,
+                type=socket.SOCK_STREAM,
+            )
+        }
+    except OSError:
+        return "Template host could not be resolved"
+
+    if not addresses:
+        return "Template host resolved to no addresses"
+
+    for address in addresses:
+        try:
+            parsed_address = ipaddress.ip_address(address)
+        except ValueError:
+            return "Template host resolved to an invalid address"
+        if not parsed_address.is_global:
+            return "Template host resolved to a non-public address"
+
+    return None
 
 
 def _convert_gist_to_raw_url(url: str) -> str:
@@ -103,29 +157,48 @@ async def _fetch_url_content(url: str) -> Tuple[Optional[str], Optional[str]]:
     """
     try:
         import aiohttp
+        import ssl
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=30) as response:
+        target_error = _validate_resolved_target(url)
+        if target_error:
+            return None, target_error
+
+        ctx = ssl.create_default_context()
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+        connector = aiohttp.TCPConnector(ssl=ctx)
+        timeout = aiohttp.ClientTimeout(total=TEMPLATE_FETCH_TIMEOUT_SECONDS)
+
+        async with aiohttp.ClientSession(
+            connector=connector, timeout=timeout
+        ) as session:
+            async with session.get(url, allow_redirects=False) as response:
+                if 300 <= response.status < 400:
+                    return None, "Template URL redirects are not allowed"
                 if response.status != 200:
                     return None, f"HTTP {response.status}: {response.reason}"
-                content = await response.text()
-                return content, None
+                if (
+                    response.content_length is not None
+                    and response.content_length > MAX_TEMPLATE_DOWNLOAD_BYTES
+                ):
+                    return None, "Template response exceeds the download limit"
+
+                chunks = []
+                total = 0
+                async for chunk in response.content.iter_chunked(8192):
+                    total += len(chunk)
+                    if total > MAX_TEMPLATE_DOWNLOAD_BYTES:
+                        return None, "Template response exceeds the download limit"
+                    chunks.append(chunk)
+
+                try:
+                    return b''.join(chunks).decode('utf-8'), None
+                except UnicodeDecodeError:
+                    return None, "Template response is not valid UTF-8"
 
     except ImportError:
         # Fallback to synchronous request if aiohttp not available
         try:
-            import urllib.request
-            import ssl
-
-            # SSL context with explicit TLS 1.2+ minimum (SonarCloud python:S4423 satisfaction).
-            # Python 3.10+ defaults to TLS 1.2 anyway, but explicit is better.
-            ctx = ssl.create_default_context()
-            ctx.minimum_version = ssl.TLSVersion.TLSv1_2
-
-            with urllib.request.urlopen(url, timeout=30, context=ctx) as response:
-                content = response.read().decode('utf-8')
-                return content, None
-
+            return _fetch_url_content_sync(url)
         except Exception as e:
             return None, f"Failed to fetch URL: {str(e)}"
 
@@ -147,13 +220,40 @@ def _fetch_url_content_sync(url: str) -> Tuple[Optional[str], Optional[str]]:
         import urllib.request
         import ssl
 
+        target_error = _validate_resolved_target(url)
+        if target_error:
+            return None, target_error
+
         # SSL context with explicit TLS 1.2+ minimum (SonarCloud python:S4423 satisfaction).
         ctx = ssl.create_default_context()
         ctx.minimum_version = ssl.TLSVersion.TLSv1_2
 
-        with urllib.request.urlopen(url, timeout=30, context=ctx) as response:
-            content = response.read().decode('utf-8')
-            return content, None
+        class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, req, fp, code, msg, headers, newurl):
+                return None
+
+        opener = urllib.request.build_opener(
+            urllib.request.HTTPSHandler(context=ctx),
+            _NoRedirectHandler(),
+        )
+        with opener.open(
+            url, timeout=TEMPLATE_FETCH_TIMEOUT_SECONDS
+        ) as response:
+            content_length = response.headers.get('Content-Length')
+            if content_length:
+                try:
+                    if int(content_length) > MAX_TEMPLATE_DOWNLOAD_BYTES:
+                        return None, "Template response exceeds the download limit"
+                except ValueError:
+                    return None, "Template response has an invalid Content-Length"
+
+            raw = response.read(MAX_TEMPLATE_DOWNLOAD_BYTES + 1)
+            if len(raw) > MAX_TEMPLATE_DOWNLOAD_BYTES:
+                return None, "Template response exceeds the download limit"
+            try:
+                return raw.decode('utf-8'), None
+            except UnicodeDecodeError:
+                return None, "Template response is not valid UTF-8"
 
     except Exception as e:
         return None, f"Failed to fetch URL: {str(e)}"
