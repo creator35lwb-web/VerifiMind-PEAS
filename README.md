@@ -75,7 +75,7 @@ Each agent sees the prior agents' reasoning. You get a unified assessment with s
 
 ## The 13 tools
 
-All 13 tools are **free for everyone** under the [Core Tools Always Free pledge](#core-tools-always-free-pledge).
+All 13 tools are **free for everyone** under the [Core Tools Always Free pledge](#core-tools-always-free-pledge). **10 are currently active; the 3 coordination tools are temporarily unavailable** — see [Coordination](#coordination-3-tools--temporarily-unavailable) below.
 
 ### Trinity validation (4 tools)
 - `consult_agent_x` — Innovation analysis with competitive positioning
@@ -91,12 +91,18 @@ All 13 tools are **free for everyone** under the [Core Tools Always Free pledge]
 - `import_template_from_url` — Import from a GitHub Gist or raw URL
 - `get_template_statistics` — Registry stats by agent / phase / type
 
-### Coordination (3 tools)
-- `coordination_handoff_create` — Create a structured MACP v2.2 handoff record
-- `coordination_handoff_read` — Read the most recent coordination handoff(s)
-- `coordination_team_status` — Aggregate team state across stored handoffs
+### Coordination (3 tools) — TEMPORARILY UNAVAILABLE
+- `coordination_handoff_create` — *disabled*
+- `coordination_handoff_read` — *disabled*
+- `coordination_team_status` — *disabled*
 
-> **Tier identity, not paywall.** `pioneer_key` is an optional namespace identifier — omit it and your records land in the shared `"anonymous"` namespace. No tier blocks any tool.
+> **These three tools are disabled and currently return `COORDINATION_TEMPORARILY_DISABLED` for every caller.**
+>
+> Records created through them were stored in a shared, unauthenticated namespace; they are no longer readable or writable through the public API. **No other VerifiMind tool is affected, and the validation tools remain fully available.**
+>
+> They will return only after private, owner-scoped storage ships. Until then, keep coordination state in your own repository — the handoff markdown format is documented in this repo. Incident reference: `VM-IR-2026-07-28-COORD-01`.
+
+> **The Always Free pledge is unchanged.** This is a security containment, not a paywall and not a tier change. Nothing here is or becomes a paid feature.
 
 ---
 
@@ -175,7 +181,8 @@ For honest live metrics, see [`/changelog`](https://verifimind.ysenseai.org/chan
 | Using `https://verifimind.ysenseai.org/mcp` (no slash) | Use `/mcp/` with trailing slash — required by streamable-http transport |
 | Connecting via `server.smithery.ai/...` | Smithery legacy was sunset March 1, 2026. Use the direct URL above. |
 | Mixing transports | Use `streamable-http`, not `http-sse` |
-| Trying to call coordination tools and seeing "PIONEER_TIER_REQUIRED" | You're on v0.5.27 or older — the paywall was removed in v0.5.28 (May 10, 2026). All 13 tools are now free. |
+| Coordination tools returning `COORDINATION_TEMPORARILY_DISABLED` | Expected. They are disabled for every caller pending owner-scoped storage — see [Coordination](#coordination-3-tools--temporarily-unavailable). Not a paywall; the other 10 tools are unaffected. |
+| Trying to call coordination tools and seeing "PIONEER_TIER_REQUIRED" | You're on v0.5.27 or older — the paywall was removed in v0.5.28 (May 10, 2026). Tool access is free; note the 3 coordination tools are separately disabled (row above). |
 
 For a fuller troubleshooting guide, see [docs/MCP_Server_Troubleshooting_Guide.md](docs/MCP_Server_Troubleshooting_Guide.md).
 

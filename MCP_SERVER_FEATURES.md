@@ -139,15 +139,19 @@ Prompt-template registry for X / Z / CS agents. Templates are versioned, taggabl
 
 ---
 
-### Coordination Tools (3) — 🆕 NEW in v0.5.16
+### Coordination Tools (3) — ⛔ TEMPORARILY UNAVAILABLE
 
-MACP v2.2 coordination layer for multi-agent FLYWHEEL workflows. Same free-forever pledge.
+**These three tools are disabled and return `COORDINATION_TEMPORARILY_DISABLED` for every caller.**
 
-| Tool | Purpose |
+Records created through them were stored in a shared, unauthenticated namespace; they are no longer readable or writable through the public API. **No other VerifiMind tool is affected, and the validation tools remain fully available.** They will return only after private, owner-scoped storage ships. Incident reference: `VM-IR-2026-07-28-COORD-01`.
+
+This is a security containment, **not** a paywall and not a tier change — the free-forever pledge is unchanged.
+
+| Tool | Status |
 |---|---|
-| `coordination_handoff_create` | Create a structured MACP v2.2 handoff record between agents |
-| `coordination_handoff_read` | Read the most recent coordination handoff(s) with agent filtering |
-| `coordination_team_status` | Return current team coordination state — active agents, pending handoffs, last session summary |
+| `coordination_handoff_create` | ⛔ disabled |
+| `coordination_handoff_read` | ⛔ disabled |
+| `coordination_team_status` | ⛔ disabled |
 
 ---
 
