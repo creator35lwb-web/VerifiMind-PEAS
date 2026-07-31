@@ -190,10 +190,24 @@ def _groq_error_field(error: Any, *names: str) -> Optional[str]:
 def _groq_provider_informed_budget(error: Any, sent_max_tokens: int) -> Optional[int]:
     """Derive a safe completion budget from a STRUCTURED Groq TPM rejection.
 
-    Returns None when the error is not a structured TPM rejection, when the
-    numbers cannot be parsed, or when no useful output would fit — every one of
-    which must fail rather than retry.
+    Only the live-observed HTTP 413 admission shape is recoverable. HTTP 429 is
+    rolling-window rate-limit exhaustion and must be left to the caller's
+    throttling/backoff layer rather than retried immediately. Returns None when
+    the status or body is not the structured admission shape, when the numbers
+    cannot be parsed, or when no useful output would fit — every one of which
+    must fail rather than retry.
     """
+    response = getattr(error, "response", None)
+    status_code = getattr(error, "status_code", None)
+    if status_code is None:
+        status_code = getattr(response, "status_code", None)
+    try:
+        status_code = int(status_code)
+    except (TypeError, ValueError):
+        return None
+    if status_code != 413:
+        return None                      # 429/backoff and all other statuses: do not retry
+
     if _groq_error_field(error, "code") != _GROQ_TPM_ERROR_CODE:
         return None                      # generic 413 / unrelated error: do not retry
 
@@ -204,7 +218,7 @@ def _groq_provider_informed_budget(error: Any, sent_max_tokens: int) -> Optional
 
     # Prefer the authoritative header; fall back to the limit stated in the message.
     limit = None
-    headers = getattr(getattr(error, "response", None), "headers", None)
+    headers = getattr(response, "headers", None)
     if headers is not None:
         header_limit = headers.get("x-ratelimit-limit-tokens")
         if header_limit and str(header_limit).isdigit():

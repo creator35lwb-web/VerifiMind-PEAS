@@ -1,6 +1,6 @@
 # VerifiMind-PEAS Server Status
 
-**Last updated:** July 30, 2026
+**Last updated:** July 31, 2026
 **Status authority:** current operational snapshot; release history lives in
 [`CHANGELOG.md`](CHANGELOG.md) and GitHub Releases.
 
@@ -36,8 +36,11 @@ Included:
 - PR #310 Anthropic Claude 5 thinking-block and token-budget repair, completed
   for both documented truncation stop reasons.
 - PR #312 containment-denial integrity repair.
-- S114 bounded Groq 8K TPM admission repair after exact-head review found PR
-  #311 rejected the measured orchestrated CS prompt shape it claimed to fix.
+- S114-S116 Groq TPM admission repair after exact-head review found PR #311
+  rejected the measured orchestrated CS prompt shape it claimed to fix. The
+  release candidate now uses provider-informed correction only for the captured
+  structured HTTP 413 admission class, retries at most once, does not retry HTTP
+  429 or generic/malformed errors, and no longer advertises retired Groq Scout.
 - Cross-surface availability truth: 13 defined / 10 active / 3 unavailable.
 - Registration and policy-surface truth repair.
 
@@ -54,9 +57,11 @@ Explicitly excluded:
 
 | Gate | Result |
 |---|---:|
-| Groq focused lane | 18 passed |
-| Full unit suite | 997 passed, 3 skipped |
-| Registration + integration suite | 86 passed, 11 skipped before Groq repair |
+| Release-focused lane | 96 passed |
+| Full unit suite | 1014 passed, 3 skipped |
+| Registration suite | 79 passed |
+| Integration suite | 7 passed, 11 environment-gated skips |
+| Provider-source Bandit | 0 findings |
 | Diff whitespace gate | Clean |
 | Production deployment | Not performed |
 
@@ -78,8 +83,8 @@ integration configuration; they are not counted as passes.
 
 - Design the authenticated, owner-scoped coordination replacement and data
   migration/retention plan.
-- Replace the scoped Groq estimator with an exact packaged tokenizer or
-  provider-informed retry path when that can be done without runtime downloads.
+- Monitor provider-informed Groq correction frequency and account-limit drift;
+  evaluate a packaged exact tokenizer only if operational evidence justifies it.
 - Add MCP 2026-07-28 dual-version support without conflating it with this
   security release.
 - Complete L/Manus publication verification for the landing source of truth.

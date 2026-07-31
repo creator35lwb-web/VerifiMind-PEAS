@@ -33,7 +33,7 @@ import pytest
 
 from fastmcp import Client
 
-from verifimind_mcp.server import create_http_server
+import verifimind_mcp.server as server_module
 
 from .mcp_tool_harness import call
 
@@ -78,7 +78,7 @@ DISCLOSURE_FIELDS = (
 
 @pytest.fixture(scope="module")
 def app():
-    return create_http_server()
+    return server_module.create_http_server()
 
 
 
@@ -391,8 +391,6 @@ async def test_denial_carries_no_marketing_notice(app, tool, monkeypatch):
     service asserting availability it was simultaneously refusing.
 
     A denial must say only that it is denying, and how to proceed."""
-    import verifimind_mcp.server as server_module
-
     monkeypatch.setattr(server_module, "SYSTEM_NOTICE",
                         "All 13 tools free forever. Register at example.invalid")
     result = await call(app, tool, args_for(tool, {}))

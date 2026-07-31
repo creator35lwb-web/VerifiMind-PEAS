@@ -17,6 +17,7 @@ from verifimind_mcp.llm.provider import (
     GroqProvider,
     _estimate_groq_input_tokens,
     _groq_8k_tpm_max_tokens,
+    _groq_provider_informed_budget,
 )
 
 
@@ -127,20 +128,17 @@ def test_budget_keeps_safety_margin_against_local_estimate():
 # retry with a budget derived from provider numbers.
 # ===========================================================================
 
-from verifimind_mcp.llm.provider import (
-    GROQ_MIN_COMPLETION_TOKENS,
-    _groq_provider_informed_budget,
-)
-
-
 class _FakeGroqError(Exception):
     """Mimics the SDK error surface: `.body` dict and `.response.headers`."""
 
-    def __init__(self, code=None, message="", limit_header=None):
+    def __init__(self, code=None, message="", limit_header=None, status_code=413):
         super().__init__(message)
+        self.status_code = status_code
         self.body = {"error": {"code": code, "message": message, "type": "tokens"}}
+        headers = {}
         if limit_header is not None:
-            self.response = type("R", (), {"headers": {"x-ratelimit-limit-tokens": limit_header}})()
+            headers["x-ratelimit-limit-tokens"] = limit_header
+        self.response = type("R", (), {"status_code": status_code, "headers": headers})()
 
 
 def _tpm_error(requested, limit=8000, header=True):
@@ -182,6 +180,19 @@ def test_generic_body_size_413_is_not_retried():
     assert _groq_provider_informed_budget(generic, 4096) is None
 
 
+def test_http_429_rate_limit_is_not_admission_retried():
+    """A rolling-window 429 may carry the same rate-limit code and token
+    numbers as admission. It requires throttling/backoff, not an immediate
+    smaller retry through the 413 correction path."""
+    rate_limited = _FakeGroqError(
+        code="rate_limit_exceeded",
+        message="TPM window: Limit 8000, Used 7000, Requested 9000",
+        limit_header="8000",
+        status_code=429,
+    )
+    assert _groq_provider_informed_budget(rate_limited, 4096) is None
+
+
 @pytest.mark.parametrize("broken", [
     _FakeGroqError(code="rate_limit_exceeded", message="TPM exceeded"),          # no numbers
     _FakeGroqError(code="rate_limit_exceeded", message="Requested many, Limit some"),
@@ -216,7 +227,8 @@ def test_header_limit_wins_over_message_limit():
     err = _tpm_error(9000, limit=8000)
     err.response.headers["x-ratelimit-limit-tokens"] = "16000"
     budget = _groq_provider_informed_budget(err, 4096)
-    assert budget is not None and budget > 0
+    assert budget is not None
+    assert budget > 0
 
 
 @pytest.mark.asyncio
@@ -273,7 +285,36 @@ async def test_production_path_does_not_retry_a_generic_413():
     # SURFACES rather than degrading silently — the caller (or the failover
     # layer) decides. My first version of this test asserted a degraded dict;
     # the code was right and the expectation was wrong.
-    with pytest.raises(Exception):
+    with pytest.raises(_FakeGroqError):
         await provider.generate("hello", max_tokens=4096)
 
     assert len(calls) == 1, f"generic 413 must not be retried, saw {len(calls)} calls"
+
+
+@pytest.mark.asyncio
+async def test_production_path_does_not_retry_http_429():
+    """A parseable 429 must surface after one call; only HTTP 413 is an
+    admission measurement eligible for the bounded correction retry."""
+    import os
+    from unittest.mock import patch
+
+    calls = []
+
+    class _Completions:
+        async def create(self, **kwargs):
+            calls.append(kwargs["max_tokens"])
+            raise _FakeGroqError(
+                code="rate_limit_exceeded",
+                message="TPM window: Limit 8000, Used 7000, Requested 9000",
+                limit_header="8000",
+                status_code=429,
+            )
+
+    with patch.dict(os.environ, {"GROQ_API_KEY": "test-key"}):
+        provider = GroqProvider(model="openai/gpt-oss-120b", api_key="test-key")
+    provider.client = type("Cl", (), {"chat": type("Ch", (), {"completions": _Completions()})()})()
+
+    with pytest.raises(_FakeGroqError):
+        await provider.generate("hello", max_tokens=4096)
+
+    assert len(calls) == 1, f"HTTP 429 must not be retried, saw {len(calls)} calls"

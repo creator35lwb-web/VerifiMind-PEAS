@@ -29,12 +29,16 @@ orchestrated CS prompt shape it claimed to fix.
   `max_tokens` and `model_context_window_exceeded`.
 - **Containment denial integrity (#312):** coordination denials no longer
   inherit an ambient marketing notice that contradicts the denial itself.
-- **Groq 8K TPM admission repair (S114 bounded repair; PR #311 not taken
-  as-is):** `GroqProvider.generate()` now budgets completion from input-aware
-  prompt estimation, keeps a 512-token safety margin, and fails closed when
-  less than 1024 useful output tokens remain. Regression coverage pins the
-  provider-measured Z standalone, Z orchestrated, CS standalone, and CS
-  orchestrated prompt shapes, including the CS case PR #311 rejected locally.
+- **Groq TPM admission repair (S114-S116; PR #311 not taken as-is):**
+  `GroqProvider.generate()` retains bounded input-aware preflight, then treats
+  only the live-observed structured HTTP 413 `rate_limit_exceeded` response as
+  provider measurement. It derives the true prompt cost and retries exactly
+  once with a provider-informed completion budget. HTTP 429, generic 413,
+  malformed responses, missing limits, and below-floor budgets re-raise without
+  this retry. Unknown/BYOK models receive no invented universal clamp, and the
+  retired Groq Scout model has been removed from the advertised inventory.
+  Regression coverage pins the measured Z/CS shapes, CJK correction path,
+  one-call/one-retry boundaries, and explicit 429 no-retry behavior.
 - **Current availability contract:** `/health`, MCP config, `/setup`, the root
   page, server card, `/mcp/test`, and registry metadata now agree on **13
   defined / 10 active / 3 temporarily unavailable**.
@@ -50,10 +54,11 @@ orchestrated CS prompt shape it claimed to fix.
 
 ### Verification
 
-- Groq focused lane: **18 passed**
-- Full unit lane: **997 passed, 3 skipped**
-- Registration + integration lane: **86 passed, 11 skipped** before the Groq
-  admission repair; unaffected surfaces, still rechecked by CI on pushed head.
+- Release-focused lane: **96 passed**
+- Full unit lane: **1014 passed, 3 skipped**
+- Registration lane: **79 passed**
+- Integration lane: **7 passed, 11 environment-gated skips**
+- Provider-source Bandit scan: **0 findings**
 - `git diff --check`: clean
 
 No production deployment is claimed by this entry.
