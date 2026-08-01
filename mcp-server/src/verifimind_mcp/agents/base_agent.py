@@ -247,15 +247,12 @@ class BaseAgent(ABC):
 
             return result
             
-        except Exception as e:
-            logger.error(
-                "%s analysis failed (exception_type=%s)",
-                self.config.name,
-                type(e).__name__,
-            )
+        except Exception as exc:
+            # Preserve the original exception for the public error boundary.
+            # Do not log-and-reraise here: provider errors may contain model content.
             if metrics:
                 metrics.error_count += 1
-                metrics.error_message = type(e).__name__
+                metrics.error_message = type(exc).__name__
                 metrics.finish()
             raise
     

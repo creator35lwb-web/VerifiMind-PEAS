@@ -388,6 +388,11 @@ def _get_history_path() -> Path:
 
 MASTER_PROMPT_PATH = _get_master_prompt_path()
 HISTORY_PATH = _get_history_path()
+MASTER_PROMPT_UNAVAILABLE = (
+    "# Error Building Master Prompt\n\nThe live methodology is temporarily unavailable."
+)
+VALIDATION_HISTORY_UNAVAILABLE = "Validation history is temporarily unavailable."
+TEMPLATE_READ_UNAVAILABLE = "Prompt template operation failed."
 
 
 def load_master_prompt() -> str:
@@ -401,8 +406,8 @@ def load_master_prompt() -> str:
     """
     try:
         from .models.concepts import AGENT_CONFIGS
-    except Exception as e:  # pragma: no cover - defensive
-        return f"# Error Building Master Prompt\n\nError: {str(e)}"
+    except Exception:  # pragma: no cover - defensive
+        return MASTER_PROMPT_UNAVAILABLE
 
     role_titles = {
         "X": "X Intelligent — Innovation & Strategy",
@@ -423,8 +428,8 @@ def load_master_prompt() -> str:
             "Each agent sees the prior agents' Chain-of-Thought reasoning. Synthesis "
             "weights: Innovation (X) 30% · Ethics (Z) 40% · Security (CS) 30%. A Z veto "
             "caps the overall score at 3.0 and forces a REJECT verdict. If any agent's "
-            "inference is degraded, the recommendation is capped at REVISE pending human "
-            "review (fail-safe)."
+            "inference is degraded, no recommendation more permissive than REVISE is "
+            "allowed; a trusted real Z veto still forces REJECT (fail-safe)."
         ),
         "",
         "---",
@@ -471,9 +476,9 @@ def load_validation_history() -> dict[str, Any]:
                     "note": "No validation history found. Run verifimind_complete.py to generate validation data."
                 }
             }
-    except Exception as e:
+    except Exception:
         return {
-            "error": f"Failed to load validation history: {str(e)}",
+            "error": VALIDATION_HISTORY_UNAVAILABLE,
             "validations": []
         }
 
@@ -1248,6 +1253,15 @@ def _create_mcp_instance():
             else:
                 overall_quality = "partial"
             logger.info(f"Trinity chain complete: {chain_status} → {overall_quality}")
+            if overall_quality != "full":
+                logger.warning(
+                    "Trinity quality gate withheld aggregate confidence: "
+                    "x=%s z=%s cs=%s overall=%s",
+                    x_quality,
+                    z_quality,
+                    cs_quality,
+                    overall_quality,
+                )
 
             schema_diagnostics = {}
             for agent_id, result in (
@@ -1530,10 +1544,10 @@ def _create_mcp_instance():
                 ]
             })
 
-        except Exception as e:
+        except Exception:
             return wrap_response({
                 "status": "error",
-                "error": str(e)
+                "error": TEMPLATE_READ_UNAVAILABLE
             })
 
     @app.tool()
@@ -1601,10 +1615,10 @@ def _create_mcp_instance():
 
             return wrap_response(result)
 
-        except Exception as e:
+        except Exception:
             return wrap_response({
                 "status": "error",
-                "error": str(e)
+                "error": TEMPLATE_READ_UNAVAILABLE
             })
 
     @app.tool()
@@ -1666,10 +1680,10 @@ def _create_mcp_instance():
                 "template_version": template.version
             })
 
-        except Exception as e:
+        except Exception:
             return wrap_response({
                 "status": "error",
-                "error": str(e)
+                "error": TEMPLATE_READ_UNAVAILABLE
             })
 
     @app.tool()
@@ -1765,10 +1779,10 @@ def _create_mcp_instance():
                 ]
             })
 
-        except Exception as e:
+        except Exception:
             return wrap_response({
                 "status": "error",
-                "error": str(e)
+                "error": TEMPLATE_READ_UNAVAILABLE
             })
 
     # ===== v0.5.11 COORDINATION TOOLS — CONTAINED (VM-IR-2026-07-28-COORD-01) =====

@@ -7,6 +7,7 @@ multiple agent analyses into a unified Trinity result.
 
 import uuid
 from datetime import datetime
+from itertools import islice
 from typing import Dict, List, Optional, Set
 
 from ..models import (
@@ -50,7 +51,7 @@ def calculate_overall_score(
     - Ethics (Z): 40% (higher weight for ethical considerations)
     - Security (CS): 30%
 
-    If Z triggers veto, overall score is capped at 3.0.
+    If a real Z stage triggers veto, overall score is capped at 3.0.
     If any required agent inference was not explicitly real, one or more scores
     may be synthesized defaults. Cap the overall out of every auto-pass band.
     """
@@ -68,8 +69,8 @@ def calculate_overall_score(
         cs_result.security_score * security_weight
     )
 
-    # Cap score if veto triggered
-    if z_result.veto_triggered:
+    # A veto can influence the score only when it came from a real Z stage.
+    if z_quality == REAL_INFERENCE_QUALITY and z_result.veto_triggered:
         weighted_score = min(weighted_score, 3.0)
 
     # Fail-safe symmetry: no required X/Z/CS stage may be absent, partial,
@@ -97,18 +98,18 @@ def determine_recommendation(
     Returns one of: "proceed", "proceed_with_caution", "revise", "reject"
 
     Fail-safe polarity (v0.5.56): a decision is complete only when every required
-    X/Z/CS stage is explicitly real. Any degraded stage caps the decision at
-    REVISE pending human review.
+    X/Z/CS stage is explicitly real. No degraded result may be more permissive
+    than REVISE, while a veto from a real Z stage remains a decisive REJECT.
     """
+    # A trusted Z veto remains decisive even if another stage is degraded.
+    if z_quality == REAL_INFERENCE_QUALITY and z_result.veto_triggered:
+        return "reject"
+
     if any(
         _is_degraded_quality(quality)
         for quality in (x_quality, z_quality, cs_quality)
     ):
         return "revise"
-
-    # A veto is decisive only after the quality gate establishes a real Z stage.
-    if z_result.veto_triggered:
-        return "reject"
 
     # High security vulnerabilities require revision
     if cs_result.security_score < 4.0:
@@ -156,7 +157,7 @@ def synthesize_strengths(
     if "CS" not in degraded_agents and cs_result.security_score >= 7.0:
         strengths.append(f"Solid security posture (score: {cs_result.security_score}/10)")
     
-    return strengths[:5]  # Limit to top 5
+    return list(islice(strengths, 5))
 
 
 def synthesize_concerns(
@@ -228,7 +229,7 @@ def synthesize_recommendations(
             "Repeat the incomplete agent checks before making an implementation decision.",
         )
     
-    return recommendations[:7]  # Limit to top 7
+    return list(islice(recommendations, 7))
 
 
 def build_founder_summary(
@@ -238,6 +239,7 @@ def build_founder_summary(
     z_result: ZAgentAnalysis,
     cs_result: CSAgentAnalysis,
     degraded_agents: Optional[Set[str]] = None,
+    trusted_veto: Optional[bool] = None,
 ) -> dict:
     """
     Build a plain-language founder summary — no jargon, actionable guidance.
@@ -246,6 +248,10 @@ def build_founder_summary(
     founder or first-time entrepreneur can read and act on immediately.
     """
     degraded_agents = degraded_agents or set()
+    if trusted_veto is None:
+        trusted_veto = (
+            "Z" not in degraded_agents and bool(z_result.veto_triggered)
+        )
 
     # Verdict line
     verdict_map = {
@@ -254,7 +260,7 @@ def build_founder_summary(
         "revise": "The core idea has merit, but in its current form there are significant issues to work through first.",
         "reject": "As described, this concept has critical problems that would need to be fundamentally rethought.",
     }
-    if z_result.veto_triggered:
+    if trusted_veto:
         verdict_line = f"STOPPED: {z_result.ethical_concerns[0] if z_result.ethical_concerns else 'This concept crosses an ethical red line and cannot proceed as described.'}"
     else:
         verdict_line = verdict_map.get(recommendation, "See full analysis for details.")
@@ -366,8 +372,9 @@ def create_synthesis(
         inference_warning = (
             f"Required Trinity inference was degraded ({quality_details}). Scores or "
             "findings from those stages may be synthesized defaults rather than genuine "
-            "analysis. Recommendation has been capped at REVISE and aggregate confidence "
-            "has been withheld; a human must review before this concept proceeds."
+            "analysis. Recommendation is restricted to REVISE, or REJECT when a real Z "
+            "veto is present; aggregate confidence has been withheld and a human must "
+            "review before this concept proceeds."
         )
 
     # Build summary
@@ -417,6 +424,7 @@ def create_synthesis(
         z_result,
         cs_result,
         degraded_agents,
+        trusted_veto=trusted_veto,
     )
     # Surface the degraded-inference caveat at the top of the founder verdict too
     if inference_warning and isinstance(founder_summary, dict):

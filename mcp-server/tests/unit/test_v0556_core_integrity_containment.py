@@ -1,14 +1,17 @@
 """v0.5.56 core-integrity and custom-template containment contract."""
 
 import asyncio
+import builtins
 import inspect
 import json
+import logging
+from types import SimpleNamespace
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 
 from verifimind_mcp import server
-from verifimind_mcp.agents import ZAgent
+from verifimind_mcp.agents import CSAgent, ZAgent
 from verifimind_mcp.agents.base_agent import BaseAgent
 from verifimind_mcp.availability import get_tool_availability
 from verifimind_mcp.llm.provider import GeminiProvider, GroqProvider
@@ -80,6 +83,34 @@ def test_all_real_trinity_retains_decision_confidence():
     assert synthesis.confidence_valid is True
     assert synthesis.analysis_incomplete is False
     assert synthesis.quality_gate["passed"] is True
+
+
+@pytest.mark.parametrize("degraded_agent", ["X", "CS"])
+def test_trusted_z_veto_rejects_when_a_sibling_stage_is_degraded(degraded_agent):
+    results = _agent_results()
+    results["Z"].veto_triggered = True
+    results[degraded_agent]._inference_quality = "fallback"
+
+    synthesis = create_synthesis(results["X"], results["Z"], results["CS"])
+
+    assert synthesis.recommendation == "reject"
+    assert synthesis.veto_triggered is True
+    assert synthesis.overall_score is None
+    assert synthesis.analysis_incomplete is True
+    assert "STOPPED:" in synthesis.founder_summary["verdict"]
+
+
+def test_degraded_z_raw_veto_is_not_treated_as_trusted():
+    results = _agent_results()
+    results["Z"].veto_triggered = True
+    results["Z"]._inference_quality = "partial"
+
+    synthesis = create_synthesis(results["X"], results["Z"], results["CS"])
+
+    assert synthesis.recommendation == "revise"
+    assert synthesis.veto_triggered is None
+    assert "STOPPED:" not in synthesis.founder_summary["verdict"]
+    assert "VETO TRIGGERED" not in synthesis.summary
 
 
 @pytest.mark.parametrize("agent_id", ["X", "Z", "CS"])
@@ -165,12 +196,13 @@ def test_degraded_reasoning_and_markdown_scores_are_withheld():
 
 
 @pytest.mark.asyncio
-async def test_mock_trinity_withholds_all_synthetic_decision_fields(app):
-    payload = await call(app, "run_full_trinity", {
-        "concept_name": "Integrity probe",
-        "concept_description": "Verify degraded output containment",
-        "llm_provider": "mock",
-    })
+async def test_mock_trinity_withholds_all_synthetic_decision_fields(app, caplog):
+    with caplog.at_level(logging.WARNING, logger="verifimind_mcp.server"):
+        payload = await call(app, "run_full_trinity", {
+            "concept_name": "Integrity probe",
+            "concept_description": "Verify degraded output containment",
+            "llm_provider": "mock",
+        })
 
     assert payload["_overall_quality"] == "synthetic"
     assert payload["synthesis"]["overall_score"] is None
@@ -185,6 +217,14 @@ async def test_mock_trinity_withholds_all_synthetic_decision_fields(app):
     assert payload["cs_analysis"]["vulnerability_count"] is None
     assert payload["cs_analysis"]["recommendation"] is None
     assert all(payload["reasoning"][stage]["withheld"] for stage in ("x", "z", "cs"))
+    quality_records = [
+        record
+        for record in caplog.records
+        if "Trinity quality gate withheld aggregate confidence" in record.message
+    ]
+    assert len(quality_records) == 1
+    assert "x=mock z=mock cs=mock overall=synthetic" in quality_records[0].message
+    assert "Integrity probe" not in quality_records[0].message
 
 
 @pytest.mark.asyncio
@@ -296,6 +336,106 @@ def test_z_promised_evidence_fields_are_quality_required_not_fabricated():
     assert set(incomplete) == promised
 
 
+def test_cs_standard_evidence_fields_are_quality_required_with_full_exemptions():
+    cs_schema = CSAgentAnalysis.model_json_schema()
+    standard_evidence = {
+        "threat_level",
+        "agentic_threats",
+        "reasoning_layer_findings",
+    }
+    full_only = {
+        "stages_completed",
+        "dimensions_evaluated",
+        "macp_security_assessment",
+        "standards_referenced",
+    }
+    assert all(
+        cs_schema["properties"][field].get("quality_required") is True
+        for field in standard_evidence
+    )
+    assert all(
+        cs_schema["properties"][field].get("quality_required") is not True
+        for field in full_only
+    )
+
+    x_schema = XAgentAnalysis.model_json_schema()
+    x_enhancements = {
+        "competitive_position",
+        "competitive_analysis",
+        "next_steps",
+        "research_prompts",
+        "market_competition",
+    }
+    assert all(
+        x_schema["properties"][field].get("quality_required") is not True
+        for field in x_enhancements
+    )
+
+    incomplete = GeminiProvider._quality_incomplete_fields(
+        {field: None for field in standard_evidence}, cs_schema
+    )
+    assert set(incomplete) == standard_evidence
+
+
+@pytest.mark.asyncio
+async def test_shared_agent_boundary_downgrades_evidence_incomplete_byok_cs():
+    class EvidenceIncompleteProvider:
+        def get_model_name(self):
+            return "test/evidence-incomplete"
+
+        async def generate(self, *args, **kwargs):
+            return {
+                "content": {
+                    "reasoning_steps": [
+                        {"step_number": 1, "thought": "analysis", "confidence": 0.9}
+                    ],
+                    "security_score": 9.0,
+                    "vulnerabilities": [],
+                    "attack_vectors": [],
+                    "security_recommendations": [],
+                    "socratic_questions": ["What fails?"],
+                    "recommendation": "proceed",
+                    "confidence": 0.9,
+                },
+                "usage": {},
+                "_inference_quality": "real",
+            }
+
+    result = await CSAgent(llm_provider=EvidenceIncompleteProvider()).analyze(
+        Concept(name="probe", description="probe")
+    )
+
+    assert result._inference_quality == "partial"
+    assert set(result._schema_incomplete_fields) == {
+        "threat_level",
+        "agentic_threats",
+        "reasoning_layer_findings",
+    }
+
+
+def test_result_optional_fields_have_explicit_null_defaults():
+    from verifimind_mcp.models.results import (
+        TrinitySynthesis,
+        ValidationHistoryEntry,
+    )
+
+    for field_name in (
+        "innovation_score",
+        "ethics_score",
+        "security_score",
+        "overall_score",
+        "confidence",
+    ):
+        field = TrinitySynthesis.model_fields[field_name]
+        assert field.is_required() is False
+        assert field.default is None
+
+    for field_name in ("overall_score", "veto_triggered"):
+        field = ValidationHistoryEntry.model_fields[field_name]
+        assert field.is_required() is False
+        assert field.default is None
+
+
 @pytest.mark.asyncio
 async def test_groq_present_null_promised_z_field_downgrades_quality():
     provider = GroqProvider(
@@ -402,6 +542,85 @@ async def test_public_template_reads_exclude_process_local_custom_entries(app):
         assert stats["total_templates"] == stats["builtin_templates"]
     finally:
         registry.unregister_custom_template(template_id)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("tool_name", "registry_method", "arguments"),
+    [
+        ("list_prompt_templates", "list_templates", {}),
+        ("get_prompt_template", "get_template", {"template_id": "probe"}),
+        ("export_prompt_template", "get_template", {"template_id": "probe"}),
+        ("get_template_statistics", "get_statistics", {}),
+    ],
+)
+async def test_public_template_read_errors_do_not_reflect_internal_exceptions(
+    app, monkeypatch, tool_name, registry_method, arguments
+):
+    secret = "SENSITIVE-TEMPLATE-INTERNAL"
+
+    def fail(*args, **kwargs):
+        raise RuntimeError(secret)
+
+    monkeypatch.setattr(TemplateRegistry, registry_method, fail)
+    payload = await call(app, tool_name, arguments)
+
+    assert payload["status"] == "error"
+    assert payload["error"] == server.TEMPLATE_READ_UNAVAILABLE
+    assert secret not in json.dumps(payload)
+
+
+def test_master_prompt_import_error_does_not_reflect_internal_exception(monkeypatch):
+    secret = "SENSITIVE-MASTER-PROMPT-INTERNAL"
+    original_import = builtins.__import__
+
+    def fail_concepts_import(name, *args, **kwargs):
+        if "models.concepts" in name:
+            raise RuntimeError(secret)
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fail_concepts_import)
+    payload = server.load_master_prompt()
+
+    assert payload == server.MASTER_PROMPT_UNAVAILABLE
+    assert secret not in payload
+
+
+def test_validation_history_error_does_not_reflect_internal_path(monkeypatch):
+    secret = "SENSITIVE-HISTORY-PATH"
+
+    class UnreadableHistoryPath:
+        def exists(self):
+            return True
+
+        def __fspath__(self):
+            raise PermissionError(secret)
+
+    monkeypatch.setattr(server, "HISTORY_PATH", UnreadableHistoryPath())
+
+    payload = server.load_validation_history()
+
+    assert payload == {
+        "error": server.VALIDATION_HISTORY_UNAVAILABLE,
+        "validations": [],
+    }
+    assert secret not in json.dumps(payload)
+
+
+def test_http_500_error_does_not_reflect_exception_detail():
+    import http_server
+
+    secret = "SENSITIVE-HTTP-INTERNAL"
+    response = asyncio.run(
+        http_server.http_exception_handler(
+            None,
+            SimpleNamespace(status_code=500, detail=secret),
+        )
+    )
+    payload = json.loads(response.body)
+
+    assert payload["error"] == "Internal server error"
+    assert secret not in json.dumps(payload)
 
 
 @pytest.mark.parametrize("url", [

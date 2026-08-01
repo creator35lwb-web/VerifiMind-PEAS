@@ -242,10 +242,26 @@ class CSAgentAnalysis(BaseModel):
     recommendation: str = Field(..., description="Final recommendation")
     confidence: float = Field(..., ge=0.0, le=1.0, description="Overall confidence")
     # v4.1 Sentinel additions
-    threat_level: Optional[str] = Field(None, description="Overall threat level: Low Risk / Medium Risk / High Risk / Critical Threat")
-    agentic_threats: Optional[List[str]] = Field(None, description="Agentic-specific threats from Stage 2 OWASP ASI01-ASI10 assessment")
-    reasoning_layer_findings: Optional[List[str]] = Field(None, description="Tool poisoning/shadowing/rugpull findings from Stage 5 Reasoning-Layer Audit")
+    # These three fields are part of the standard public reasoning view. Their
+    # absence invalidates a provider's claim that the CS result is fully real.
+    threat_level: Optional[str] = Field(
+        None,
+        description="Overall threat level: Low Risk / Medium Risk / High Risk / Critical Threat",
+        json_schema_extra={"quality_required": True},
+    )
+    agentic_threats: Optional[List[str]] = Field(
+        None,
+        description="Agentic-specific threats from Stage 2 OWASP ASI01-ASI10 assessment",
+        json_schema_extra={"quality_required": True},
+    )
+    reasoning_layer_findings: Optional[List[str]] = Field(
+        None,
+        description="Tool poisoning/shadowing/rugpull findings from Stage 5 Reasoning-Layer Audit",
+        json_schema_extra={"quality_required": True},
+    )
     # v4.2 Sentinel-Verified additions
+    # Full-detail-only fields intentionally remain outside the global quality
+    # gate until completeness can be evaluated against the requested detail level.
     stages_completed: Optional[List[dict]] = Field(None, description="All 6 stages completed with name and findings count")
     dimensions_evaluated: Optional[dict] = Field(None, description="All 12 dimensions: 6 traditional + 6 agentic, each with findings or 'Not applicable'")
     macp_security_assessment: Optional[dict] = Field(None, description="6 MACP v2.0 security properties: git_audit_trail, human_gated_execution, platform_isolation, credential_separation, artifact_integrity, transport_security")

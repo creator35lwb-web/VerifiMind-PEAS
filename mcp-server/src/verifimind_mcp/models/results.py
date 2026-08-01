@@ -24,11 +24,11 @@ class TrinitySynthesis(BaseModel):
     summary: str = Field(..., description="Executive summary of the validation")
     
     # Aggregated scores
-    innovation_score: Optional[float] = Field(..., ge=0.0, le=10.0)
-    ethics_score: Optional[float] = Field(..., ge=0.0, le=10.0)
-    security_score: Optional[float] = Field(..., ge=0.0, le=10.0)
+    innovation_score: Optional[float] = Field(default=None, ge=0.0, le=10.0)
+    ethics_score: Optional[float] = Field(default=None, ge=0.0, le=10.0)
+    security_score: Optional[float] = Field(default=None, ge=0.0, le=10.0)
     overall_score: Optional[float] = Field(
-        ...,
+        default=None,
         ge=0.0,
         le=10.0,
         description="Null when the complete Trinity quality gate did not pass",
@@ -45,7 +45,7 @@ class TrinitySynthesis(BaseModel):
         description="Overall recommendation"
     )
     confidence: Optional[float] = Field(
-        ...,
+        default=None,
         ge=0.0,
         le=1.0,
         description=(
@@ -94,7 +94,7 @@ class TrinitySynthesis(BaseModel):
     # defaults so a caller never reads a clean PROCEED off untrustworthy ethics data.
     inference_warning: Optional[str] = Field(
         None,
-        description="Non-null when Trinity inference was degraded; explains why the recommendation was capped and human review is required"
+        description="Non-null when Trinity inference was degraded; explains the restricted recommendation and required human review"
     )
 
 
@@ -202,8 +202,8 @@ class ValidationHistoryEntry(BaseModel):
     concept_name: str
     concept_description: str
     recommendation: str
-    overall_score: Optional[float]
-    veto_triggered: Optional[bool]
+    overall_score: Optional[float] = None
+    veto_triggered: Optional[bool] = None
     timestamp: datetime
     
     # Optional full result (may be omitted for storage efficiency)

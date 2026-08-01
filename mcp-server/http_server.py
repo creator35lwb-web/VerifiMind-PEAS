@@ -69,7 +69,6 @@ from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy
 from verifimind_mcp.utils.trinity_history import read_trinity_history
 from verifimind_mcp.llm.provider import PROVIDER_CONFIGS, PROVIDER_DEFAULT_GEMINI_MODEL
 from verifimind_mcp.availability import (
-    ACTIVE_TOOL_COUNT,
     COORDINATION_MAINTENANCE_PREFIX,
     CUSTOM_TEMPLATE_MAINTENANCE_PREFIX,
     DEFINED_TOOL_COUNT,
@@ -1270,9 +1269,14 @@ async def http_exception_handler(request, exc):
             "landing_page": "https://verifimind.io",
             "help": HELP_URL,
         }, status_code=406)
-    # Default for other errors
+    # Preserve intentional client-facing details only for non-server errors.
+    public_error = (
+        exc.detail
+        if status < 500 and hasattr(exc, "detail")
+        else "Internal server error"
+    )
     return JSONResponse({
-        "error": exc.detail if hasattr(exc, 'detail') else str(exc),
+        "error": public_error,
         "help": HELP_URL,
     }, status_code=status)
 

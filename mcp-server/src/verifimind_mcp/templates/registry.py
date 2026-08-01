@@ -161,7 +161,7 @@ class TemplateRegistry:
         return template
 
     def get_template(
-        self, template_id: str, include_custom: bool = True
+        self, template_id: str, include_custom: bool = False
     ) -> Optional[PromptTemplate]:
         """
         Get a template by ID.
@@ -188,7 +188,7 @@ class TemplateRegistry:
         agent_id: Optional[str] = None,
         category: Optional[str] = None,
         tags: Optional[List[str]] = None,
-        include_custom: bool = True
+        include_custom: bool = False
     ) -> List[PromptTemplate]:
         """
         List templates with optional filtering.
@@ -197,7 +197,7 @@ class TemplateRegistry:
             agent_id: Filter by agent (X, Z, CS, all)
             category: Filter by category
             tags: Filter by tags (must have ALL specified tags)
-            include_custom: Include user-defined templates
+            include_custom: Opt in to process-local custom templates
 
         Returns:
             List of matching templates
@@ -363,7 +363,7 @@ class TemplateRegistry:
     def get_templates_by_genesis_phase(
         self,
         phase: GenesisPhase,
-        include_custom: bool = True,
+        include_custom: bool = False,
     ) -> List[PromptTemplate]:
         """
         Get templates aligned with a specific Genesis phase.
@@ -404,7 +404,7 @@ class TemplateRegistry:
         self._load_builtin_templates()
         logger.info("Reloaded all library templates")
 
-    def get_statistics(self, include_custom: bool = True) -> Dict[str, Any]:
+    def get_statistics(self, include_custom: bool = False) -> Dict[str, Any]:
         """Get registry statistics."""
         custom_count = len(self._custom_templates) if include_custom else 0
         return {
