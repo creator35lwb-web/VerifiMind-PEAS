@@ -5,6 +5,7 @@ import builtins
 import inspect
 import json
 import logging
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -678,8 +679,6 @@ def _public_template_dns_result():
 
 
 def test_async_url_fetch_uses_only_the_validated_dns_result(monkeypatch):
-    import aiohttp
-
     url = "https://raw.githubusercontent.com/user/repo/main/template.json"
     dns_calls = []
     captured = {}
@@ -724,14 +723,14 @@ def test_async_url_fetch_uses_only_the_validated_dns_result(monkeypatch):
         captured["connector_kwargs"] = kwargs
         return SimpleNamespace(**kwargs)
 
-    monkeypatch.setattr(import_url.socket, "getaddrinfo", resolve_once)
-    monkeypatch.setattr(aiohttp, "TCPConnector", fake_connector)
-    monkeypatch.setattr(
-        aiohttp,
-        "ClientTimeout",
-        lambda **kwargs: SimpleNamespace(**kwargs),
+    fake_aiohttp = SimpleNamespace(
+        TCPConnector=fake_connector,
+        ClientTimeout=lambda **kwargs: SimpleNamespace(**kwargs),
+        ClientSession=FakeSession,
     )
-    monkeypatch.setattr(aiohttp, "ClientSession", FakeSession)
+
+    monkeypatch.setattr(import_url.socket, "getaddrinfo", resolve_once)
+    monkeypatch.setitem(sys.modules, "aiohttp", fake_aiohttp)
 
     content, error = asyncio.run(import_url._fetch_url_content(url))
 
@@ -782,6 +781,9 @@ def test_sync_pinned_connection_uses_numeric_socket_and_original_sni(monkeypatch
             captured["closed"] = True
 
     class FakeTLSContext:
+        verify_mode = import_url.ssl.CERT_REQUIRED
+        check_hostname = True
+
         def wrap_socket(self, sock, *, server_hostname):
             captured["server_hostname"] = server_hostname
             return sock
