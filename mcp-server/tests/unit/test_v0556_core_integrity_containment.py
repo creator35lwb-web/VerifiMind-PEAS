@@ -650,10 +650,224 @@ def test_allowed_host_resolving_private_fails_closed(monkeypatch):
             )
         ],
     )
-    error = import_url._validate_resolved_target(
+    target, error = import_url._validate_resolved_target(
         "https://raw.githubusercontent.com/user/repo/main/template.json"
     )
+    assert target is None
     assert error == "Template host resolved to a non-public address"
+
+
+def test_template_host_allowlist_is_exact():
+    assert import_url.ALLOWED_TEMPLATE_HOSTS == frozenset({
+        "gist.github.com",
+        "gist.githubusercontent.com",
+        "raw.githubusercontent.com",
+    })
+
+
+def _public_template_dns_result():
+    return [
+        (
+            import_url.socket.AF_INET,
+            import_url.socket.SOCK_STREAM,
+            import_url.socket.IPPROTO_TCP,
+            "",
+            ("93.184.216.34", 443),
+        )
+    ]
+
+
+def test_async_url_fetch_uses_only_the_validated_dns_result(monkeypatch):
+    import aiohttp
+
+    url = "https://raw.githubusercontent.com/user/repo/main/template.json"
+    dns_calls = []
+    captured = {}
+
+    def resolve_once(*args, **kwargs):
+        dns_calls.append((args, kwargs))
+        return _public_template_dns_result()
+
+    class FakeContent:
+        async def iter_chunked(self, _size):
+            yield b"{}"
+
+    class FakeResponse:
+        status = 200
+        reason = "OK"
+        content_length = 2
+        content = FakeContent()
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return False
+
+    class FakeSession:
+        def __init__(self, *, connector, timeout):
+            captured["connector"] = connector
+            captured["timeout"] = timeout
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return False
+
+        def get(self, requested_url, *, allow_redirects):
+            captured["url"] = requested_url
+            captured["allow_redirects"] = allow_redirects
+            return FakeResponse()
+
+    def fake_connector(**kwargs):
+        captured["connector_kwargs"] = kwargs
+        return SimpleNamespace(**kwargs)
+
+    monkeypatch.setattr(import_url.socket, "getaddrinfo", resolve_once)
+    monkeypatch.setattr(aiohttp, "TCPConnector", fake_connector)
+    monkeypatch.setattr(
+        aiohttp,
+        "ClientTimeout",
+        lambda **kwargs: SimpleNamespace(**kwargs),
+    )
+    monkeypatch.setattr(aiohttp, "ClientSession", FakeSession)
+
+    content, error = asyncio.run(import_url._fetch_url_content(url))
+
+    assert content == "{}"
+    assert error is None
+    assert len(dns_calls) == 1
+    assert captured["url"] == url
+    assert captured["allow_redirects"] is False
+    assert captured["connector_kwargs"]["use_dns_cache"] is False
+
+    resolver = captured["connector_kwargs"]["resolver"]
+    resolved = asyncio.run(
+        resolver.resolve("raw.githubusercontent.com", 443, import_url.socket.AF_UNSPEC)
+    )
+    assert [item["host"] for item in resolved] == ["93.184.216.34"]
+    assert len(dns_calls) == 1
+
+
+def test_sync_pinned_connection_uses_numeric_socket_and_original_sni(monkeypatch):
+    url = "https://raw.githubusercontent.com/user/repo/main/template.json"
+    dns_calls = []
+
+    def resolve_once(*args, **kwargs):
+        dns_calls.append((args, kwargs))
+        return _public_template_dns_result()
+
+    monkeypatch.setattr(import_url.socket, "getaddrinfo", resolve_once)
+    target, error = import_url._validate_resolved_target(url)
+    assert error is None
+    assert target is not None
+
+    captured = {}
+
+    class FakeSocket:
+        def settimeout(self, timeout):
+            captured["timeout"] = timeout
+
+        def bind(self, source_address):
+            captured["source_address"] = source_address
+
+        def connect(self, sockaddr):
+            captured["sockaddr"] = sockaddr
+
+        def setsockopt(self, *_args):
+            pass
+
+        def close(self):
+            captured["closed"] = True
+
+    class FakeTLSContext:
+        def wrap_socket(self, sock, *, server_hostname):
+            captured["server_hostname"] = server_hostname
+            return sock
+
+    monkeypatch.setattr(
+        import_url.socket,
+        "socket",
+        lambda family, socktype, protocol: FakeSocket(),
+    )
+    connection = import_url._PinnedHTTPSConnection(
+        target.hostname,
+        target.port,
+        pinned_target=target,
+        context=FakeTLSContext(),
+        timeout=3,
+    )
+
+    connection.connect()
+
+    assert captured["sockaddr"] == ("93.184.216.34", 443)
+    assert captured["server_hostname"] == "raw.githubusercontent.com"
+    assert len(dns_calls) == 1
+    connection.close()
+
+
+def test_sync_url_fetch_uses_pinned_connection_and_original_host(monkeypatch):
+    url = "https://raw.githubusercontent.com/user/repo/main/template.json?raw=1"
+    dns_calls = []
+    captured = {}
+
+    def resolve_once(*args, **kwargs):
+        dns_calls.append((args, kwargs))
+        return _public_template_dns_result()
+
+    class FakeResponse:
+        status = 200
+        reason = "OK"
+
+        @staticmethod
+        def getheader(_name):
+            return "2"
+
+        @staticmethod
+        def read(_limit):
+            return b"{}"
+
+    class FakeConnection:
+        def __init__(
+            self,
+            host,
+            port,
+            *,
+            pinned_target,
+            context,
+            timeout,
+        ):
+            captured["host"] = host
+            captured["port"] = port
+            captured["pinned_target"] = pinned_target
+            captured["timeout"] = timeout
+
+        def request(self, method, target, *, headers):
+            captured["method"] = method
+            captured["request_target"] = target
+            captured["headers"] = headers
+
+        @staticmethod
+        def getresponse():
+            return FakeResponse()
+
+        def close(self):
+            captured["closed"] = True
+
+    monkeypatch.setattr(import_url.socket, "getaddrinfo", resolve_once)
+    monkeypatch.setattr(import_url, "_PinnedHTTPSConnection", FakeConnection)
+
+    content, error = import_url._fetch_url_content_sync(url)
+
+    assert content == "{}"
+    assert error is None
+    assert len(dns_calls) == 1
+    assert captured["host"] == "raw.githubusercontent.com"
+    assert captured["pinned_target"].addresses[0].ip == "93.184.216.34"
+    assert captured["request_target"] == "/user/repo/main/template.json?raw=1"
+    assert captured["headers"] == {"Host": "raw.githubusercontent.com"}
+    assert captured["closed"] is True
 
 
 def test_url_fetcher_binds_redirect_and_size_controls():
