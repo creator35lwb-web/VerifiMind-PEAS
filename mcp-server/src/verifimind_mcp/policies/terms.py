@@ -1,11 +1,11 @@
 """Canonical plain-text Terms & Conditions served to JSON clients."""
 
 TERMS_VERSION = "2.3"
-TERMS_EFFECTIVE_DATE = "2026-08-01"
+TERMS_EFFECTIVE_DATE = "2026-08-04"
 
 TERMS_AND_CONDITIONS = """
 VerifiMind-PEAS — Terms & Conditions v2.3
-Effective: August 1, 2026 (previous: v2.2, July 30, 2026)
+Effective: August 4, 2026 (previous: v2.2, July 30, 2026)
 
 1. SERVICE DESCRIPTION
 VerifiMind-PEAS is an open-source multi-model AI validation framework. Eight
@@ -30,6 +30,11 @@ Current rate-limit targets are:
 
 Registration does not create a time-limited access entitlement. No current
 service is sold through a paid checkout.
+
+Growth First, Monetization Later: the 8 active tools are free for every tier.
+Pricing for future premium services (such as expert-orchestrated reports) will
+be announced separately and will not change the free-tools pledge. The
+VerifiMind-PEAS core is MIT licensed — you may self-host at any time.
 
 4. PAYMENT
 There are no active paid services. You will not be charged without a separate,
@@ -85,7 +90,8 @@ GitHub Discussions:
 github.com/creator35lwb-web/VerifiMind-PEAS/discussions
 Email: creator35lwb@gmail.com
 
-The current terms are at verifimind.ysenseai.org/terms. This v2.3 revision
-clarifies template containment and current availability. It does not introduce
-a fee or shorten an existing entitlement.
+Registered users will be notified of material changes at least 14 days before
+they take effect. The current terms are at verifimind.ysenseai.org/terms. This
+v2.3 revision clarifies template containment and current availability. It does
+not introduce a fee or shorten an existing entitlement.
 """

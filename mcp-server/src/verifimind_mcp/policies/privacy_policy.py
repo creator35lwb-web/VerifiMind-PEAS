@@ -1,11 +1,11 @@
 """Canonical plain-text Privacy Policy served to JSON clients."""
 
 PRIVACY_POLICY_VERSION = "2.4"
-PRIVACY_POLICY_EFFECTIVE_DATE = "2026-08-01"
+PRIVACY_POLICY_EFFECTIVE_DATE = "2026-08-04"
 
 PRIVACY_POLICY = """
 VerifiMind-PEAS — Privacy Policy v2.4
-Effective: August 1, 2026 (previous: v2.3, July 30, 2026)
+Effective: August 4, 2026 (previous: v2.3, July 30, 2026)
 
 1. WHO WE ARE
 VerifiMind-PEAS is an open-source multi-model AI validation framework created
@@ -28,8 +28,14 @@ For registration we may collect:
   • Feedback and feedback category (optional)
   • Tier or cohort label
 
-We do not collect passwords, payment details, location, or device information
-through registration. No paid checkout is currently offered.
+We do not collect passwords or credentials, payment details, location or
+device profiles, or browsing-behaviour tracking connected to your account.
+No paid checkout is currently offered. Your personal data is never sold.
+
+For security, IP addresses and request metadata are processed for rate
+limiting and abuse prevention (blocklisting of scanners and probes), with
+30-day log retention. They are not linked to your email or account profile.
+The service does not use tracking cookies.
 
 4. WHY WE COLLECT IT
 We use registration data to identify accounts, allocate rate limits, manage EA
@@ -38,16 +44,19 @@ process feedback, and retain evidence of consent.
 
 5. UUID USAGE ANALYTICS
 When a caller voluntarily supplies a UUID, the service may log the UUID, tool
-name, tier label, and UTC timestamp. It does not intentionally log the submitted
-concept or tool output as UUID-linked analytics. Operational infrastructure may
-process network metadata needed to secure and run the service.
+name, tier label, and UTC timestamp. It does not log the submitted concept or
+tool output as UUID-linked analytics. Separately, if a caller explicitly sets
+save_to_history=true on a validation call (off by default), the validation
+result — including the submitted concept text — is retained in the server's
+validation history; omit the flag and nothing is retained.
 
 Runtime custom-template registration and URL import are disabled. The hosted
 service exposes built-in templates only and does not accept, list, export, or
 retain custom prompt content while owner-scoped storage is being built.
 
 6. STORAGE AND RETENTION
-Account records are stored in Google Cloud Firestore with restricted access.
+Account records are stored in Google Cloud Firestore (United States,
+us-central1) with restricted access.
 UUID usage analytics in Google Cloud Logging are retained for 30 days under the
 configured retention policy. EA/PILOT records are retained for the duration of
 membership plus 90 days. Feedback may be retained in anonymised form. Deletion
@@ -78,8 +87,9 @@ github.com/creator35lwb-web/VerifiMind-PEAS/discussions
 Email: creator35lwb@gmail.com
 
 11. CHANGES
-Material changes will be communicated according to the applicable terms. The
-current policy is always available at verifimind.ysenseai.org/privacy.
+Registered users will be notified of material changes at least 14 days before
+they take effect. The current policy is always available at
+verifimind.ysenseai.org/privacy.
 
 This v2.4 revision clarifies custom-template isolation and current availability.
 It does not introduce a fee or shorten an existing entitlement.

@@ -686,7 +686,8 @@ _REGISTER_BODY = """
       <legend>Consent</legend>
       <p class="consent-note">
         We collect only what is necessary. You can opt out at any time.
-        Your data is stored on Google Cloud (EU-US region) and never sold.
+        Your data is stored on Google Cloud in the United States
+        (us-central1) and never sold.
       </p>
 
       <div class="checkbox-row">
@@ -1323,8 +1324,8 @@ _PRIVACY_BODY = """
 <h1>Privacy Policy</h1>
 <div class="meta">
   <span>Version 2.4</span>
-  <span>Effective: August 1, 2026</span>
-  <span>Updated: August 1, 2026 (template isolation and availability clarification)</span>
+  <span>Effective: August 4, 2026</span>
+  <span>Updated: August 4, 2026 (template isolation, availability, and data-location clarification)</span>
   <span>Previous: v2.3 (July 30, 2026)</span>
 </div>
 
@@ -1358,10 +1359,11 @@ _PRIVACY_BODY = """
 <ul>
   <li>Passwords or credentials</li>
   <li>Credit card numbers, bank account details, or any payment information (no paid services are currently offered)</li>
-  <li>IP addresses linked to your email</li>
-  <li>Location or device information</li>
-  <li>Browsing behaviour beyond anonymous usage telemetry never connected to your account</li>
+  <li>Location or device profiles, or browsing-behaviour tracking connected to your account</li>
 </ul>
+<p><strong>What we do process for security:</strong> IP addresses and request metadata are
+  processed for rate limiting and abuse prevention (blocklisting of scanners and probes),
+  with 30-day log retention. They are not linked to your email or account profile.</p>
 
 <h2>Payment Processing</h2>
 <p>
@@ -1410,6 +1412,10 @@ _PRIVACY_BODY = """
   dashboard (<code>/early-adopters/dashboard/{uuid}</code>) and understand aggregate tool usage
   patterns. <strong>Log retention: 30 days</strong> (GCP Cloud Logging auto-purge). You may stop
   UUID analytics at any time by simply omitting <code>user_uuid</code> from tool calls.</p>
+<p>Separately from UUID analytics: if you explicitly set <code>save_to_history=true</code> on a
+  validation call (off by default), the validation result — including the concept text you
+  submitted — is retained in the server's validation history. Omit the flag and nothing is
+  retained.</p>
 
 <h2>Prompt Templates</h2>
 <p>The hosted service currently exposes only the built-in prompt-template library. Runtime
@@ -1427,8 +1433,8 @@ _PRIVACY_BODY = """
     <tr><td>UUID usage analytics logs</td><td>30 days (GCP Cloud Logging auto-purge)</td></tr>
   </tbody>
 </table>
-<p>On deletion request, all personal data is purged within 7 business days, except where
-  retention is required by law.</p>
+<p>On deletion request, personal data is targeted for purge within 7 business days, except
+  where retention is required by law or a documented security/legal hold applies.</p>
 
 <h2>Your Rights</h2>
 <ul>
@@ -1452,9 +1458,12 @@ _PRIVACY_BODY = """
   payment processor introduced will be disclosed here before any data is shared.</p>
 
 <h2>Security</h2>
-<p>Your account records are stored in Google Cloud Firestore with restricted access. We do not
-  log your email address in server logs. Your UUID is your primary identifier in all internal
-  systems.</p>
+<p>Your account records are stored in Google Cloud Firestore (United States, us-central1) with
+  restricted access. We do not log your email address in server logs. Your UUID is your primary
+  identifier in all internal systems.</p>
+<p><strong>Do not submit passwords, API keys, or other secrets</strong> through registration,
+  feedback, or validation prompts. Security controls reduce risk, but no hosted service can
+  guarantee absolute security.</p>
 
 <h2>Contact</h2>
 <ul>
@@ -1462,10 +1471,6 @@ _PRIVACY_BODY = """
   <li>Email: <a href="mailto:creator35lwb@gmail.com">creator35lwb@gmail.com</a></li>
   <li>Or use the <a href="/optout">opt-out endpoint</a> for immediate data deletion</li>
 </ul>
-
-<h2>Compliance</h2>
-<p>This policy aligns with GDPR (EU), PDPA (Singapore/ASEAN), and the Z-Protocol v1.1 ethical
-  framework (data minimisation, transparency, user autonomy).</p>
 
 <h2>Changes to This Policy</h2>
 <p>We will notify registered users of material changes at least 14 days before they take effect.
@@ -1483,8 +1488,8 @@ _TERMS_BODY = """
 <h1>Terms &amp; Conditions</h1>
 <div class="meta">
   <span>Version 2.3</span>
-  <span>Effective: August 1, 2026</span>
-  <span>Updated: August 1, 2026 (template containment and availability clarification)</span>
+  <span>Effective: August 4, 2026</span>
+  <span>Updated: August 4, 2026 (template containment and availability clarification)</span>
   <span>Previous: v2.2 (July 30, 2026)</span>
 </div>
 
@@ -1597,7 +1602,7 @@ _TERMS_BODY = """
 <h2>9. Opt-Out and Termination</h2>
 <ul>
   <li>You may opt out at any time via <a href="/optout"><code>POST /early-adopters/optout/{uuid}</code></a></li>
-  <li>On opt-out, personal data is purged within 7 business days (subject to legal retention requirements)</li>
+  <li>On opt-out, personal data is targeted for purge within 7 business days (subject to legal retention requirements or a documented security hold)</li>
   <li>We may terminate access for violation of the Acceptable Use terms in Section 8</li>
 </ul>
 
@@ -1761,13 +1766,13 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 _CHANGELOG_BODY = """
 <h1>Changelog</h1>
 <div class="meta">
-  <span>Last updated: August 1, 2026 (v0.5.56)</span>
+  <span>Last updated: August 4, 2026 (v0.5.56)</span>
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
 </div>
 
 <div id="v0.5.56">
 <h2>v0.5.56 — Core Integrity + Custom-Template Containment</h2>
-<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">August 1, 2026</p>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">August 4, 2026</p>
 <ul>
   <li><strong>Trinity output integrity:</strong> a complete score, confidence, or verdict now requires real inference from X, Z, and CS. Any partial, fallback, mock, unknown, or unavailable stage produces an incomplete result for human review; generated defaults from that stage are withheld.</li>
   <li><strong>Z evidence diagnostics:</strong> missing or null jurisdiction, compliance-timeline, framework, and scoring evidence now downgrades inference quality explicitly instead of being mistaken for a complete ethics analysis.</li>
