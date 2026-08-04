@@ -12,6 +12,10 @@ Design principles:
 - Dark theme: slate-950 / cyan-400 — matches VerifiMind brand
 """
 
+from html import escape
+
+from .policies import PRIVACY_POLICY, TERMS_AND_CONDITIONS
+
 # ── Shared CSS ────────────────────────────────────────────────────────────────
 
 _CSS = """
@@ -1020,8 +1024,11 @@ _OPTOUT_BODY = """
       <fieldset class="consent-block">
         <legend>Confirm deletion</legend>
         <p class="consent-note">
-          This action cannot be undone. Your EA benefits will be cancelled
-          and your data purged within 7 business days.
+          This action cannot be undone. Your EA benefits will be cancelled and
+          principal account PII de-identified when the request is accepted.
+          Remaining personal data is targeted for purge within 7 business days;
+          a legal obligation or documented security/legal hold may limit or
+          delay deletion as described in the Privacy Policy.
         </p>
         <div class="checkbox-row">
           <input type="checkbox" id="confirmed" name="confirmed" required>
@@ -1112,15 +1119,17 @@ document.getElementById('optout-form').addEventListener('submit', async function
       // textContent only — XSS-safe
       var msgEl = document.getElementById('deletion-message');
       msgEl.textContent = data.message
-        || 'Your deletion request has been recorded. Personal data will be purged within 7 business days.';
+        || 'Your deletion request has been recorded. Principal account PII is de-identified immediately; remaining personal data is targeted for purge within 7 business days, subject to legal or documented security/legal holds.';
 
       document.getElementById('deletion-timeline').textContent =
-        data.deletion_scheduled_within || '7 business days';
+        data.deletion_scheduled_within
+          || 'target: 7 business days; legal/security retention may apply';
 
     } else {
       var msg = 'Opt-out request failed.';
       if (data.error) msg = String(data.error);
       else if (data.detail) msg = String(data.detail);
+      else if (data.message) msg = String(data.message);
       errDiv.textContent = msg;
       errDiv.classList.remove('hidden');
       btn.disabled = false;
@@ -1277,6 +1286,23 @@ _LEGAL_CSS = """
   font-size: 0.9rem;
   color: var(--text);
 }
+
+.policy-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 1.25rem;
+  font: inherit;
+  line-height: 1.65;
+}
+
+.policy-text + .policy-text {
+  margin-top: 1.5rem;
+}
 """
 
 
@@ -1298,7 +1324,7 @@ def _legal_shell(title: str, body: str) -> str:
     <a class="site-logo" href="https://verifimind.ysenseai.org">
       VerifiMind<span>-PEAS</span>
     </a>
-    <span class="version-badge">v2.0</span>
+    <span class="version-badge">Public Service</span>
   </header>
 
   <div class="legal-doc">
@@ -1639,14 +1665,38 @@ _TERMS_BODY = """
 """
 
 
+def _canonical_policy_body(policy: str) -> str:
+    """Render canonical policy text without maintaining a second legal copy.
+
+    Privacy contains a complete Bahasa Malaysia section. Splitting at its stable
+    heading lets assistive technology identify the language while preserving the
+    exact canonical words served to JSON clients.
+    """
+    text = policy.strip()
+    marker = "12. NOTIS PERLINDUNGAN DATA PERIBADI — BAHASA MALAYSIA"
+    if marker in text:
+        english, malay = text.split(marker, 1)
+        return (
+            f'<pre class="policy-text" lang="en">{escape(english.rstrip())}</pre>'
+            f'<pre class="policy-text" lang="ms">{escape(marker + malay)}</pre>'
+        )
+    return f'<pre class="policy-text" lang="en">{escape(text)}</pre>'
+
+
 def get_privacy_page() -> str:
-    """Return the full HTML for GET /privacy — Privacy Policy v2.4."""
-    return _legal_shell(title="Privacy Policy", body=_PRIVACY_BODY)
+    """Return canonical HTML for GET /privacy — Privacy Policy v2.4."""
+    return _legal_shell(
+        title="Privacy Policy",
+        body=_canonical_policy_body(PRIVACY_POLICY),
+    )
 
 
 def get_terms_page() -> str:
-    """Return the full HTML for GET /terms — Terms &amp; Conditions v2.3."""
-    return _legal_shell(title="Terms &amp; Conditions", body=_TERMS_BODY)
+    """Return canonical HTML for GET /terms — Terms &amp; Conditions v2.3."""
+    return _legal_shell(
+        title="Terms &amp; Conditions",
+        body=_canonical_policy_body(TERMS_AND_CONDITIONS),
+    )
 
 
 # ── Scholar Dashboard page ─────────────────────────────────────────────────────

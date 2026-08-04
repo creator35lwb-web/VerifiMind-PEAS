@@ -1442,7 +1442,10 @@ async def ea_optout_handler(request):
         return JSONResponse({"error": "UUID required"}, status_code=400)
 
     result = await process_optout(uuid)
-    return JSONResponse(result.model_dump())
+    return JSONResponse(
+        result.model_dump(),
+        status_code=200 if result.processed else 503,
+    )
 
 
 async def privacy_handler(request):

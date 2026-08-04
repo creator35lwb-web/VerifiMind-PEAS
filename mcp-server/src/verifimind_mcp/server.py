@@ -1094,7 +1094,9 @@ def _create_mcp_instance():
             context: Optional additional context or background
             save_to_history: Whether to save result to validation history (default: False).
                 History is a single shared store on this server instance; leaving this
-                False keeps your concept private to your own call (v0.5.43 privacy fix).
+                False prevents the full concept/result from being written there. If
+                user_uuid is supplied separately, pseudonymous validation metadata may
+                still be written to UUID-keyed Firestore history (see Privacy v2.4).
             detail: Reasoning verbosity (v0.5.44) — "standard" (default) returns the
                 auditable `reasoning` block (per-step reasoning, ethics scoring breakdown
                 + framework citations, Socratic questions, threat assessment) alongside
