@@ -31,7 +31,7 @@ import json
 import logging
 import re
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Type, List
+from typing import Any, Dict, Optional, Type, List, Tuple
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -387,6 +387,15 @@ def list_free_tier_providers() -> List[str]:
     ]
 
 
+def _schema_expected_fields(output_schema: Dict[str, Any]) -> List[str]:
+    """Required wire fields plus optional fields required for quality claims."""
+    expected = list(output_schema.get("required", []))
+    for field, prop in output_schema.get("properties", {}).items():
+        if prop.get("quality_required") is True and field not in expected:
+            expected.append(field)
+    return expected
+
+
 class LLMProvider(ABC):
     """
     Abstract base class for LLM providers.
@@ -500,7 +509,7 @@ class OpenAIProvider(LLMProvider):
                 parsed_content = json.loads(clean_content)
             except json.JSONDecodeError as e:
                 logger.error(f"Failed to parse JSON response: {e}")
-                logger.debug(f"Raw response: {content}")
+                logger.debug("Unparseable response length=%s", len(content or ""))
                 parsed_content = {"raw_response": content, "parse_error": str(e)}
 
             # Return both content and usage
@@ -530,6 +539,7 @@ _ANTHROPIC_TRUNCATION_STOP_REASONS = frozenset({
     "max_tokens",
     "model_context_window_exceeded",
 })
+_GROQ_TRUNCATION_FINISH_REASONS = frozenset({"length"})
 
 
 def _thinking_aware_max_tokens(model: str, requested: int) -> int:
@@ -558,6 +568,16 @@ def _raise_if_anthropic_truncated(stop_reason: str | None, model: str) -> None:
             f"(model={model}, stop_reason={stop_reason}). The answer is "
             "incomplete; reduce the input or increase the available output "
             "budget rather than parsing a partial response."
+        )
+
+
+def _raise_if_groq_truncated(finish_reason: str | None, model: str) -> None:
+    """Reject OpenAI-compatible Groq responses cut off at the token ceiling."""
+    if finish_reason in _GROQ_TRUNCATION_FINISH_REASONS:
+        raise ValueError(
+            "Groq response truncated before completion "
+            f"(model={model}, finish_reason={finish_reason}). The answer is "
+            "incomplete and must not be parsed as a complete Trinity stage."
         )
 
 
@@ -817,17 +837,31 @@ class GeminiProvider(LLMProvider):
 
     @staticmethod
     def _fill_schema_defaults(data: dict, output_schema: dict) -> dict:
-        """Fill missing required fields with sensible defaults based on schema types.
+        """Backward-compatible wrapper returning only the repaired data."""
+        repaired, _ = GeminiProvider._fill_schema_defaults_with_repairs(
+            data, output_schema
+        )
+        return repaired
+
+    @staticmethod
+    def _fill_schema_defaults_with_repairs(
+        data: dict, output_schema: dict
+    ) -> Tuple[dict, List[str]]:
+        """Fill missing/null required fields and explicitly report repairs.
 
         When Gemini returns partial JSON (e.g. reasoning steps but no scores),
         this fills gaps so Pydantic validation succeeds. The _inference_quality
         marker tells downstream code the result was partially synthesized.
+
+        A key-set difference cannot detect a present-but-null repair, so callers
+        must use the returned field list rather than infer repairs from key growth.
         """
         required = output_schema.get("required", [])
         properties = output_schema.get("properties", {})
+        repaired_fields = []
 
         for field in required:
-            if field in data:
+            if field in data and data[field] is not None:
                 continue
             prop = properties.get(field, {})
             field_type = prop.get("type", "")
@@ -864,7 +898,25 @@ class GeminiProvider(LLMProvider):
             else:
                 data[field] = "Partial inference"
 
-        return data
+            repaired_fields.append(field)
+
+        return data, repaired_fields
+
+    @staticmethod
+    def _quality_incomplete_fields(data: dict, output_schema: dict) -> List[str]:
+        """Return promised quality fields that are missing or null.
+
+        These fields stay optional at the Pydantic compatibility layer, but the
+        hosted product promises them as evidence. They are never populated with
+        fabricated detail; their absence downgrades inference quality instead.
+        """
+        properties = output_schema.get("properties", {})
+        return sorted(
+            field
+            for field, prop in properties.items()
+            if prop.get("quality_required") is True
+            and (field not in data or data[field] is None)
+        )
 
     @staticmethod
     def _merge_json_objects(text: str, expected_fields: list) -> Optional[dict]:
@@ -930,7 +982,7 @@ class GeminiProvider(LLMProvider):
             # Gemini's native structured output mode was tested but produces
             # single sub-objects. Instead we guide via prompt + extract best JSON.
             if output_schema:
-                required = output_schema.get("required", [])
+                required = _schema_expected_fields(output_schema)
                 properties = output_schema.get("properties", {})
                 # Build compact schema hint showing field names and types
                 field_hints = []
@@ -975,13 +1027,13 @@ class GeminiProvider(LLMProvider):
 
             # Parse JSON response
             expected_fields = []
-            if output_schema and "required" in output_schema:
-                expected_fields = output_schema["required"]
+            if output_schema:
+                expected_fields = _schema_expected_fields(output_schema)
             elif output_schema and "properties" in output_schema:
                 expected_fields = list(output_schema["properties"].keys())
 
             clean_content = strip_markdown_code_fences(content)
-            logger.debug(f"Cleaned content (first 300): {clean_content[:300]}...")
+            logger.debug("Gemini cleaned response length=%s", len(clean_content))
 
             # v0.4.3.1 C-S-P Compression: Use robust best-match extraction.
             # raw_decode() finds all valid JSON objects and scores by field overlap
@@ -989,6 +1041,8 @@ class GeminiProvider(LLMProvider):
             # v0.4.3.1g: Fill missing required fields with schema defaults so
             # Pydantic validation ALWAYS succeeds — _inference_quality marks degradation.
             inference_quality = "real"
+            repaired_fields = []
+            quality_incomplete_fields = []
             if expected_fields:
                 parsed_content = self._extract_best_json(clean_content, expected_fields)
                 if parsed_content is not None:
@@ -1006,9 +1060,8 @@ class GeminiProvider(LLMProvider):
                         inference_quality = "partial" if overlap >= 2 else "fallback"
                 else:
                     logger.warning(
-                        f"Best-match extraction found nothing; "
-                        f"content_len={len(clean_content)}, "
-                        f"first_200={clean_content[:200]!r}"
+                        "Best-match extraction found nothing; content_len=%s",
+                        len(clean_content),
                     )
                     inference_quality = "fallback"
                     try:
@@ -1020,11 +1073,27 @@ class GeminiProvider(LLMProvider):
                 # This ensures Pydantic validation succeeds even when Gemini
                 # returns individual reasoning steps instead of a complete model.
                 if output_schema and isinstance(parsed_content, dict):
-                    pre_fill_keys = set(parsed_content.keys())
-                    parsed_content = self._fill_schema_defaults(parsed_content, output_schema)
-                    filled_keys = set(parsed_content.keys()) - pre_fill_keys
-                    if filled_keys:
-                        logger.warning(f"Filled {len(filled_keys)} missing fields: {filled_keys}")
+                    parsed_content, repaired_fields = (
+                        self._fill_schema_defaults_with_repairs(
+                            parsed_content, output_schema
+                        )
+                    )
+                    if repaired_fields:
+                        logger.warning(
+                            "Filled %s missing/null required fields: %s",
+                            len(repaired_fields),
+                            repaired_fields,
+                        )
+                        if inference_quality == "real":
+                            inference_quality = "partial"
+                    quality_incomplete_fields = self._quality_incomplete_fields(
+                        parsed_content, output_schema
+                    )
+                    if quality_incomplete_fields:
+                        logger.warning(
+                            "Missing/null quality fields: %s",
+                            quality_incomplete_fields,
+                        )
                         if inference_quality == "real":
                             inference_quality = "partial"
             else:
@@ -1049,7 +1118,9 @@ class GeminiProvider(LLMProvider):
             return {
                 "content": parsed_content,
                 "usage": usage,
-                "_inference_quality": inference_quality
+                "_inference_quality": inference_quality,
+                "_schema_repaired_fields": repaired_fields,
+                "_schema_incomplete_fields": quality_incomplete_fields,
             }
 
         except Exception as e:
@@ -1106,7 +1177,7 @@ class GroqProvider(LLMProvider):
 
         # v0.4.4: Same structured output guidance as GeminiProvider
         if output_schema:
-            required = output_schema.get("required", [])
+            required = _schema_expected_fields(output_schema)
             properties = output_schema.get("properties", {})
             field_hints = []
             for field_name in required:
@@ -1162,7 +1233,11 @@ class GroqProvider(LLMProvider):
                     max_tokens=max_tokens
                 )
 
-            content = response.choices[0].message.content
+            choice = response.choices[0]
+            _raise_if_groq_truncated(
+                getattr(choice, "finish_reason", None), self.model
+            )
+            content = choice.message.content
 
             # Extract token usage
             usage = {
@@ -1173,15 +1248,17 @@ class GroqProvider(LLMProvider):
 
             # v0.4.4: Same robust extraction pipeline as GeminiProvider
             expected_fields = []
-            if output_schema and "required" in output_schema:
-                expected_fields = output_schema["required"]
+            if output_schema:
+                expected_fields = _schema_expected_fields(output_schema)
             elif output_schema and "properties" in output_schema:
                 expected_fields = list(output_schema["properties"].keys())
 
             clean_content = strip_markdown_code_fences(content)
-            logger.debug(f"Groq cleaned content (first 300): {clean_content[:300]}...")
+            logger.debug("Groq cleaned response length=%s", len(clean_content))
 
             inference_quality = "real"
+            repaired_fields = []
+            quality_incomplete_fields = []
             if expected_fields:
                 parsed_content = GeminiProvider._extract_best_json(clean_content, expected_fields)
                 if parsed_content is not None:
@@ -1204,11 +1281,29 @@ class GroqProvider(LLMProvider):
 
                 # Fill missing required fields with schema-aware defaults
                 if output_schema and isinstance(parsed_content, dict):
-                    pre_fill_keys = set(parsed_content.keys())
-                    parsed_content = GeminiProvider._fill_schema_defaults(parsed_content, output_schema)
-                    filled_keys = set(parsed_content.keys()) - pre_fill_keys
-                    if filled_keys:
-                        logger.warning(f"Groq: Filled {len(filled_keys)} missing fields: {filled_keys}")
+                    parsed_content, repaired_fields = (
+                        GeminiProvider._fill_schema_defaults_with_repairs(
+                            parsed_content, output_schema
+                        )
+                    )
+                    if repaired_fields:
+                        logger.warning(
+                            "Groq: Filled %s missing/null required fields: %s",
+                            len(repaired_fields),
+                            repaired_fields,
+                        )
+                        if inference_quality == "real":
+                            inference_quality = "partial"
+                    quality_incomplete_fields = (
+                        GeminiProvider._quality_incomplete_fields(
+                            parsed_content, output_schema
+                        )
+                    )
+                    if quality_incomplete_fields:
+                        logger.warning(
+                            "Groq: Missing/null quality fields: %s",
+                            quality_incomplete_fields,
+                        )
                         if inference_quality == "real":
                             inference_quality = "partial"
             else:
@@ -1231,7 +1326,9 @@ class GroqProvider(LLMProvider):
             return {
                 "content": parsed_content,
                 "usage": usage,
-                "_inference_quality": inference_quality
+                "_inference_quality": inference_quality,
+                "_schema_repaired_fields": repaired_fields,
+                "_schema_incomplete_fields": quality_incomplete_fields,
             }
 
         except Exception as e:
@@ -1285,7 +1382,7 @@ class CerebrasProvider(LLMProvider):
         messages = [{"role": "user", "content": prompt}]
 
         if output_schema:
-            required = output_schema.get("required", [])
+            required = _schema_expected_fields(output_schema)
             properties = output_schema.get("properties", {})
             field_hints = []
             for field_name in required:
@@ -1324,15 +1421,17 @@ class CerebrasProvider(LLMProvider):
             }
 
             expected_fields = []
-            if output_schema and "required" in output_schema:
-                expected_fields = output_schema["required"]
+            if output_schema:
+                expected_fields = _schema_expected_fields(output_schema)
             elif output_schema and "properties" in output_schema:
                 expected_fields = list(output_schema["properties"].keys())
 
             clean_content = strip_markdown_code_fences(content)
-            logger.debug(f"Cerebras cleaned content (first 300): {clean_content[:300]}...")
+            logger.debug("Cerebras cleaned response length=%s", len(clean_content))
 
             inference_quality = "real"
+            repaired_fields = []
+            quality_incomplete_fields = []
             if expected_fields:
                 parsed_content = GeminiProvider._extract_best_json(clean_content, expected_fields)
                 if parsed_content is not None:
@@ -1354,11 +1453,29 @@ class CerebrasProvider(LLMProvider):
                         parsed_content = {}
 
                 if output_schema and isinstance(parsed_content, dict):
-                    pre_fill_keys = set(parsed_content.keys())
-                    parsed_content = GeminiProvider._fill_schema_defaults(parsed_content, output_schema)
-                    filled_keys = set(parsed_content.keys()) - pre_fill_keys
-                    if filled_keys:
-                        logger.warning(f"Cerebras: Filled {len(filled_keys)} missing fields: {filled_keys}")
+                    parsed_content, repaired_fields = (
+                        GeminiProvider._fill_schema_defaults_with_repairs(
+                            parsed_content, output_schema
+                        )
+                    )
+                    if repaired_fields:
+                        logger.warning(
+                            "Cerebras: Filled %s missing/null required fields: %s",
+                            len(repaired_fields),
+                            repaired_fields,
+                        )
+                        if inference_quality == "real":
+                            inference_quality = "partial"
+                    quality_incomplete_fields = (
+                        GeminiProvider._quality_incomplete_fields(
+                            parsed_content, output_schema
+                        )
+                    )
+                    if quality_incomplete_fields:
+                        logger.warning(
+                            "Cerebras: Missing/null quality fields: %s",
+                            quality_incomplete_fields,
+                        )
                         if inference_quality == "real":
                             inference_quality = "partial"
             else:
@@ -1381,7 +1498,9 @@ class CerebrasProvider(LLMProvider):
             return {
                 "content": parsed_content,
                 "usage": usage,
-                "_inference_quality": inference_quality
+                "_inference_quality": inference_quality,
+                "_schema_repaired_fields": repaired_fields,
+                "_schema_incomplete_fields": quality_incomplete_fields,
             }
 
         except Exception as e:

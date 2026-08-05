@@ -12,6 +12,10 @@ Design principles:
 - Dark theme: slate-950 / cyan-400 — matches VerifiMind brand
 """
 
+from html import escape
+
+from .policies import PRIVACY_POLICY, TERMS_AND_CONDITIONS
+
 # ── Shared CSS ────────────────────────────────────────────────────────────────
 
 _CSS = """
@@ -627,13 +631,13 @@ _REGISTER_BODY = """
   <div class="benefits-strip">
     <div class="benefit-item">
       <span class="benefit-icon">&#x2705;</span>
-      <strong>10 active tools</strong>
+      <strong>8 active tools</strong>
       <div class="benefit-label">Available now</div>
     </div>
     <div class="benefit-item">
       <span class="benefit-icon">&#x1F9EA;</span>
-      <strong>3 contained</strong>
-      <div class="benefit-label">Coordination maintenance</div>
+      <strong>5 contained</strong>
+      <div class="benefit-label">Security maintenance</div>
     </div>
     <div class="benefit-item">
       <span class="benefit-icon">&#x1F4AC;</span>
@@ -686,7 +690,8 @@ _REGISTER_BODY = """
       <legend>Consent</legend>
       <p class="consent-note">
         We collect only what is necessary. You can opt out at any time.
-        Your data is stored on Google Cloud (EU-US region) and never sold.
+        Your data is stored on Google Cloud in the United States
+        (us-central1) and never sold.
       </p>
 
       <div class="checkbox-row">
@@ -789,7 +794,7 @@ _REGISTER_SCRIPT = r"""
     if (strip) {
       strip.innerHTML =
         '<div class="benefit-item"><span class="benefit-icon">&#x1F511;</span><strong>50-slot cohort</strong><div class="benefit-label">Pilot feedback</div></div>' +
-        '<div class="benefit-item"><span class="benefit-icon">&#x2705;</span><strong>10 active tools</strong><div class="benefit-label">Available now</div></div>' +
+        '<div class="benefit-item"><span class="benefit-icon">&#x2705;</span><strong>8 active tools</strong><div class="benefit-label">Available now</div></div>' +
         '<div class="benefit-item"><span class="benefit-icon">&#x1F4AC;</span><strong>Shape it</strong><div class="benefit-label">Direct feedback</div></div>';
     }
   }
@@ -890,7 +895,7 @@ document.getElementById('register-form').addEventListener('submit', async functi
       var summaryEl = document.getElementById('benefit-summary');
       summaryEl.textContent = data.benefit_summary || (
         tierLabel + ': registration is free and is not a time-limited access entitlement. '
-        + '10 tools are active; 3 coordination tools are temporarily unavailable during access-control maintenance.'
+        + '8 tools are active; 3 coordination and 2 custom-template mutation tools are temporarily unavailable during security maintenance.'
       );
 
       document.getElementById('uuid-value').textContent = data.uuid;
@@ -1019,8 +1024,11 @@ _OPTOUT_BODY = """
       <fieldset class="consent-block">
         <legend>Confirm deletion</legend>
         <p class="consent-note">
-          This action cannot be undone. Your EA benefits will be cancelled
-          and your data purged within 7 business days.
+          This action cannot be undone. Your EA benefits will be cancelled and
+          principal account PII de-identified when the request is accepted.
+          Remaining personal data is targeted for purge within 7 business days;
+          a legal obligation or documented security/legal hold may limit or
+          delay deletion as described in the Privacy Policy.
         </p>
         <div class="checkbox-row">
           <input type="checkbox" id="confirmed" name="confirmed" required>
@@ -1111,15 +1119,17 @@ document.getElementById('optout-form').addEventListener('submit', async function
       // textContent only — XSS-safe
       var msgEl = document.getElementById('deletion-message');
       msgEl.textContent = data.message
-        || 'Your deletion request has been recorded. Personal data will be purged within 7 business days.';
+        || 'Your deletion request has been recorded. Principal account PII is de-identified immediately; remaining personal data is targeted for purge within 7 business days, subject to legal or documented security/legal holds.';
 
       document.getElementById('deletion-timeline').textContent =
-        data.deletion_scheduled_within || '7 business days';
+        data.deletion_scheduled_within
+          || 'target: 7 business days; legal/security retention may apply';
 
     } else {
       var msg = 'Opt-out request failed.';
       if (data.error) msg = String(data.error);
       else if (data.detail) msg = String(data.detail);
+      else if (data.message) msg = String(data.message);
       errDiv.textContent = msg;
       errDiv.classList.remove('hidden');
       btn.disabled = false;
@@ -1276,6 +1286,23 @@ _LEGAL_CSS = """
   font-size: 0.9rem;
   color: var(--text);
 }
+
+.policy-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 1.25rem;
+  font: inherit;
+  line-height: 1.65;
+}
+
+.policy-text + .policy-text {
+  margin-top: 1.5rem;
+}
 """
 
 
@@ -1297,7 +1324,7 @@ def _legal_shell(title: str, body: str) -> str:
     <a class="site-logo" href="https://verifimind.ysenseai.org">
       VerifiMind<span>-PEAS</span>
     </a>
-    <span class="version-badge">v2.0</span>
+    <span class="version-badge">Public Service</span>
   </header>
 
   <div class="legal-doc">
@@ -1322,10 +1349,10 @@ def _legal_shell(title: str, body: str) -> str:
 _PRIVACY_BODY = """
 <h1>Privacy Policy</h1>
 <div class="meta">
-  <span>Version 2.3</span>
-  <span>Effective: July 30, 2026</span>
-  <span>Updated: July 30, 2026 (availability and entitlement clarification)</span>
-  <span>Previous: v2.2 (May 12, 2026)</span>
+  <span>Version 2.4</span>
+  <span>Effective: August 4, 2026</span>
+  <span>Updated: August 4, 2026 (template isolation, availability, and data-location clarification)</span>
+  <span>Previous: v2.3 (July 30, 2026)</span>
 </div>
 
 <h2>Who We Are</h2>
@@ -1333,9 +1360,9 @@ _PRIVACY_BODY = """
   VerifiMind-PEAS is an open-source multi-model AI validation framework created by
   Alton Lee (Human Orchestrator, YSenseAI). This Privacy Policy applies to the
   VerifiMind-PEAS service at verifimind.ysenseai.org, including the Early Adopter (EA) and
-  PILOT programs. 10 tools are currently active. Three coordination tools are
-  temporarily unavailable while owner-scoped access control is rebuilt. No paid
-  services are active.
+  PILOT programs. Eight tools are currently active. Three coordination tools and
+  two custom-template mutation tools are temporarily unavailable while owner-scoped
+  storage and URL-fetch protections are completed. No paid services are active.
 </p>
 
 <h2>What We Collect</h2>
@@ -1358,10 +1385,11 @@ _PRIVACY_BODY = """
 <ul>
   <li>Passwords or credentials</li>
   <li>Credit card numbers, bank account details, or any payment information (no paid services are currently offered)</li>
-  <li>IP addresses linked to your email</li>
-  <li>Location or device information</li>
-  <li>Browsing behaviour beyond anonymous usage telemetry never connected to your account</li>
+  <li>Location or device profiles, or browsing-behaviour tracking connected to your account</li>
 </ul>
+<p><strong>What we do process for security:</strong> IP addresses and request metadata are
+  processed for rate limiting and abuse prevention (blocklisting of scanners and probes),
+  with 30-day log retention. They are not linked to your email or account profile.</p>
 
 <h2>Payment Processing</h2>
 <p>
@@ -1410,6 +1438,15 @@ _PRIVACY_BODY = """
   dashboard (<code>/early-adopters/dashboard/{uuid}</code>) and understand aggregate tool usage
   patterns. <strong>Log retention: 30 days</strong> (GCP Cloud Logging auto-purge). You may stop
   UUID analytics at any time by simply omitting <code>user_uuid</code> from tool calls.</p>
+<p>Separately from UUID analytics: if you explicitly set <code>save_to_history=true</code> on a
+  validation call (off by default), the validation result — including the concept text you
+  submitted — is retained in the server's validation history. Omit the flag and nothing is
+  retained.</p>
+
+<h2>Prompt Templates</h2>
+<p>The hosted service currently exposes only the built-in prompt-template library. Runtime
+  custom-template registration and URL import are disabled. Custom prompt content is not accepted,
+  listed, exported, or retained by the public service while owner-scoped storage is being built.</p>
 
 <h2>How Long We Keep Your Data</h2>
 <table class="legal-table">
@@ -1422,8 +1459,8 @@ _PRIVACY_BODY = """
     <tr><td>UUID usage analytics logs</td><td>30 days (GCP Cloud Logging auto-purge)</td></tr>
   </tbody>
 </table>
-<p>On deletion request, all personal data is purged within 7 business days, except where
-  retention is required by law.</p>
+<p>On deletion request, personal data is targeted for purge within 7 business days, except
+  where retention is required by law or a documented security/legal hold applies.</p>
 
 <h2>Your Rights</h2>
 <ul>
@@ -1447,9 +1484,12 @@ _PRIVACY_BODY = """
   payment processor introduced will be disclosed here before any data is shared.</p>
 
 <h2>Security</h2>
-<p>Your account records are stored in Google Cloud Firestore with restricted access. We do not
-  log your email address in server logs. Your UUID is your primary identifier in all internal
-  systems.</p>
+<p>Your account records are stored in Google Cloud Firestore (United States, us-central1) with
+  restricted access. We do not log your email address in server logs. Your UUID is your primary
+  identifier in all internal systems.</p>
+<p><strong>Do not submit passwords, API keys, or other secrets</strong> through registration,
+  feedback, or validation prompts. Security controls reduce risk, but no hosted service can
+  guarantee absolute security.</p>
 
 <h2>Contact</h2>
 <ul>
@@ -1457,10 +1497,6 @@ _PRIVACY_BODY = """
   <li>Email: <a href="mailto:creator35lwb@gmail.com">creator35lwb@gmail.com</a></li>
   <li>Or use the <a href="/optout">opt-out endpoint</a> for immediate data deletion</li>
 </ul>
-
-<h2>Compliance</h2>
-<p>This policy aligns with GDPR (EU), PDPA (Singapore/ASEAN), and the Z-Protocol v1.1 ethical
-  framework (data minimisation, transparency, user autonomy).</p>
 
 <h2>Changes to This Policy</h2>
 <p>We will notify registered users of material changes at least 14 days before they take effect.
@@ -1477,31 +1513,33 @@ _PRIVACY_BODY = """
 _TERMS_BODY = """
 <h1>Terms &amp; Conditions</h1>
 <div class="meta">
-  <span>Version 2.2</span>
-  <span>Effective: July 30, 2026</span>
-  <span>Updated: July 30, 2026 (availability and entitlement clarification)</span>
-  <span>Previous: v2.1 (May 12, 2026)</span>
+  <span>Version 2.3</span>
+  <span>Effective: August 4, 2026</span>
+  <span>Updated: August 4, 2026 (template containment and availability clarification)</span>
+  <span>Previous: v2.2 (July 30, 2026)</span>
 </div>
 
 <h2>1. Service Description</h2>
 <p>VerifiMind-PEAS is an open-source multi-model AI validation framework that provides structured,
-  multi-agent validation and orchestration tools. 10 tools are currently active. The three
-  coordination tools are temporarily unavailable while owner-scoped access control is rebuilt.
+  multi-agent validation and orchestration tools. Eight tools are currently active. Three
+  coordination tools and two custom-template mutation tools are temporarily unavailable while
+  owner-scoped storage and URL-fetch protections are completed.
   There are no current paid services. Access levels are described in Section 3.</p>
 
 <h2>2. Acceptance of Terms</h2>
 <p>By registering for any VerifiMind-PEAS program or using the service, you confirm that you have
   read and accept:</p>
 <ul>
-  <li>These Terms &amp; Conditions v2.2</li>
+  <li>These Terms &amp; Conditions v2.3</li>
   <li>The <a href="/privacy">Privacy Policy</a></li>
 </ul>
 <p>When future paid services launch, additional terms (including any payment-processor agreements)
   will be presented and accepted separately at the time of purchase.</p>
 
 <h2>3. Service Tiers</h2>
-<p>Every current tier may use the same <strong>10 active tools</strong>. The three coordination
-  tools are listed for discovery but temporarily unavailable to every tier. Tier identity is used
+<p>Every current tier may use the same <strong>8 active tools</strong>. The three coordination
+  and two custom-template mutation tools are listed for discovery but temporarily unavailable to
+  every tier. Tier identity is used
   only for rate-limit allocation, cohort management, and personal dashboard scoping.</p>
 <table class="legal-table">
   <thead>
@@ -1511,45 +1549,46 @@ _TERMS_BODY = """
     <tr>
       <td><span class="tier-badge">Anonymous</span></td>
       <td>None (IP only)</td>
-      <td>10 active tools. No registration needed.</td>
+      <td>8 active tools. No registration needed.</td>
       <td>Free</td>
       <td>10 req/60s per IP</td>
     </tr>
     <tr>
       <td><span class="tier-badge">Scholar</span></td>
       <td>UUID (consent)</td>
-      <td>10 active tools + usage dashboard + Trinity history. Register at /register.</td>
+      <td>8 active tools + usage dashboard + Trinity history. Register at /register.</td>
       <td>Free</td>
       <td>30 req/60s per UUID</td>
     </tr>
     <tr>
       <td><span class="tier-badge">Early Adopter</span></td>
       <td>UUID + email</td>
-      <td>10 active tools + EA feedback cohort</td>
+      <td>8 active tools + EA feedback cohort</td>
       <td>Free</td>
       <td>100 req/60s per UUID</td>
     </tr>
     <tr>
       <td><span class="tier-badge">PILOT</span></td>
       <td>UUID + email + invite</td>
-      <td>10 active tools + PILOT feedback cohort</td>
+      <td>8 active tools + PILOT feedback cohort</td>
       <td>Free</td>
       <td>100 req/60s per UUID</td>
     </tr>
   </tbody>
 </table>
 <div class="notice-box">
-  <strong>Growth First, Monetization Later.</strong> The 10 active tools are free for every tier.
-  The 3 coordination tools remain unavailable to every tier during security maintenance.
+  <strong>Growth First, Monetization Later.</strong> The 8 active tools are free for every tier.
+  Five contained tools remain unavailable to every tier during security maintenance.
   Pricing for future premium services (such as expert-orchestrated reports) will be announced
   separately and will not change the free-tools pledge. The VerifiMind-PEAS core is MIT licensed —
   you may self-host at any time.
 </div>
 
 <h2>4. Payment and Billing</h2>
-<p>There are <strong>no active paid services</strong> at this time. The 10 active tools are free
-  for everyone. The three coordination tools are <strong>temporarily disabled for maintenance</strong>
-  while their access control is rebuilt; this does not affect the validation tools or change the
+<p>There are <strong>no active paid services</strong> at this time. The 8 active tools are free
+  for everyone. Three coordination and two custom-template mutation tools are
+  <strong>temporarily disabled for maintenance</strong> while owner-scoped controls are rebuilt;
+  this does not affect the validation tools or change the
   free-for-everyone pledge.</p>
 <p>When future paid services (such as expert-orchestrated consultation reports) become available,
   this section will be updated with specific billing terms, the payment processor, and any
@@ -1589,7 +1628,7 @@ _TERMS_BODY = """
 <h2>9. Opt-Out and Termination</h2>
 <ul>
   <li>You may opt out at any time via <a href="/optout"><code>POST /early-adopters/optout/{uuid}</code></a></li>
-  <li>On opt-out, personal data is purged within 7 business days (subject to legal retention requirements)</li>
+  <li>On opt-out, personal data is targeted for purge within 7 business days (subject to legal retention requirements or a documented security hold)</li>
   <li>We may terminate access for violation of the Acceptable Use terms in Section 8</li>
 </ul>
 
@@ -1626,14 +1665,38 @@ _TERMS_BODY = """
 """
 
 
+def _canonical_policy_body(policy: str) -> str:
+    """Render canonical policy text without maintaining a second legal copy.
+
+    Privacy contains a complete Bahasa Malaysia section. Splitting at its stable
+    heading lets assistive technology identify the language while preserving the
+    exact canonical words served to JSON clients.
+    """
+    text = policy.strip()
+    marker = "12. NOTIS PERLINDUNGAN DATA PERIBADI — BAHASA MALAYSIA"
+    if marker in text:
+        english, malay = text.split(marker, 1)
+        return (
+            f'<pre class="policy-text" lang="en">{escape(english.rstrip())}</pre>'
+            f'<pre class="policy-text" lang="ms">{escape(marker + malay)}</pre>'
+        )
+    return f'<pre class="policy-text" lang="en">{escape(text)}</pre>'
+
+
 def get_privacy_page() -> str:
-    """Return the full HTML for GET /privacy — Privacy Policy v2.3."""
-    return _legal_shell(title="Privacy Policy", body=_PRIVACY_BODY)
+    """Return canonical HTML for GET /privacy — Privacy Policy v2.4."""
+    return _legal_shell(
+        title="Privacy Policy",
+        body=_canonical_policy_body(PRIVACY_POLICY),
+    )
 
 
 def get_terms_page() -> str:
-    """Return the full HTML for GET /terms — Terms &amp; Conditions v2.2."""
-    return _legal_shell(title="Terms &amp; Conditions", body=_TERMS_BODY)
+    """Return canonical HTML for GET /terms — Terms &amp; Conditions v2.3."""
+    return _legal_shell(
+        title="Terms &amp; Conditions",
+        body=_canonical_policy_body(TERMS_AND_CONDITIONS),
+    )
 
 
 # ── Scholar Dashboard page ─────────────────────────────────────────────────────
@@ -1730,7 +1793,7 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 
 <div class="notice-box" style="margin-top:2rem;">
   <strong>Privacy:</strong> No concept names or descriptions are stored — only scores,
-  recommendations, and timestamps. See <a href="/privacy">Privacy Policy v2.3</a>.
+  recommendations, and timestamps. See <a href="/privacy">Privacy Policy v2.4</a>.
 </div>
 
 <style>
@@ -1753,8 +1816,29 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 _CHANGELOG_BODY = """
 <h1>Changelog</h1>
 <div class="meta">
-  <span>Last updated: May 15, 2026 (v0.5.34)</span>
+  <span>Last updated: August 4, 2026 (v0.5.56)</span>
   <span><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/releases" target="_blank" rel="noopener">GitHub Releases</a></span>
+</div>
+
+<div id="v0.5.56">
+<h2>v0.5.56 — Core Integrity + Custom-Template Containment</h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">August 4, 2026</p>
+<ul>
+  <li><strong>Trinity output integrity:</strong> a complete score, confidence, or verdict now requires real inference from X, Z, and CS. Any partial, fallback, mock, unknown, or unavailable stage produces an incomplete result for human review; generated defaults from that stage are withheld.</li>
+  <li><strong>Z evidence diagnostics:</strong> missing or null jurisdiction, compliance-timeline, framework, and scoring evidence now downgrades inference quality explicitly instead of being mistaken for a complete ethics analysis.</li>
+  <li><strong>Provider truncation guard:</strong> Groq responses cut off at the output-token ceiling are rejected before structured parsing.</li>
+  <li><strong>Custom-template containment:</strong> registration and URL import are temporarily unavailable while owner-scoped storage is completed. Built-in template reads remain active and exclude process-local custom entries.</li>
+  <li><strong>Public availability:</strong> every discovery, registration, and policy surface now reports 13 defined tools, 8 active tools, and 5 temporarily unavailable tools.</li>
+</ul>
+</div>
+
+<div id="v0.5.55">
+<h2>v0.5.55 — Integrated Security and Public-Truth Repair</h2>
+<p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem">July 31, 2026</p>
+<ul>
+  <li>Aligned MCP discovery with coordination containment, corrected registration and policy claims, hardened Claude thinking-model parsing, and repaired Groq admission handling.</li>
+  <li>Production reported 13 defined tools, 10 active tools, and 3 temporarily unavailable coordination tools before the additional v0.5.56 containment.</li>
+</ul>
 </div>
 
 <div id="v0.5.34">

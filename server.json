@@ -2,8 +2,8 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.creator35lwb-web/verifimind-genesis",
   "title": "VerifiMind PEAS - RefleXion Trinity",
-  "description": "Multi-Agent AI Validation: X-Z-CS Trinity. 10 active tools; 3 coordination tools temporarily unavailable. Auditable reasoning. v0.5.55",
-  "version": "3.32.0",
+  "description": "Multi-Agent AI Validation: X-Z-CS Trinity. 8 active tools; 5 tools temporarily unavailable during security maintenance. Auditable reasoning. v0.5.56",
+  "version": "3.33.0",
   "repository": {
     "url": "https://github.com/creator35lwb-web/VerifiMind-PEAS",
     "source": "github"
@@ -62,11 +62,11 @@
         },
         {
           "name": "register_custom_template",
-          "description": "Register a new custom prompt template for X, Z, or CS agent"
+          "description": "TEMPORARILY UNAVAILABLE (security maintenance) — Register a new custom prompt template for X, Z, or CS agent"
         },
         {
           "name": "import_template_from_url",
-          "description": "Import a prompt template from a URL (GitHub Gist, raw file, etc.)"
+          "description": "TEMPORARILY UNAVAILABLE (security maintenance) — Import a prompt template from a URL (GitHub Gist, raw file, etc.)"
         },
         {
           "name": "get_template_statistics",

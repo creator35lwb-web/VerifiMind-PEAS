@@ -105,8 +105,8 @@ class TestRegisterUser:
         from verifimind_mcp.registration import UserRegistrationRequest, register_user
         req = UserRegistrationRequest(consent=True)
         result = await register_user(req)
-        assert result.privacy_version == "2.3"
-        assert result.tc_version == "2.2"
+        assert result.privacy_version == "2.4"
+        assert result.tc_version == "2.3"
 
     async def test_different_calls_return_different_uuids(self):
         from verifimind_mcp.registration import UserRegistrationRequest, register_user

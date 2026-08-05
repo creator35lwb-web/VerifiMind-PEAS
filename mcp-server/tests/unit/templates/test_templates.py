@@ -277,7 +277,8 @@ def test_registry_get_template(registry):
         template_id="test-get-001"
     )
 
-    retrieved = registry.get_template("test-get-001")
+    assert registry.get_template("test-get-001") is None
+    retrieved = registry.get_template("test-get-001", include_custom=True)
     assert retrieved is not None
     assert retrieved.template_id == "test-get-001"
 
@@ -302,16 +303,19 @@ def test_registry_list_templates(registry):
     )
 
     # List all
-    all_templates = registry.list_templates()
+    assert registry.list_templates() == []
+    all_templates = registry.list_templates(include_custom=True)
     assert len(all_templates) == 2
 
     # Filter by agent
-    x_templates = registry.list_templates(agent_id="X")
+    x_templates = registry.list_templates(agent_id="X", include_custom=True)
     assert len(x_templates) == 1
     assert x_templates[0].agent_id == "X"
 
     # Filter by category
-    startup_templates = registry.list_templates(category="startup")
+    startup_templates = registry.list_templates(
+        category="startup", include_custom=True
+    )
     assert len(startup_templates) == 1
 
 
@@ -325,7 +329,7 @@ def test_registry_unregister_custom_template(registry):
         template_id="to-remove-001"
     )
 
-    assert registry.get_template("to-remove-001") is not None
+    assert registry.get_template("to-remove-001", include_custom=True) is not None
     result = registry.unregister_custom_template("to-remove-001")
     assert result is True
     assert registry.get_template("to-remove-001") is None
@@ -340,7 +344,11 @@ def test_registry_statistics(registry):
         content="Content"
     )
 
-    stats = registry.get_statistics()
+    default_stats = registry.get_statistics()
+    assert default_stats["custom_templates"] == 0
+    assert default_stats["total_templates"] == default_stats["builtin_templates"]
+
+    stats = registry.get_statistics(include_custom=True)
     assert "total_templates" in stats
     assert "builtin_templates" in stats
     assert "custom_templates" in stats

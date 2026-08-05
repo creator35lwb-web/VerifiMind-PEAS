@@ -33,10 +33,16 @@ def _messages(char_count: int):
     return [{"role": "user", "content": "x" * char_count}]
 
 
-def _groq_response(text: str, prompt_tokens: int = 10, completion_tokens: int = 5):
+def _groq_response(
+    text: str,
+    prompt_tokens: int = 10,
+    completion_tokens: int = 5,
+    finish_reason: str = "stop",
+):
     response = MagicMock()
     response.choices = [MagicMock()]
     response.choices[0].message.content = text
+    response.choices[0].finish_reason = finish_reason
     response.usage.prompt_tokens = prompt_tokens
     response.usage.completion_tokens = completion_tokens
     response.usage.total_tokens = prompt_tokens + completion_tokens
@@ -107,6 +113,19 @@ async def test_groq_generate_admits_measured_cs_orchestrated_shape(monkeypatch):
     assert result["content"]["ok"] is True
     assert GROQ_MIN_COMPLETION_TOKENS <= captured["max_tokens"] < GROQ_8K_TPM_COMPLETION_CAP
     assert 4794 + captured["max_tokens"] <= GROQ_8K_TPM_LIMIT
+
+
+@pytest.mark.asyncio
+async def test_groq_generate_rejects_token_ceiling_truncation(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_test")
+    provider = GroqProvider(model="openai/gpt-oss-120b")
+    provider.client = MagicMock()
+    provider.client.chat.completions.create = AsyncMock(
+        return_value=_groq_response('{"ok": true', finish_reason="length")
+    )
+
+    with pytest.raises(ValueError, match="Groq response truncated"):
+        await provider.generate("probe", max_tokens=1024)
 
 
 def test_budget_keeps_safety_margin_against_local_estimate():

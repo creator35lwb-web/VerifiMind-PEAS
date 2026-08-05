@@ -2,9 +2,10 @@
 
 **Version:** v0.5.34
 **Status:** ✅ **LIVE** at [verifimind.ysenseai.org](https://verifimind.ysenseai.org)
-**Last Updated:** May 17, 2026 — Phase 90 "Adoption First"
+**Last Updated:** August 1, 2026 — v0.5.56 security containment
 
 > All **13 tools free forever** under the [Core Tools Always Free pledge](https://github.com/creator35lwb-web/VerifiMind-PEAS#core-tools-always-free-pledge) (Option B, May 9, 2026).
+> **Current availability:** 8 active; 3 coordination and 2 custom-template mutation tools temporarily unavailable during security maintenance.
 
 ---
 
@@ -133,8 +134,8 @@ Prompt-template registry for X / Z / CS agents. Templates are versioned, taggabl
 | `list_prompt_templates` | List with optional filtering by agent / category / tags |
 | `get_prompt_template` | Get a specific template by ID — full content + variables |
 | `export_prompt_template` | Export a template to Markdown or JSON format |
-| `register_custom_template` | Register a new custom prompt template for X / Z / CS |
-| `import_template_from_url` | Import from a URL — GitHub Gist, raw GitHub file, JSON/YAML |
+| `register_custom_template` | ⛔ temporarily unavailable pending owner-scoped storage |
+| `import_template_from_url` | ⛔ temporarily unavailable pending owner isolation and URL-fetch hardening |
 | `get_template_statistics` | Counts by agent, phase, type |
 
 ---
@@ -348,5 +349,5 @@ Machine-readable index: [`/research/index.json`](https://verifimind.ysenseai.org
 
 **Server Status:** ✅ **LIVE**
 **URL:** https://verifimind.ysenseai.org
-**Version:** v0.5.34
+**Version:** v0.5.56
 **Phase:** 90 "Adoption First" (monetization on STANDBY — all 13 tools free forever)

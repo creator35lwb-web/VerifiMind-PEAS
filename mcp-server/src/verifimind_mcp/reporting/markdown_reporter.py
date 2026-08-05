@@ -9,7 +9,7 @@ v0.4.1 — February 2026
 """
 
 from datetime import timezone
-from typing import List
+from typing import List, Optional
 
 from ..models.results import TrinityResult, TrinitySynthesis
 from ..models.reasoning import (
@@ -40,17 +40,37 @@ def generate_yaml_frontmatter(result: TrinityResult) -> str:
     ts = result.completed_at or result.started_at
     iso_ts = ts.isoformat() if ts.tzinfo else ts.replace(tzinfo=timezone.utc).isoformat()
 
+    s = result.synthesis
+    gate_agents = s.quality_gate.get("agents", {}) if s.quality_gate else {}
+
+    def _frontmatter_score(agent_id: str, score: Optional[float]) -> str:
+        if score is None or gate_agents.get(agent_id, "real") != "real":
+            return "null"
+        return f"{score:.1f}"
+
+    confidence = (
+        f"{s.confidence:.2f}" if s.confidence is not None else "null"
+    )
+    degraded = ", ".join(s.degraded_agents)
+
     lines = [
         "---",
         f"validation_id: {result.validation_id}",
         f'concept: "{_escape_yaml(result.concept_name)}"',
-        f"recommendation: {result.synthesis.recommendation}",
-        f"overall_score: {result.synthesis.overall_score:.1f}",
-        f"innovation_score: {result.synthesis.innovation_score:.1f}",
-        f"ethics_score: {result.synthesis.ethics_score:.1f}",
-        f"security_score: {result.synthesis.security_score:.1f}",
-        f"veto_triggered: {'true' if result.synthesis.veto_triggered else 'false'}",
-        f"confidence: {result.synthesis.confidence:.2f}",
+        f"recommendation: {s.recommendation}",
+        f"overall_score: {_nullable_score(s.overall_score, yaml=True)}",
+        f"innovation_score: {_frontmatter_score('X', s.innovation_score)}",
+        f"ethics_score: {_frontmatter_score('Z', s.ethics_score)}",
+        f"security_score: {_frontmatter_score('CS', s.security_score)}",
+        "veto_triggered: " + (
+            "null" if s.veto_triggered is None
+            else "true" if s.veto_triggered
+            else "false"
+        ),
+        f"confidence: {confidence}",
+        f"confidence_valid: {'true' if s.confidence_valid else 'false'}",
+        f"analysis_incomplete: {'true' if s.analysis_incomplete else 'false'}",
+        f'degraded_agents: "{degraded}"',
         f"timestamp: {iso_ts}",
         f"generator: verifimind-peas/{_server_version()}",
         f"format: {FORMAT_VERSION}",
@@ -66,14 +86,14 @@ def generate_markdown_summary(result: TrinityResult) -> str:
     """
     s = result.synthesis
     rec_display = s.recommendation.upper().replace("_", " ")
-    conf_pct = int(s.confidence * 100)
+    confidence_display = _synthesis_confidence_display(s)
 
     lines = [
         f"# Trinity Validation: {result.concept_name}",
         "",
         f"**Recommendation:** {rec_display} | "
-        f"**Score:** {s.overall_score:.1f}/10 | "
-        f"**Confidence:** {conf_pct}%",
+        f"**Score:** {_nullable_score(s.overall_score)} | "
+        f"**Confidence:** {confidence_display}",
         "",
     ]
 
@@ -84,9 +104,9 @@ def generate_markdown_summary(result: TrinityResult) -> str:
     lines.extend([
         "| Agent | Score | Role |",
         "|-------|-------|------|",
-        f"| X Intelligent | {s.innovation_score:.1f}/10 | Innovation & Strategy |",
-        f"| Z Guardian | {s.ethics_score:.1f}/10 | Ethics & Compliance |",
-        f"| CS Security | {s.security_score:.1f}/10 | Security & Socratic Scrutiny |",
+        f"| X Intelligent | {_nullable_score(s.innovation_score)} | Innovation & Strategy |",
+        f"| Z Guardian | {_nullable_score(s.ethics_score)} | Ethics & Compliance |",
+        f"| CS Security | {_nullable_score(s.security_score)} | Security & Socratic Scrutiny |",
         "",
     ])
 
@@ -143,7 +163,13 @@ def _section_title(result: TrinityResult) -> str:
 
 def _section_executive_summary(s: TrinitySynthesis) -> str:
     rec_display = s.recommendation.upper().replace("_", " ")
-    conf_pct = int(s.confidence * 100)
+    confidence_display = _synthesis_confidence_display(s)
+    gate_agents = s.quality_gate.get("agents", {}) if s.quality_gate else {}
+
+    def _score(agent_id: str, value: Optional[float]) -> str:
+        if value is None or gate_agents.get(agent_id, "real") != "real":
+            return "unavailable"
+        return f"{value:.1f}/10"
 
     lines = [
         "## Executive Summary",
@@ -151,8 +177,8 @@ def _section_executive_summary(s: TrinitySynthesis) -> str:
         s.summary,
         "",
         f"**Recommendation:** {rec_display} | "
-        f"**Score:** {s.overall_score:.1f}/10 | "
-        f"**Confidence:** {conf_pct}%",
+        f"**Score:** {_nullable_score(s.overall_score)} | "
+        f"**Confidence:** {confidence_display}",
         "",
     ]
 
@@ -173,9 +199,9 @@ def _section_executive_summary(s: TrinitySynthesis) -> str:
     lines.extend([
         "| Agent | Score | Role |",
         "|-------|-------|------|",
-        f"| X Intelligent | {s.innovation_score:.1f}/10 | Innovation & Strategy |",
-        f"| Z Guardian | {s.ethics_score:.1f}/10 | Ethics & Compliance |",
-        f"| CS Security | {s.security_score:.1f}/10 | Security & Socratic Scrutiny |",
+        f"| X Intelligent | {_score('X', s.innovation_score)} | Innovation & Strategy |",
+        f"| Z Guardian | {_score('Z', s.ethics_score)} | Ethics & Compliance |",
+        f"| CS Security | {_score('CS', s.security_score)} | Security & Socratic Scrutiny |",
         "",
     ])
 
@@ -183,6 +209,9 @@ def _section_executive_summary(s: TrinitySynthesis) -> str:
 
 
 def _section_x_agent(x: XAgentAnalysis) -> str:
+    quality = getattr(x, "_inference_quality", "real")
+    if quality != "real":
+        return _degraded_agent_section(x.agent, "Innovation & Strategy", quality)
     conf_pct = int(x.confidence * 100)
     lines = [
         f"## {x.agent} — Innovation & Strategy",
@@ -215,6 +244,9 @@ def _section_x_agent(x: XAgentAnalysis) -> str:
 
 
 def _section_z_agent(z: ZAgentAnalysis) -> str:
+    quality = getattr(z, "_inference_quality", "real")
+    if quality != "real":
+        return _degraded_agent_section(z.agent, "Ethics & Compliance", quality)
     conf_pct = int(z.confidence * 100)
     compliance = "Yes" if z.z_protocol_compliance else "No"
     veto = "Yes" if z.veto_triggered else "No"
@@ -269,6 +301,11 @@ def _section_z_agent(z: ZAgentAnalysis) -> str:
 
 
 def _section_cs_agent(cs: CSAgentAnalysis) -> str:
+    quality = getattr(cs, "_inference_quality", "real")
+    if quality != "real":
+        return _degraded_agent_section(
+            cs.agent, "Security & Socratic Scrutiny", quality
+        )
     conf_pct = int(cs.confidence * 100)
 
     threat = getattr(cs, "threat_level", None)
@@ -361,6 +398,31 @@ def _section_footer(result: TrinityResult) -> str:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _synthesis_confidence_display(s: TrinitySynthesis) -> str:
+    if s.confidence is None or not s.confidence_valid:
+        return "unavailable (degraded inference)"
+    return f"{int(s.confidence * 100)}%"
+
+
+def _nullable_score(value: Optional[float], yaml: bool = False) -> str:
+    if value is None:
+        return "null" if yaml else "unavailable"
+    return f"{value:.1f}" if yaml else f"{value:.1f}/10"
+
+
+def _degraded_agent_section(agent_name: str, role: str, quality: str) -> str:
+    return "\n".join([
+        f"## {agent_name} — {role}",
+        "",
+        (
+            f"> ⚠️ **INCOMPLETE AGENT ANALYSIS:** inference quality was "
+            f"`{quality}`. Scores, confidence, and generated findings from this "
+            "stage are withheld pending a clean rerun."
+        ),
+        "",
+    ])
 
 
 def _format_reasoning_chain(steps: List[ReasoningStep]) -> List[str]:

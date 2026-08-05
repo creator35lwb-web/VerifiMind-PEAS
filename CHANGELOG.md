@@ -8,7 +8,57 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
-## v0.5.55 - Integrated Security and Public-Truth Repair (Unreleased)
+## v0.5.56 - Core Integrity and Custom-Template Containment (Release Candidate)
+
+This bounded follow-up closes integrity gaps found after v0.5.55 reached
+production. It does not re-enable coordination and does not claim deployment.
+
+### What changed
+
+- **Symmetric agent quality gate:** X, Z, and CS must report explicit `real`
+  inference before Trinity or standalone consult responses can publish stage
+  scores, recommendations, reasoning, or a veto state; aggregate score and
+  confidence additionally require all three real stages. Every partial,
+  fallback, mock, unknown, or unavailable stage is withheld for human review.
+- **No degraded-state propagation:** schema-generated reasoning from an
+  incomplete stage is no longer passed into downstream agents or persisted as
+  genuine history.
+- **Z evidence integrity:** jurisdiction, compliance timeline, scoring
+  breakdown, and applicable-framework evidence remain nullable for wire
+  compatibility, but missing/null values explicitly downgrade quality. Required
+  fields repaired from missing or null input are reported in schema diagnostics.
+- **Groq completion guard:** `finish_reason=length` is rejected before JSON
+  parsing, preventing token-ceiling truncation from appearing complete.
+- **Custom-template containment:** `register_custom_template` and
+  `import_template_from_url` fail closed for every caller. Public template reads
+  expose built-ins only. The dormant importer is restricted to HTTPS GitHub
+  Gist/raw hosts with public-address DNS validation, no redirects, TLS 1.2+, a
+  15-second timeout, a 256 KiB streaming limit, and UTF-8 decoding.
+- **Single availability contract:** runtime health, discovery, server card,
+  setup, registration, policies, README, and registry metadata now agree on
+  **13 defined / 8 active / 5 temporarily unavailable**.
+- **Notice and log containment:** stale ambient notices claiming all 13 tools
+  are available are suppressed, and provider diagnostics no longer log raw
+  model response content.
+- **Policy surfaces:** Terms v2.3 and Privacy v2.4 disclose the current
+  containment and custom-content handling. Human publication approval remains
+  a deployment gate.
+- **Version surfaces:** runtime `0.5.56`; MCP Registry package `3.33.0`.
+
+### Verification
+
+- Focused integrity/containment/reporting lane: **75 passed**
+- Full unit lane: **1055 passed, 3 skipped**
+- Registration and policy lane: **79 passed**
+- Integration lane: **7 passed, 11 environment-gated skips**
+- Full Python server Bandit scan: **0 findings**
+- `git diff --check`: clean
+
+No production deployment is claimed by this entry.
+
+---
+
+## v0.5.55 - Integrated Security and Public-Truth Repair (July 31, 2026)
 
 This release candidate consolidates the bounded, independently reviewed parts
 of PRs #309, #310, and #312 on top of the post-containment `main` line, plus the
@@ -61,7 +111,8 @@ orchestrated CS prompt shape it claimed to fix.
 - Provider-source Bandit scan: **0 findings**
 - `git diff --check`: clean
 
-No production deployment is claimed by this entry.
+Production v0.5.55 was independently re-verified through `/health` on August 1,
+2026 before the v0.5.56 candidate was prepared.
 
 ---
 

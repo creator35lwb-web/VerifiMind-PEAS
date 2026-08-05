@@ -7,7 +7,8 @@ multiple agent analyses into a unified Trinity result.
 
 import uuid
 from datetime import datetime
-from typing import List
+from itertools import islice
+from typing import Dict, List, Optional, Set
 
 from ..models import (
     XAgentAnalysis,
@@ -18,11 +19,29 @@ from ..models import (
 )
 
 
+REAL_INFERENCE_QUALITY = "real"
+
+
+def _is_degraded_quality(quality: str) -> bool:
+    """Every required stage must be explicitly real to clear the gate."""
+    return quality != REAL_INFERENCE_QUALITY
+
+
+def _degraded_agent_ids(quality_by_agent: Dict[str, str]) -> Set[str]:
+    return {
+        agent_id
+        for agent_id, quality in quality_by_agent.items()
+        if _is_degraded_quality(quality)
+    }
+
+
 def calculate_overall_score(
     x_result: XAgentAnalysis,
     z_result: ZAgentAnalysis,
     cs_result: CSAgentAnalysis,
-    z_quality: str = "real"
+    z_quality: str = "real",
+    x_quality: str = "real",
+    cs_quality: str = "real",
 ) -> float:
     """
     Calculate overall score from individual agent scores.
@@ -32,10 +51,9 @@ def calculate_overall_score(
     - Ethics (Z): 40% (higher weight for ethical considerations)
     - Security (CS): 30%
 
-    If Z triggers veto, overall score is capped at 3.0.
-    If Z inference was degraded (z_quality != "real"), the ethics score may be a
-    synthesized default — cap the overall out of the PROCEED bands so a degraded
-    run can never read as a clean pass.
+    If a real Z stage triggers veto, overall score is capped at 3.0.
+    If any required agent inference was not explicitly real, one or more scores
+    may be synthesized defaults. Cap the overall out of every auto-pass band.
     """
     # Base weighted average
     innovation_weight = 0.30
@@ -51,14 +69,16 @@ def calculate_overall_score(
         cs_result.security_score * security_weight
     )
 
-    # Cap score if veto triggered
-    if z_result.veto_triggered:
+    # A veto can influence the score only when it came from a real Z stage.
+    if z_quality == REAL_INFERENCE_QUALITY and z_result.veto_triggered:
         weighted_score = min(weighted_score, 3.0)
 
-    # Fail-safe: degraded REAL inference (truncated/repaired JSON) cannot be trusted
-    # to clear a concept. "mock" is test-mode and carries its own synthetic warning,
-    # so it is intentionally excluded here.
-    if z_quality in ("partial", "fallback"):
+    # Fail-safe symmetry: no required X/Z/CS stage may be absent, partial,
+    # fallback, mock, unavailable, or unknown and still clear a concept.
+    if any(
+        _is_degraded_quality(quality)
+        for quality in (x_quality, z_quality, cs_quality)
+    ):
         weighted_score = min(weighted_score, 4.0)
 
     return round(weighted_score, 1)
@@ -68,26 +88,27 @@ def determine_recommendation(
     overall_score: float,
     z_result: ZAgentAnalysis,
     cs_result: CSAgentAnalysis,
-    z_quality: str = "real"
+    z_quality: str = "real",
+    x_quality: str = "real",
+    cs_quality: str = "real",
 ) -> str:
     """
     Determine overall recommendation based on scores and flags.
 
     Returns one of: "proceed", "proceed_with_caution", "revise", "reject"
 
-    Fail-safe polarity (v0.5.43): a veto_triggered=False / ethics_score read off
-    DEGRADED Z inference is untrustworthy — when truncated Z JSON is repaired by
-    schema defaults, veto defaults to False and ethics to a midpoint. So if Z
-    inference was not "real", we never auto-pass: cap at REVISE pending human review.
+    Fail-safe polarity (v0.5.56): a decision is complete only when every required
+    X/Z/CS stage is explicitly real. No degraded result may be more permissive
+    than REVISE, while a veto from a real Z stage remains a decisive REJECT.
     """
-    # Veto always results in reject
-    if z_result.veto_triggered:
+    # A trusted Z veto remains decisive even if another stage is degraded.
+    if z_quality == REAL_INFERENCE_QUALITY and z_result.veto_triggered:
         return "reject"
 
-    # Fail-safe: never auto-clear a concept on degraded real ethics inference
-    # (truncated Z JSON repaired by schema defaults → veto=False, ethics=midpoint).
-    # "mock" is test-mode with its own synthetic warning and is excluded.
-    if z_quality in ("partial", "fallback"):
+    if any(
+        _is_degraded_quality(quality)
+        for quality in (x_quality, z_quality, cs_quality)
+    ):
         return "revise"
 
     # High security vulnerabilities require revision
@@ -108,57 +129,68 @@ def determine_recommendation(
 def synthesize_strengths(
     x_result: XAgentAnalysis,
     z_result: ZAgentAnalysis,
-    cs_result: CSAgentAnalysis
+    cs_result: CSAgentAnalysis,
+    degraded_agents: Optional[Set[str]] = None,
 ) -> List[str]:
     """Extract and synthesize key strengths from all analyses."""
+    degraded_agents = degraded_agents or set()
     strengths = []
     
     # From X: High innovation or strategic value
-    if x_result.innovation_score >= 7.0:
+    if "X" not in degraded_agents and x_result.innovation_score >= 7.0:
         strengths.append(f"High innovation potential (score: {x_result.innovation_score}/10)")
-    if x_result.strategic_value >= 7.0:
+    if "X" not in degraded_agents and x_result.strategic_value >= 7.0:
         strengths.append(f"Strong strategic value (score: {x_result.strategic_value}/10)")
     
     # Add top opportunities from X
-    for opp in x_result.opportunities[:2]:
-        strengths.append(f"Opportunity: {opp}")
+    if "X" not in degraded_agents:
+        for opp in x_result.opportunities[:2]:
+            strengths.append(f"Opportunity: {opp}")
     
     # From Z: Good ethics compliance
-    if z_result.z_protocol_compliance:
+    if "Z" not in degraded_agents and z_result.z_protocol_compliance:
         strengths.append("Z-Protocol compliant")
-    if z_result.ethics_score >= 7.0:
+    if "Z" not in degraded_agents and z_result.ethics_score >= 7.0:
         strengths.append(f"Strong ethical foundation (score: {z_result.ethics_score}/10)")
     
     # From CS: Good security
-    if cs_result.security_score >= 7.0:
+    if "CS" not in degraded_agents and cs_result.security_score >= 7.0:
         strengths.append(f"Solid security posture (score: {cs_result.security_score}/10)")
     
-    return strengths[:5]  # Limit to top 5
+    return list(islice(strengths, 5))
 
 
 def synthesize_concerns(
     x_result: XAgentAnalysis,
     z_result: ZAgentAnalysis,
-    cs_result: CSAgentAnalysis
+    cs_result: CSAgentAnalysis,
+    degraded_agents: Optional[Set[str]] = None,
 ) -> List[str]:
     """Extract and synthesize key concerns from all analyses."""
+    degraded_agents = degraded_agents or set()
     concerns = []
     
     # From X: Risks
-    for risk in x_result.risks[:2]:
-        concerns.append(f"Risk: {risk}")
+    if "X" not in degraded_agents:
+        for risk in x_result.risks[:2]:
+            concerns.append(f"Risk: {risk}")
     
     # From Z: Ethical concerns
-    for concern in z_result.ethical_concerns[:2]:
-        concerns.append(f"Ethical: {concern}")
+    if "Z" not in degraded_agents:
+        for concern in z_result.ethical_concerns[:2]:
+            concerns.append(f"Ethical: {concern}")
     
     # Veto is a major concern
-    if z_result.veto_triggered:
+    if "Z" not in degraded_agents and z_result.veto_triggered:
         concerns.insert(0, "VETO TRIGGERED: Ethical red line crossed")
     
     # From CS: Vulnerabilities
-    for vuln in cs_result.vulnerabilities[:2]:
-        concerns.append(f"Security: {vuln}")
+    if "CS" not in degraded_agents:
+        for vuln in cs_result.vulnerabilities[:2]:
+            concerns.append(f"Security: {vuln}")
+
+    for agent_id in sorted(degraded_agents):
+        concerns.insert(0, f"{agent_id} analysis incomplete — human review required")
     
     return concerns[:5]  # Limit to top 5
 
@@ -166,25 +198,38 @@ def synthesize_concerns(
 def synthesize_recommendations(
     x_result: XAgentAnalysis,
     z_result: ZAgentAnalysis,
-    cs_result: CSAgentAnalysis
+    cs_result: CSAgentAnalysis,
+    degraded_agents: Optional[Set[str]] = None,
 ) -> List[str]:
     """Synthesize actionable recommendations from all analyses."""
+    degraded_agents = degraded_agents or set()
     recommendations = []
     
     # Add agent recommendations
-    recommendations.append(f"X Intelligent: {x_result.recommendation}")
-    recommendations.append(f"Z Guardian: {z_result.recommendation}")
-    recommendations.append(f"CS Security: {cs_result.recommendation}")
+    if "X" not in degraded_agents:
+        recommendations.append(f"X Intelligent: {x_result.recommendation}")
+    if "Z" not in degraded_agents:
+        recommendations.append(f"Z Guardian: {z_result.recommendation}")
+    if "CS" not in degraded_agents:
+        recommendations.append(f"CS Security: {cs_result.recommendation}")
     
     # Add specific mitigations from Z
-    for mitigation in z_result.mitigation_measures[:2]:
-        recommendations.append(f"Mitigation: {mitigation}")
+    if "Z" not in degraded_agents:
+        for mitigation in z_result.mitigation_measures[:2]:
+            recommendations.append(f"Mitigation: {mitigation}")
     
     # Add security recommendations from CS
-    for sec_rec in cs_result.security_recommendations[:2]:
-        recommendations.append(f"Security: {sec_rec}")
+    if "CS" not in degraded_agents:
+        for sec_rec in cs_result.security_recommendations[:2]:
+            recommendations.append(f"Security: {sec_rec}")
+
+    if degraded_agents:
+        recommendations.insert(
+            0,
+            "Repeat the incomplete agent checks before making an implementation decision.",
+        )
     
-    return recommendations[:7]  # Limit to top 7
+    return list(islice(recommendations, 7))
 
 
 def build_founder_summary(
@@ -192,7 +237,9 @@ def build_founder_summary(
     recommendation: str,
     x_result: XAgentAnalysis,
     z_result: ZAgentAnalysis,
-    cs_result: CSAgentAnalysis
+    cs_result: CSAgentAnalysis,
+    degraded_agents: Optional[Set[str]] = None,
+    trusted_veto: Optional[bool] = None,
 ) -> dict:
     """
     Build a plain-language founder summary — no jargon, actionable guidance.
@@ -200,6 +247,12 @@ def build_founder_summary(
     Translates Trinity scores and findings into language a non-technical
     founder or first-time entrepreneur can read and act on immediately.
     """
+    degraded_agents = degraded_agents or set()
+    if trusted_veto is None:
+        trusted_veto = (
+            "Z" not in degraded_agents and bool(z_result.veto_triggered)
+        )
+
     # Verdict line
     verdict_map = {
         "proceed": "Your idea looks solid. The main risk is execution — go build it.",
@@ -207,36 +260,54 @@ def build_founder_summary(
         "revise": "The core idea has merit, but in its current form there are significant issues to work through first.",
         "reject": "As described, this concept has critical problems that would need to be fundamentally rethought.",
     }
-    if z_result.veto_triggered:
+    if trusted_veto:
         verdict_line = f"STOPPED: {z_result.ethical_concerns[0] if z_result.ethical_concerns else 'This concept crosses an ethical red line and cannot proceed as described.'}"
     else:
         verdict_line = verdict_map.get(recommendation, "See full analysis for details.")
 
     # What's working (plain language)
     whats_working = []
-    for opp in x_result.opportunities[:2]:
-        whats_working.append(opp)
-    if z_result.ethics_score >= 7.0:
+    if "X" not in degraded_agents:
+        for opp in x_result.opportunities[:2]:
+            whats_working.append(opp)
+    if "Z" not in degraded_agents and z_result.ethics_score >= 7.0:
         whats_working.append("No major ethical or legal concerns for this concept.")
-    if cs_result.security_score >= 7.0:
+    if "CS" not in degraded_agents and cs_result.security_score >= 7.0:
         whats_working.append("No significant security risks identified.")
 
     # Things to think about (plain language, merged from all agents)
     things_to_address = []
-    for risk in x_result.risks[:2]:
-        things_to_address.append(risk)
-    for concern in z_result.ethical_concerns[:1]:
-        things_to_address.append(concern)
-    for vuln in cs_result.vulnerabilities[:1]:
-        things_to_address.append(vuln)
+    if "X" not in degraded_agents:
+        for risk in x_result.risks[:2]:
+            things_to_address.append(risk)
+    if "Z" not in degraded_agents:
+        for concern in z_result.ethical_concerns[:1]:
+            things_to_address.append(concern)
+    if "CS" not in degraded_agents:
+        for vuln in cs_result.vulnerabilities[:1]:
+            things_to_address.append(vuln)
+    for agent_id in sorted(degraded_agents):
+        things_to_address.insert(
+            0, f"{agent_id} did not complete a trustworthy analysis."
+        )
 
     # Next steps (from X if available, else synthesized)
-    next_steps = getattr(x_result, 'next_steps', None) or []
-    if not next_steps:
+    next_steps = (
+        getattr(x_result, 'next_steps', None) or []
+        if "X" not in degraded_agents
+        else []
+    )
+    if not next_steps and "X" not in degraded_agents:
         next_steps = [r for r in x_result.risks[:2]]  # fallback
+    if degraded_agents:
+        next_steps.insert(0, "Repeat the incomplete Trinity checks before proceeding.")
 
     # Research continuation — Perplexity/Grok queries from X Agent
-    research_prompts = getattr(x_result, 'research_prompts', None) or []
+    research_prompts = (
+        getattr(x_result, 'research_prompts', None) or []
+        if "X" not in degraded_agents
+        else []
+    )
     research_continuation = None
     if research_prompts:
         research_continuation = {
@@ -268,70 +339,139 @@ def create_synthesis(
     This is the core synthesis function that combines all perspectives
     into a unified assessment.
     """
-    # v0.5.43 fail-safe: read the ethics layer's inference quality (attached by
-    # BaseAgent.analyze). "real" = trustworthy; partial/fallback = synthesized.
-    z_quality = getattr(z_result, "_inference_quality", "real")
+    quality_by_agent = {
+        "X": getattr(x_result, "_inference_quality", "unknown"),
+        "Z": getattr(z_result, "_inference_quality", "unknown"),
+        "CS": getattr(cs_result, "_inference_quality", "unknown"),
+    }
+    degraded_agents = _degraded_agent_ids(quality_by_agent)
 
-    overall_score = calculate_overall_score(x_result, z_result, cs_result, z_quality)
-    recommendation = determine_recommendation(overall_score, z_result, cs_result, z_quality)
+    calculated_score = calculate_overall_score(
+        x_result,
+        z_result,
+        cs_result,
+        z_quality=quality_by_agent["Z"],
+        x_quality=quality_by_agent["X"],
+        cs_quality=quality_by_agent["CS"],
+    )
+    recommendation = determine_recommendation(
+        calculated_score,
+        z_result,
+        cs_result,
+        z_quality=quality_by_agent["Z"],
+        x_quality=quality_by_agent["X"],
+        cs_quality=quality_by_agent["CS"],
+    )
 
     inference_warning = None
-    if z_quality in ("partial", "fallback"):
+    if degraded_agents:
+        quality_details = ", ".join(
+            f"{agent_id}='{quality_by_agent[agent_id]}'"
+            for agent_id in sorted(degraded_agents)
+        )
         inference_warning = (
-            f"Ethics (Z) inference quality was '{z_quality}', not 'real' — the veto flag "
-            "and ethics score may be synthesized schema defaults rather than a genuine "
-            "ethical assessment. Recommendation has been capped at REVISE; a human must "
-            "review ethics before this concept proceeds."
+            f"Required Trinity inference was degraded ({quality_details}). Scores or "
+            "findings from those stages may be synthesized defaults rather than genuine "
+            "analysis. Recommendation is restricted to REVISE, or REJECT when a real Z "
+            "veto is present; aggregate confidence has been withheld and a human must "
+            "review before this concept proceeds."
         )
 
     # Build summary
     summary_parts = []
 
     if inference_warning:
-        summary_parts.append("⚠️ DEGRADED ETHICS INFERENCE — human review required")
+        summary_parts.append("⚠️ DEGRADED TRINITY INFERENCE — human review required")
 
-    if z_result.veto_triggered:
+    trusted_veto = "Z" not in degraded_agents and z_result.veto_triggered
+    if trusted_veto:
         summary_parts.append("VETO TRIGGERED by Z Guardian.")
         summary_parts.append(f"Reason: {z_result.ethical_concerns[0] if z_result.ethical_concerns else 'Ethical red line crossed'}")
     else:
         summary_parts.append(f"Overall assessment: {recommendation.upper()}")
 
-    summary_parts.append(f"Innovation: {x_result.innovation_score}/10")
-    summary_parts.append(f"Ethics: {z_result.ethics_score}/10")
-    summary_parts.append(f"Security: {cs_result.security_score}/10")
+    summary_parts.append(
+        "Innovation: unavailable"
+        if "X" in degraded_agents
+        else f"Innovation: {x_result.innovation_score}/10"
+    )
+    summary_parts.append(
+        "Ethics: unavailable"
+        if "Z" in degraded_agents
+        else f"Ethics: {z_result.ethics_score}/10"
+    )
+    summary_parts.append(
+        "Security: unavailable"
+        if "CS" in degraded_agents
+        else f"Security: {cs_result.security_score}/10"
+    )
 
     summary = " | ".join(summary_parts)
 
     # Calculate average confidence
-    avg_confidence = (
-        x_result.confidence +
-        z_result.confidence +
-        cs_result.confidence
-    ) / 3
+    avg_confidence = None
+    if not degraded_agents:
+        avg_confidence = round((
+            x_result.confidence +
+            z_result.confidence +
+            cs_result.confidence
+        ) / 3, 2)
 
     founder_summary = build_founder_summary(
-        overall_score, recommendation, x_result, z_result, cs_result
+        calculated_score,
+        recommendation,
+        x_result,
+        z_result,
+        cs_result,
+        degraded_agents,
+        trusted_veto=trusted_veto,
     )
     # Surface the degraded-inference caveat at the top of the founder verdict too
     if inference_warning and isinstance(founder_summary, dict):
         founder_summary["verdict"] = (
-            "NEEDS HUMAN REVIEW: the ethics check did not complete cleanly, so this "
-            "result is not trustworthy on its own. " + founder_summary.get("verdict", "")
+            "NEEDS HUMAN REVIEW: one or more required Trinity checks did not "
+            "complete cleanly, so this result is not trustworthy on its own. "
+            + founder_summary.get("verdict", "")
         ).strip()
 
     synthesis = TrinitySynthesis(
         summary=summary,
-        innovation_score=x_result.innovation_score,
-        ethics_score=z_result.ethics_score,
-        security_score=cs_result.security_score,
-        overall_score=overall_score,
-        strengths=synthesize_strengths(x_result, z_result, cs_result),
-        concerns=synthesize_concerns(x_result, z_result, cs_result),
-        recommendations=synthesize_recommendations(x_result, z_result, cs_result),
+        innovation_score=(
+            x_result.innovation_score if "X" not in degraded_agents else None
+        ),
+        ethics_score=(
+            z_result.ethics_score if "Z" not in degraded_agents else None
+        ),
+        security_score=(
+            cs_result.security_score if "CS" not in degraded_agents else None
+        ),
+        overall_score=(calculated_score if not degraded_agents else None),
+        strengths=synthesize_strengths(
+            x_result, z_result, cs_result, degraded_agents
+        ),
+        concerns=synthesize_concerns(
+            x_result, z_result, cs_result, degraded_agents
+        ),
+        recommendations=synthesize_recommendations(
+            x_result, z_result, cs_result, degraded_agents
+        ),
         recommendation=recommendation,
-        confidence=round(avg_confidence, 2),
-        veto_triggered=z_result.veto_triggered,
-        veto_reason=z_result.ethical_concerns[0] if z_result.veto_triggered and z_result.ethical_concerns else None,
+        confidence=avg_confidence,
+        confidence_valid=not degraded_agents,
+        analysis_incomplete=bool(degraded_agents),
+        degraded_agents=sorted(degraded_agents),
+        quality_gate={
+            "passed": not degraded_agents,
+            "required_quality": REAL_INFERENCE_QUALITY,
+            "agents": quality_by_agent,
+            "degraded_agents": sorted(degraded_agents),
+        },
+        veto_triggered=(z_result.veto_triggered if "Z" not in degraded_agents else None),
+        veto_reason=(
+            z_result.ethical_concerns[0]
+            if trusted_veto and z_result.ethical_concerns
+            else None
+        ),
         founder_summary=founder_summary,
         inference_warning=inference_warning,
     )

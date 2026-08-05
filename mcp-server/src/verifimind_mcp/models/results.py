@@ -24,10 +24,15 @@ class TrinitySynthesis(BaseModel):
     summary: str = Field(..., description="Executive summary of the validation")
     
     # Aggregated scores
-    innovation_score: float = Field(..., ge=0.0, le=10.0)
-    ethics_score: float = Field(..., ge=0.0, le=10.0)
-    security_score: float = Field(..., ge=0.0, le=10.0)
-    overall_score: float = Field(..., ge=0.0, le=10.0)
+    innovation_score: Optional[float] = Field(default=None, ge=0.0, le=10.0)
+    ethics_score: Optional[float] = Field(default=None, ge=0.0, le=10.0)
+    security_score: Optional[float] = Field(default=None, ge=0.0, le=10.0)
+    overall_score: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=10.0,
+        description="Null when the complete Trinity quality gate did not pass",
+    )
     
     # Key findings
     strengths: List[str] = Field(..., description="Key strengths identified")
@@ -39,12 +44,39 @@ class TrinitySynthesis(BaseModel):
         ...,
         description="Overall recommendation"
     )
-    confidence: float = Field(..., ge=0.0, le=1.0)
+    confidence: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Aggregate decision confidence. Null when any required Trinity stage "
+            "did not complete with real inference."
+        ),
+    )
+    confidence_valid: bool = Field(
+        default=True,
+        description="False when aggregate confidence is withheld by the quality gate",
+    )
+    analysis_incomplete: bool = Field(
+        default=False,
+        description="True when one or more required Trinity stages was degraded",
+    )
+    degraded_agents: List[str] = Field(
+        default_factory=list,
+        description="Required agent IDs whose inference quality was not real",
+    )
+    quality_gate: dict = Field(
+        default_factory=dict,
+        description="Machine-readable per-agent quality gate used for the decision",
+    )
     
     # Veto status
-    veto_triggered: bool = Field(
+    veto_triggered: Optional[bool] = Field(
         default=False,
-        description="True if Z Guardian triggered ethical veto"
+        description=(
+            "True if a real Z analysis triggered ethical veto; null when Z "
+            "inference was degraded"
+        ),
     )
     veto_reason: Optional[str] = Field(
         None,
@@ -62,7 +94,7 @@ class TrinitySynthesis(BaseModel):
     # defaults so a caller never reads a clean PROCEED off untrustworthy ethics data.
     inference_warning: Optional[str] = Field(
         None,
-        description="Non-null when Trinity inference was degraded; explains why the recommendation was capped and human review is required"
+        description="Non-null when Trinity inference was degraded; explains the restricted recommendation and required human review"
     )
 
 
@@ -114,12 +146,19 @@ class TrinityResult(BaseModel):
     
     def to_summary(self) -> str:
         """Generate a human-readable summary."""
+        def _score(value: Optional[float]) -> str:
+            return f"{value:.1f}/10" if value is not None else "unavailable"
+
         lines = [
             f"# Trinity Validation Result: {self.concept_name}",
             f"\n## Overall Assessment",
             f"- **Recommendation**: {self.synthesis.recommendation.upper()}",
-            f"- **Overall Score**: {self.synthesis.overall_score:.1f}/10",
-            f"- **Confidence**: {int(self.synthesis.confidence * 100)}%",
+            f"- **Overall Score**: {_score(self.synthesis.overall_score)}",
+            (
+                f"- **Confidence**: {int(self.synthesis.confidence * 100)}%"
+                if self.synthesis.confidence is not None
+                else "- **Confidence**: unavailable (degraded inference)"
+            ),
         ]
         
         if self.synthesis.veto_triggered:
@@ -127,9 +166,9 @@ class TrinityResult(BaseModel):
         
         lines.extend([
             f"\n## Individual Scores",
-            f"- Innovation (X): {self.synthesis.innovation_score:.1f}/10",
-            f"- Ethics (Z): {self.synthesis.ethics_score:.1f}/10",
-            f"- Security (CS): {self.synthesis.security_score:.1f}/10",
+            f"- Innovation (X): {_score(self.synthesis.innovation_score)}",
+            f"- Ethics (Z): {_score(self.synthesis.ethics_score)}",
+            f"- Security (CS): {_score(self.synthesis.security_score)}",
             f"\n## Key Strengths",
         ])
         
@@ -163,8 +202,8 @@ class ValidationHistoryEntry(BaseModel):
     concept_name: str
     concept_description: str
     recommendation: str
-    overall_score: float
-    veto_triggered: bool
+    overall_score: Optional[float] = None
+    veto_triggered: Optional[bool] = None
     timestamp: datetime
     
     # Optional full result (may be omitted for storage efficiency)
@@ -211,12 +250,27 @@ class ValidationHistory(BaseModel):
                 "total_validations": 0,
                 "average_score": 0.0,
                 "veto_rate": 0.0,
+                "scored_validations": 0,
+                "trusted_veto_validations": 0,
                 "recommendation_distribution": {}
             }
         
         total = len(self.entries)
-        avg_score = sum(e.overall_score for e in self.entries) / total
-        veto_count = sum(1 for e in self.entries if e.veto_triggered)
+        scored_entries = [
+            e.overall_score for e in self.entries if e.overall_score is not None
+        ]
+        trusted_veto_entries = [
+            e.veto_triggered for e in self.entries if e.veto_triggered is not None
+        ]
+        avg_score = (
+            sum(scored_entries) / len(scored_entries)
+            if scored_entries else None
+        )
+        veto_rate = (
+            sum(1 for veto in trusted_veto_entries if veto)
+            / len(trusted_veto_entries)
+            if trusted_veto_entries else None
+        )
         
         rec_dist = {}
         for e in self.entries:
@@ -224,7 +278,9 @@ class ValidationHistory(BaseModel):
         
         return {
             "total_validations": total,
-            "average_score": round(avg_score, 2),
-            "veto_rate": round(veto_count / total, 2),
+            "average_score": round(avg_score, 2) if avg_score is not None else None,
+            "veto_rate": round(veto_rate, 2) if veto_rate is not None else None,
+            "scored_validations": len(scored_entries),
+            "trusted_veto_validations": len(trusted_veto_entries),
             "recommendation_distribution": rec_dist
         }

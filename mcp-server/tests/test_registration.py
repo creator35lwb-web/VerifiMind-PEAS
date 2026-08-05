@@ -3,7 +3,7 @@ Tests for v0.5.6 Gateway: Early Adopter Registration
 Z-Protocol compliance: consent enforcement, data minimization, opt-out.
 """
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from pydantic import ValidationError
 
 from verifimind_mcp.registration import (
@@ -75,13 +75,13 @@ class TestPolicyDocuments:
         assert "opt" in PRIVACY_POLICY.lower()
 
     def test_privacy_policy_version_set(self):
-        assert PRIVACY_POLICY_VERSION == "2.3"
+        assert PRIVACY_POLICY_VERSION == "2.4"
 
     def test_terms_not_empty(self):
         assert len(TERMS_AND_CONDITIONS) > 100
 
     def test_terms_version_set(self):
-        assert TERMS_VERSION == "2.2"
+        assert TERMS_VERSION == "2.3"
 
     def test_privacy_mentions_right_to_deletion(self):
         assert "delet" in PRIVACY_POLICY.lower()
@@ -347,8 +347,9 @@ class TestProcessOptout:
             result = await process_optout("some-uuid")
 
         assert isinstance(result, OptOutResponse)
-        assert "7 business days" in result.deletion_scheduled_within
-        assert "purged" in result.message
+        assert result.processed is False
+        assert result.deletion_scheduled_within is None
+        assert "No deletion action is confirmed" in result.message
 
     async def test_optout_updates_firestore_record(self):
         mock_doc = MagicMock()
@@ -359,12 +360,34 @@ class TestProcessOptout:
         mock_db.collection.return_value.document.return_value = mock_doc_ref
 
         with patch("verifimind_mcp.registration._get_firestore", return_value=mock_db):
-            await process_optout("test-uuid")
+            result = await process_optout("test-uuid")
 
         mock_doc_ref.update.assert_called_once()
         update_args = mock_doc_ref.update.call_args[0][0]
         assert update_args["status"] == "deletion_requested"
         assert update_args["email"] == "[deletion_requested]"
+        assert result.processed is True
+        assert "7 business days" in result.deletion_scheduled_within
+        assert "purged" in result.message
+
+    async def test_http_handler_returns_503_when_deletion_is_not_confirmed(self):
+        import http_server
+
+        class Request:
+            path_params = {"uuid": "some-uuid"}
+
+        unavailable = OptOutResponse(
+            processed=False,
+            message="No deletion action is confirmed.",
+        )
+        with patch(
+            "http_server.process_optout",
+            new=AsyncMock(return_value=unavailable),
+        ):
+            response = await http_server.ea_optout_handler(Request())
+
+        assert response.status_code == 503
+        assert b"No deletion action is confirmed" in response.body
 
 
 # ─────────────────────────────────────────────

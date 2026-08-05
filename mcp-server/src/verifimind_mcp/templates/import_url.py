@@ -2,21 +2,26 @@
 Template Import from URL for VerifiMind-PEAS v0.4.0
 ====================================================
 
-Import templates from URLs (GitHub Gists, raw files, etc.)
-for community template sharing.
+Internal template-import helpers. The public mutation tool is contained while
+owner-scoped storage is built; this dormant path remains hardened for a future
+authenticated reintroduction.
 
 Supports:
 - GitHub Gist URLs
-- Raw file URLs (JSON/YAML)
-- Standard HTTP/HTTPS URLs
+- Raw GitHub content URLs (JSON/YAML)
 
 Author: Alton Lee
 Version: 0.4.0
 """
 
+import http.client
+import ipaddress
 import json
 import logging
 import re
+import socket
+import ssl
+from dataclasses import dataclass
 from typing import Optional, Tuple
 from urllib.parse import urlparse
 
@@ -32,11 +37,141 @@ logger = logging.getLogger(__name__)
 
 # URL patterns for different sources
 GITHUB_GIST_PATTERN = re.compile(
-    r'https?://gist\.github\.com/(?P<user>[^/]+)/(?P<gist_id>[a-f0-9]+)'
+    r'^https://gist\.github\.com/(?P<user>[^/]+)/(?P<gist_id>[a-fA-F0-9]+)(?:/)?(?:[?#].*)?$'
 )
 GITHUB_RAW_PATTERN = re.compile(
-    r'https?://raw\.githubusercontent\.com/.*'
+    r'^https://(?:raw\.githubusercontent\.com|gist\.githubusercontent\.com)/.+'
 )
+
+# Security boundary: an exact-set regression test requires review before widening.
+ALLOWED_TEMPLATE_HOSTS = frozenset({
+    "gist.github.com",
+    "gist.githubusercontent.com",
+    "raw.githubusercontent.com",
+})
+MAX_TEMPLATE_DOWNLOAD_BYTES = 256 * 1024
+TEMPLATE_FETCH_TIMEOUT_SECONDS = 15
+
+
+@dataclass(frozen=True)
+class _ResolvedAddress:
+    """One public socket address returned by the single validation lookup."""
+
+    ip: str
+    family: int
+    socktype: int
+    protocol: int
+    sockaddr: tuple
+
+
+@dataclass(frozen=True)
+class _ResolvedTarget:
+    """A validated hostname bound to the addresses approved for its fetch."""
+
+    hostname: str
+    port: int
+    addresses: Tuple[_ResolvedAddress, ...]
+
+
+class _PinnedResolver:
+    """aiohttp resolver that can return only the pre-validated address set."""
+
+    def __init__(self, target: _ResolvedTarget):
+        self._target = target
+
+    async def resolve(
+        self,
+        host: str,
+        port: int = 0,
+        family: int = socket.AF_UNSPEC,
+    ) -> list:
+        normalized_host = host.lower().rstrip('.')
+        requested_port = port or self._target.port
+        if (
+            normalized_host != self._target.hostname
+            or requested_port != self._target.port
+        ):
+            raise OSError("Pinned resolver target mismatch")
+
+        addresses = [
+            address
+            for address in self._target.addresses
+            if family in (socket.AF_UNSPEC, address.family)
+        ]
+        if not addresses:
+            raise OSError("Pinned resolver has no address for the requested family")
+
+        numeric_flags = socket.AI_NUMERICHOST
+        if hasattr(socket, "AI_NUMERICSERV"):
+            numeric_flags |= socket.AI_NUMERICSERV
+        return [
+            {
+                "hostname": host,
+                "host": address.ip,
+                "port": self._target.port,
+                "family": address.family,
+                "proto": address.protocol,
+                "flags": numeric_flags,
+            }
+            for address in addresses
+        ]
+
+    async def close(self) -> None:
+        """No resources are owned by the in-memory resolver."""
+
+
+class _PinnedHTTPSConnection(http.client.HTTPSConnection):
+    """HTTPS connection that dials validated IPs but verifies the original host."""
+
+    def __init__(
+        self,
+        host: str,
+        port: Optional[int] = None,
+        *,
+        pinned_target: _ResolvedTarget,
+        **kwargs,
+    ):
+        super().__init__(host, port, **kwargs)
+        if (
+            self.host.lower().rstrip('.') != pinned_target.hostname
+            or self.port != pinned_target.port
+        ):
+            raise OSError("Pinned HTTPS target mismatch")
+        self._pinned_target = pinned_target
+        # HTTPConnection intentionally stores this as an instance hook. Replace
+        # its DNS-resolving socket.create_connection with our numeric dialer;
+        # HTTPSConnection.connect still uses self.host for TLS SNI/cert checks.
+        self._create_connection = self._connect_pinned
+
+    def _connect_pinned(self, address, timeout, source_address):
+        requested_host, requested_port = address
+        if (
+            requested_host.lower().rstrip('.') != self._pinned_target.hostname
+            or requested_port != self._pinned_target.port
+        ):
+            raise OSError("Pinned HTTPS connection target mismatch")
+
+        last_error = None
+        for candidate in self._pinned_target.addresses:
+            sock = socket.socket(
+                candidate.family,
+                candidate.socktype,
+                candidate.protocol,
+            )
+            try:
+                if timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
+                    sock.settimeout(timeout)
+                if source_address:
+                    sock.bind(source_address)
+                sock.connect(candidate.sockaddr)
+                return sock
+            except OSError as exc:
+                last_error = exc
+                sock.close()
+
+        if last_error is not None:
+            raise last_error
+        raise OSError("Pinned HTTPS target has no validated addresses")
 
 
 def validate_template_url(url: str) -> Tuple[bool, str, Optional[str]]:
@@ -48,36 +183,103 @@ def validate_template_url(url: str) -> Tuple[bool, str, Optional[str]]:
 
     Returns:
         Tuple of (is_valid, source_type, error_message)
-        source_type: 'gist', 'github_raw', 'raw_url'
+        source_type: 'gist' or 'github_raw'
     """
     try:
+        if not isinstance(url, str) or not url.strip():
+            return False, '', "URL must be a non-empty string"
+
         parsed = urlparse(url)
 
-        # Check scheme
-        if parsed.scheme not in ('http', 'https'):
-            return False, '', f"Invalid URL scheme: {parsed.scheme}. Must be http or https."
+        # Fail closed to a narrow HTTPS allowlist. Arbitrary URL fetching is an
+        # SSRF primitive even when the response is later parsed as JSON/YAML.
+        if parsed.scheme.lower() != 'https':
+            return False, '', "Template URL must use HTTPS"
+        if parsed.username or parsed.password:
+            return False, '', "Template URL must not contain user information"
+        try:
+            if parsed.port not in (None, 443):
+                return False, '', "Template URL must use the default HTTPS port"
+        except ValueError:
+            return False, '', "Template URL contains an invalid port"
+
+        hostname = (parsed.hostname or '').lower().rstrip('.')
+        if hostname not in ALLOWED_TEMPLATE_HOSTS:
+            return False, '', (
+                "Template URL host is not allowed; use GitHub Gist or raw GitHub content"
+            )
 
         # Check for GitHub Gist
-        if GITHUB_GIST_PATTERN.match(url):
+        if hostname == 'gist.github.com' and GITHUB_GIST_PATTERN.match(url):
             return True, 'gist', None
 
         # Check for GitHub raw content
-        if GITHUB_RAW_PATTERN.match(url):
+        if hostname in {
+            'raw.githubusercontent.com', 'gist.githubusercontent.com'
+        } and GITHUB_RAW_PATTERN.match(url):
             return True, 'github_raw', None
 
-        # Check for common file extensions
-        path_lower = parsed.path.lower()
-        if path_lower.endswith(('.json', '.yaml', '.yml')):
-            return True, 'raw_url', None
-
-        # Accept any HTTPS URL but warn
-        if parsed.scheme == 'https':
-            return True, 'raw_url', None
-
-        return False, '', "URL must be HTTPS or a recognized template source (GitHub Gist, raw file)"
+        return False, '', "URL is not a recognized GitHub Gist or raw-content URL"
 
     except Exception as e:
         return False, '', f"Invalid URL format: {str(e)}"
+
+
+def _validate_resolved_target(
+    url: str,
+) -> Tuple[Optional[_ResolvedTarget], Optional[str]]:
+    """Resolve once and return only the public addresses approved for fetching."""
+    is_valid, _, error = validate_template_url(url)
+    if not is_valid:
+        return None, error
+
+    parsed = urlparse(url)
+    hostname = (parsed.hostname or "").lower().rstrip('.')
+    try:
+        address_info = socket.getaddrinfo(
+            hostname,
+            443,
+            type=socket.SOCK_STREAM,
+        )
+    except OSError:
+        return None, "Template host could not be resolved"
+
+    if not address_info:
+        return None, "Template host resolved to no addresses"
+
+    validated = []
+    seen = set()
+    for family, socktype, protocol, _, sockaddr in address_info:
+        address = sockaddr[0]
+        try:
+            parsed_address = ipaddress.ip_address(address)
+        except ValueError:
+            return None, "Template host resolved to an invalid address"
+        if not parsed_address.is_global:
+            return None, "Template host resolved to a non-public address"
+
+        identity = (family, socktype, protocol, sockaddr)
+        if identity in seen:
+            continue
+        seen.add(identity)
+        validated.append(
+            _ResolvedAddress(
+                ip=address,
+                family=family,
+                socktype=socktype,
+                protocol=protocol,
+                sockaddr=sockaddr,
+            )
+        )
+
+    if not validated:
+        return None, "Template host resolved to no usable addresses"
+
+    return _ResolvedTarget(
+        hostname=hostname,
+        port=443,
+        addresses=tuple(validated),
+    ), None
 
 
 def _convert_gist_to_raw_url(url: str) -> str:
@@ -104,28 +306,52 @@ async def _fetch_url_content(url: str) -> Tuple[Optional[str], Optional[str]]:
     try:
         import aiohttp
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=30) as response:
+        resolved_target, target_error = _validate_resolved_target(url)
+        if target_error:
+            return None, target_error
+        if resolved_target is None:
+            return None, "Template host could not be pinned"
+
+        ctx = ssl.create_default_context()
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_2
+        connector = aiohttp.TCPConnector(
+            ssl=ctx,
+            resolver=_PinnedResolver(resolved_target),
+            use_dns_cache=False,
+        )
+        timeout = aiohttp.ClientTimeout(total=TEMPLATE_FETCH_TIMEOUT_SECONDS)
+
+        async with aiohttp.ClientSession(
+            connector=connector, timeout=timeout
+        ) as session:
+            async with session.get(url, allow_redirects=False) as response:
+                if 300 <= response.status < 400:
+                    return None, "Template URL redirects are not allowed"
                 if response.status != 200:
                     return None, f"HTTP {response.status}: {response.reason}"
-                content = await response.text()
-                return content, None
+                if (
+                    response.content_length is not None
+                    and response.content_length > MAX_TEMPLATE_DOWNLOAD_BYTES
+                ):
+                    return None, "Template response exceeds the download limit"
+
+                chunks = []
+                total = 0
+                async for chunk in response.content.iter_chunked(8192):
+                    total += len(chunk)
+                    if total > MAX_TEMPLATE_DOWNLOAD_BYTES:
+                        return None, "Template response exceeds the download limit"
+                    chunks.append(chunk)
+
+                try:
+                    return b''.join(chunks).decode('utf-8'), None
+                except UnicodeDecodeError:
+                    return None, "Template response is not valid UTF-8"
 
     except ImportError:
         # Fallback to synchronous request if aiohttp not available
         try:
-            import urllib.request
-            import ssl
-
-            # SSL context with explicit TLS 1.2+ minimum (SonarCloud python:S4423 satisfaction).
-            # Python 3.10+ defaults to TLS 1.2 anyway, but explicit is better.
-            ctx = ssl.create_default_context()
-            ctx.minimum_version = ssl.TLSVersion.TLSv1_2
-
-            with urllib.request.urlopen(url, timeout=30, context=ctx) as response:
-                content = response.read().decode('utf-8')
-                return content, None
-
+            return _fetch_url_content_sync(url)
         except Exception as e:
             return None, f"Failed to fetch URL: {str(e)}"
 
@@ -143,20 +369,67 @@ def _fetch_url_content_sync(url: str) -> Tuple[Optional[str], Optional[str]]:
     Returns:
         Tuple of (content, error_message)
     """
+    connection = None
     try:
-        import urllib.request
-        import ssl
+        resolved_target, target_error = _validate_resolved_target(url)
+        if target_error:
+            return None, target_error
+        if resolved_target is None:
+            return None, "Template host could not be pinned"
 
         # SSL context with explicit TLS 1.2+ minimum (SonarCloud python:S4423 satisfaction).
         ctx = ssl.create_default_context()
         ctx.minimum_version = ssl.TLSVersion.TLSv1_2
 
-        with urllib.request.urlopen(url, timeout=30, context=ctx) as response:
-            content = response.read().decode('utf-8')
-            return content, None
+        # Keep the original hostname on the connection so TLS SNI, certificate
+        # validation, and the Host header remain correct. The connection hook
+        # dials only the numeric addresses returned by the validation lookup.
+        connection = _PinnedHTTPSConnection(
+            resolved_target.hostname,
+            resolved_target.port,
+            pinned_target=resolved_target,
+            context=ctx,
+            timeout=TEMPLATE_FETCH_TIMEOUT_SECONDS,
+        )
+        parsed = urlparse(url)
+        request_target = parsed.path or '/'
+        if parsed.params:
+            request_target += f";{parsed.params}"
+        if parsed.query:
+            request_target += f"?{parsed.query}"
+
+        connection.request(
+            "GET",
+            request_target,
+            headers={"Host": resolved_target.hostname},
+        )
+        response = connection.getresponse()
+        if 300 <= response.status < 400:
+            return None, "Template URL redirects are not allowed"
+        if response.status != 200:
+            return None, f"HTTP {response.status}: {response.reason}"
+
+        content_length = response.getheader('Content-Length')
+        if content_length:
+            try:
+                if int(content_length) > MAX_TEMPLATE_DOWNLOAD_BYTES:
+                    return None, "Template response exceeds the download limit"
+            except ValueError:
+                return None, "Template response has an invalid Content-Length"
+
+        raw = response.read(MAX_TEMPLATE_DOWNLOAD_BYTES + 1)
+        if len(raw) > MAX_TEMPLATE_DOWNLOAD_BYTES:
+            return None, "Template response exceeds the download limit"
+        try:
+            return raw.decode('utf-8'), None
+        except UnicodeDecodeError:
+            return None, "Template response is not valid UTF-8"
 
     except Exception as e:
         return None, f"Failed to fetch URL: {str(e)}"
+    finally:
+        if connection is not None:
+            connection.close()
 
 
 def _parse_template_content(

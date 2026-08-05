@@ -35,13 +35,14 @@ from pydantic import BaseModel, Field
 from verifimind_mcp.utils.uuid_tracer import emit_tracer
 from verifimind_mcp.utils.trinity_history import persist_trinity_result
 from verifimind_mcp.llm.failover import FailoverExhaustedError, FailoverTerminalError
+from verifimind_mcp.availability import system_notice_is_compatible
 
 # Initialize logger for security events
 logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 _RAW_SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.5.55"
+SERVER_VERSION = "0.5.56"
 
 # Agent role names + master prompt filename — single source of truth.
 # (SonarCloud P2 batch-2: extracted in v0.5.39 from 13 dup-literal occurrences
@@ -80,12 +81,21 @@ def _sanitize_system_notice(notice: str) -> str:
     return notice.strip()
 
 
-SYSTEM_NOTICE = _sanitize_system_notice(_RAW_SYSTEM_NOTICE)
+_SANITIZED_SYSTEM_NOTICE = _sanitize_system_notice(_RAW_SYSTEM_NOTICE)
+if _SANITIZED_SYSTEM_NOTICE and not system_notice_is_compatible(
+    _SANITIZED_SYSTEM_NOTICE
+):
+    logger.warning(
+        "SYSTEM_NOTICE suppressed because it contradicts current tool availability"
+    )
+    SYSTEM_NOTICE = ""
+else:
+    SYSTEM_NOTICE = _SANITIZED_SYSTEM_NOTICE
 
 
 def wrap_response(response: dict) -> dict:
     """Add system notice and version metadata to every tool response."""
-    if SYSTEM_NOTICE:
+    if SYSTEM_NOTICE and system_notice_is_compatible(SYSTEM_NOTICE):
         response["_system_notice"] = SYSTEM_NOTICE
     response["_server_version"] = SERVER_VERSION
     return response
@@ -209,7 +219,12 @@ def build_error_response(
     """
     import datetime as _dt
     if original_error:
-        logger.error(f"[{error_code}] agent={agent} — {original_error}")
+        logger.error(
+            "[%s] agent=%s exception_type=%s",
+            error_code,
+            agent,
+            type(original_error).__name__,
+        )
     return {
         "status": "error",
         "error_code": error_code,
@@ -218,6 +233,91 @@ def build_error_response(
         "agent": agent,
         "timestamp": _dt.datetime.now(_dt.timezone.utc).isoformat(),
     }
+
+
+def _agent_exception_payload(
+    exc: Exception,
+    agent: str,
+    concept_name: str,
+) -> dict:
+    """Return a stable error without reflecting provider/model output."""
+    detail = str(exc).lower()
+    if "401" in detail or "invalid api key" in detail or "authentication" in detail:
+        error_code = "BYOK_AUTH_FAILED"
+        message = "API key authentication failed."
+        hint = "Check that the key matches the selected provider, or omit BYOK parameters."
+    elif "timeout" in detail or "timed out" in detail:
+        error_code = "PROVIDER_TIMEOUT"
+        message = "The LLM provider timed out."
+        hint = "Try again shortly or select a lower-latency provider."
+    elif type(exc).__name__ == "ValidationError":
+        error_code = "INCOMPLETE_PROVIDER_RESPONSE"
+        message = "The provider returned an incomplete structured analysis."
+        hint = "Retry the analysis; no generated fields from the failed response were returned."
+    else:
+        error_code = "AGENT_ANALYSIS_ERROR"
+        message = "The agent analysis could not be completed."
+        hint = "Try again. If the issue persists, omit BYOK parameters to use hosted routing."
+
+    payload = build_error_response(
+        error_code=error_code,
+        message=message,
+        recovery_hint=hint,
+        agent=agent,
+        original_error=exc,
+    )
+    payload["concept"] = concept_name
+    payload["_inference_quality"] = "unavailable"
+    return payload
+
+
+def _apply_agent_quality_gate(
+    payload: dict,
+    result,
+    generated_fields: tuple,
+) -> dict:
+    """Withhold generated standalone-agent fields unless inference is real."""
+    quality = getattr(result, "_inference_quality", "unknown")
+    repaired = list(getattr(result, "_schema_repaired_fields", []))
+    incomplete = list(getattr(result, "_schema_incomplete_fields", []))
+    payload["analysis_incomplete"] = quality != "real"
+    payload["_schema_diagnostics"] = {
+        "repaired_fields": repaired,
+        "incomplete_fields": incomplete,
+    }
+    if quality != "real":
+        payload["reasoning_steps"] = []
+        for field in generated_fields:
+            if field in payload:
+                payload[field] = None
+        payload["_warning"] = (
+            f"Agent inference quality was '{quality}', not 'real'. Generated "
+            "analysis fields are withheld pending a clean rerun."
+        )
+    return payload
+
+
+CUSTOM_TEMPLATE_CONTAINMENT_INCIDENT = "VM-IR-2026-08-01-TEMPLATE-01"
+
+
+def _template_mutation_contained(tool_name: str) -> dict:
+    """Stable, non-reflecting denial for unsafe custom-template mutation."""
+    contained = wrap_response(build_error_response(
+        error_code="CUSTOM_TEMPLATE_TEMPORARILY_DISABLED",
+        message=(
+            "Custom-template registration and URL import are temporarily "
+            "disabled while owner-scoped storage and URL-fetch protections "
+            "are completed. Built-in template read tools remain available."
+        ),
+        recovery_hint=(
+            "Use the built-in template library or keep custom templates in your "
+            "own repository until private owner-scoped storage is released. "
+            f"Incident reference: {CUSTOM_TEMPLATE_CONTAINMENT_INCIDENT}."
+        ),
+        agent=tool_name,
+    ))
+    contained.pop("_system_notice", None)
+    return contained
 
 
 class VerifiMindConfig(BaseModel):
@@ -288,6 +388,11 @@ def _get_history_path() -> Path:
 
 MASTER_PROMPT_PATH = _get_master_prompt_path()
 HISTORY_PATH = _get_history_path()
+MASTER_PROMPT_UNAVAILABLE = (
+    "# Error Building Master Prompt\n\nThe live methodology is temporarily unavailable."
+)
+VALIDATION_HISTORY_UNAVAILABLE = "Validation history is temporarily unavailable."
+TEMPLATE_READ_UNAVAILABLE = "Prompt template operation failed."
 
 
 def load_master_prompt() -> str:
@@ -301,8 +406,8 @@ def load_master_prompt() -> str:
     """
     try:
         from .models.concepts import AGENT_CONFIGS
-    except Exception as e:  # pragma: no cover - defensive
-        return f"# Error Building Master Prompt\n\nError: {str(e)}"
+    except Exception:  # pragma: no cover - defensive
+        return MASTER_PROMPT_UNAVAILABLE
 
     role_titles = {
         "X": "X Intelligent — Innovation & Strategy",
@@ -323,8 +428,8 @@ def load_master_prompt() -> str:
             "Each agent sees the prior agents' Chain-of-Thought reasoning. Synthesis "
             "weights: Innovation (X) 30% · Ethics (Z) 40% · Security (CS) 30%. A Z veto "
             "caps the overall score at 3.0 and forces a REJECT verdict. If any agent's "
-            "inference is degraded, the recommendation is capped at REVISE pending human "
-            "review (fail-safe)."
+            "inference is degraded, no recommendation more permissive than REVISE is "
+            "allowed; a trusted real Z veto still forces REJECT (fail-safe)."
         ),
         "",
         "---",
@@ -371,9 +476,9 @@ def load_validation_history() -> dict[str, Any]:
                     "note": "No validation history found. Run verifimind_complete.py to generate validation data."
                 }
             }
-    except Exception as e:
+    except Exception:
         return {
-            "error": f"Failed to load validation history: {str(e)}",
+            "error": VALIDATION_HISTORY_UNAVAILABLE,
             "validations": []
         }
 
@@ -663,8 +768,11 @@ def _create_mcp_instance():
             if detail == "full":
                 payload["market_competition"] = getattr(result, "market_competition", None)
                 payload["competitive_analysis"] = getattr(result, "competitive_analysis", None)
-            if _iq == "mock":
-                payload["_warning"] = MOCK_MODE_WARNING
+            _apply_agent_quality_gate(payload, result, (
+                "innovation_score", "strategic_value", "opportunities", "risks",
+                "recommendation", "confidence", "next_steps", "research_prompts",
+                "market_competition", "competitive_analysis",
+            ))
             attach_failover_disclosure(payload, result)
             persist_trinity_result(user_uuid, "consult_agent_x", payload)
             return wrap_response(payload)
@@ -673,12 +781,9 @@ def _create_mcp_instance():
             # B-90-8: the executor's typed contract survives the MCP boundary
             return wrap_response(failover_error_payload(e, AGENT_X_NAME, concept_name))
         except Exception as e:
-            return wrap_response({
-                "agent": AGENT_X_NAME,
-                "status": "error",
-                "error": str(e),
-                "concept": concept_name
-            })
+            return wrap_response(_agent_exception_payload(
+                e, AGENT_X_NAME, concept_name
+            ))
 
 
     @app.tool()
@@ -797,8 +902,13 @@ def _create_mcp_instance():
                 payload["compliance_timeline"] = getattr(result, "compliance_timeline", None)
             if detail == "full":
                 payload["total_frameworks_evaluated"] = getattr(result, "total_frameworks_evaluated", None)
-            if _iq == "mock":
-                payload["_warning"] = MOCK_MODE_WARNING
+            _apply_agent_quality_gate(payload, result, (
+                "ethics_score", "z_protocol_compliance", "ethical_concerns",
+                "mitigation_measures", "recommendation", "veto_triggered",
+                "confidence", "scoring_breakdown", "jurisdiction_detected",
+                "applicable_frameworks", "compliance_timeline",
+                "total_frameworks_evaluated",
+            ))
             attach_failover_disclosure(payload, result)
             persist_trinity_result(user_uuid, "consult_agent_z", payload)
             return wrap_response(payload)
@@ -806,12 +916,9 @@ def _create_mcp_instance():
         except (FailoverExhaustedError, FailoverTerminalError) as e:
             return wrap_response(failover_error_payload(e, AGENT_Z_NAME, concept_name))
         except Exception as e:
-            return wrap_response({
-                "agent": AGENT_Z_NAME,
-                "status": "error",
-                "error": str(e),
-                "concept": concept_name
-            })
+            return wrap_response(_agent_exception_payload(
+                e, AGENT_Z_NAME, concept_name
+            ))
 
 
     @app.tool()
@@ -927,8 +1034,13 @@ def _create_mcp_instance():
                 payload["stages_completed"] = getattr(result, "stages_completed", None)
                 payload["macp_security_assessment"] = getattr(result, "macp_security_assessment", None)
                 payload["standards_referenced"] = getattr(result, "standards_referenced", None)
-            if payload["_inference_quality"] == "mock":
-                payload["_warning"] = MOCK_MODE_WARNING
+            _apply_agent_quality_gate(payload, result, (
+                "security_score", "vulnerabilities", "attack_vectors",
+                "security_recommendations", "socratic_questions", "recommendation",
+                "confidence", "threat_level", "agentic_threats",
+                "reasoning_layer_findings", "dimensions_evaluated", "stages_completed",
+                "macp_security_assessment", "standards_referenced",
+            ))
             attach_failover_disclosure(payload, result)
             persist_trinity_result(user_uuid, "consult_agent_cs", payload)
             return wrap_response(payload)
@@ -936,12 +1048,9 @@ def _create_mcp_instance():
         except (FailoverExhaustedError, FailoverTerminalError) as e:
             return wrap_response(failover_error_payload(e, AGENT_CS_NAME, concept_name))
         except Exception as e:
-            return wrap_response({
-                "agent": AGENT_CS_NAME,
-                "status": "error",
-                "error": str(e),
-                "concept": concept_name
-            })
+            return wrap_response(_agent_exception_payload(
+                e, AGENT_CS_NAME, concept_name
+            ))
 
 
     @app.tool()
@@ -985,7 +1094,9 @@ def _create_mcp_instance():
             context: Optional additional context or background
             save_to_history: Whether to save result to validation history (default: False).
                 History is a single shared store on this server instance; leaving this
-                False keeps your concept private to your own call (v0.5.43 privacy fix).
+                False prevents the full concept/result from being written there. If
+                user_uuid is supplied separately, pseudonymous validation metadata may
+                still be written to UUID-keyed Firestore history (see Privacy v2.4).
             detail: Reasoning verbosity (v0.5.44) — "standard" (default) returns the
                 auditable `reasoning` block (per-step reasoning, ethics scoring breakdown
                 + framework citations, Socratic questions, threat assessment) alongside
@@ -1087,14 +1198,15 @@ def _create_mcp_instance():
             chain_status["x_agent"] = x_quality
             logger.info(f"Trinity X stage: quality={x_quality} session={session.session_id}")
             session.write("X", {
-                "score": x_result.innovation_score,
+                "score": x_result.innovation_score if x_quality == "real" else None,
                 "provider": resolved_providers["X"].get_model_name(),
             })
             x_cot = x_result.to_chain_of_thought(concept_name)
 
             # Step 2: Z Agent analysis (sees X's reasoning)
             z_prior = PriorReasoning()
-            z_prior.add(x_cot)
+            if x_quality == "real":
+                z_prior.add(x_cot)
             z_result = await z_agent.analyze(concept, z_prior)
             z_quality = getattr(z_result, '_inference_quality', 'unknown')
             chain_status["z_agent"] = z_quality
@@ -1111,22 +1223,24 @@ def _create_mcp_instance():
                     f"risk={z_token_monitor['risk_level']}"
                 )
             session.write("Z", {
-                "score": z_result.ethics_score,
-                "veto": z_result.veto_triggered,
+                "score": z_result.ethics_score if z_quality == "real" else None,
+                "veto": z_result.veto_triggered if z_quality == "real" else None,
                 "provider": resolved_providers["Z"].get_model_name(),
             })
             z_cot = z_result.to_chain_of_thought(concept_name)
 
             # Step 3: CS Agent analysis (sees X and Z reasoning)
             cs_prior = PriorReasoning()
-            cs_prior.add(x_cot)
-            cs_prior.add(z_cot)
+            if x_quality == "real":
+                cs_prior.add(x_cot)
+            if z_quality == "real":
+                cs_prior.add(z_cot)
             cs_result = await cs_agent.analyze(concept, cs_prior)
             cs_quality = getattr(cs_result, '_inference_quality', 'unknown')
             chain_status["cs_agent"] = cs_quality
             logger.info(f"Trinity CS stage: quality={cs_quality} session={session.session_id}")
             session.write("CS", {
-                "score": cs_result.security_score,
+                "score": cs_result.security_score if cs_quality == "real" else None,
                 "provider": resolved_providers["CS"].get_model_name(),
             })
 
@@ -1141,6 +1255,33 @@ def _create_mcp_instance():
             else:
                 overall_quality = "partial"
             logger.info(f"Trinity chain complete: {chain_status} → {overall_quality}")
+            if overall_quality != "full":
+                logger.warning(
+                    "Trinity quality gate withheld aggregate confidence: "
+                    "x=%s z=%s cs=%s overall=%s",
+                    x_quality,
+                    z_quality,
+                    cs_quality,
+                    overall_quality,
+                )
+
+            schema_diagnostics = {}
+            for agent_id, result in (
+                ("X", x_result),
+                ("Z", z_result),
+                ("CS", cs_result),
+            ):
+                repaired = list(
+                    getattr(result, "_schema_repaired_fields", [])
+                )
+                incomplete = list(
+                    getattr(result, "_schema_incomplete_fields", [])
+                )
+                if repaired or incomplete:
+                    schema_diagnostics[agent_id] = {
+                        "repaired_fields": repaired,
+                        "incomplete_fields": incomplete,
+                    }
 
             # Step 4: Create Trinity result
             trinity_result = create_trinity_result(
@@ -1154,7 +1295,19 @@ def _create_mcp_instance():
             # Save to history if requested
             if save_to_history:
                 history = load_validation_history()
-                history["validations"].append(trinity_result.model_dump())
+                history_entry = trinity_result.model_dump()
+                for result_key, agent_id, quality in (
+                    ("x_analysis", "X", x_quality),
+                    ("z_analysis", "Z", z_quality),
+                    ("cs_analysis", "CS", cs_quality),
+                ):
+                    if quality != "real":
+                        history_entry[result_key] = {
+                            "agent": agent_id,
+                            "withheld": True,
+                            "inference_quality": quality,
+                        }
+                history["validations"].append(history_entry)
                 history["metadata"]["total_validations"] = len(history["validations"])
                 history["metadata"]["last_updated"] = str(trinity_result.completed_at)
                 save_validation_history(history)
@@ -1183,12 +1336,16 @@ def _create_mcp_instance():
                     "saved_to_history": save_to_history,
                     "_agent_chain_status": chain_status,
                     "_overall_quality": overall_quality,
+                    "_schema_diagnostics": schema_diagnostics,
                     "_z_token_monitor": z_token_monitor,
                     **_byok_meta,
                     **session.to_metadata(),
                 }
-                if overall_quality == "synthetic":
-                    md_payload["_warning"] = MOCK_MODE_WARNING
+                if overall_quality != "full":
+                    md_payload["_warning"] = (
+                        trinity_result.synthesis.inference_warning
+                        or MOCK_MODE_WARNING
+                    )
                 persist_trinity_result(user_uuid, "run_full_trinity", md_payload)
                 return wrap_response(md_payload)
 
@@ -1196,24 +1353,55 @@ def _create_mcp_instance():
                 "validation_id": trinity_result.validation_id,
                 "concept_name": concept_name,
                 "x_analysis": {
-                    "innovation_score": x_result.innovation_score,
-                    "strategic_value": x_result.strategic_value,
-                    "recommendation": x_result.recommendation,
-                    "confidence": x_result.confidence,
-                    "research_prompts": getattr(x_result, 'research_prompts', None),
+                    "innovation_score": (
+                        x_result.innovation_score if x_quality == "real" else None
+                    ),
+                    "strategic_value": (
+                        x_result.strategic_value if x_quality == "real" else None
+                    ),
+                    "recommendation": (
+                        x_result.recommendation if x_quality == "real" else None
+                    ),
+                    "confidence": (
+                        x_result.confidence if x_quality == "real" else None
+                    ),
+                    "research_prompts": (
+                        getattr(x_result, 'research_prompts', None)
+                        if x_quality == "real" else None
+                    ),
                 },
                 "z_analysis": {
-                    "ethics_score": z_result.ethics_score,
-                    "z_protocol_compliance": z_result.z_protocol_compliance,
-                    "veto_triggered": z_result.veto_triggered,
-                    "recommendation": z_result.recommendation,
-                    "confidence": z_result.confidence
+                    "ethics_score": (
+                        z_result.ethics_score if z_quality == "real" else None
+                    ),
+                    "z_protocol_compliance": (
+                        z_result.z_protocol_compliance
+                        if z_quality == "real" else None
+                    ),
+                    "veto_triggered": (
+                        z_result.veto_triggered if z_quality == "real" else None
+                    ),
+                    "recommendation": (
+                        z_result.recommendation if z_quality == "real" else None
+                    ),
+                    "confidence": (
+                        z_result.confidence if z_quality == "real" else None
+                    )
                 },
                 "cs_analysis": {
-                    "security_score": cs_result.security_score,
-                    "vulnerability_count": len(cs_result.vulnerabilities),
-                    "recommendation": cs_result.recommendation,
-                    "confidence": cs_result.confidence
+                    "security_score": (
+                        cs_result.security_score if cs_quality == "real" else None
+                    ),
+                    "vulnerability_count": (
+                        len(cs_result.vulnerabilities)
+                        if cs_quality == "real" else None
+                    ),
+                    "recommendation": (
+                        cs_result.recommendation if cs_quality == "real" else None
+                    ),
+                    "confidence": (
+                        cs_result.confidence if cs_quality == "real" else None
+                    )
                 },
                 "synthesis": {
                     "overall_score": trinity_result.synthesis.overall_score,
@@ -1222,6 +1410,10 @@ def _create_mcp_instance():
                     "strengths": trinity_result.synthesis.strengths[:3],
                     "concerns": trinity_result.synthesis.concerns[:3],
                     "confidence": trinity_result.synthesis.confidence,
+                    "confidence_valid": trinity_result.synthesis.confidence_valid,
+                    "analysis_incomplete": trinity_result.synthesis.analysis_incomplete,
+                    "degraded_agents": trinity_result.synthesis.degraded_agents,
+                    "quality_gate": trinity_result.synthesis.quality_gate,
                     "founder_summary": getattr(trinity_result.synthesis, 'founder_summary', None),
                     "inference_warning": getattr(trinity_result.synthesis, 'inference_warning', None),
                 },
@@ -1229,6 +1421,7 @@ def _create_mcp_instance():
                 "saved_to_history": save_to_history,
                 "_agent_chain_status": chain_status,
                 "_overall_quality": overall_quality,
+                "_schema_diagnostics": schema_diagnostics,
                 "_z_token_monitor": z_token_monitor,
                 **_byok_meta,
                 **session.to_metadata(),
@@ -1243,8 +1436,11 @@ def _create_mcp_instance():
                     getattr(trinity_result.synthesis, 'inference_warning', None),
                     detail,
                 )
-            if overall_quality == "synthetic":
-                payload["_warning"] = MOCK_MODE_WARNING
+            if overall_quality != "full":
+                payload["_warning"] = (
+                    trinity_result.synthesis.inference_warning
+                    or MOCK_MODE_WARNING
+                )
             persist_trinity_result(user_uuid, "run_full_trinity", payload)
             return wrap_response(payload)
 
@@ -1258,7 +1454,7 @@ def _create_mcp_instance():
             if "401" in err_str or "invalid api key" in err_str or "authentication" in err_str:
                 return wrap_response(build_error_response(
                     error_code="BYOK_AUTH_FAILED",
-                    message=f"API key authentication failed: {e}",
+                    message="API key authentication failed.",
                     recovery_hint=(
                         "Check your api_key is valid and matches the llm_provider. "
                         "Get a free Groq key at console.groq.com or omit api_key to use server defaults."
@@ -1269,7 +1465,7 @@ def _create_mcp_instance():
             elif "timeout" in err_str or "timed out" in err_str:
                 return wrap_response(build_error_response(
                     error_code="PROVIDER_TIMEOUT",
-                    message=f"LLM provider timed out: {e}",
+                    message="The LLM provider timed out.",
                     recovery_hint=(
                         "The LLM provider took too long. Try again, or switch to a faster provider "
                         "(e.g. llm_provider='groq' for low-latency inference)."
@@ -1280,7 +1476,7 @@ def _create_mcp_instance():
             else:
                 return wrap_response(build_error_response(
                     error_code="TRINITY_ERROR",
-                    message=str(e),
+                    message="The Trinity analysis could not be completed.",
                     recovery_hint="Try again. If the issue persists, omit BYOK params to use server defaults.",
                     agent="Trinity",
                     original_error=e,
@@ -1324,7 +1520,8 @@ def _create_mcp_instance():
             templates = registry.list_templates(
                 agent_id=agent_id,
                 category=category,
-                tags=tag_list
+                tags=tag_list,
+                include_custom=False,
             )
 
             return wrap_response({
@@ -1349,10 +1546,10 @@ def _create_mcp_instance():
                 ]
             })
 
-        except Exception as e:
+        except Exception:
             return wrap_response({
                 "status": "error",
-                "error": str(e)
+                "error": TEMPLATE_READ_UNAVAILABLE
             })
 
     @app.tool()
@@ -1380,13 +1577,15 @@ def _create_mcp_instance():
             from .templates import TemplateRegistry
 
             registry = TemplateRegistry()
-            template = registry.get_template(template_id)
+            template = registry.get_template(template_id, include_custom=False)
 
             if not template:
                 return wrap_response({
                     "status": "not_found",
                     "error": f"Template not found: {template_id}",
-                    "available_templates": len(registry.list_templates())
+                    "available_templates": len(
+                        registry.list_templates(include_custom=False)
+                    )
                 })
 
             result = {
@@ -1418,10 +1617,10 @@ def _create_mcp_instance():
 
             return wrap_response(result)
 
-        except Exception as e:
+        except Exception:
             return wrap_response({
                 "status": "error",
-                "error": str(e)
+                "error": TEMPLATE_READ_UNAVAILABLE
             })
 
     @app.tool()
@@ -1453,7 +1652,7 @@ def _create_mcp_instance():
             )
 
             registry = TemplateRegistry()
-            template = registry.get_template(template_id)
+            template = registry.get_template(template_id, include_custom=False)
 
             if not template:
                 return wrap_response({
@@ -1483,10 +1682,10 @@ def _create_mcp_instance():
                 "template_version": template.version
             })
 
-        except Exception as e:
+        except Exception:
             return wrap_response({
                 "status": "error",
-                "error": str(e)
+                "error": TEMPLATE_READ_UNAVAILABLE
             })
 
     @app.tool()
@@ -1516,47 +1715,7 @@ def _create_mcp_instance():
         Returns:
             Registered template info with generated ID
         """
-        if user_uuid:
-            emit_tracer(user_uuid, "register_custom_template")
-        try:
-            from .templates import TemplateRegistry
-
-            registry = TemplateRegistry()
-
-            # Parse tags
-            tag_list = None
-            if tags:
-                tag_list = [t.strip() for t in tags.split(',')]
-
-            template = registry.register_custom_template(
-                name=name,
-                agent_id=agent_id.upper(),
-                content=content,
-                category=category,
-                description=description,
-                tags=tag_list
-            )
-
-            return wrap_response({
-                "status": "success",
-                "message": f"Template registered successfully",
-                "template_id": template.template_id,
-                "name": template.name,
-                "agent_id": template.agent_id,
-                "category": template.category,
-                "tags": template.tags
-            })
-
-        except ValueError as e:
-            return wrap_response({
-                "status": "error",
-                "error": str(e)
-            })
-        except Exception as e:
-            return wrap_response({
-                "status": "error",
-                "error": str(e)
-            })
+        return _template_mutation_contained("register_custom_template")
 
     @app.tool()
     async def import_template_from_url(
@@ -1582,53 +1741,7 @@ def _create_mcp_instance():
         Returns:
             Import result with template info or error details
         """
-        if user_uuid:
-            emit_tracer(user_uuid, "import_template_from_url")
-        try:
-            from .templates import (
-                import_template_from_url as do_import,
-                validate_template_url,
-                TemplateRegistry,
-            )
-
-            # Validate URL first
-            is_valid, source_type, error = validate_template_url(url)
-            if not is_valid:
-                return {
-                    "status": "error",
-                    "error": f"Invalid URL: {error}"
-                }
-
-            # Import the template
-            result = await do_import(url, validate=validate)
-
-            if not result.success:
-                return wrap_response({
-                    "status": "error",
-                    "error": result.error,
-                    "warnings": result.warnings
-                })
-
-            # Register the imported template
-            registry = TemplateRegistry()
-            if result.template:
-                registry._custom_templates[result.template.template_id] = result.template
-
-            return wrap_response({
-                "status": "success",
-                "message": "Template imported and registered",
-                "source_url": url,
-                "source_type": source_type,
-                "template_id": result.template.template_id if result.template else None,
-                "template_name": result.template.name if result.template else None,
-                "warnings": result.warnings
-            })
-
-        except Exception as e:
-            return wrap_response({
-                "status": "error",
-                "error": str(e)
-            })
+        return _template_mutation_contained("import_template_from_url")
 
     @app.tool()
     async def get_template_statistics(
@@ -1649,7 +1762,7 @@ def _create_mcp_instance():
             from .templates import TemplateRegistry
 
             registry = TemplateRegistry()
-            stats = registry.get_statistics()
+            stats = registry.get_statistics(include_custom=False)
 
             # Add library info
             libraries = registry.list_libraries()
@@ -1668,10 +1781,10 @@ def _create_mcp_instance():
                 ]
             })
 
-        except Exception as e:
+        except Exception:
             return wrap_response({
                 "status": "error",
-                "error": str(e)
+                "error": TEMPLATE_READ_UNAVAILABLE
             })
 
     # ===== v0.5.11 COORDINATION TOOLS — CONTAINED (VM-IR-2026-07-28-COORD-01) =====

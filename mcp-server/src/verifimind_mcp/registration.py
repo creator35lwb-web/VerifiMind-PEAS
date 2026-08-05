@@ -30,8 +30,8 @@ EA_MAX_SLOTS = 100
 
 CURRENT_AVAILABILITY_NOTICE = (
     "Registration is free and does not create a time-limited access "
-    "entitlement. 10 tools are active; 3 coordination tools are temporarily "
-    "unavailable while owner-scoped access control is rebuilt."
+    "entitlement. 8 tools are active; 3 coordination and 2 custom-template "
+    "mutation tools are temporarily unavailable during security maintenance."
 )
 
 # Pilot invite code (set via GCP env var — never hardcoded)
@@ -180,8 +180,9 @@ class EAStatusResponse(BaseModel):
 
 class OptOutResponse(BaseModel):
     """Response after opt-out request."""
+    processed: bool
     message: str
-    deletion_scheduled_within: str = "7 business days"
+    deletion_scheduled_within: Optional[str] = None
 
 
 # ─────────────────────────────────────────────
@@ -467,32 +468,49 @@ async def submit_feedback(data: FeedbackRequest) -> FeedbackResponse:
 
 
 async def process_optout(uuid: str) -> OptOutResponse:
-    """Mark EA record for deletion. Data purged within 7 business days."""
+    """De-identify account PII and mark remaining data for bounded deletion."""
     db = _get_firestore()
 
-    if db is not None:
-        doc_ref = db.collection(COLLECTION_EA).document(uuid)
-        doc = doc_ref.get()
-        if doc.exists:
-            doc_ref.update({
-                "status": "deletion_requested",
-                "deletion_requested_at": _now_iso(),
-                # Immediately nullify PII fields
-                "email": "[deletion_requested]",
-                "name": None,
-                "registration_feedback": None,
-            })
-            logger.info(f"Opt-out processed for UUID={uuid}")
-        else:
-            logger.info(f"Opt-out request for unknown UUID={uuid} — no action taken")
+    if db is None:
+        logger.warning("Opt-out not processed: Firestore unavailable")
+        return OptOutResponse(
+            processed=False,
+            message=(
+                "Deletion could not be confirmed because account storage is "
+                "temporarily unavailable. No deletion action is confirmed. "
+                "Please retry or email alton@ysenseai.org privately."
+            ),
+        )
+
+    doc_ref = db.collection(COLLECTION_EA).document(uuid)
+    doc = doc_ref.get()
+    if doc.exists:
+        doc_ref.update({
+            "status": "deletion_requested",
+            "deletion_requested_at": _now_iso(),
+            # Immediately nullify PII fields
+            "email": "[deletion_requested]",
+            "name": None,
+            "registration_feedback": None,
+        })
+        logger.info(f"Opt-out processed for UUID={uuid}")
+    else:
+        # Do not reveal whether a caller-supplied UUID belongs to an account.
+        logger.info(f"Opt-out request for unknown UUID={uuid} — no action taken")
 
     return OptOutResponse(
+        processed=True,
         message=(
-            "Your opt-out request has been received. All personal data associated "
-            "with your Early Adopter account will be purged within 7 business days. "
-            "Your UUID will no longer grant EA benefits after deletion is complete. "
-            "The free Trinity validation tier (v0.5.5) remains available without registration."
-        )
+            "The opt-out request was processed. If the UUID matched a stored "
+            "account, principal account PII has been de-identified and remaining "
+            "personal data is targeted to be purged within 7 business days; a "
+            "legal obligation or documented security/legal hold may limit or "
+            "delay deletion. The 8 active validation and built-in-template tools "
+            "remain available without registration."
+        ),
+        deletion_scheduled_within=(
+            "target: 7 business days; legal/security retention may apply"
+        ),
     )
 
 
