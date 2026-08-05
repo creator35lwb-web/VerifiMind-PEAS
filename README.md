@@ -3,6 +3,8 @@
 
   # VerifiMind PEAS
 
+[![MCP Toplist](https://mcptoplist.com/badge/io.github.creator35lwb-web%2Fverifimind-genesis.svg)](https://mcptoplist.com/server/io.github.creator35lwb-web%2Fverifimind-genesis)
+
   **An opinionated MCP server for structured multi-LLM critique.**
 
   Three specialized agents — Innovation, Ethics, Security — review your concept before you build it. Multi-vendor (Gemini · Claude · GPT · Groq · Cerebras · Mistral · Ollama). Free, open-source, MCP-native.
