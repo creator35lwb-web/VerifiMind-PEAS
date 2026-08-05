@@ -1,11 +1,11 @@
 """Canonical plain-text Privacy Policy served to JSON clients."""
 
-PRIVACY_POLICY_VERSION = "2.4"
-PRIVACY_POLICY_EFFECTIVE_DATE = "2026-08-04"
+PRIVACY_POLICY_VERSION = "2.5"
+PRIVACY_POLICY_EFFECTIVE_DATE = "2026-08-06"
 
 PRIVACY_POLICY = """
-VerifiMind-PEAS — Privacy Policy and Personal Data Protection Notice v2.4
-Published and effective: August 4, 2026 (previous: v2.3, July 30, 2026)
+VerifiMind-PEAS — Privacy Policy and Personal Data Protection Notice v2.5
+Published and effective: August 6, 2026 (previous: v2.4, August 4, 2026)
 
 1. WHO WE ARE
 The hosted service at verifimind.ysenseai.org is operated by Alton Lee Wei Bin
@@ -59,8 +59,10 @@ ordinary IP/request security logs may still be retained.
 Separately, save_to_history=true on run_full_trinity (off by default) stores the
 full result, including submitted concept text, in a shared, instance-local JSON
 history. Raw records are not exposed through the public history resources, but
-this store is not owner-scoped. It remains until the server instance is replaced
-or the file is manually cleared; no fixed retention period is guaranteed. Leave
+this store is not owner-scoped. It retains at most the 20 newest opt-in results;
+the oldest entries are evicted whenever the store is read or written, and an
+instance replacement clears the store. Because eviction also depends on instance
+activity and lifetime, no fixed time-based retention period is guaranteed. Leave
 save_to_history false for private or sensitive concepts.
 
 Runtime custom-template registration and URL import are disabled. The hosted
@@ -133,15 +135,16 @@ General public discussion:
 github.com/creator35lwb-web/VerifiMind-PEAS/discussions
 
 11. CHANGES
-This v2.4 notice is effective on publication because it corrects service facts,
-expands disclosure of current processing, and documents security containment; it
-does not introduce a fee, remove a user right, or shorten an entitlement. We will
-notify registered users of future material adverse changes at least 14 days before
-they take effect. The current notice is always available at
+This v2.5 notice is effective on publication because it adds and enforces a
+20-entry cap on opt-in shared history, shortens possible storage, and corrects
+service facts; it does not introduce a fee, remove a user right, or shorten an
+entitlement. We will notify registered users of
+future material adverse changes at least 14 days before they take effect. The
+current notice is always available at
 verifimind.ysenseai.org/privacy.
 
 12. NOTIS PERLINDUNGAN DATA PERIBADI — BAHASA MALAYSIA
-Versi 2.4 — Diterbitkan dan berkuat kuasa pada 4 Ogos 2026
+Versi 2.5 — Diterbitkan dan berkuat kuasa pada 6 Ogos 2026
 
 SIAPA KAMI
 Perkhidmatan di verifimind.ysenseai.org dikendalikan oleh Alton Lee Wei Bin
@@ -179,8 +182,11 @@ UUID tidak disimpan; log keselamatan IP/permintaan biasa masih boleh disimpan.
 save_to_history=true (lalai: false) menyimpan keputusan penuh termasuk teks
 konsep dalam sejarah JSON setempat kepada instans yang dikongsi dan belum
 diasingkan mengikut pemilik. Rekod mentah tidak dipaparkan melalui sumber sejarah
-awam, tetapi tiada tempoh simpanan tetap; rekod kekal sehingga instans diganti atau
-fail dipadam secara manual. Kekalkan false untuk konsep peribadi atau sensitif.
+awam. Hanya 20 keputusan pilihan masuk yang terbaharu dikekalkan; rekod tertua
+dikeluarkan apabila stor dibaca atau ditulis, dan penggantian instans mengosongkan
+stor. Tiada tempoh simpanan berasaskan masa yang tetap kerana pengeluaran juga
+bergantung pada aktiviti dan jangka hayat instans. Kekalkan false untuk konsep
+peribadi atau sensitif.
 
 STORAN, TEMPOH SIMPANAN DAN PEMINDAHAN RENTAS SEMPADAN
 Rekod akaun, maklum balas dan metadata validasi disimpan dalam Google Cloud
@@ -223,8 +229,8 @@ mengekalkan save_to_history=false, dan menarik persetujuan e-mel pilihan.
 KESELAMATAN, KUKI DAN PERUBAHAN
 Kami menggunakan akses infrastruktur terhad dan peminimuman data, tetapi tiada
 perkhidmatan hos dapat menjamin keselamatan mutlak. Kami tidak menggunakan kuki
-penjejakan. Versi 2.4 membetulkan fakta dan menambah pendedahan pemprosesan tanpa
-mengurangkan hak atau memperkenalkan bayaran. Pengguna berdaftar akan dimaklumkan
-sekurang-kurangnya 14 hari sebelum perubahan material yang memudaratkan pada masa
-hadapan berkuat kuasa.
+penjejakan. Versi 2.5 menguatkuasakan had 20 rekod untuk sejarah pilihan masuk,
+memendekkan kemungkinan penyimpanan dan membetulkan fakta tanpa mengurangkan hak
+atau memperkenalkan bayaran. Pengguna berdaftar akan dimaklumkan sekurang-kurangnya
+14 hari sebelum perubahan material yang memudaratkan pada masa hadapan berkuat kuasa.
 """

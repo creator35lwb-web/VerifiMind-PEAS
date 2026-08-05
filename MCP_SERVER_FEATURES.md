@@ -1,8 +1,9 @@
 # VerifiMind PEAS MCP Server — Features Guide
 
-**Version:** v0.5.34
+**Production Version:** v0.5.56
+**Candidate Version:** v0.5.57 (not deployed)
 **Status:** ✅ **LIVE** at [verifimind.ysenseai.org](https://verifimind.ysenseai.org)
-**Last Updated:** August 1, 2026 — v0.5.56 security containment
+**Last Updated:** August 6, 2026 — v0.5.57 truth and reliability candidate
 
 > All **13 tools free forever** under the [Core Tools Always Free pledge](https://github.com/creator35lwb-web/VerifiMind-PEAS#core-tools-always-free-pledge) (Option B, May 9, 2026).
 > **Current availability:** 8 active; 3 coordination and 2 custom-template mutation tools temporarily unavailable during security maintenance.
@@ -349,5 +350,6 @@ Machine-readable index: [`/research/index.json`](https://verifimind.ysenseai.org
 
 **Server Status:** ✅ **LIVE**
 **URL:** https://verifimind.ysenseai.org
-**Version:** v0.5.56
+**Production Version:** v0.5.56
+**Candidate Version:** v0.5.57 (not deployed)
 **Phase:** 90 "Adoption First" (monetization on STANDBY — all 13 tools free forever)

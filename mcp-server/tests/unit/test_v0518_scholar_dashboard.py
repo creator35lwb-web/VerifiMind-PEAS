@@ -118,7 +118,7 @@ class TestDashboardPageRendering:
     def test_privacy_notice_present(self):
         html = get_dashboard_page(VALID_UUID, [])
         assert "Privacy" in html
-        assert "Privacy Policy v2.4" in html
+        assert "Privacy Policy v2.5" in html
 
     def test_record_count_shown(self):
         records = [

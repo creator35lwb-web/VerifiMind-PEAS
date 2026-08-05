@@ -185,6 +185,21 @@ class OptOutResponse(BaseModel):
     deletion_scheduled_within: Optional[str] = None
 
 
+_OPTOUT_STORAGE_UNAVAILABLE_MESSAGE = (
+    "Deletion could not be confirmed because account storage is temporarily "
+    "unavailable. No deletion action is confirmed. Please retry or email "
+    "alton@ysenseai.org privately."
+)
+
+
+def build_optout_unavailable_response() -> OptOutResponse:
+    """Return the non-enumerating retry contract for persistence failures."""
+    return OptOutResponse(
+        processed=False,
+        message=_OPTOUT_STORAGE_UNAVAILABLE_MESSAGE,
+    )
+
+
 # ─────────────────────────────────────────────
 # Firestore Client (lazy init)
 # ─────────────────────────────────────────────
@@ -473,30 +488,32 @@ async def process_optout(uuid: str) -> OptOutResponse:
 
     if db is None:
         logger.warning("Opt-out not processed: Firestore unavailable")
-        return OptOutResponse(
-            processed=False,
-            message=(
-                "Deletion could not be confirmed because account storage is "
-                "temporarily unavailable. No deletion action is confirmed. "
-                "Please retry or email alton@ysenseai.org privately."
-            ),
-        )
+        return build_optout_unavailable_response()
 
-    doc_ref = db.collection(COLLECTION_EA).document(uuid)
-    doc = doc_ref.get()
-    if doc.exists:
-        doc_ref.update({
-            "status": "deletion_requested",
-            "deletion_requested_at": _now_iso(),
-            # Immediately nullify PII fields
-            "email": "[deletion_requested]",
-            "name": None,
-            "registration_feedback": None,
-        })
-        logger.info(f"Opt-out processed for UUID={uuid}")
-    else:
-        # Do not reveal whether a caller-supplied UUID belongs to an account.
-        logger.info(f"Opt-out request for unknown UUID={uuid} — no action taken")
+    try:
+        doc_ref = db.collection(COLLECTION_EA).document(uuid)
+        doc = doc_ref.get()
+        if doc.exists:
+            doc_ref.update({
+                "status": "deletion_requested",
+                "deletion_requested_at": _now_iso(),
+                # Immediately nullify PII fields
+                "email": "[deletion_requested]",
+                "name": None,
+                "registration_feedback": None,
+            })
+            logger.info("Opt-out processed for a stored account")
+        else:
+            # Do not reveal whether a caller-supplied UUID belongs to an account.
+            logger.info("Opt-out request did not match a stored account")
+    except Exception as exc:
+        # This is a rights-request path: never convert a failed read/write into a
+        # success receipt, and never expose the UUID or backend error text.
+        logger.error(
+            "Opt-out persistence unavailable (error_type=%s)",
+            type(exc).__name__,
+        )
+        return build_optout_unavailable_response()
 
     return OptOutResponse(
         processed=True,

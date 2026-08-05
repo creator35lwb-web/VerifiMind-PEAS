@@ -1,102 +1,90 @@
 # VerifiMind-PEAS Server Status
 
-**Last updated:** August 1, 2026
+**Last updated:** August 6, 2026
 **Status authority:** current operational snapshot; release history lives in
-[`CHANGELOG.md`](CHANGELOG.md) and GitHub Releases.
+[`CHANGELOG.md`](CHANGELOG.md) and [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases).
 
 ## Current production snapshot
 
-- Production application version verified by T: **v0.5.55**
+- Production application version: **v0.5.56**
+- Source commit: **`40a489245702d2db23b2d1f6fd8eb124e33c0f15`** (PR #315)
+- Cloud Build: **`28db0855-cb06-4802-b952-75623318345f`** — successful
 - MCP protocol advertised by production: **2025-11-25**
-- Tool inventory reported by production: **13 defined / 10 active / 3 temporarily unavailable**
-- Contained production tools:
+- Tool inventory: **13 defined / 8 active / 5 temporarily unavailable**
+- Temporarily unavailable:
   - `coordination_handoff_create`
   - `coordination_handoff_read`
   - `coordination_team_status`
-- Production still exposes the two custom-template mutation tools. Their
-  containment is the critical v0.5.56 change and is not yet deployed.
-- Hosted routing reported by production:
+  - `register_custom_template`
+  - `import_template_from_url`
+- Firestore: connected at the verified deployment smoke
+- Runtime provider failover: disabled and disclosed
+- Hosted routing:
   - X: Gemini `gemini-3.5-flash-lite`
   - Z: Groq `openai/gpt-oss-120b`
   - CS: Groq `openai/gpt-oss-120b`
 - Current paid services: **none**
-- Registration: free UUID/cohort registration; not a time-limited access
-  entitlement.
+- Registration: free UUID/cohort registration; not a time-limited entitlement
+- Live policies: Terms v2.3 and Privacy v2.4
 
-Endpoint availability alone is not release evidence. Production v0.5.55 is
-healthy, but its custom-template mutation exposure and incomplete Trinity
-quality semantics remain the reasons for this bounded candidate.
+Post-deploy verification completed with **24 pass / 0 stop / 0 instrument**,
+including a real X-Z-CS chain in which all three stages reported real inference.
+This is operational evidence, not a legal certification or an incident-closure
+claim.
 
-## v0.5.56 release candidate
+## Release publication
 
-Branch: `agent/v0556-core-integrity-containment`
-Base: production-aligned `main` at `dd78cbe`
+- [v0.5.55 — Integrated Security and Public-Truth Repair](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.55)
+  is bound to merge commit `dd78cbe4ce05d57fdd3978a5ea1b4dda55b2826f`.
+- [v0.5.56 — Core Integrity, Containment, and Legal Truth](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.56)
+  is bound to merge commit `40a489245702d2db23b2d1f6fd8eb124e33c0f15`
+  and is the latest GitHub Release.
 
-Included:
+The two missing release records were restored on August 6, 2026. Creating those
+records did not merge code or trigger a deployment.
 
-- X/Z/CS-symmetric fail-closed quality gating for Trinity and standalone tools.
-- Null/withheld scores, verdict state, confidence, recommendations, and
-  reasoning for every degraded required stage.
-- No propagation or history persistence of schema-generated degraded output.
-- Explicit missing/null schema-repair diagnostics and Z evidence completeness
-  checks.
-- Groq token-ceiling completion guard.
-- Fail-closed custom-template registration and URL import; built-in-only public
-  template reads.
-- Dormant URL-import hardening: strict GitHub HTTPS allowlist, public DNS
-  addresses, no redirects, TLS 1.2+, timeout, response-size cap, and UTF-8.
-- Canonical public availability: **13 defined / 8 active / 5 unavailable**.
-- Terms v2.3, Privacy v2.4, registration, discovery, changelog, README, and MCP
-  Registry parity.
-- Raw provider-output logging removed from diagnostics.
+## v0.5.57 release candidate (not deployed)
 
-Explicitly excluded:
+The bounded post-release reliability lane contains:
 
-- Re-enabling coordination or custom-template mutation tools.
-- MCP protocol 2026-07-28 support; that remains a separate compatibility lane.
-- Production deployment or external announcement before exact-head RNA review
-  and human authorization.
+- MCP Registry description shortened below the 100-character hard limit.
+- Discovery-card prompt resource renamed from stale `v4.2` copy to the live
+  production-methodology identity.
+- Firestore opt-out read/write failures normalized to a structured,
+  non-enumerating HTTP 503 without false deletion success.
+- Opt-in shared history capped at the 20 newest entries, pruned on every
+  read/write, cleared on instance replacement, and reported truthfully when a
+  write fails.
+- Terms v2.4 / Privacy v2.5 wording that describes the enforced entry-bound
+  retention contract; human/RNA review remains required before publication.
+- Dead duplicate Privacy/Terms HTML bodies removed so canonical policy modules
+  are the only served legal-text source.
 
-## Measured verification
+The private Command Central Gate #1 provenance repair is isolated separately in
+private draft PR #82. It requires an explicit canonical public checkout, full
+expected SHA, matching origin/root/HEAD, and a clean worktree.
 
-| Gate | Result |
-|---|---:|
-| Focused integrity/containment/reporting lane | 75 passed |
-| Full unit suite | 1055 passed, 3 skipped |
-| Registration and policy suite | 79 passed |
-| Integration suite | 7 passed, 11 environment-gated skips |
-| Full Python server Bandit scan | 0 findings |
-| Diff whitespace gate | Clean |
-| Production deployment | Not performed |
+## Gates before v0.5.57 can merge or deploy
 
-The 11 skipped integration tests require live-service credentials or explicit
-integration configuration; they are not counted as passes. The unit skips are
-existing optional-provider conditions.
+1. Complete local unit, integration, security, and canonical-currency gates.
+2. Publish the bounded public change as a draft PR tied to one exact SHA.
+3. Obtain RNA/security review of that exact head.
+4. Obtain human approval of Terms v2.4 / Privacy v2.5 publication wording, with qualified
+   counsel review where appropriate.
+5. Resolve or explicitly hold the nine-PR backlog without bulk-merging stale or
+   failing branches.
+6. Obtain separate human merge/deployment authorization.
+7. After deployment, verify health, discovery, policy, opt-out failure behavior,
+   bounded history, registry publication, and real-inference Trinity behavior.
 
-## Release gates still open
+## Known limitations and follow-up lanes
 
-1. Push the bounded candidate and bind review to its exact commit.
-2. RNA (CSO) independent security review of the exact draft-PR head.
-3. GitHub CI and security checks on that same head.
-4. Human approval of Terms v2.3 / Privacy v2.4 publication copy, with counsel
-   review if required.
-5. Human merge and deployment authorization.
-6. Post-deploy `/health`, discovery, registration, policies, template
-   containment, and real-inference Trinity smoke checks.
-7. Record immutable deployment evidence back into the private Command Central
-   Hub before any public announcement.
-
-## Active follow-up lanes
-
-- Build authenticated, owner-scoped coordination and custom-template storage,
-  including migration, retention, and adversarial authorization tests.
-- Add MCP 2026-07-28 dual-version support without coupling it to this security
-  release.
-- Validate real X/Z/CS inference quality after deployment, including forced
-  fallback and truncation cases.
-- Complete L/Manus publication verification for the landing source of truth.
-- Compress governance principles into a smaller invariant set rather than
-  extending release scope.
+- Coordination and custom-template mutation remain contained, not restored.
+- Owner-scoped persistence, migration, and deletion remain separate design work.
+- MCP 2026-07-28 dual-version support remains a compatibility lane.
+- Runtime cross-provider failover remains disabled.
+- Counsel review and any retrospective incident-notification decision remain
+  parallel human/legal work and are not closed by software tests.
 
 ## Public endpoints
 

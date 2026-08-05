@@ -50,6 +50,7 @@ from verifimind_mcp.registration import (
     get_ea_status,
     submit_feedback,
     process_optout,
+    build_optout_unavailable_response,
     UserRegistrationRequest,
     register_user,
 )
@@ -97,7 +98,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.56"
+SERVER_VERSION = "0.5.57"
 
 # MCP protocol version the server speaks (v0.5.49, AY/AZ ask from the MCP RC
 # assessment) — surfaced in /health so clients can check compatibility pre-connect.
@@ -1024,7 +1025,16 @@ async def smithery_server_card_handler(request):
                         "concept_name": {"type": "string"},
                         "concept_description": {"type": "string"},
                         "context": {"type": "string"},
-                        "save_to_history": {"type": "boolean", "default": False}
+                        "save_to_history": {
+                            "type": "boolean",
+                            "default": False,
+                            "description": (
+                                "Opt in to shared instance-local full-result history. "
+                                "At most 20 newest entries are retained; oldest entries "
+                                "are evicted on read/write and instance replacement "
+                                "clears the store. Do not enable for sensitive concepts."
+                            ),
+                        }
                     }
                 }
             },
@@ -1181,9 +1191,9 @@ async def smithery_server_card_handler(request):
             }
         ],
         "resources": [
-            {"uri": "genesis://config/master_prompt", "name": "Genesis Master Prompt v4.2", "description": "Complete Genesis Master Prompt defining X/Z/CS agent roles and citation architecture."},
-            {"uri": "genesis://history/latest", "name": "Latest Validation", "description": "Most recent Trinity validation result."},
-            {"uri": "genesis://history/all", "name": "Validation History", "description": "Complete validation history with statistics."},
+            {"uri": "genesis://config/master_prompt", "name": "Genesis Methodology — Live Production Prompts", "description": "Current production prompts defining X/Z/CS agent roles and citation architecture."},
+            {"uri": "genesis://history/latest", "name": "Latest Validation", "description": "Privacy-safe summary of the newest retained Trinity validation."},
+            {"uri": "genesis://history/all", "name": "Validation History", "description": "Bounded aggregate statistics; no concept text or raw records."},
             {"uri": "genesis://state/project_info", "name": "Project Info", "description": "Project metadata, agent info, and version details."}
         ]
     })
@@ -1441,7 +1451,17 @@ async def ea_optout_handler(request):
     if not uuid:
         return JSONResponse({"error": "UUID required"}, status_code=400)
 
-    result = await process_optout(uuid)
+    try:
+        result = await process_optout(uuid)
+    except Exception as exc:
+        # Defensive boundary: service-layer persistence failures are already
+        # normalized, but an unexpected failure must still return the same
+        # retryable, non-enumerating contract instead of a generic HTTP 500.
+        logger.error(
+            "Unexpected opt-out processing failure (error_type=%s)",
+            type(exc).__name__,
+        )
+        result = build_optout_unavailable_response()
     return JSONResponse(
         result.model_dump(),
         status_code=200 if result.processed else 503,

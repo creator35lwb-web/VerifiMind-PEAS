@@ -52,9 +52,10 @@ class ValidationRequest(BaseModel):
     )
     save_to_history: bool = Field(
         default=False,
-        description="Whether to save result to the shared validation history store. "
-                    "Default False (v0.5.43): the history file is instance-global, so "
-                    "opting in exposes the concept to other clients of this server."
+        description="Whether to save the full result to the shared instance-local "
+                    "history store. Default False. The store retains at most the 20 "
+                    "newest opt-in results and clears on instance replacement; use "
+                    "False for private or sensitive concepts."
     )
     
     

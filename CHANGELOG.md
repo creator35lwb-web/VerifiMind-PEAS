@@ -8,10 +8,56 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
-## v0.5.56 - Core Integrity and Custom-Template Containment (Release Candidate)
+## v0.5.57 - Post-Release Truth and Reliability Repair (Release Candidate)
+
+This bounded candidate resolves known defects discovered after v0.5.56 reached
+production. It does not claim merge or deployment.
+
+### What changed
+
+- **Registry publishability:** shortens the MCP Registry description from 148
+  to 88 characters and adds a hard `<=100` regression contract.
+- **Discovery truth:** replaces the stale server-card resource name `Genesis
+  Master Prompt v4.2` with the version-independent live-production methodology
+  identity.
+- **Deletion-request reliability:** Firestore read/write exceptions and
+  unexpected handler failures now return the same structured, non-enumerating
+  `processed=false` HTTP 503 response. A failed persistence operation is never
+  reported as successful and backend details/UUIDs are not returned.
+- **Bounded opt-in history:** the shared instance-local full-result history is
+  capped at the 20 newest entries, pruned before each read/write, atomically
+  written, and cleared by instance replacement. Tool responses report actual
+  write success rather than echoing the caller's request flag.
+- **Policy single source:** removes the unused duplicate Privacy and Terms HTML
+  bodies; browser and JSON policy surfaces continue to render the canonical
+  policy modules.
+- **Terms v2.4 / Privacy v2.5 candidate:** discloses the enforced 20-entry cap
+  and preserves the explicit warning that no fixed time-based retention is
+  guaranteed.
+- **Release record repair:** publishes the previously missing v0.5.55 and
+  v0.5.56 GitHub Releases at their exact merge commits; v0.5.56 is latest.
+- **Version surfaces:** runtime candidate `0.5.57`; MCP Registry package
+  `3.34.0`.
+
+### Verification so far
+
+- Focused registration, public-truth, integrity, dashboard, and retention lane:
+  **223 passed**
+- Complete Python collection: **1176 passed, 14 skipped, 0 failed**
+- Full Python server Bandit scan: **0 findings**
+- Syntax/data parse: **113 Python files + `server.json`**
+- Registry description: **88 characters**
+- `git diff --check`: clean
+
+No production deployment is claimed by this entry.
+
+---
+
+## v0.5.56 - Core Integrity and Custom-Template Containment (August 6, 2026)
 
 This bounded follow-up closes integrity gaps found after v0.5.55 reached
-production. It does not re-enable coordination and does not claim deployment.
+production. It does not re-enable coordination. Production deployment is bound
+to merge commit `40a489245702d2db23b2d1f6fd8eb124e33c0f15` (PR #315).
 
 ### What changed
 
@@ -41,8 +87,8 @@ production. It does not re-enable coordination and does not claim deployment.
   are available are suppressed, and provider diagnostics no longer log raw
   model response content.
 - **Policy surfaces:** Terms v2.3 and Privacy v2.4 disclose the current
-  containment and custom-content handling. Human publication approval remains
-  a deployment gate.
+  containment and custom-content handling. Counsel sufficiency review remains
+  a parallel human/legal lane and is not claimed closed.
 - **Version surfaces:** runtime `0.5.56`; MCP Registry package `3.33.0`.
 
 ### Verification
@@ -53,14 +99,16 @@ production. It does not re-enable coordination and does not claim deployment.
 - Integration lane: **7 passed, 11 environment-gated skips**
 - Full Python server Bandit scan: **0 findings**
 - `git diff --check`: clean
+- Post-deploy production smoke: **24 pass / 0 stop / 0 instrument**, including
+  a complete real-inference X-Z-CS chain
 
-No production deployment is claimed by this entry.
+Production v0.5.56 and its GitHub Release were verified on August 6, 2026.
 
 ---
 
 ## v0.5.55 - Integrated Security and Public-Truth Repair (July 31, 2026)
 
-This release candidate consolidates the bounded, independently reviewed parts
+This release consolidates the bounded, independently reviewed parts
 of PRs #309, #310, and #312 on top of the post-containment `main` line, plus the
 S114 bounded repair for Groq 8K TPM admission. PR #311 is not merged as
 submitted: exact-head review showed its `//3` estimator rejects the measured

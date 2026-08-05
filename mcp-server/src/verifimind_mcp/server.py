@@ -6,9 +6,9 @@ MCP server exposing VerifiMind-PEAS Genesis Methodology context as Resources
 and agent consultation as Tools.
 
 Resources Exposed:
-- genesis://config/master_prompt - Genesis Master Prompt v16.1
-- genesis://history/latest - Most recent validation result
-- genesis://history/all - Complete validation history
+- genesis://config/master_prompt - Live production Genesis methodology
+- genesis://history/latest - Privacy-safe latest validation summary
+- genesis://history/all - Bounded aggregate validation statistics
 - genesis://state/project_info - Current project information
 
 Tools Exposed:
@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 _RAW_SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.5.56"
+SERVER_VERSION = "0.5.57"
 
 # Agent role names + master prompt filename — single source of truth.
 # (SonarCloud P2 batch-2: extracted in v0.5.39 from 13 dup-literal occurrences
@@ -388,6 +388,7 @@ def _get_history_path() -> Path:
 
 MASTER_PROMPT_PATH = _get_master_prompt_path()
 HISTORY_PATH = _get_history_path()
+VALIDATION_HISTORY_MAX_ENTRIES = 20
 MASTER_PROMPT_UNAVAILABLE = (
     "# Error Building Master Prompt\n\nThe live methodology is temporarily unavailable."
 )
@@ -461,35 +462,98 @@ def load_master_prompt() -> str:
     return "\n".join(lines)
 
 
-def load_validation_history() -> dict[str, Any]:
-    """Load validation history from JSON file."""
+def validation_history_retention_contract() -> dict[str, Any]:
+    """Machine-readable contract for the opt-in shared history store."""
+    return {
+        "storage": "shared_instance_local_json",
+        "max_entries": VALIDATION_HISTORY_MAX_ENTRIES,
+        "eviction": "oldest_first_on_every_read_and_write",
+        "instance_replacement_clears_store": True,
+        "fixed_time_retention_guaranteed": False,
+    }
+
+
+def _empty_validation_history() -> dict[str, Any]:
+    return {
+        "validations": [],
+        "metadata": {
+            "total_validations": 0,
+            "last_updated": None,
+            "retention": validation_history_retention_contract(),
+            "note": "No opt-in validation history is retained on this instance.",
+        },
+    }
+
+
+def _bound_validation_history(history: Any) -> tuple[dict[str, Any], bool]:
+    """Normalize legacy history and retain only the newest bounded entries."""
+    source = history if isinstance(history, dict) else {}
+    raw_validations = source.get("validations", [])
+    if not isinstance(raw_validations, list):
+        raw_validations = []
+    valid_entries = [entry for entry in raw_validations if isinstance(entry, dict)]
+    retained = valid_entries[-VALIDATION_HISTORY_MAX_ENTRIES:]
+
+    raw_metadata = source.get("metadata", {})
+    metadata = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
+    metadata.update({
+        "total_validations": len(retained),
+        "last_updated": retained[-1].get("completed_at") if retained else None,
+        "retention": validation_history_retention_contract(),
+    })
+
+    bounded = dict(source)
+    bounded["validations"] = retained
+    bounded["metadata"] = metadata
+    return bounded, bounded != history
+
+
+def _write_validation_history(history: dict[str, Any]) -> bool:
+    """Atomically write bounded history; report success without leaking paths."""
+    temporary_path = HISTORY_PATH.with_suffix(HISTORY_PATH.suffix + ".tmp")
     try:
-        if HISTORY_PATH.exists():
-            with open(HISTORY_PATH, "r", encoding="utf-8") as f:
-                return json.load(f)
-        else:
-            return {
-                "validations": [],
-                "metadata": {
-                    "total_validations": 0,
-                    "last_updated": None,
-                    "note": "No validation history found. Run verifimind_complete.py to generate validation data."
-                }
-            }
-    except Exception:
+        with open(temporary_path, "w", encoding="utf-8") as history_file:
+            json.dump(history, history_file, indent=2, default=str)
+        temporary_path.replace(HISTORY_PATH)
+        return True
+    except Exception as exc:
+        logger.warning(
+            "Validation history write failed (error_type=%s)",
+            type(exc).__name__,
+        )
+        try:
+            temporary_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        return False
+
+
+def load_validation_history() -> dict[str, Any]:
+    """Load and enforce the bounded opt-in history contract."""
+    try:
+        if not HISTORY_PATH.exists():
+            return _empty_validation_history()
+        with open(HISTORY_PATH, "r", encoding="utf-8") as history_file:
+            raw_history = json.load(history_file)
+        history, changed = _bound_validation_history(raw_history)
+        if changed:
+            _write_validation_history(history)
+        return history
+    except Exception as exc:
+        logger.warning(
+            "Validation history read failed (error_type=%s)",
+            type(exc).__name__,
+        )
         return {
             "error": VALIDATION_HISTORY_UNAVAILABLE,
-            "validations": []
+            "validations": [],
         }
 
 
-def save_validation_history(history: dict[str, Any]) -> None:
-    """Save validation history to JSON file."""
-    try:
-        with open(HISTORY_PATH, "w", encoding="utf-8") as f:
-            json.dump(history, f, indent=2, default=str)
-    except Exception as e:
-        print(f"Warning: Failed to save validation history: {e}")
+def save_validation_history(history: dict[str, Any]) -> bool:
+    """Bound then atomically save opt-in history, returning actual success."""
+    bounded, _ = _bound_validation_history(history)
+    return _write_validation_history(bounded)
 
 
 def get_latest_validation() -> dict[str, Any]:
@@ -518,6 +582,7 @@ def _redacted_latest_validation() -> dict[str, Any]:
         return {
             "status": "no_validations",
             "message": "No validations recorded on this instance.",
+            "retention": validation_history_retention_contract(),
         }
     synthesis = latest.get("synthesis", {}) if isinstance(latest.get("synthesis"), dict) else {}
     return {
@@ -527,6 +592,7 @@ def _redacted_latest_validation() -> dict[str, Any]:
         "veto_triggered": synthesis.get("veto_triggered"),
         "completed_at": latest.get("completed_at"),
         "_note": "Concept name/description intentionally omitted — shared instance store (v0.5.43 privacy).",
+        "retention": validation_history_retention_contract(),
     }
 
 
@@ -542,6 +608,7 @@ def _aggregate_validation_stats() -> dict[str, Any]:
             "veto_count": 0,
             "last_updated": history.get("metadata", {}).get("last_updated") if isinstance(history, dict) else None,
             "_note": "Aggregate stats only — per-concept detail never exposed (v0.5.43 privacy).",
+            "retention": validation_history_retention_contract(),
         }
     rec_dist: dict[str, int] = {}
     veto_count = 0
@@ -557,6 +624,7 @@ def _aggregate_validation_stats() -> dict[str, Any]:
         "veto_count": veto_count,
         "last_updated": history.get("metadata", {}).get("last_updated"),
         "_note": "Aggregate stats only — per-concept detail never exposed (v0.5.43 privacy).",
+        "retention": validation_history_retention_contract(),
     }
 
 
@@ -646,9 +714,10 @@ def _create_mcp_instance():
         Validation History — Aggregate Statistics Only
 
         Returns aggregate statistics over the shared validation history (total
-        count, score/verdict distribution, last-updated) — never the per-concept
-        names or descriptions. The history store is instance-global; exposing raw
-        entries here would leak other clients' concepts (v0.5.43 privacy fix).
+        retained count, score/verdict distribution, last-updated, and the enforced
+        retention contract — never the per-concept names or descriptions. The
+        history store is instance-global; exposing raw entries here would leak
+        other clients' concepts (v0.5.43 privacy fix).
 
         URI: genesis://history/all
         Format: JSON
@@ -1092,11 +1161,13 @@ def _create_mcp_instance():
             concept_name: Short name or title of the concept
             concept_description: Detailed description of the concept
             context: Optional additional context or background
-            save_to_history: Whether to save result to validation history (default: False).
-                History is a single shared store on this server instance; leaving this
-                False prevents the full concept/result from being written there. If
-                user_uuid is supplied separately, pseudonymous validation metadata may
-                still be written to UUID-keyed Firestore history (see Privacy v2.4).
+            save_to_history: Whether to save the full result to validation history
+                (default: False). The store is shared and instance-local, retains at
+                most the 20 newest opt-in results, evicts oldest entries on every
+                read/write, and clears when the instance is replaced. It has no fixed
+                time-retention guarantee. Leave False for private or sensitive concepts.
+                If user_uuid is supplied separately, pseudonymous validation metadata
+                may still be written to UUID-keyed Firestore history (see Privacy v2.5).
             detail: Reasoning verbosity (v0.5.44) — "standard" (default) returns the
                 auditable `reasoning` block (per-step reasoning, ethics scoring breakdown
                 + framework citations, Socratic questions, threat assessment) alongside
@@ -1292,9 +1363,13 @@ def _create_mcp_instance():
                 cs_result=cs_result
             )
 
-            # Save to history if requested
+            # Save to bounded shared history if requested. Report actual write
+            # success rather than echoing the caller's requested boolean.
+            history_saved = False
             if save_to_history:
                 history = load_validation_history()
+                history.setdefault("validations", [])
+                history.setdefault("metadata", {})
                 history_entry = trinity_result.model_dump()
                 for result_key, agent_id, quality in (
                     ("x_analysis", "X", x_quality),
@@ -1310,7 +1385,9 @@ def _create_mcp_instance():
                 history["validations"].append(history_entry)
                 history["metadata"]["total_validations"] = len(history["validations"])
                 history["metadata"]["last_updated"] = str(trinity_result.completed_at)
-                save_validation_history(history)
+                history_saved = save_validation_history(history)
+
+            history_retention = validation_history_retention_contract()
 
             # BYOK metadata for response
             _stage_results = {"X": x_result, "Z": z_result, "CS": cs_result}
@@ -1333,7 +1410,8 @@ def _create_mcp_instance():
                     "format": "markdown",
                     "content": generate_markdown_report(trinity_result),
                     "validation_id": trinity_result.validation_id,
-                    "saved_to_history": save_to_history,
+                    "saved_to_history": history_saved,
+                    "history_retention": history_retention,
                     "_agent_chain_status": chain_status,
                     "_overall_quality": overall_quality,
                     "_schema_diagnostics": schema_diagnostics,
@@ -1345,6 +1423,10 @@ def _create_mcp_instance():
                     md_payload["_warning"] = (
                         trinity_result.synthesis.inference_warning
                         or MOCK_MODE_WARNING
+                    )
+                if save_to_history and not history_saved:
+                    md_payload["_history_warning"] = (
+                        "History was requested but could not be persisted on this instance."
                     )
                 persist_trinity_result(user_uuid, "run_full_trinity", md_payload)
                 return wrap_response(md_payload)
@@ -1418,7 +1500,8 @@ def _create_mcp_instance():
                     "inference_warning": getattr(trinity_result.synthesis, 'inference_warning', None),
                 },
                 "human_decision_required": True,
-                "saved_to_history": save_to_history,
+                "saved_to_history": history_saved,
+                "history_retention": history_retention,
                 "_agent_chain_status": chain_status,
                 "_overall_quality": overall_quality,
                 "_schema_diagnostics": schema_diagnostics,
@@ -1440,6 +1523,10 @@ def _create_mcp_instance():
                 payload["_warning"] = (
                     trinity_result.synthesis.inference_warning
                     or MOCK_MODE_WARNING
+                )
+            if save_to_history and not history_saved:
+                payload["_history_warning"] = (
+                    "History was requested but could not be persisted on this instance."
                 )
             persist_trinity_result(user_uuid, "run_full_trinity", payload)
             return wrap_response(payload)
