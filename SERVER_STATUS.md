@@ -6,9 +6,10 @@
 
 ## Current production snapshot
 
-- Production application version: **v0.5.56**
-- Source commit: **`40a489245702d2db23b2d1f6fd8eb124e33c0f15`** (PR #315)
-- Cloud Build: **`28db0855-cb06-4802-b952-75623318345f`** — successful
+- Production application version: **v0.5.57**
+- Source commit: **`6faadef55fefe0a2347d54450f3cf29e7c56b85a`** (PR #322)
+- Cloud Build: **`ca5742a7-9d55-43a7-9f8d-b7e8b19502c7`** — successful, live 2026-08-06T11:27:35Z
+- Previous production release: v0.5.56 at `40a489245702d2db23b2d1f6fd8eb124e33c0f15` (rollback target)
 - MCP protocol advertised by production: **2025-11-25**
 - Tool inventory: **13 defined / 8 active / 5 temporarily unavailable**
 - Temporarily unavailable:
@@ -43,9 +44,9 @@ claim.
 The two missing release records were restored on August 6, 2026. Creating those
 records did not merge code or trigger a deployment.
 
-## v0.5.57 release candidate (not deployed)
+## v0.5.57 (deployed August 6, 2026)
 
-The bounded post-release reliability lane contains:
+The bounded post-release reliability lane delivered:
 
 - MCP Registry description shortened below the 100-character hard limit.
 - Discovery-card prompt resource renamed from stale `v4.2` copy to the live
@@ -56,7 +57,8 @@ The bounded post-release reliability lane contains:
   read/write, cleared on instance replacement, and reported truthfully when a
   write fails.
 - Terms v2.4 / Privacy v2.5 wording that describes the enforced entry-bound
-  retention contract; human/RNA review remains required before publication.
+  retention contract; RNA security review PASS and human ratification both
+  obtained before publication.
 - Dead duplicate Privacy/Terms HTML bodies removed so canonical policy modules
   are the only served legal-text source.
 
@@ -64,18 +66,19 @@ The private Command Central Gate #1 provenance repair is isolated separately in
 private draft PR #82. It requires an explicit canonical public checkout, full
 expected SHA, matching origin/root/HEAD, and a clean worktree.
 
-## Gates before v0.5.57 can merge or deploy
+## Gates spent for v0.5.57
 
-1. Complete local unit, integration, security, and canonical-currency gates.
-2. Publish the bounded public change as a draft PR tied to one exact SHA.
-3. Obtain RNA/security review of that exact head.
-4. Obtain human approval of Terms v2.4 / Privacy v2.5 publication wording, with qualified
-   counsel review where appropriate.
-5. Resolve or explicitly hold the nine-PR backlog without bulk-merging stale or
-   failing branches.
-6. Obtain separate human merge/deployment authorization.
-7. After deployment, verify health, discovery, policy, opt-out failure behavior,
-   bounded history, registry publication, and real-inference Trinity behavior.
+1. Local unit, integration, security, and canonical-currency gates: complete.
+2. Bounded public change published as a draft PR tied to one exact SHA.
+3. RNA/security review of that exact head: **PASS**.
+4. Human ratification of Terms v2.4 / Privacy v2.5 publication wording: **obtained**.
+   Qualified-counsel review of statutory notice sufficiency remains a separate,
+   parallel track and is not represented as closed.
+5. Independent CS review at the exact head: **PASS**, with a parent-commit
+   differential of 16 failing contracts.
+6. Separate human merge/deployment authorization: **obtained**.
+7. Post-deployment verification of health, discovery, policy, opt-out behaviour,
+   bounded history, and real-inference Trinity: **25 passed / 0 stop / 0 instrument**.
 
 ## Known limitations and follow-up lanes
 
