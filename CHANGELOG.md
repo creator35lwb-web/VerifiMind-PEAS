@@ -8,10 +8,12 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
-## v0.5.57 - Post-Release Truth and Reliability Repair (Release Candidate)
+## v0.5.57 - Post-Release Truth and Reliability Repair (August 6, 2026)
 
-This bounded candidate resolves known defects discovered after v0.5.56 reached
-production. It does not claim merge or deployment.
+This bounded release resolves known defects discovered after v0.5.56 reached
+production. Production deployment is bound to merge commit
+`6faadef55fefe0a2347d54450f3cf29e7c56b85a` (PR #322), Cloud Build
+`ca5742a7-9d55-43a7-9f8d-b7e8b19502c7`, live 2026-08-06T11:27:35Z.
 
 ### What changed
 
@@ -36,8 +38,7 @@ production. It does not claim merge or deployment.
   guaranteed.
 - **Release record repair:** publishes the previously missing v0.5.55 and
   v0.5.56 GitHub Releases at their exact merge commits; v0.5.56 is latest.
-- **Version surfaces:** runtime candidate `0.5.57`; MCP Registry package
-  `3.34.0`.
+- **Version surfaces:** runtime `0.5.57`; MCP Registry package `3.34.0`.
 
 ### Verification so far
 
@@ -49,7 +50,18 @@ production. It does not claim merge or deployment.
 - Registry description: **88 characters**
 - `git diff --check`: clean
 
-No production deployment is claimed by this entry.
+### Deployment verification
+
+- Merge parents are exactly the reviewed base `40a489245702d2db23b2d1f6fd8eb124e33c0f15`
+  and the reviewed head `9a5d818ade9637f5a33fc89aa55c07fdba897400`; nothing
+  unreviewed was included.
+- Live `/health`: `0.5.57`, healthy, Firestore connected, 13/8/5 tools,
+  runtime failover disabled.
+- Post-deploy smoke across public truth, legal surfaces, anonymous containment,
+  and one real end-to-end validation: **25 passed / 0 stop / 0 instrument**, with
+  all three Trinity stages reporting real inference.
+- Independent review evidence: 16 of the new regression tests fail against the
+  parent commit, confirming the contracts detect the repaired behaviour.
 
 ---
 
