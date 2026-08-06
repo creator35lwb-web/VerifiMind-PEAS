@@ -34,6 +34,12 @@ from pydantic import BaseModel, Field
 
 from verifimind_mcp.utils.uuid_tracer import emit_tracer
 from verifimind_mcp.utils.trinity_history import persist_trinity_result
+from verifimind_mcp.utils.provider_failures import (
+    emit_structured_failure,
+    provider_failure_contract,
+    provider_identity,
+    trinity_stage_failure,
+)
 from verifimind_mcp.llm.failover import FailoverExhaustedError, FailoverTerminalError
 from verifimind_mcp.availability import system_notice_is_compatible
 
@@ -42,7 +48,7 @@ logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 _RAW_SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.5.57"
+SERVER_VERSION = "0.5.58"
 
 # Agent role names + master prompt filename — single source of truth.
 # (SonarCloud P2 batch-2: extracted in v0.5.39 from 13 dup-literal occurrences
@@ -219,11 +225,10 @@ def build_error_response(
     """
     import datetime as _dt
     if original_error:
-        logger.error(
-            "[%s] agent=%s exception_type=%s",
-            error_code,
-            agent,
-            type(original_error).__name__,
+        emit_structured_failure(
+            error_code=error_code,
+            agent=agent,
+            exc=original_error,
         )
     return {
         "status": "error",
@@ -239,35 +244,38 @@ def _agent_exception_payload(
     exc: Exception,
     agent: str,
     concept_name: str,
+    provider: Any = None,
+    byok: bool = False,
 ) -> dict:
     """Return a stable error without reflecting provider/model output."""
-    detail = str(exc).lower()
-    if "401" in detail or "invalid api key" in detail or "authentication" in detail:
-        error_code = "BYOK_AUTH_FAILED"
-        message = "API key authentication failed."
-        hint = "Check that the key matches the selected provider, or omit BYOK parameters."
-    elif "timeout" in detail or "timed out" in detail:
-        error_code = "PROVIDER_TIMEOUT"
-        message = "The LLM provider timed out."
-        hint = "Try again shortly or select a lower-latency provider."
-    elif type(exc).__name__ == "ValidationError":
-        error_code = "INCOMPLETE_PROVIDER_RESPONSE"
-        message = "The provider returned an incomplete structured analysis."
-        hint = "Retry the analysis; no generated fields from the failed response were returned."
-    else:
-        error_code = "AGENT_ANALYSIS_ERROR"
-        message = "The agent analysis could not be completed."
-        hint = "Try again. If the issue persists, omit BYOK parameters to use hosted routing."
+    contract = provider_failure_contract(
+        exc,
+        byok=byok,
+        default_code="AGENT_ANALYSIS_ERROR",
+    )
+    provider_id, model = provider_identity(provider, exc)
 
     payload = build_error_response(
-        error_code=error_code,
-        message=message,
-        recovery_hint=hint,
+        error_code=contract["error_code"],
+        message=contract["message"],
+        recovery_hint=contract["recovery_hint"],
         agent=agent,
-        original_error=exc,
     )
     payload["concept"] = concept_name
     payload["_inference_quality"] = "unavailable"
+    payload["provider"] = provider_id
+    payload["model"] = model
+    payload["retryable"] = contract["retryable"]
+    if contract["retry_after_seconds"] is not None:
+        payload["retry_after_seconds"] = contract["retry_after_seconds"]
+    emit_structured_failure(
+        error_code=contract["error_code"],
+        agent=agent,
+        exc=exc,
+        provider=provider_id,
+        model=model,
+        retryable=contract["retryable"],
+    )
     return payload
 
 
@@ -777,6 +785,7 @@ def _create_mcp_instance():
         Returns:
             Structured analysis with reasoning chain, scores, and recommendations
         """
+        provider = None
         if user_uuid:
             emit_tracer(user_uuid, "consult_agent_x")
         try:
@@ -851,7 +860,9 @@ def _create_mcp_instance():
             return wrap_response(failover_error_payload(e, AGENT_X_NAME, concept_name))
         except Exception as e:
             return wrap_response(_agent_exception_payload(
-                e, AGENT_X_NAME, concept_name
+                e, AGENT_X_NAME, concept_name,
+                provider=provider,
+                byok=bool(api_key),
             ))
 
 
@@ -895,6 +906,7 @@ def _create_mcp_instance():
         Returns:
             Structured analysis with reasoning chain, ethics score, and veto status
         """
+        provider = None
         if user_uuid:
             emit_tracer(user_uuid, "consult_agent_z")
         try:
@@ -986,7 +998,9 @@ def _create_mcp_instance():
             return wrap_response(failover_error_payload(e, AGENT_Z_NAME, concept_name))
         except Exception as e:
             return wrap_response(_agent_exception_payload(
-                e, AGENT_Z_NAME, concept_name
+                e, AGENT_Z_NAME, concept_name,
+                provider=provider,
+                byok=bool(api_key),
             ))
 
 
@@ -1027,6 +1041,7 @@ def _create_mcp_instance():
         Returns:
             Structured analysis with security score, vulnerabilities, and Socratic questions
         """
+        provider = None
         if user_uuid:
             emit_tracer(user_uuid, "consult_agent_cs")
         try:
@@ -1118,7 +1133,9 @@ def _create_mcp_instance():
             return wrap_response(failover_error_payload(e, AGENT_CS_NAME, concept_name))
         except Exception as e:
             return wrap_response(_agent_exception_payload(
-                e, AGENT_CS_NAME, concept_name
+                e, AGENT_CS_NAME, concept_name,
+                provider=provider,
+                byok=bool(api_key),
             ))
 
 
@@ -1262,58 +1279,121 @@ def _create_mcp_instance():
 
             # v0.4.3.1 C-S-P State: Track inference quality across chain
             chain_status = {}
+            stage_errors = {}
 
             # Step 1: X Agent analysis (no prior reasoning)
-            x_result = await x_agent.analyze(concept)
-            x_quality = getattr(x_result, '_inference_quality', 'unknown')
-            chain_status["x_agent"] = x_quality
-            logger.info(f"Trinity X stage: quality={x_quality} session={session.session_id}")
-            session.write("X", {
-                "score": x_result.innovation_score if x_quality == "real" else None,
-                "provider": resolved_providers["X"].get_model_name(),
-            })
-            x_cot = x_result.to_chain_of_thought(concept_name)
+            try:
+                x_result = await x_agent.analyze(concept)
+                x_quality = getattr(x_result, '_inference_quality', 'unknown')
+                chain_status["x_agent"] = x_quality
+                logger.info(
+                    "Trinity X stage: quality=%s session=%s",
+                    x_quality,
+                    session.session_id,
+                )
+                x_cot = (
+                    x_result.to_chain_of_thought(concept_name)
+                    if x_quality == "real" else None
+                )
+                session.write("X", {
+                    "score": x_result.innovation_score if x_quality == "real" else None,
+                    "provider": resolved_providers["X"].get_model_name(),
+                })
+            except Exception as e:
+                x_result, stage_errors["X"] = trinity_stage_failure(
+                    agent_id="X",
+                    provider=resolved_providers["X"],
+                    exc=e,
+                    byok=byok_status["X"],
+                    session_id=session.session_id,
+                )
+                x_quality = "unavailable"
+                chain_status["x_agent"] = x_quality
+                x_cot = None
 
             # Step 2: Z Agent analysis (sees X's reasoning)
             z_prior = PriorReasoning()
-            if x_quality == "real":
+            if x_cot is not None:
                 z_prior.add(x_cot)
-            z_result = await z_agent.analyze(concept, z_prior)
-            z_quality = getattr(z_result, '_inference_quality', 'unknown')
-            chain_status["z_agent"] = z_quality
-            logger.info(f"Trinity Z stage: quality={z_quality} session={session.session_id}")
-
-            # v0.5.3 Token Ceiling Monitor — Strategy 3
             from .utils import check_z_agent_response
-            z_output_tokens = getattr(z_result, '_output_tokens', 0)
-            z_token_monitor = check_z_agent_response(z_output_tokens)
-            if z_token_monitor["risk_level"] in ("HIGH", "CRITICAL"):
-                logger.warning(
-                    f"Z Agent token ceiling risk: {z_token_monitor['utilization']} "
-                    f"({z_token_monitor['token_count']}/{z_token_monitor['ceiling']}) "
-                    f"risk={z_token_monitor['risk_level']}"
+            z_token_monitor = {
+                "token_count": None,
+                "ceiling": 8192,
+                "utilization": None,
+                "risk_level": "UNAVAILABLE",
+                "truncated": None,
+            }
+            try:
+                z_result = await z_agent.analyze(concept, z_prior)
+                z_quality = getattr(z_result, '_inference_quality', 'unknown')
+                chain_status["z_agent"] = z_quality
+                logger.info(
+                    "Trinity Z stage: quality=%s session=%s",
+                    z_quality,
+                    session.session_id,
                 )
-            session.write("Z", {
-                "score": z_result.ethics_score if z_quality == "real" else None,
-                "veto": z_result.veto_triggered if z_quality == "real" else None,
-                "provider": resolved_providers["Z"].get_model_name(),
-            })
-            z_cot = z_result.to_chain_of_thought(concept_name)
+
+                # v0.5.3 Token Ceiling Monitor — Strategy 3
+                z_output_tokens = getattr(z_result, '_output_tokens', 0)
+                z_token_monitor = check_z_agent_response(z_output_tokens)
+                if z_token_monitor["risk_level"] in ("HIGH", "CRITICAL"):
+                    logger.warning(
+                        "Z Agent token ceiling risk: %s (%s/%s) risk=%s",
+                        z_token_monitor["utilization"],
+                        z_token_monitor["token_count"],
+                        z_token_monitor["ceiling"],
+                        z_token_monitor["risk_level"],
+                    )
+                z_cot = (
+                    z_result.to_chain_of_thought(concept_name)
+                    if z_quality == "real" else None
+                )
+                session.write("Z", {
+                    "score": z_result.ethics_score if z_quality == "real" else None,
+                    "veto": z_result.veto_triggered if z_quality == "real" else None,
+                    "provider": resolved_providers["Z"].get_model_name(),
+                })
+            except Exception as e:
+                z_result, stage_errors["Z"] = trinity_stage_failure(
+                    agent_id="Z",
+                    provider=resolved_providers["Z"],
+                    exc=e,
+                    byok=byok_status["Z"],
+                    session_id=session.session_id,
+                )
+                z_quality = "unavailable"
+                chain_status["z_agent"] = z_quality
+                z_cot = None
 
             # Step 3: CS Agent analysis (sees X and Z reasoning)
             cs_prior = PriorReasoning()
-            if x_quality == "real":
+            if x_cot is not None:
                 cs_prior.add(x_cot)
-            if z_quality == "real":
+            if z_cot is not None:
                 cs_prior.add(z_cot)
-            cs_result = await cs_agent.analyze(concept, cs_prior)
-            cs_quality = getattr(cs_result, '_inference_quality', 'unknown')
-            chain_status["cs_agent"] = cs_quality
-            logger.info(f"Trinity CS stage: quality={cs_quality} session={session.session_id}")
-            session.write("CS", {
-                "score": cs_result.security_score if cs_quality == "real" else None,
-                "provider": resolved_providers["CS"].get_model_name(),
-            })
+            try:
+                cs_result = await cs_agent.analyze(concept, cs_prior)
+                cs_quality = getattr(cs_result, '_inference_quality', 'unknown')
+                chain_status["cs_agent"] = cs_quality
+                logger.info(
+                    "Trinity CS stage: quality=%s session=%s",
+                    cs_quality,
+                    session.session_id,
+                )
+                session.write("CS", {
+                    "score": cs_result.security_score if cs_quality == "real" else None,
+                    "provider": resolved_providers["CS"].get_model_name(),
+                })
+            except Exception as e:
+                cs_result, stage_errors["CS"] = trinity_stage_failure(
+                    agent_id="CS",
+                    provider=resolved_providers["CS"],
+                    exc=e,
+                    byok=byok_status["CS"],
+                    session_id=session.session_id,
+                )
+                cs_quality = "unavailable"
+                chain_status["cs_agent"] = cs_quality
 
             # v0.4.3.1 C-S-P Propagation: Compute overall quality
             quality_values = list(chain_status.values())
@@ -1366,7 +1446,7 @@ def _create_mcp_instance():
             # Save to bounded shared history if requested. Report actual write
             # success rather than echoing the caller's requested boolean.
             history_saved = False
-            if save_to_history:
+            if save_to_history and not stage_errors:
                 history = load_validation_history()
                 history.setdefault("validations", [])
                 history.setdefault("metadata", {})
@@ -1402,6 +1482,13 @@ def _create_mcp_instance():
                 },
             }
             _byok_meta.update(trinity_failover_meta(_stage_results))
+            _stage_failure_meta = {}
+            if stage_errors:
+                _stage_failure_meta = {
+                    "status": "partial" if session.agents_completed else "error",
+                    "_stage_errors": stage_errors,
+                    "_agents_failed": sorted(stage_errors),
+                }
 
             # Return result — Markdown-first if requested (v0.4.1)
             if output_format == "markdown":
@@ -1417,6 +1504,7 @@ def _create_mcp_instance():
                     "_schema_diagnostics": schema_diagnostics,
                     "_z_token_monitor": z_token_monitor,
                     **_byok_meta,
+                    **_stage_failure_meta,
                     **session.to_metadata(),
                 }
                 if overall_quality != "full":
@@ -1424,11 +1512,16 @@ def _create_mcp_instance():
                         trinity_result.synthesis.inference_warning
                         or MOCK_MODE_WARNING
                     )
-                if save_to_history and not history_saved:
+                if save_to_history and stage_errors:
+                    md_payload["_history_warning"] = (
+                        "History was not written because one or more Trinity stages failed."
+                    )
+                elif save_to_history and not history_saved:
                     md_payload["_history_warning"] = (
                         "History was requested but could not be persisted on this instance."
                     )
-                persist_trinity_result(user_uuid, "run_full_trinity", md_payload)
+                if not stage_errors:
+                    persist_trinity_result(user_uuid, "run_full_trinity", md_payload)
                 return wrap_response(md_payload)
 
             payload = {
@@ -1507,6 +1600,7 @@ def _create_mcp_instance():
                 "_schema_diagnostics": schema_diagnostics,
                 "_z_token_monitor": z_token_monitor,
                 **_byok_meta,
+                **_stage_failure_meta,
                 **session.to_metadata(),
             }
             # v0.5.44: attach the auditable reasoning block (additive). "summary"
@@ -1524,11 +1618,16 @@ def _create_mcp_instance():
                     trinity_result.synthesis.inference_warning
                     or MOCK_MODE_WARNING
                 )
-            if save_to_history and not history_saved:
+            if save_to_history and stage_errors:
+                payload["_history_warning"] = (
+                    "History was not written because one or more Trinity stages failed."
+                )
+            elif save_to_history and not history_saved:
                 payload["_history_warning"] = (
                     "History was requested but could not be persisted on this instance."
                 )
-            persist_trinity_result(user_uuid, "run_full_trinity", payload)
+            if not stage_errors:
+                persist_trinity_result(user_uuid, "run_full_trinity", payload)
             return wrap_response(payload)
 
         except (FailoverExhaustedError, FailoverTerminalError) as e:

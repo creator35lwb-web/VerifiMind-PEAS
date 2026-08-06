@@ -31,10 +31,21 @@ import json
 import logging
 import re
 from abc import ABC, abstractmethod
+from datetime import date
 from typing import Any, Dict, Optional, Type, List, Tuple
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
+
+
+def _log_provider_exception(provider: str, operation: str, exc: Exception) -> None:
+    """Log provider failures without reflecting SDK bodies, prompts, or keys."""
+    logger.error(
+        "%s %s failed exception_type=%s",
+        provider,
+        operation,
+        type(exc).__name__,
+    )
 
 # Reasoning models (Qwen3.x, DeepSeek-R1 family) prefix answers with <think>...</think>.
 # Stripped before JSON extraction so structured parsing sees only the answer payload.
@@ -101,7 +112,29 @@ GROQ_TPM_SAFETY_MARGIN = 512
 GROQ_MIN_COMPLETION_TOKENS = 1024
 GROQ_TOKEN_ESTIMATE_CHARS_PER_TOKEN = 4
 GROQ_MESSAGE_TOKEN_OVERHEAD = 8
-PROVIDER_DEFAULT_CEREBRAS_MODEL = "llama-3.3-70b"
+# v0.5.58 Cerebras currency repair (RNA S128): both previously advertised
+# Llama IDs returned 404 in a live BYOK probe.  These replacement IDs were
+# listed by Cerebras and successfully probed on 2026-08-06.  This updates the
+# BYOK catalogue only; it does not change the hosted X/Z/CS routing topology.
+PROVIDER_DEFAULT_CEREBRAS_MODEL = "gpt-oss-120b"
+
+# The six remote BYOK catalogues need an explicit freshness invariant.  A
+# model list can be internally consistent and still be wrong in production
+# after a provider retires an ID, which is exactly what happened to Cerebras.
+# `provider_catalog_currency_issues()` is projected into /health and guarded
+# by regression tests; after 90 days a deliberate re-verification is required.
+REMOTE_BYOK_PROVIDER_IDS = frozenset({
+    "gemini", "openai", "anthropic", "groq", "cerebras", "mistral",
+})
+MODEL_CURRENCY_MAX_AGE_DAYS = 90
+RETIRED_MODEL_IDS_BY_PROVIDER = {
+    "groq": frozenset({
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+        "meta-llama/llama-4-scout-17b-16e-instruct",
+    }),
+    "cerebras": frozenset({"llama-3.3-70b", "llama-3.1-8b"}),
+}
 
 
 def _groq_message_content_text(content: Any) -> str:
@@ -276,6 +309,7 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "base_url": "https://generativelanguage.googleapis.com/v1beta",
         "free_tier": True,
         "rate_limit": 15,  # requests per minute on free tier
+        "models_verified_at": "2026-07-22",
     },
     "openai": {
         "name": "OpenAI",
@@ -284,6 +318,7 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "api_key_env": "OPENAI_API_KEY",
         "base_url": "https://api.openai.com/v1",
         "free_tier": False,
+        "models_verified_at": "2026-06-22",
     },
     "anthropic": {
         "name": "Anthropic Claude",
@@ -297,6 +332,7 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "api_key_env": "ANTHROPIC_API_KEY",
         "base_url": "https://api.anthropic.com/v1",
         "free_tier": False,
+        "models_verified_at": "2026-07-29",
     },
     "groq": {
         "name": "Groq",
@@ -315,15 +351,21 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "base_url": "https://api.groq.com/openai/v1",
         "free_tier": True,
         "rate_limit": 30,
+        "models_verified_at": "2026-07-16",
     },
     "cerebras": {
         "name": "Cerebras",
         "default_model": PROVIDER_DEFAULT_CEREBRAS_MODEL,
-        "models": [PROVIDER_DEFAULT_CEREBRAS_MODEL, "llama-3.1-8b"],
+        "models": [
+            PROVIDER_DEFAULT_CEREBRAS_MODEL,
+            "zai-glm-4.7",
+            "gemma-4-31b",
+        ],
         "api_key_env": "CEREBRAS_API_KEY",
         "base_url": "https://api.cerebras.ai/v1",
         "free_tier": True,
         "rate_limit": 60,  # free-tier limits vary by account; 20x GPU throughput
+        "models_verified_at": "2026-08-06",
     },
     "mistral": {
         "name": "Mistral AI",
@@ -335,6 +377,7 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "api_key_env": "MISTRAL_API_KEY",
         "base_url": "https://api.mistral.ai/v1",
         "free_tier": False,
+        "models_verified_at": "2026-07-22",
     },
     "ollama": {
         "name": "Ollama (Local)",
@@ -353,6 +396,54 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "free_tier": True,
     },
 }
+
+
+def provider_catalog_currency_issues(
+    as_of: Optional[date] = None,
+) -> Dict[str, List[str]]:
+    """Return bounded model-catalogue integrity/freshness findings.
+
+    This is intentionally a local truth gate, not a claim that CI contacted
+    six external APIs.  Live provider verification establishes each stamped
+    date; this function prevents that evidence from silently aging forever and
+    catches default/list drift or the reintroduction of known-retired IDs.
+    Ollama is user-local and Mock is synthetic, so neither belongs to the six
+    remote-provider currency contract.
+    """
+    today = as_of or date.today()
+    issues: Dict[str, List[str]] = {}
+
+    for provider_id in sorted(REMOTE_BYOK_PROVIDER_IDS):
+        config = PROVIDER_CONFIGS.get(provider_id, {})
+        provider_issues: List[str] = []
+        models = list(config.get("models", []))
+        default_model = config.get("default_model")
+
+        if not default_model or default_model not in models:
+            provider_issues.append("default_model_not_in_models")
+        if len(models) != len(set(models)):
+            provider_issues.append("duplicate_model_ids")
+
+        retired = RETIRED_MODEL_IDS_BY_PROVIDER.get(provider_id, frozenset())
+        if retired.intersection(models):
+            provider_issues.append("known_retired_model_id")
+
+        verified_raw = config.get("models_verified_at")
+        try:
+            verified_on = date.fromisoformat(str(verified_raw))
+        except (TypeError, ValueError):
+            provider_issues.append("missing_or_invalid_verification_date")
+        else:
+            age_days = (today - verified_on).days
+            if age_days < 0:
+                provider_issues.append("verification_date_in_future")
+            elif age_days > MODEL_CURRENCY_MAX_AGE_DAYS:
+                provider_issues.append("verification_stale")
+
+        if provider_issues:
+            issues[provider_id] = provider_issues
+
+    return issues
 
 
 @dataclass
@@ -508,7 +599,7 @@ class OpenAIProvider(LLMProvider):
                 clean_content = strip_markdown_code_fences(content)
                 parsed_content = json.loads(clean_content)
             except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse JSON response: {e}")
+                _log_provider_exception("OpenAI", "JSON parse", e)
                 logger.debug("Unparseable response length=%s", len(content or ""))
                 parsed_content = {"raw_response": content, "parse_error": str(e)}
 
@@ -520,7 +611,7 @@ class OpenAIProvider(LLMProvider):
             }
 
         except Exception as e:
-            logger.error(f"OpenAI API error: {e}")
+            _log_provider_exception("OpenAI", "API request", e)
             raise
     
     def get_model_name(self) -> str:
@@ -698,7 +789,7 @@ class AnthropicProvider(LLMProvider):
                     else:
                         parsed_content = {"raw_response": content}
             except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse JSON response: {e}")
+                _log_provider_exception("Anthropic", "JSON parse", e)
                 parsed_content = {"raw_response": content, "parse_error": str(e)}
             
             # Return both content and usage
@@ -709,7 +800,7 @@ class AnthropicProvider(LLMProvider):
             }
 
         except Exception as e:
-            logger.error(f"Anthropic API error: {e}")
+            _log_provider_exception("Anthropic", "API request", e)
             raise
     
     def get_model_name(self) -> str:
@@ -795,7 +886,10 @@ class GeminiProvider(LLMProvider):
         try:
             return _clean(output_schema)
         except Exception as e:
-            logger.warning(f"Failed to build Gemini response schema: {e}")
+            logger.warning(
+                "Gemini response-schema construction failed exception_type=%s",
+                type(e).__name__,
+            )
             return None
 
     @staticmethod
@@ -1110,7 +1204,7 @@ class GeminiProvider(LLMProvider):
                             parsed_content = {"raw_response": content}
                             inference_quality = "fallback"
                 except json.JSONDecodeError as e:
-                    logger.error(f"Failed to parse JSON: {e}")
+                    _log_provider_exception("Gemini", "JSON parse", e)
                     parsed_content = {"raw_response": content, "parse_error": str(e)}
                     inference_quality = "fallback"
 
@@ -1124,7 +1218,7 @@ class GeminiProvider(LLMProvider):
             }
 
         except Exception as e:
-            logger.error(f"Gemini API error: {e}")
+            _log_provider_exception("Gemini", "API request", e)
             raise
 
     def get_model_name(self) -> str:
@@ -1319,7 +1413,7 @@ class GroqProvider(LLMProvider):
                             parsed_content = {"raw_response": content}
                             inference_quality = "fallback"
                 except json.JSONDecodeError as e:
-                    logger.error(f"Groq: Failed to parse JSON: {e}")
+                    _log_provider_exception("Groq", "JSON parse", e)
                     parsed_content = {"raw_response": content, "parse_error": str(e)}
                     inference_quality = "fallback"
 
@@ -1332,7 +1426,7 @@ class GroqProvider(LLMProvider):
             }
 
         except Exception as e:
-            logger.error(f"Groq API error: {e}")
+            _log_provider_exception("Groq", "API request", e)
             raise
 
     def get_model_name(self) -> str:
@@ -1491,7 +1585,7 @@ class CerebrasProvider(LLMProvider):
                             parsed_content = {"raw_response": content}
                             inference_quality = "fallback"
                 except json.JSONDecodeError as e:
-                    logger.error(f"Cerebras: Failed to parse JSON: {e}")
+                    _log_provider_exception("Cerebras", "JSON parse", e)
                     parsed_content = {"raw_response": content, "parse_error": str(e)}
                     inference_quality = "fallback"
 
@@ -1504,7 +1598,7 @@ class CerebrasProvider(LLMProvider):
             }
 
         except Exception as e:
-            logger.error(f"Cerebras API error: {e}")
+            _log_provider_exception("Cerebras", "API request", e)
             raise
 
     def get_model_name(self) -> str:
@@ -1580,7 +1674,7 @@ class MistralProvider(LLMProvider):
                     else:
                         parsed_content = {"raw_response": content}
             except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse JSON response: {e}")
+                _log_provider_exception("Mistral", "JSON parse", e)
                 parsed_content = {"raw_response": content, "parse_error": str(e)}
 
             return {
@@ -1590,7 +1684,7 @@ class MistralProvider(LLMProvider):
             }
 
         except Exception as e:
-            logger.error(f"Mistral API error: {e}")
+            _log_provider_exception("Mistral", "API request", e)
             raise
 
     def get_model_name(self) -> str:
@@ -1669,7 +1763,7 @@ class OllamaProvider(LLMProvider):
                     else:
                         parsed_content = {"raw_response": content}
             except json.JSONDecodeError as e:
-                logger.error(f"Failed to parse JSON response: {e}")
+                _log_provider_exception("Ollama", "JSON parse", e)
                 parsed_content = {"raw_response": content, "parse_error": str(e)}
 
             return {
@@ -1679,7 +1773,7 @@ class OllamaProvider(LLMProvider):
             }
 
         except Exception as e:
-            logger.error(f"Ollama API error: {e}")
+            _log_provider_exception("Ollama", "API request", e)
             raise
 
     def get_model_name(self) -> str:
@@ -1902,7 +1996,11 @@ async def get_provider_with_fallback(
         logger.info(f"Using primary provider: {provider_name}")
         return provider
     except Exception as e:
-        logger.warning(f"Primary provider {provider_name} failed: {e}")
+        logger.warning(
+            "Primary provider %s failed exception_type=%s",
+            provider_name,
+            type(e).__name__,
+        )
 
     # Build fallback chain
     chain = [fallback_provider] if fallback_provider else _resolve_fallback_chain(provider_name)
@@ -1915,7 +2013,11 @@ async def get_provider_with_fallback(
             logger.info(f"Fallback: using {candidate}")
             return provider
         except Exception as e:
-            logger.warning(f"Fallback provider {candidate} failed: {e}")
+            logger.warning(
+                "Fallback provider %s failed exception_type=%s",
+                candidate,
+                type(e).__name__,
+            )
 
     # Guaranteed last resort
     logger.info("Using mock provider as last resort")

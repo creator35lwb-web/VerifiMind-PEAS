@@ -1,4 +1,4 @@
-"""v0.5.57 — current public-truth and containment contract."""
+"""v0.5.58 — current public-truth and containment contract."""
 
 import asyncio
 from html import escape
@@ -80,8 +80,8 @@ def test_version_and_tool_availability_are_exact_across_discovery_surfaces():
     config = _json_response(http_server.mcp_config_handler)
     setup = _json_response(http_server.setup_handler)
 
-    assert http_server.SERVER_VERSION == "0.5.57"
-    assert health["version"] == "0.5.57"
+    assert http_server.SERVER_VERSION == "0.5.58"
+    assert health["version"] == "0.5.58"
     assert health["tool_availability"] == expected
     assert (
         config["mcpServers"]["verifimind-genesis"]["tool_availability"]
@@ -94,8 +94,8 @@ def test_registry_manifest_has_same_current_availability_truth():
     manifest_path = Path(__file__).resolve().parents[3] / "server.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
-    assert manifest["version"] == "3.34.0"
-    assert "v0.5.57" in manifest["description"]
+    assert manifest["version"] == "3.35.0"
+    assert "v0.5.58" in manifest["description"]
     assert "8 active tools" in manifest["description"]
     assert len(manifest["description"]) <= 100
     tools = manifest["_meta"][
