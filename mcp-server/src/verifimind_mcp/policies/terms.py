@@ -1,11 +1,11 @@
 """Canonical plain-text Terms & Conditions served to JSON clients."""
 
-TERMS_VERSION = "2.3"
-TERMS_EFFECTIVE_DATE = "2026-08-04"
+TERMS_VERSION = "2.4"
+TERMS_EFFECTIVE_DATE = "2026-08-06"
 
 TERMS_AND_CONDITIONS = """
-VerifiMind-PEAS — Terms & Conditions v2.3
-Published and effective: August 4, 2026 (previous: v2.2, July 30, 2026)
+VerifiMind-PEAS — Terms & Conditions v2.4
+Published and effective: August 6, 2026 (previous: v2.3, August 4, 2026)
 
 1. SERVICE DESCRIPTION
 VerifiMind-PEAS is an open-source multi-model AI validation framework. Eight
@@ -14,8 +14,8 @@ tools and two custom-template mutation tools are discoverable but temporarily
 unavailable while owner-scoped controls and URL-fetch protections are rebuilt.
 
 2. ACCEPTANCE
-By registering or using the hosted service, you accept these Terms v2.3 and the
-Privacy Policy v2.4 at verifimind.ysenseai.org/privacy.
+By registering or using the hosted service, you accept these Terms v2.4 and the
+Privacy Policy v2.5 at verifimind.ysenseai.org/privacy.
 
 3. ACCESS AND TIERS
 Anonymous, Scholar, Early Adopter, and PILOT users may use the same 8 active
@@ -73,7 +73,7 @@ Privacy Policy.
 Model outputs may be incomplete or incorrect. You are responsible for human
 review and for decisions made using those outputs. Validation prompts and chained
 agent context are sent to the hosted or BYOK AI provider selected for the call;
-see Privacy Policy v2.4 for the current providers and processing details.
+see Privacy Policy v2.5 for the current providers and processing details.
 
 11. LIMITATION OF LIABILITY
 To the maximum extent permitted by applicable law, VerifiMind-PEAS and its
@@ -95,9 +95,11 @@ creator35lwb@gmail.com). Do not post personal data in a public GitHub Discussion
 General questions may use:
 github.com/creator35lwb-web/VerifiMind-PEAS/discussions
 
-This v2.3 revision is effective on publication because it corrects current
-service facts and documents security containment; it does not introduce a fee,
-remove a user right, or shorten an entitlement. Registered users will be notified
-of future material adverse changes at least 14 days before they take effect. The
-current terms are at verifimind.ysenseai.org/terms.
+This v2.4 revision is effective on publication because it binds the Terms to the
+Privacy v2.5 retention disclosure and shortens possible opt-in history storage; it
+does not introduce a fee, remove a user right, or shorten an entitlement.
+Registered users will be notified of
+future material adverse changes at least 14 days before they take effect. The
+current terms are at
+verifimind.ysenseai.org/terms.
 """

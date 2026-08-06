@@ -1,4 +1,4 @@
-"""v0.5.56 — current public-truth and containment contract."""
+"""v0.5.57 — current public-truth and containment contract."""
 
 import asyncio
 from html import escape
@@ -80,8 +80,8 @@ def test_version_and_tool_availability_are_exact_across_discovery_surfaces():
     config = _json_response(http_server.mcp_config_handler)
     setup = _json_response(http_server.setup_handler)
 
-    assert http_server.SERVER_VERSION == "0.5.56"
-    assert health["version"] == "0.5.56"
+    assert http_server.SERVER_VERSION == "0.5.57"
+    assert health["version"] == "0.5.57"
     assert health["tool_availability"] == expected
     assert (
         config["mcpServers"]["verifimind-genesis"]["tool_availability"]
@@ -94,9 +94,10 @@ def test_registry_manifest_has_same_current_availability_truth():
     manifest_path = Path(__file__).resolve().parents[3] / "server.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
-    assert manifest["version"] == "3.33.0"
-    assert "v0.5.56" in manifest["description"]
+    assert manifest["version"] == "3.34.0"
+    assert "v0.5.57" in manifest["description"]
     assert "8 active tools" in manifest["description"]
+    assert len(manifest["description"]) <= 100
     tools = manifest["_meta"][
         "io.modelcontextprotocol.registry/publisher-provided"
     ]["tools"]
@@ -144,8 +145,8 @@ def test_html_and_json_policy_surfaces_share_versions_and_current_truth():
     privacy_json = _json_response(http_server.privacy_handler, "application/json")
     terms_json = _json_response(http_server.terms_handler, "application/json")
 
-    assert PRIVACY_POLICY_VERSION == privacy_json["version"] == "2.4"
-    assert TERMS_VERSION == terms_json["version"] == "2.3"
+    assert PRIVACY_POLICY_VERSION == privacy_json["version"] == "2.5"
+    assert TERMS_VERSION == terms_json["version"] == "2.4"
     assert privacy_json["content"] == PRIVACY_POLICY
     assert terms_json["content"] == TERMS_AND_CONDITIONS
 
@@ -177,14 +178,28 @@ def test_browser_policy_pages_render_the_canonical_json_text_not_a_second_copy()
     assert "version-badge\">v2.0" not in privacy_html
 
 
+def test_pages_module_has_no_second_embedded_policy_copy():
+    pages_source = (
+        Path(__file__).resolve().parents[2]
+        / "src"
+        / "verifimind_mcp"
+        / "pages.py"
+    ).read_text(encoding="utf-8")
+
+    assert "_PRIVACY_BODY" not in pages_source
+    assert "_TERMS_BODY" not in pages_source
+    assert "No other third parties receive your data today" not in pages_source
+    assert "Omit the flag and nothing is retained" not in pages_source
+
+
 def test_effective_dates_and_immediate_revision_classification_converge():
     import http_server
 
     privacy_json = _json_response(http_server.privacy_handler, "application/json")
     terms_json = _json_response(http_server.terms_handler, "application/json")
 
-    assert PRIVACY_POLICY_EFFECTIVE_DATE == "2026-08-04"
-    assert TERMS_EFFECTIVE_DATE == "2026-08-04"
+    assert PRIVACY_POLICY_EFFECTIVE_DATE == "2026-08-06"
+    assert TERMS_EFFECTIVE_DATE == "2026-08-06"
     assert privacy_json["effective_date"] == PRIVACY_POLICY_EFFECTIVE_DATE
     assert terms_json["effective_date"] == TERMS_EFFECTIVE_DATE
     for surface in (PRIVACY_POLICY, TERMS_AND_CONDITIONS):
@@ -220,7 +235,8 @@ def test_history_copy_distinguishes_uuid_metadata_full_history_and_security_logs
         assert "ordinary IP/request security logs may still be retained" in prose
         assert "save_to_history=true" in prose
         assert "shared, instance-local JSON history" in prose
-        assert "no fixed retention period is guaranteed" in prose
+        assert "at most the 20 newest opt-in results" in prose
+        assert "no fixed time-based retention period is guaranteed" in prose
         assert "scores, recommendations" in prose
         assert "nothing is retained" not in prose
 

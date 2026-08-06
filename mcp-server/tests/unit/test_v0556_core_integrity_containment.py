@@ -1,4 +1,4 @@
-"""v0.5.56 core-integrity and custom-template containment contract."""
+"""v0.5.57 carries forward core-integrity and containment contracts."""
 
 import asyncio
 import builtins
@@ -226,6 +226,47 @@ async def test_mock_trinity_withholds_all_synthetic_decision_fields(app, caplog)
     assert len(quality_records) == 1
     assert "x=mock z=mock cs=mock overall=synthetic" in quality_records[0].message
     assert "Integrity probe" not in quality_records[0].message
+
+
+@pytest.mark.asyncio
+async def test_history_write_failure_is_not_reported_as_saved(app, monkeypatch):
+    monkeypatch.setattr(server, "load_validation_history", server._empty_validation_history)
+    monkeypatch.setattr(server, "save_validation_history", lambda _history: False)
+
+    payload = await call(app, "run_full_trinity", {
+        "concept_name": "History truth probe",
+        "concept_description": "Verify failed persistence is never claimed",
+        "llm_provider": "mock",
+        "save_to_history": True,
+    })
+
+    assert payload["saved_to_history"] is False
+    assert "could not be persisted" in payload["_history_warning"]
+    assert payload["history_retention"]["max_entries"] == 20
+
+
+@pytest.mark.asyncio
+async def test_history_write_success_reports_bounded_contract(app, monkeypatch):
+    captured = {}
+
+    def save(history):
+        captured.update(history)
+        return True
+
+    monkeypatch.setattr(server, "load_validation_history", server._empty_validation_history)
+    monkeypatch.setattr(server, "save_validation_history", save)
+
+    payload = await call(app, "run_full_trinity", {
+        "concept_name": "History contract probe",
+        "concept_description": "Verify successful opt-in persistence receipt",
+        "llm_provider": "mock",
+        "save_to_history": True,
+    })
+
+    assert payload["saved_to_history"] is True
+    assert "_history_warning" not in payload
+    assert payload["history_retention"] == server.validation_history_retention_contract()
+    assert len(captured["validations"]) == 1
 
 
 @pytest.mark.asyncio
@@ -913,17 +954,34 @@ def test_discovery_card_matches_runtime_privacy_and_routing_contract():
     response = asyncio.run(http_server.smithery_server_card_handler(None))
     card = json.loads(response.body)
     run_full = next(tool for tool in card["tools"] if tool["name"] == "run_full_trinity")
+    master_prompt = next(
+        resource
+        for resource in card["resources"]
+        if resource["uri"] == "genesis://config/master_prompt"
+    )
     routing = get_public_contract()["free_tier_routing"]
 
-    assert card["version"] == "0.5.56"
+    assert card["version"] == "0.5.57"
     assert "8 MCP tools are active" in card["description"]
     assert "5 tools" in card["description"]
     for agent_id in ("X", "Z", "CS"):
         assert routing[agent_id]["model"] in card["description"]
         assert routing[agent_id]["provider"] in card["description"]
     assert run_full["inputSchema"]["properties"]["save_to_history"]["default"] is False
+    assert "At most 20 newest entries" in (
+        run_full["inputSchema"]["properties"]["save_to_history"]["description"]
+    )
     assert "PROCEED/REFINE/HALT" not in run_full["description"]
     assert "proceed_with_caution" in run_full["description"]
+    assert master_prompt["name"] == "Genesis Methodology — Live Production Prompts"
+    assert "v4.2" not in master_prompt["name"]
+    history_all = next(
+        resource
+        for resource in card["resources"]
+        if resource["uri"] == "genesis://history/all"
+    )
+    assert "Bounded aggregate statistics" in history_all["description"]
+    assert "Complete validation history" not in history_all["description"]
 
 
 def test_availability_contract_contains_exact_five_tools():

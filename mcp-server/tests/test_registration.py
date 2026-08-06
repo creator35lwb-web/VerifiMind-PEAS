@@ -75,13 +75,13 @@ class TestPolicyDocuments:
         assert "opt" in PRIVACY_POLICY.lower()
 
     def test_privacy_policy_version_set(self):
-        assert PRIVACY_POLICY_VERSION == "2.4"
+        assert PRIVACY_POLICY_VERSION == "2.5"
 
     def test_terms_not_empty(self):
         assert len(TERMS_AND_CONDITIONS) > 100
 
     def test_terms_version_set(self):
-        assert TERMS_VERSION == "2.3"
+        assert TERMS_VERSION == "2.4"
 
     def test_privacy_mentions_right_to_deletion(self):
         assert "delet" in PRIVACY_POLICY.lower()
@@ -370,6 +370,40 @@ class TestProcessOptout:
         assert "7 business days" in result.deletion_scheduled_within
         assert "purged" in result.message
 
+    async def test_firestore_read_failure_returns_retryable_non_confirmation(self):
+        mock_doc_ref = MagicMock()
+        mock_doc_ref.get.side_effect = RuntimeError("backend-secret-read-error")
+        mock_db = MagicMock()
+        mock_db.collection.return_value.document.return_value = mock_doc_ref
+
+        with patch("verifimind_mcp.registration._get_firestore", return_value=mock_db):
+            result = await process_optout("sensitive-uuid")
+
+        assert result.processed is False
+        assert result.deletion_scheduled_within is None
+        assert "No deletion action is confirmed" in result.message
+        assert "backend-secret" not in result.message
+        assert "sensitive-uuid" not in result.message
+        mock_doc_ref.update.assert_not_called()
+
+    async def test_firestore_write_failure_returns_retryable_non_confirmation(self):
+        mock_doc = MagicMock()
+        mock_doc.exists = True
+        mock_doc_ref = MagicMock()
+        mock_doc_ref.get.return_value = mock_doc
+        mock_doc_ref.update.side_effect = RuntimeError("backend-secret-write-error")
+        mock_db = MagicMock()
+        mock_db.collection.return_value.document.return_value = mock_doc_ref
+
+        with patch("verifimind_mcp.registration._get_firestore", return_value=mock_db):
+            result = await process_optout("sensitive-uuid")
+
+        assert result.processed is False
+        assert result.deletion_scheduled_within is None
+        assert "No deletion action is confirmed" in result.message
+        assert "backend-secret" not in result.message
+        assert "sensitive-uuid" not in result.message
+
     async def test_http_handler_returns_503_when_deletion_is_not_confirmed(self):
         import http_server
 
@@ -388,6 +422,25 @@ class TestProcessOptout:
 
         assert response.status_code == 503
         assert b"No deletion action is confirmed" in response.body
+
+    async def test_http_handler_normalizes_unexpected_failure_to_structured_503(self):
+        import http_server
+
+        class Request:
+            path_params = {"uuid": "sensitive-uuid"}
+
+        with patch(
+            "http_server.process_optout",
+            new=AsyncMock(side_effect=RuntimeError("backend-secret-handler-error")),
+        ):
+            response = await http_server.ea_optout_handler(Request())
+
+        assert response.status_code == 503
+        body = response.body.decode("utf-8")
+        assert '"processed":false' in body
+        assert "No deletion action is confirmed" in body
+        assert "backend-secret" not in body
+        assert "sensitive-uuid" not in body
 
 
 # ─────────────────────────────────────────────
