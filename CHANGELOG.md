@@ -8,6 +8,51 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.58 - Trinity Traceability and Provider Currency (Candidate)
+
+This candidate repairs the flagship Trinity failure boundary discovered by
+live v0.5.57 testing. It is not merged or deployed; the hosted X/Z/CS provider
+split and dark runtime-failover switch remain unchanged.
+
+### What changed
+
+- **Truthful founder summaries:** a high Z or CS score no longer produces an
+  absence-of-risk statement when that same result lists ethical concerns or
+  vulnerabilities. The summary instead reports the narrower non-veto or
+  non-blocker truth and directs the reader to the findings.
+- **Per-stage degradation:** a provider exception in X, Z, or CS no longer
+  erases successful sibling stages. Downstream agents receive only completed
+  real reasoning; the failed stage is marked `unavailable`, aggregate score and
+  confidence are withheld, and the recommendation cannot exceed `REVISE`
+  unless a trusted real Z veto requires `REJECT`.
+- **Typed failure trace:** rate-limit and output-truncation failures surface as
+  `PROVIDER_RATE_LIMITED` and `PROVIDER_OUTPUT_TRUNCATED`, with sanitized
+  stage/provider/model attribution and bounded retry metadata.
+- **Incomplete-run persistence guard:** an exception-incomplete Trinity is not
+  written to shared validation history or UUID-keyed result history, even when
+  persistence was requested.
+- **Sanitized observability:** provider adapters no longer log raw SDK error
+  bodies. Trinity failures emit structured JSON with explicit `ERROR` severity,
+  a session correlation value, exception type, and no concept, prompt, response,
+  key, organization ID, or billing URL.
+- **Cerebras BYOK currency:** replaces two live-404 Llama IDs with the
+  2026-08-06 verified catalogue (`gpt-oss-120b`, `zai-glm-4.7`,
+  `gemma-4-31b`). All six remote BYOK catalogues now carry verification dates
+  and a 90-day freshness/integrity contract projected into `/health`.
+- **Version surfaces:** candidate runtime `0.5.58`; MCP Registry package
+  `3.35.0`.
+
+### Verification
+
+- Complete Python collection: **1186 passed, 14 skipped, 0 failed**.
+- Focused v0.5.58 truth/degradation/currency contracts: **10 passed**.
+- Full Python server Bandit scan: **0 medium/high findings**.
+- Syntax/data parse: **115 Python files + `server.json`**.
+- `git diff --check`: clean.
+- Merge and deployment require separate authorization.
+
+---
+
 ## v0.5.57 - Post-Release Truth and Reliability Repair (August 6, 2026)
 
 This bounded release resolves known defects discovered after v0.5.56 reached

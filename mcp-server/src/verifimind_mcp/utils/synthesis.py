@@ -271,9 +271,25 @@ def build_founder_summary(
         for opp in x_result.opportunities[:2]:
             whats_working.append(opp)
     if "Z" not in degraded_agents and z_result.ethics_score >= 7.0:
-        whats_working.append("No major ethical or legal concerns for this concept.")
+        if z_result.ethical_concerns:
+            whats_working.append(
+                "No Z-Protocol veto was triggered; review the listed ethical "
+                "concerns and mitigations."
+            )
+        else:
+            whats_working.append(
+                "No major ethical or legal concerns were identified in this review."
+            )
     if "CS" not in degraded_agents and cs_result.security_score >= 7.0:
-        whats_working.append("No significant security risks identified.")
+        if cs_result.vulnerabilities:
+            whats_working.append(
+                "No critical security blocker was identified; review the listed "
+                "vulnerabilities and recommendations."
+            )
+        else:
+            whats_working.append(
+                "No significant security risks were identified in this review."
+            )
 
     # Things to think about (plain language, merged from all agents)
     things_to_address = []

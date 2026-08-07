@@ -23,7 +23,11 @@ def get_public_contract() -> Dict[str, Any]:
     # Lazy imports: server.py does not import this module, so no cycles.
     from .server import SERVER_VERSION
     from .config_helper import AGENT_PROVIDER_DEFAULTS
-    from .llm.provider import PROVIDER_CONFIGS
+    from .llm.provider import (
+        MODEL_CURRENCY_MAX_AGE_DAYS,
+        PROVIDER_CONFIGS,
+        provider_catalog_currency_issues,
+    )
 
     def _default_model(provider: str) -> str:
         return PROVIDER_CONFIGS.get(provider, {}).get("default_model", "")
@@ -49,6 +53,7 @@ def get_public_contract() -> Dict[str, Any]:
             "default_model": cfg.get("default_model", ""),
             "models": list(cfg.get("models", [])),
             "free_tier": bool(cfg.get("free_tier", False)),
+            "models_verified_at": cfg.get("models_verified_at"),
         }
         for name, cfg in PROVIDER_CONFIGS.items()
         if name not in ("mock", "ollama")
@@ -69,6 +74,7 @@ def get_public_contract() -> Dict[str, Any]:
         )
 
     enabled = runtime_failover_enabled()
+    currency_issues = provider_catalog_currency_issues()
     return {
         "version": SERVER_VERSION,
         "free_tier_routing": free_tier_routing,
@@ -83,6 +89,11 @@ def get_public_contract() -> Dict[str, Any]:
             "not fail over between providers"
         ),
         "byok_providers": byok_providers,
+        "byok_model_catalog": {
+            "status": "current" if not currency_issues else "review_required",
+            "max_age_days": MODEL_CURRENCY_MAX_AGE_DAYS,
+            "issues": currency_issues,
+        },
     }
 
 

@@ -98,7 +98,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
 
 # Server version
-SERVER_VERSION = "0.5.57"
+SERVER_VERSION = "0.5.58"
 
 # MCP protocol version the server speaks (v0.5.49, AY/AZ ask from the MCP RC
 # assessment) — surfaced in /health so clients can check compatibility pre-connect.
@@ -183,6 +183,7 @@ async def health_handler(request):
         # v0.5.51 (D-85-2): the canonical routing truth, projected — external
         # surfaces should read THIS instead of hand-maintaining model copy.
         "free_tier_routing": contract["free_tier_routing"],
+        "byok_model_catalog": contract["byok_model_catalog"],
         # v0.5.54 (T S88 D-88-1): construction fallback ≠ request-time
         # failover; this stays false until WP-B ships with failure evidence.
         "runtime_failover_enabled": contract["runtime_failover_enabled"],

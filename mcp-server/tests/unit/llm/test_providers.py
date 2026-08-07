@@ -57,8 +57,12 @@ class TestProviderConfiguration:
         assert info['name'] == 'Cerebras'
         assert info['free_tier'] is True
         assert info['api_key_env'] == 'CEREBRAS_API_KEY'
-        assert 'llama-3.3-70b' in info['models']
-        assert info['default_model'] == 'llama-3.3-70b'
+        assert info['default_model'] == 'gpt-oss-120b'
+        assert set(info['models']) == {
+            'gpt-oss-120b', 'zai-glm-4.7', 'gemma-4-31b'
+        }
+        assert 'llama-3.3-70b' not in info['models']
+        assert 'llama-3.1-8b' not in info['models']
 
     def test_anthropic_model_ids_updated(self):
         """Verify Anthropic model IDs use Claude 4 family (claude-opus-4-8 current)."""

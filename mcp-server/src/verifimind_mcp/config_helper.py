@@ -215,7 +215,11 @@ def get_agent_provider(agent_id: str, ctx: Any = None):
         try:
             return get_provider(per_agent_provider)
         except ValueError as e:
-            logger.warning(f"Agent {agent_id}: Override provider failed: {e}")
+            logger.warning(
+                "Agent %s: override provider construction failed exception_type=%s",
+                agent_id,
+                type(e).__name__,
+            )
 
     # 2. Check session config (BYOK from Smithery)
     if ctx is not None:
@@ -242,7 +246,11 @@ def get_agent_provider(agent_id: str, ctx: Any = None):
             return mark_hosted_failover(
                 AnthropicProvider(), agent_id, "anthropic", configured_fallback)
         except Exception as e:
-            logger.warning(f"Agent {agent_id}: Anthropic failed: {e}")
+            logger.warning(
+                "Agent %s: Anthropic construction failed exception_type=%s",
+                agent_id,
+                type(e).__name__,
+            )
 
     if recommended == "groq" and os.getenv("GROQ_API_KEY"):
         logger.info(f"Agent {agent_id}: Using recommended provider 'groq' (API key found)")
@@ -251,7 +259,11 @@ def get_agent_provider(agent_id: str, ctx: Any = None):
             return mark_hosted_failover(
                 GroqProvider(), agent_id, "groq", configured_fallback)
         except Exception as e:
-            logger.warning(f"Agent {agent_id}: Groq failed: {e}")
+            logger.warning(
+                "Agent %s: Groq construction failed exception_type=%s",
+                agent_id,
+                type(e).__name__,
+            )
 
     # 4. Fall back to Gemini (FREE tier)
     if os.getenv("GEMINI_API_KEY"):
@@ -260,7 +272,11 @@ def get_agent_provider(agent_id: str, ctx: Any = None):
             return mark_hosted_failover(
                 GeminiProvider(), agent_id, "gemini", configured_fallback)
         except Exception as e:
-            logger.warning(f"Agent {agent_id}: Gemini failed: {e}")
+            logger.warning(
+                "Agent %s: Gemini construction failed exception_type=%s",
+                agent_id,
+                type(e).__name__,
+            )
 
     # 5. Try Groq as another free option
     if os.getenv("GROQ_API_KEY"):
@@ -270,7 +286,11 @@ def get_agent_provider(agent_id: str, ctx: Any = None):
             return mark_hosted_failover(
                 GroqProvider(), agent_id, "groq", configured_fallback)
         except Exception as e:
-            logger.warning(f"Agent {agent_id}: Groq failed: {e}")
+            logger.warning(
+                "Agent %s: Groq construction failed exception_type=%s",
+                agent_id,
+                type(e).__name__,
+            )
 
     # 6. Final fallback to Mock
     logger.info(f"Agent {agent_id}: Using MockProvider (no API keys configured)")
