@@ -1,9 +1,9 @@
 # VerifiMind PEAS MCP Server — Features Guide
 
-**Production Version:** v0.5.56
-**Candidate Version:** v0.5.57 (not deployed)
+**Production Version:** v0.5.58
+**MCP Registry Package:** 3.35.0
 **Status:** ✅ **LIVE** at [verifimind.ysenseai.org](https://verifimind.ysenseai.org)
-**Last Updated:** August 6, 2026 — v0.5.57 truth and reliability candidate
+**Last Updated:** August 10, 2026 — v0.5.58 production alignment
 
 > All **13 tools free forever** under the [Core Tools Always Free pledge](https://github.com/creator35lwb-web/VerifiMind-PEAS#core-tools-always-free-pledge) (Option B, May 9, 2026).
 > **Current availability:** 8 active; 3 coordination and 2 custom-template mutation tools temporarily unavailable during security maintenance.
@@ -33,24 +33,24 @@ Resources provide **context and knowledge** for LLMs to understand the VerifiMin
 |---|---|
 | **URI** | `genesis://config/master_prompt` |
 | **Format** | Markdown |
-| **Version** | Genesis v4.2 "Sentinel-Verified" |
-| **Purpose** | Complete X / Z / CS agent methodology, citation architecture |
+| **Version** | Production methodology resource (version-independent discovery identity) |
+| **Purpose** | X / Z / CS agent methodology and citation architecture |
 
-### 2. Latest Validation Result
+### 2. Latest Validation Summary
 
 | Property | Value |
 |---|---|
 | **URI** | `genesis://history/latest` |
 | **Format** | JSON |
-| **Purpose** | Most recent Trinity validation for reference |
+| **Purpose** | Privacy-safe, non-identifying summary of the newest eligible shared-history entry |
 
-### 3. Complete Validation History
+### 3. Bounded Validation Statistics
 
 | Property | Value |
 |---|---|
 | **URI** | `genesis://history/all` |
 | **Format** | JSON |
-| **Purpose** | Full validation archive with metadata + statistics |
+| **Purpose** | Aggregate statistics over at most 20 eligible shared-history entries; not a full archive |
 
 ### 4. Project Information
 
@@ -66,19 +66,19 @@ Resources provide **context and knowledge** for LLMs to understand the VerifiMin
 
 ### Trinity Validation (4)
 
-The X → Z → CS Trinity is the core multi-model validation pipeline. Each agent sees the prior agents' reasoning (Chain of Thought).
+The X → Z → CS Trinity is the core multi-model validation pipeline. Each later stage receives the prior completed stage's structured analysis. Only documented output fields are passed forward; hidden model internals are not exposed.
 
 #### `consult_agent_x` — Innovation & Strategy Analysis
 
 | Property | Value |
 |---|---|
-| **Agent** | X (Innovation) v4.2 |
-| **Default model** | Gemini 2.5 Flash (FREE) |
+| **Agent** | X (Innovation) |
+| **Hosted model** | Gemini `gemini-3.5-flash-lite` |
 | **Focus** | Competitive positioning vs LangChain, CrewAI, AutoGen, OpenAI Swarm |
 
 **Parameters:** `concept_name`, `concept_description`, `context` (optional), `llm_provider` (BYOK), `api_key` (BYOK), `user_uuid` (optional)
 
-**Returns:** Reasoning chain · innovation_score · strategic_value_score · opportunities · risks · recommendation · confidence
+**Returns:** Structured analysis · innovation_score · strategic_value_score · opportunities · risks · recommendation · confidence
 
 ---
 
@@ -86,13 +86,13 @@ The X → Z → CS Trinity is the core multi-model validation pipeline. Each age
 
 | Property | Value |
 |---|---|
-| **Agent** | Z (Guardian) v4.2 "Sentinel-Verified" |
-| **Default model** | Gemini 2.5 Flash |
+| **Agent** | Z (Guardian) |
+| **Hosted model** | Groq `openai/gpt-oss-120b` |
 | **Focus** | 21-framework, 4-tier jurisdictional coverage (International / EU / US / ASEAN) |
 
-**Parameters:** Same as X, plus `prior_reasoning` (auto-passed in Trinity chain)
+**Parameters:** Same as X, plus `prior_reasoning` (the prior stage's structured analysis, auto-passed in Trinity)
 
-**Returns:** Reasoning chain · ethics_score · safety_score · frameworks_cited · concerns · mitigations · approval status (Z holds veto power)
+**Returns:** Structured analysis · ethics_score · safety_score · frameworks_cited · concerns · mitigations · approval status (Z holds veto power)
 
 ---
 
@@ -100,13 +100,13 @@ The X → Z → CS Trinity is the core multi-model validation pipeline. Each age
 
 | Property | Value |
 |---|---|
-| **Agent** | CS (Security) v1.1 "Sentinel-Verified" |
-| **Default model** | Gemini 2.5 Flash |
+| **Agent** | CS (Security) |
+| **Hosted model** | Groq `openai/gpt-oss-120b` |
 | **Focus** | 6-stage pipeline, 12-dimension analysis, OWASP Agentic AI Top 10, reasoning-layer audit |
 
 **Parameters:** Same as Z
 
-**Returns:** Reasoning chain · security_score · feasibility_score · standards_cited · vulnerabilities · compliance_issues · implementation recommendations
+**Returns:** Structured analysis · security_score · feasibility_score · standards_cited · vulnerabilities · compliance_issues · implementation recommendations
 
 ---
 
@@ -115,12 +115,12 @@ The X → Z → CS Trinity is the core multi-model validation pipeline. Each age
 | Property | Value |
 |---|---|
 | **Tool name** | `run_full_trinity` |
-| **Models** | Multi-model with Chain of Thought (each agent sees prior reasoning) |
+| **Models** | Multi-model, with completed structured stage output passed forward |
 | **Focus** | Complete validation with unified assessment |
 
 **Parameters:** `concept_name`, `concept_description`, `context`, `save_to_history`, plus **per-agent BYOK overrides** (`x_provider`/`x_api_key`, `z_provider`/`z_api_key`, `cs_provider`/`cs_api_key`)
 
-**Per-agent BYOK:** You can run X on Gemini (free), Z on Claude, and CS on GPT in a single Trinity call.
+**Per-agent BYOK:** You can configure X for Gemini, Z for Anthropic, and CS for OpenAI in a single Trinity call. Provider eligibility, limits, and cost depend on the caller's provider accounts.
 
 **Returns:** All three agent analyses · conflict resolution · synthesized verdict · PROCEED / REVISE / REJECT recommendation · overall_score · action items
 
@@ -145,7 +145,7 @@ Prompt-template registry for X / Z / CS agents. Templates are versioned, taggabl
 
 **These three tools are disabled and return `COORDINATION_TEMPORARILY_DISABLED` for every caller.**
 
-Records created through them were stored in a shared, unauthenticated namespace; they are no longer readable or writable through the public API. **No other VerifiMind tool is affected, and the validation tools remain fully available.** They will return only after private, owner-scoped storage ships. Incident reference: `VM-IR-2026-07-28-COORD-01`.
+Records created through them were stored in a shared, unauthenticated namespace; they are no longer readable or writable through the public API. **No validation or built-in template read tool is affected.** They will return only after private, owner-scoped storage ships. Incident reference: `VM-IR-2026-07-28-COORD-01`.
 
 This is a security containment, **not** a paywall and not a tier change — the free-forever pledge is unchanged.
 
@@ -159,13 +159,13 @@ This is a security containment, **not** a paywall and not a tier change — the 
 
 ## 🔐 BYOK — Bring Your Own Key
 
-All Trinity validation tools and template tools support **per-tool-call BYOK** (v0.4.5+, hardened in v0.5.0):
+All four Trinity validation tools support **per-tool-call BYOK** (v0.4.5+, hardened in v0.5.0):
 
-- Pass `api_key` + `llm_provider` to override the default Gemini free-tier
+- Pass `api_key` + `llm_provider` to override the hosted provider for that stage
 - Auto-detect: keys starting with `sk-ant-` → Anthropic (Claude 4.6, 4.7), `sk-` → OpenAI, `gsk_` → Groq
-- Supported providers: Gemini, OpenAI, Anthropic (Claude 4.6/4.7), Groq, Mistral, Cerebras, Ollama, xAI
+- Supported providers: Gemini, OpenAI, Anthropic, Groq, Mistral, Cerebras, and local Ollama
 - Keys are **ephemeral** — never logged, never stored, used only for the single call
-- Retry logic with graceful degradation for invalid keys
+- Provider failures use typed per-stage degradation; runtime cross-provider failover remains disabled
 
 See the [BYOK Guide](https://github.com/creator35lwb-web/VerifiMind-PEAS/wiki/BYOK-Guide) for full provider matrix + key-format reference.
 
@@ -235,9 +235,9 @@ For troubleshooting (`403`, `308`, `307`, `404`, `400`, `429`, etc.), see the fu
 
 Use one of the configurations above. Restart your client after configuration.
 
-### Step 2 — LLM reads Resources (automatic)
+### Step 2 — Client may discover and read Resources
 
-When connected, your LLM can access the Genesis Master Prompt + validation history without explicit prompting.
+Resource behavior depends on the MCP client. Compatible clients can request the Genesis Master Prompt, a privacy-safe latest-validation summary, and bounded aggregate history statistics.
 
 ### Step 3 — Describe your concept
 
@@ -264,7 +264,7 @@ The LLM presents a comprehensive validation with multi-perspective analysis, sco
 | Benefit | Description |
 |---|---|
 | **All 13 tools free forever** | Core Tools Always Free pledge (Option B, May 2026) |
-| **Multi-model validation** | Different AI models catch different issues — X / Z / CS run on independent providers when BYOK |
+| **Multi-model validation** | Different AI models catch different issues — X / Z / CS can use separately configured providers when BYOK overrides are supplied |
 | **Per-agent BYOK** | Mix providers per call (X on Gemini, Z on Claude, CS on GPT) |
 | **Structured analysis** | Consistent, comparable results across runs |
 | **Honest scope** | We publish [The Validation Paradox](https://verifimind.ysenseai.org/research/paradox) acknowledging what we are NOT |
@@ -275,10 +275,10 @@ The LLM presents a comprehensive validation with multi-perspective analysis, sco
 | Benefit | Description |
 |---|---|
 | **MCP standard** | Works with any MCP-compatible client (Claude / Cursor / VS Code / Windsurf / Codex / Agents SDK) |
-| **streamable-http** | Current MCP 2025-03-26 spec; no legacy SSE |
+| **streamable-http** | Current production advertises MCP 2025-11-25; no legacy SSE |
 | **Direct HTTP** | Standard REST/HTTP endpoints |
 | **Open source** | Full code on [GitHub](https://github.com/creator35lwb-web/VerifiMind-PEAS) |
-| **Extensible** | Register custom templates; BYOK for any provider |
+| **Extensible** | Open-source codebase; Trinity tools support the documented BYOK providers |
 
 ---
 
@@ -318,8 +318,8 @@ Machine-readable index: [`/research/index.json`](https://verifimind.ysenseai.org
 2. Calls `run_full_trinity` with the concept
 3. Receives structured analysis:
    - **X (Innovation):** *"Strong novelty signal vs existing e-voting platforms. Strategic angle: privacy-preserving by default is a clear differentiator. Risks: regulatory acceptance, voter usability."*
-   - **Z (Ethics, Sentinel-Verified):** *"Privacy frameworks engaged: GDPR Art. 25 (privacy by design), EU AI Act Art. 14 (human oversight). Concerns: identity verification without compromising anonymity is genuinely hard. Frameworks cited: GDPR, EU-AI-Act, NIST-Privacy-Framework."*
-   - **CS (Security, Sentinel-Verified):** *"6-stage pipeline reveals: (1) Smart contract risks (OWASP A05), (2) cryptographic implementation hazards, (3) supply chain attacks on ZK libraries. Standards cited: OWASP Agentic AI Top 10, NIST SP 800-218 (SSDF)."*
+   - **Z (Ethics):** *"Privacy frameworks engaged: GDPR Art. 25 (privacy by design), EU AI Act Art. 14 (human oversight). Concerns: identity verification without compromising anonymity is genuinely hard. Frameworks cited: GDPR, EU-AI-Act, NIST-Privacy-Framework."*
+   - **CS (Security):** *"6-stage pipeline reveals: (1) Smart contract risks (OWASP A05), (2) cryptographic implementation hazards, (3) supply chain attacks on ZK libraries. Standards cited: OWASP Agentic AI Top 10, NIST SP 800-218 (SSDF)."*
 4. **Synthesized verdict:** PROCEED WITH CAUTION — address Z's identity-anonymity tension and CS's smart contract / cryptographic supply chain concerns before launch. Suggested next step: prototype with formal verification + third-party security audit.
 
 ---
@@ -343,13 +343,14 @@ Machine-readable index: [`/research/index.json`](https://verifimind.ysenseai.org
 
 ### Academic
 - **Genesis Methodology White Paper:** [10.5281/zenodo.17972751](https://doi.org/10.5281/zenodo.17972751)
-- **MACP & LEP Protocol:** [10.5281/zenodo.18504478](https://doi.org/10.5281/zenodo.18504478)
+- **MACP v2.5 "Loop Engineering":** [10.5281/zenodo.21345820](https://doi.org/10.5281/zenodo.21345820)
 - **Original Concept Paper (2025):** [10.5281/zenodo.17645665](https://doi.org/10.5281/zenodo.17645665)
 
 ---
 
 **Server Status:** ✅ **LIVE**
 **URL:** https://verifimind.ysenseai.org
-**Production Version:** v0.5.56
-**Candidate Version:** v0.5.57 (not deployed)
-**Phase:** 90 "Adoption First" (monetization on STANDBY — all 13 tools free forever)
+**Production Version:** v0.5.58
+**MCP Registry Package:** 3.35.0
+**Availability:** 13 defined / 8 active / 5 temporarily unavailable
+**Runtime Failover:** disabled
