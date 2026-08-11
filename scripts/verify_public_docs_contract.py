@@ -152,7 +152,11 @@ for page in sorted(source_pages):
     body = (WIKI / page).read_text(encoding="utf-8")
     for raw_target in markdown_link.findall(body):
         target = unquote(raw_target.strip().split()[0].strip("<>"))
-        if not target or target.startswith(("#", "http://", "https://", "mailto:")):
+        # Skip in-page anchors and anything carrying a URI scheme. Testing for
+        # "://" rather than listing http/https also skips ftp:, data: and other
+        # schemes, which the previous tuple let fall through to local-path
+        # resolution and report as a spurious missing file.
+        if not target or target.startswith(("#", "mailto:")) or "://" in target:
             continue
         target = target.split("#", 1)[0]
         if not target:
