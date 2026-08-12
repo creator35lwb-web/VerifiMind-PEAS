@@ -69,9 +69,13 @@ def parse_requirement(raw: str) -> tuple[str, frozenset[str], str]:
 def load_pyproject_dependencies() -> dict[str, tuple[frozenset[str], str]]:
     data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
     dependencies = data.get("project", {}).get("dependencies")
-    assert isinstance(dependencies, list) and dependencies, (
-        "pyproject.toml declares no [project].dependencies — refusing to treat an "
-        "unreadable authority as an empty one"
+    assert isinstance(dependencies, list), (
+        "pyproject.toml [project].dependencies is not a list — refusing to treat "
+        "an unreadable authority as an empty one"
+    )
+    assert dependencies, (
+        "pyproject.toml declares an empty [project].dependencies — refusing to "
+        "pass vacuously against nothing"
     )
     parsed: dict[str, tuple[frozenset[str], str]] = {}
     for entry in dependencies:

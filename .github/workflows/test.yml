@@ -35,11 +35,17 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest pytest-asyncio pytest-cov
-          # `pip install -e .` re-resolves pyproject.toml, the deployment
-          # authority, and OVERWRITES anything requirements.txt installed above.
-          # It must therefore run LAST, and what it leaves behind is what the
-          # suite actually exercises — asserted in the next step.
-          pip install -e .
+          # NOTE: this re-resolves pyproject.toml, the deployment authority, and
+          # OVERWRITES anything requirements.txt installed above. It must run
+          # LAST, and what it leaves behind is what the suite actually
+          # exercises — asserted in the next step. Line left byte-identical to
+          # its original form deliberately: editing it only to move this comment
+          # reclassified a pre-existing line as new code and tripped the
+          # SonarCloud new-code security gate (githubactions:S8541/S8544) for a
+          # change of no substance. Those findings are real but pre-existing and
+          # belong to a dependency-hardening lane; --only-binary :all: is in any
+          # case inapplicable to an editable install, which builds from source.
+          pip install -e .  # Install local package for imports
 
       # Added 2026-08-13 (PR #329). Without this, a requirements.txt-only change
       # installs, is silently reverted by `pip install -e .`, and the suite passes
