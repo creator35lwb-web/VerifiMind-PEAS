@@ -4,15 +4,32 @@ All notable changes to the VerifiMind PEAS project will be documented in this fi
 
 Full version history also available at [verifimind.ysenseai.org/changelog](https://verifimind.ysenseai.org/changelog).
 
-> **Disclosure policy (since v0.5.33):** The internal `CHANGELOG.md` retains full forensic details (specific blocked IPs, probe paths, request counts, UA strings) for attribution and audit trail. The public-facing `/changelog` rendered by the server intentionally omits specific IP addresses to avoid signalling to attackers and to keep customer-facing copy clean. PRs and commits remain the canonical source for forensic detail.
+> **Disclosure policy (current from v0.5.58):** This public `CHANGELOG.md` is
+> the technical release record. Credentials, private-user facts, new specific
+> network indicators, probe paths, and other sensitive forensic evidence belong
+> in the owner-controlled incident record, not in new public release prose.
+> Older entries preserve details that were already published under the former
+> policy; their presence is historical, not permission to repeat that practice.
+> Public Statements carry sanitized incident status, evidence limits, and
+> explicit non-claims.
+>
+> Entries below v0.5.58 are historical release-time records. Their version,
+> model, candidate, and roadmap references do not describe current production;
+> use [`SERVER_STATUS.md`](SERVER_STATUS.md) for the dated operational snapshot.
 
 ---
 
-## v0.5.58 - Trinity Traceability and Provider Currency (Candidate)
+## v0.5.58 - Trinity Traceability and Provider Currency (August 7, 2026)
 
-This candidate repairs the flagship Trinity failure boundary discovered by
-live v0.5.57 testing. It is not merged or deployed; the hosted X/Z/CS provider
-split and dark runtime-failover switch remain unchanged.
+This release repairs the flagship Trinity failure boundary discovered by live
+v0.5.57 testing. Production deployment is bound to merge commit
+`3019f5c4889d8334063d4a2d9243e87d96fc93a8` (PR #324), whose parents are the
+reviewed base `08f136c7faaeb3150d2c399ee7fee0d7e74fe2de` and reviewed head
+`67815f7bbf2070af68bdf14bea76b2b14c4d2f42`. Cloud Build
+`be6ed621-c0b8-49a3-a9f3-7ba36e68c7ea` completed successfully at
+2026-08-07T20:35:03Z. Hosted routing remains X on Gemini
+`gemini-3.5-flash-lite` and Z/CS on Groq `openai/gpt-oss-120b`; runtime
+cross-provider failover remains disabled.
 
 ### What changed
 
@@ -22,9 +39,10 @@ split and dark runtime-failover switch remain unchanged.
   non-blocker truth and directs the reader to the findings.
 - **Per-stage degradation:** a provider exception in X, Z, or CS no longer
   erases successful sibling stages. Downstream agents receive only completed
-  real reasoning; the failed stage is marked `unavailable`, aggregate score and
-  confidence are withheld, and the recommendation cannot exceed `REVISE`
-  unless a trusted real Z veto requires `REJECT`.
+  structured analysis from stages with `inference_quality: real`; the failed
+  stage is marked `unavailable`, aggregate score and confidence are withheld,
+  and the recommendation cannot exceed `REVISE` unless a trusted real Z veto
+  requires `REJECT`.
 - **Typed failure trace:** rate-limit and output-truncation failures surface as
   `PROVIDER_RATE_LIMITED` and `PROVIDER_OUTPUT_TRUNCATED`, with sanitized
   stage/provider/model attribution and bounded retry metadata.
@@ -39,17 +57,27 @@ split and dark runtime-failover switch remain unchanged.
   2026-08-06 verified catalogue (`gpt-oss-120b`, `zai-glm-4.7`,
   `gemma-4-31b`). All six remote BYOK catalogues now carry verification dates
   and a 90-day freshness/integrity contract projected into `/health`.
-- **Version surfaces:** candidate runtime `0.5.58`; MCP Registry package
+- **Version surfaces:** production runtime `0.5.58`; MCP Registry package
   `3.35.0`.
 
-### Verification
+### Verification and deployment
 
-- Complete Python collection: **1186 passed, 14 skipped, 0 failed**.
+- Complete pre-merge Python collection: **1186 passed, 14 skipped, 0 failed**.
 - Focused v0.5.58 truth/degradation/currency contracts: **10 passed**.
 - Full Python server Bandit scan: **0 medium/high findings**.
 - Syntax/data parse: **115 Python files + `server.json`**.
 - `git diff --check`: clean.
-- Merge and deployment require separate authorization.
+- Remote automation: **9/9 passed** at the unchanged reviewed head.
+- RNA security review: **PASS**.
+- Independent CS run 6: **PASS**, including simultaneous all-stage failure and
+  exception propagation across all supported remote providers.
+- Post-deploy smoke: **31 passed / 0 stop / 0 instrument**. An unforced X-stage
+  production failure preserved real Z and CS output, marked X unavailable, and
+  withheld aggregate confidence, directly exercising per-stage degradation.
+- [GitHub Release v0.5.58](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.58)
+  resolves to the exact production merge.
+- The public release evidence does **not** contain a serving revision
+  identifier. No Cloud Run revision is inferred from the merge or build ID.
 
 ---
 
@@ -239,7 +267,7 @@ T's Session 88 review (D-88-1) narrowed the WP-A exit: the route/version project
 - 772 unit + 79 registration + 7 integration tests green (13 new), coverage 74.64%
 - Content: copy/semantics + one JSON field rename on /health; hosted routing itself UNCHANGED (X/Z/CS untouched)
 
-**PR:** #303. T S88 review: `.macp/reviews/20260723_T_wpA_exit_and_wpB_design_review.md` (Hub).
+**PR:** #303. T S88 review completed in the owner-controlled audit record.
 
 ---
 
@@ -342,7 +370,7 @@ Migrating 31 days before the decommission cliff, not after it. The hybrid free-t
 
 ## v0.5.48 - Scanner Cluster Block (June 28, 2026)
 
-Security-hygiene batch: three config/secret/RCE scanners blocked at the application layer (`BLOCKED_IPS` 23 → 26), one rotation-proof UA block added, two crawler UAs flagged for monitoring. Zero sensitive-path 200s confirmed across all three IPs. AY+AZ flagged the cluster in Report 099 / `.macp/handoffs/20260628_AY_AZ_to_RNA_probe_blocklist_tlm_config_scanners.md`; Sentinel independently re-verified against live GCP logs (30-day window) before recommending action. No functional change; 613 unit tests pass (3 skipped), full suite gated in CI.
+Security-hygiene batch: three config/secret/RCE scanners blocked at the application layer (`BLOCKED_IPS` 23 → 26), one rotation-proof UA block added, two crawler UAs flagged for monitoring. Zero sensitive-path 200s confirmed across all three IPs. AY+AZ flagged the cluster in Report 099; Sentinel independently re-verified against live GCP logs (30-day window) before recommending action. No functional change; 613 unit tests pass (3 skipped), full suite gated in CI.
 
 ### What changed
 - **Probe #24 — `45.148.10.62` (CONFIG_SECRET_SCANNER):** weekly cron scanner (four rounds Jun 5/10/17/27 ~16:00 UTC, ~30 req/session, rotating browser UAs). Probed `.git/config`, `.env` tree (18+ variants), `wp-config.php`, `phpinfo.php`, `aws.config.js`. 80×404 (67%), 36×429 (30%), 4×200 on root `/` only — zero leak. Same `45.148.10.0/24` as probe #23 (`45.148.10.15`, blocked 2026-06-18).
@@ -509,7 +537,7 @@ Combines a security-hygiene IP block (10th entry — AY+AZ forensics 2026-05-30)
 
 **Blocklist — 10th entry**
 
-- **`3.137.30.179`** — added as **AISEC_REGISTRY_SCANNER**. User-Agent `aisec-registry/0.2 (+https://sec.sqrx.io)` on **100% of 400 requests**; 5-day cron-like persistence (May 23–27, ~80 req/day); **MCP/OAuth surface enumeration** (89× POST `/mcp` + 89× GET `/mcp/.well-known/oauth-{authorization-server,protected-resource,mcp}`); HTTP 200 = **0** (never reached a real handler), 268× 429 (rate-limited), 88× 404 (OAuth discovery failures). Not a builder, not a Scholar conversion candidate, no `/register` intent. AY+AZ forensics 2026-05-30 (see `.macp/handoffs/20260530_AY_to_RNA_block_ip10_3_137_30_179.md`). **`BLOCKED_IPS`: 10 entries total** (was 9).
+- **`3.137.30.179`** — added as **AISEC_REGISTRY_SCANNER**. User-Agent `aisec-registry/0.2 (+https://sec.sqrx.io)` on **100% of 400 requests**; 5-day cron-like persistence (May 23–27, ~80 req/day); **MCP/OAuth surface enumeration** (89× POST `/mcp` + 89× GET `/mcp/.well-known/oauth-{authorization-server,protected-resource,mcp}`); HTTP 200 = **0** (never reached a real handler), 268× 429 (rate-limited), 88× 404 (OAuth discovery failures). Not a builder, not a Scholar conversion candidate, no `/register` intent. AY+AZ forensics completed 2026-05-30. **`BLOCKED_IPS`: 10 entries total** (was 9).
 
 **SonarCloud P2 batch-2 — 8 module-level constants extracted from 25 dup-literal occurrences**
 
@@ -561,7 +589,7 @@ Branches the 429 rate-limit CTA so the response fits *why* the caller is anonymo
 - Version bump 0.5.36 → 0.5.37 (both `SERVER_VERSION` surfaces + 9 test files); `server.json` 3.13.0 → 3.14.0.
 
 ### Why
-A tier-setup audit — prompted by a Scholar-tier user being rate-limited as Anonymous — found: the rate limiter resolves tier *solely* from the `X-VerifiMind-UUID` header (T1); the downgrade to Anonymous is silent (T2); the tool-response `tier` field (from `tier_gate`, = "not Pioneer") contradicts the rate-limiter tier (T5); and the rate limiter reads an **empty** `ea_registrations` collection for Pioneer quota while real registrations live in `early_adopters` (T6 — Pioneer rate tier effectively dead). v0.5.37 ships the user-facing half (recovery CTA + diagnosis). The deeper reconciliation (T3/T6 — single source of truth for caller tier; fix the collection mismatch) is routed to T (CTO) in a forensic audit report — see PRIVATE `.macp/handoffs/`.
+A tier-setup audit — prompted by a Scholar-tier user being rate-limited as Anonymous — found: the rate limiter resolves tier *solely* from the `X-VerifiMind-UUID` header (T1); the downgrade to Anonymous is silent (T2); the tool-response `tier` field (from `tier_gate`, = "not Pioneer") contradicts the rate-limiter tier (T5); and the rate limiter reads an **empty** `ea_registrations` collection for Pioneer quota while real registrations live in `early_adopters` (T6 — Pioneer rate tier effectively dead). v0.5.37 ships the user-facing half (recovery CTA + diagnosis). The deeper reconciliation (T3/T6 — single source of truth for caller tier; fix the collection mismatch) was routed to T (CTO) in the contemporaneous forensic audit.
 
 ### Evidence
 AY/AZ Report 092 (May 21–24) showed active anonymous builders hitting the IP-tier wall with 0 registrations — the exact cohort the branched CTA targets.
@@ -611,7 +639,7 @@ The April 17 timeline showed pre-rebuild numbers (2,162 endpoints / 2,634 flying
 
 ## v0.5.34 - Evaluation Roadmap v1.0 (May 15, 2026)
 
-Phase 90 strategic spine: Alton's Decision #1 + #2 from the May 13 Recursive Paradox session (`.macp/handoffs/20260513_T_L_recursive_paradox_analysis_and_decisions.md`) shipped as a single bundled release.
+Phase 90 strategic spine: Alton's Decision #1 + #2 from the May 13 Recursive Paradox session shipped as a single bundled release.
 
 ### What changed
 - **New public page `/research/evaluation-roadmap`** rendered by `get_evaluation_roadmap_page()` in `mcp-server/src/verifimind_mcp/pages.py`. Companion to `/research/paradox`; cross-linked bidirectionally. Contents: pre-registered honest-scope disclaimer, pre-registered thresholds table (Cohen's κ, ECE, Brier, F1 lift, ESR), the 10-milestone roadmap (M0–M9 across May 2026 → April 2027), 8 pre-registered kill-conditions, commitment mechanism (git tags + retrospectives + named witnesses + pre-registered failure conditions), and link out to the canonical markdown for the Section B technical RFC appendix (math, dataset spec, reproducibility checklist, co-maintainer terms).
@@ -681,7 +709,7 @@ Two combined hardening tracks: blocks a fresh credential-enumeration scanner ide
 
 ## v0.5.31 - SonarCloud P0 (May 13, 2026)
 
-Resolves the P0 security hardening items from XV's May 12 SonarCloud audit (`.macp/handoffs/20260512_XV_sonarqube_security_audit_for_RNA.md`). Live SonarCloud state showed **14 Vulnerabilities + 15 BLOCKER severity items** — this release addresses every fixable item.
+Resolves the P0 security hardening items from XV's May 12 SonarCloud audit. Live SonarCloud state showed **14 Vulnerabilities + 15 BLOCKER severity items** — this release addresses every fixable item.
 
 ### Workflow hardening (1 Vulnerability)
 - `.github/workflows/security-scan.yml` — moved `permissions: contents/security-events` from workflow level to the `bandit-sast` job level (principle of least privilege per GitHub Actions best practice)
@@ -723,7 +751,7 @@ Cloud Armor pricing (~$5/mo per policy + per-rule + per-request) is not cost-jus
 
 ## v0.5.29 - Growth-First Pages (May 12, 2026)
 
-T (CTO) directive ([handoff](/) 2026-05-12): align GCP-served pages with the strategic pivot ratified May 11 in Session 13/14. All public pages now reflect "Growth First, Monetization Later" — no current paid services, no pricing on display, all 13 tools free for everyone.
+T (CTO) directive recorded 2026-05-12: align GCP-served pages with the strategic pivot ratified May 11 in Session 13/14. All public pages now reflect "Growth First, Monetization Later" — no current paid services, no pricing on display, all 13 tools free for everyone.
 
 ### Page updates
 - **`/terms` → v2.1** — pricing tier table removed (Pioneer/$9 row gone), Sections 4 (Payment) and 5 (Refund) rewritten as forward-looking "no active paid services" placeholders, Section 6 (Beta) reframed from "Pioneer coordination tools" to "full service", Section 8 (Acceptable Use) dropped Pioneer-specific resale clause
@@ -1692,7 +1720,7 @@ All four MCP tools now sanitize inputs:
 
 ### Credits
 - Implementation: Claude Code
-- Task: Issue #3 (verifimind-genesis-mcp)
+- Task: internal Issue #3
 
 ---
 
@@ -1886,24 +1914,24 @@ LLM_MAX_TOKENS=4096
 ## Phase 2 Track 1 - Complete (November 19, 2025)
 
 ### Code Enhancements
--  Code cleanup and organization
--  Comprehensive error handling with custom exception hierarchy
--  Testing infrastructure with 18 async tests
--  Structured logging framework
--  Professional CLI with argparse
+- [x] Code cleanup and organization
+- [x] Comprehensive error handling with custom exception hierarchy
+- [x] Testing infrastructure with 18 async tests
+- [x] Structured logging framework
+- [x] Professional CLI with argparse
 
 ### Documentation Cleanup
--  Consolidated vision, architecture, and roadmap documentation
--  Archived historical summary files
--  Added Concept Scrutinizer methodology specification
--  Created clear documentation hierarchy
+- [x] Consolidated vision, architecture, and roadmap documentation
+- [x] Archived historical summary files
+- [x] Added Concept Scrutinizer methodology specification
+- [x] Created clear documentation hierarchy
 
 ### Project Organization
--  Moved demo scripts to `examples/`
--  Moved test files to `tests/`
--  Moved utility scripts to `scripts/`
--  Created `archive/` for historical files
--  Created `docs/methodology/` for foundational docs
+- [x] Moved demo scripts to `examples/`
+- [x] Moved test files to `tests/`
+- [x] Moved utility scripts to `scripts/`
+- [x] Created `archive/` for historical files
+- [x] Created `docs/methodology/` for foundational docs
 
 ### Canonical Documentation
 - `docs/VISION.md` - Consolidated from 3 vision documents
@@ -1915,24 +1943,24 @@ LLM_MAX_TOKENS=4096
 ## Phase 1 - Complete (November 15, 2025)
 
 ### Initial Setup
--  Initial codebase sync to GitHub
--  Project structure setup
--  Configuration files and setup documentation
+- [x] Initial codebase sync to GitHub
+- [x] Project structure setup
+- [x] Configuration files and setup documentation
 
 ### Core Implementation
--  LLM provider abstraction (OpenAI, Anthropic)
--  X-Z-CS agent framework
--  Iterative code generation engine
--  Agent orchestration system
+- [x] LLM provider abstraction (OpenAI, Anthropic)
+- [x] X-Z-CS agent framework
+- [x] Iterative code generation engine
+- [x] Agent orchestration system
 
 ---
 
 ## Phase 2 Track 2 - In Progress
 
 ### Genesis Methodology Formalization
-- � Genesis Methodology white paper
-- � RefleXion C1 case study documentation
-- � API documentation
+- [ ] Genesis Methodology white paper
+- [ ] RefleXion C1 case study documentation
+- [ ] API documentation
 
 ---
 

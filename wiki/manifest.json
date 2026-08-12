@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "updated": "2026-08-10",
+  "sourceWikiHead": "774620481d13b123d9882af24aeacba3fdf8ae9a",
+  "protectedPages": {
+    "Public-Statements.md": {
+      "sha256Lf": "a4a4df9e4aaf013a9d5dacdeda3f9434dc33a879d99cd77a224bf770ba29d8c6"
+    },
+    "Statement-001-Trinity-Integrity.md": {
+      "sha256Lf": "00db61f39a8d2d01ebd31ab586c5169cff0b7847112647a801a8045b294add50"
+    }
+  },
+  "pages": [
+    "_Footer.md",
+    "_Sidebar.md",
+    "AI-Council.md",
+    "Architecture.md",
+    "BYOK-Guide.md",
+    "Current-Production-Status.md",
+    "Early-Adopter-Program.md",
+    "Genesis-Methodology.md",
+    "Home.md",
+    "Installation.md",
+    "MCP-Tools-Reference.md",
+    "Metrics-Dashboard.md",
+    "Operations-Playbook.md",
+    "Public-Statements.md",
+    "Publications.md",
+    "Roadmap.md",
+    "Statement-001-Trinity-Integrity.md",
+    "Trust-and-Safety.md"
+  ]
+}

@@ -7,13 +7,13 @@
 
   Three specialized agents — Innovation, Ethics, Security — review your concept before you build it. Multi-vendor (Gemini · Claude · GPT · Groq · Cerebras · Mistral · Ollama). Free, open-source, MCP-native.
 
-  [![Version](https://img.shields.io/badge/version-v0.6.0--Beta-blue.svg)](CHANGELOG.md)
+  [![Version](https://img.shields.io/badge/version-v0.5.58-blue.svg)](CHANGELOG.md)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Status](https://img.shields.io/badge/status-Operational-success.svg)](SERVER_STATUS.md)
   [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Listed-purple)](https://registry.modelcontextprotocol.io/?q=verifimind)
   [![Health](https://img.shields.io/badge/Health-LIVE-success)](https://verifimind.ysenseai.org/health)
   [![Genesis DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.17972751.svg)](https://doi.org/10.5281/zenodo.17972751)
-  [![MACP DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20399788.svg)](https://doi.org/10.5281/zenodo.20399788)
+  [![MACP DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21345820.svg)](https://doi.org/10.5281/zenodo.21345820)
   [![Dataset DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21276884.svg)](https://doi.org/10.5281/zenodo.21276884)
   [![HuggingFace Dataset](https://img.shields.io/badge/HuggingFace-Dataset-yellow)](https://huggingface.co/datasets/YSenseAI/verifimind-peas-eval)
 </div>
@@ -29,7 +29,7 @@
 claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/
 ```
 
-**Claude Desktop** ([macOS](~/Library/Application%20Support/Claude/claude_desktop_config.json) · [Windows](%APPDATA%\Claude\claude_desktop_config.json)):
+**Claude Desktop** (macOS: `~/Library/Application Support/Claude/claude_desktop_config.json` · Windows: `%APPDATA%\Claude\claude_desktop_config.json`):
 ```json
 {
   "mcpServers": {
@@ -67,7 +67,7 @@ VerifiMind PEAS is an MCP server that runs your concept through **three speciali
 | **Z (Ethics)** | Ethics, compliance, 21-framework jurisdictional check | "What risks does this raise? GDPR, EU AI Act, SG MGF, etc." |
 | **CS (Security)** | Security validation, OWASP Agentic AI Top 10 | "What can break? What's the attack surface? What's the reasoning-layer audit say?" |
 
-Each agent sees the prior agents' reasoning. You get a unified assessment with scores, recommendations (PROCEED / REVISE / REJECT), and full reasoning chains.
+Each later stage receives the prior completed stage's structured analysis. You get a unified assessment with scores, findings, recommendations (PROCEED / REVISE / REJECT), and explicit stage provenance. Only documented output fields are passed forward; hidden model internals are not exposed.
 
 **What this is not:** "Verification" in the formal-methods sense. The output is structured multi-LLM critique, not a mathematical proof. We make that distinction explicitly.
 
@@ -81,13 +81,14 @@ All 13 tools remain **free for everyone** under the [Core Tools Always Free pled
 - `consult_agent_x` — Innovation analysis with competitive positioning
 - `consult_agent_z` — Ethics review with 21-framework jurisdictional coverage
 - `consult_agent_cs` — Security validation, OWASP Agentic AI Top 10
-- `run_full_trinity` — X → Z → CS pipeline with chain-of-thought, unified assessment
+- `run_full_trinity` — X → Z → CS pipeline with structured stage context and a unified assessment
 
-**Output-integrity contract (v0.5.56):** an agent's generated scores, findings,
-recommendation, reasoning, and veto state are returned only when its inference
-quality is explicitly `real`. Partial, fallback, mock, unknown, or unavailable
-stages are marked incomplete and their generated fields are withheld. A Trinity
-aggregate score or confidence requires all three agents to pass this gate.
+**Output-integrity contract (v0.5.58):** an agent's generated scores, findings,
+recommendation, analysis, and veto state are returned only when its inference
+quality is explicitly `real`. Provider failures now degrade only the affected
+stage, preserve successful sibling stages, and expose typed stage attribution.
+Incomplete runs withhold aggregate score/confidence and are not saved to shared
+history.
 
 ### Template management (6 tools — 4 active, 2 temporarily unavailable)
 - `list_prompt_templates` — Browse templates by agent, category, or tag
@@ -154,7 +155,7 @@ We do not claim the underlying methodology is novel.
 
 The full system architecture — from the foundational X / Z / CS multi-agent validation design through the Phase 90 production deployment (MCP transport, BYOK provider layer, security hardening, FLYWHEEL coordination) — is documented in a single comprehensive, fact-checked diagram:
 
-**→ [VerifiMind-PEAS Architecture Diagram](docs/architecture/VerifiMind-PEAS-Architecture-Diagram.md)** (v0.6.0-Beta, June 2026)
+**→ [VerifiMind-PEAS Architecture Diagram](docs/architecture/VerifiMind-PEAS-Architecture-Diagram.md)**
 
 ---
 
@@ -175,14 +176,16 @@ Our contribution: **productization quality**, **MCP integration path**, **multi-
 
 ## Status & Metrics
 
-- **Server:** `v0.6.0-Beta "Adoption First"` — [verifimind.ysenseai.org](https://verifimind.ysenseai.org) · [/health](https://verifimind.ysenseai.org/health)
+- **Server:** `v0.5.58` — [verifimind.ysenseai.org](https://verifimind.ysenseai.org) · [/health](https://verifimind.ysenseai.org/health)
 - **Landing Page:** [verifimind.io](https://verifimind.io)
-- **Tests:** 252+ unit/integration tests pass per release
-- **Tools:** 13 (all free)
-- **Providers:** 7 (Gemini · Claude · GPT · Groq · Cerebras · Mistral · Ollama) — pluggable via BYOK
-- **Protocols:** MACP v2.4.1 · Genesis v2.6.1
+- **Release:** merge [`3019f5c4`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/3019f5c4889d8334063d4a2d9243e87d96fc93a8) · Cloud Build `be6ed621` · post-deploy smoke **31/0/0**
+- **Tools:** 13 defined / 8 active / 5 temporarily unavailable (all remain free)
+- **Providers:** 6 remote BYOK catalogues (Gemini · Anthropic · OpenAI · Groq · Cerebras · Mistral) plus caller-managed local Ollama
+- **Hosted routing:** X = Gemini `gemini-3.5-flash-lite`; Z/CS = Groq `openai/gpt-oss-120b`
+- **Runtime provider failover:** disabled (`runtime_failover_enabled: false`)
+- **MCP Registry package:** `3.35.0`
 
-For honest live metrics, see [`/changelog`](https://verifimind.ysenseai.org/changelog). Detailed adoption metrics (weekly cohort, return rate, conversion) are tracked internally and reviewed in [iteration handoffs](https://github.com/creator35lwb-web/verifimind-genesis-mcp). We deliberately do not display unaudited "total users" numbers — they tend to include bots and dev sessions.
+For live release history, see [`/changelog`](https://verifimind.ysenseai.org/changelog). We deliberately do not display unaudited "total users" numbers because bot, scanner, and development traffic can distort them. Exact deployment provenance and the currently unavailable serving-revision field are documented in [SERVER_STATUS.md](SERVER_STATUS.md).
 
 ---
 
@@ -237,16 +240,18 @@ If you use VerifiMind PEAS in research or a project, please cite. We'd love to h
 ### MACP (Multi-Agent Communication Protocol)
 
 ```bibtex
-@misc{macp_2025,
-  author  = {Lee, Alton and {Manus AI}},
-  title   = {MACP: Multi-Agent Communication Protocol},
-  year    = {2025},
-  url     = {https://doi.org/10.5281/zenodo.18504478},
-  doi     = {10.5281/zenodo.18504478}
+@misc{lee_macp_2026,
+  author    = {Lee, Alton Wei Bin and {VerifiMind-PEAS FLYWHEEL TEAM}},
+  title     = {{Multi-Agent Communication Protocol (MACP) v2.5 — Loop Engineering}},
+  year      = {2026},
+  version   = {2.5.0},
+  publisher = {Zenodo},
+  url       = {https://doi.org/10.5281/zenodo.21345820},
+  doi       = {10.5281/zenodo.21345820}
 }
 ```
 
-[![MACP DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18504478.svg)](https://doi.org/10.5281/zenodo.18504478)
+[![MACP DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21345820.svg)](https://doi.org/10.5281/zenodo.21345820)
 
 ### VerifiMind PEAS Evaluation Dataset (M2)
 
@@ -275,6 +280,7 @@ A prior-art defensive publication is registered at DOI [10.5281/zenodo.17645665]
 
 | Resource | Where |
 |---|---|
+| **Wiki textbook & operator playbook** | [Home](https://github.com/creator35lwb-web/VerifiMind-PEAS/wiki) · [canonical review source](wiki/README.md) |
 | Architecture diagram | [docs/architecture/VerifiMind-PEAS-Architecture-Diagram.md](docs/architecture/VerifiMind-PEAS-Architecture-Diagram.md) |
 | Live server health | [verifimind.ysenseai.org/health](https://verifimind.ysenseai.org/health) |
 | Server changelog | [verifimind.ysenseai.org/changelog](https://verifimind.ysenseai.org/changelog) · [CHANGELOG.md](CHANGELOG.md) |
@@ -332,12 +338,12 @@ For paid consultation engagements (planned, not yet active), use [GitHub Discuss
 
 ## Acknowledgments
 
-VerifiMind PEAS was built collaboratively by the **FLYWHEEL TEAM** — a human orchestrator working with multiple AI agents (Manus AI, Claude Code, Perplexity, Antigravity/Gemini, GodelAI). Multi-agent coordination uses the open [MACP](https://doi.org/10.5281/zenodo.20399788) protocol (v2.5 "Loop Engineering", published 2026-07-14).
+VerifiMind PEAS was built collaboratively by the **FLYWHEEL TEAM** — a human orchestrator working with multiple AI agents (Manus AI, Claude Code, Perplexity, Antigravity/Gemini, GodelAI). Multi-agent coordination uses the open [MACP](https://doi.org/10.5281/zenodo.21345820) protocol (v2.5 "Loop Engineering", published 2026-07-14).
 
-The 87-day development journey is documented in the [Validation Paradox research collection](https://verifimind.ysenseai.org/research/paradox) and the [iteration handoffs](https://github.com/creator35lwb-web/verifimind-genesis-mcp) — written contemporaneously, not retrospectively.
+The development journey is documented publicly in the [Validation Paradox research collection](https://verifimind.ysenseai.org/research/paradox) and the [Public Statements & Disclosures wiki](https://github.com/creator35lwb-web/VerifiMind-PEAS/wiki/Public-Statements).
 
 External Model Council review (Claude Opus 4.7 + GPT-5.5 + Gemini 3.1 Pro, May 9, 2026) shaped the current positioning. See [docs/case-studies](docs/case-studies) for application examples.
 
 ---
 
-**Last Updated:** July 16, 2026 · **Version:** v0.6.0-Beta "Adoption First" · **MACP:** v2.5 "Loop Engineering" ([DOI](https://doi.org/10.5281/zenodo.21345820)) · **Genesis:** registry v3.13
+**Last Updated:** August 10, 2026 · **Version:** v0.5.58 · **MCP Registry:** 3.35.0 · **MACP:** v2.5 "Loop Engineering" ([DOI](https://doi.org/10.5281/zenodo.21345820))
