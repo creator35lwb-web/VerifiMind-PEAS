@@ -23,9 +23,9 @@ HOME_PAGE = "Home.md"
 LINK_SKIP = "skip"
 LINK_LOCAL = "local"
 LINK_EXTERNAL_URI = "external-uri"
-LINK_INSECURE_HTTP = "insecure-http"
+LINK_INSECURE_URI = "insecure-uri"
 LINK_MALFORMED_URI = "malformed-uri"
-INSECURE_WEB_SCHEME = "http"
+INSECURE_URI_SCHEMES = frozenset(("http", "ftp"))
 failures: list[str] = []
 checks = 0
 
@@ -61,8 +61,8 @@ def classify_wiki_link(raw_target: str) -> tuple[str, str]:
         return LINK_MALFORMED_URI, ""
 
     scheme = parsed.scheme.casefold()
-    if scheme == INSECURE_WEB_SCHEME:
-        return LINK_INSECURE_HTTP, ""
+    if scheme in INSECURE_URI_SCHEMES:
+        return LINK_INSECURE_URI, ""
     if scheme or parsed.netloc:
         return LINK_EXTERNAL_URI, ""
     return LINK_LOCAL, parsed.path
@@ -73,8 +73,8 @@ def wiki_link_failure(page: str, raw_target: str) -> str | None:
     classification, local_target = classify_wiki_link(raw_target)
     if classification in {LINK_SKIP, LINK_EXTERNAL_URI}:
         return None
-    if classification == LINK_INSECURE_HTTP:
-        return f"wiki/{page}: insecure HTTP link {raw_target}"
+    if classification == LINK_INSECURE_URI:
+        return f"wiki/{page}: insecure URI-scheme link {raw_target}"
     if classification == LINK_MALFORMED_URI:
         return f"wiki/{page}: malformed URI reference {raw_target}"
 
@@ -150,7 +150,7 @@ if not isinstance(pages, list) or not pages or any(not isinstance(item, str) for
     pages = []
 
 manifest_pages = set(pages)
-source_pages = {path.name for path in WIKI.glob("*.md") if path.name != "README.md"}
+source_pages = {path.name for path in WIKI.glob("*.md") if path.name != README_PATH}
 checks += 3
 if len(pages) != len(manifest_pages):
     failures.append("wiki/manifest.json: duplicate page entries")
@@ -158,7 +158,7 @@ if manifest_pages != source_pages:
     missing = sorted(source_pages - manifest_pages)
     extra = sorted(manifest_pages - source_pages)
     failures.append(f"wiki/manifest.json: source mismatch missing={missing} extra={extra}")
-if "README.md" in manifest_pages:
+if README_PATH in manifest_pages:
     failures.append("wiki/manifest.json: source-control README must not be published")
 
 for required_page in (
@@ -211,7 +211,8 @@ for page, expected in expected_trust_hashes.items():
 
 # Validate local Wiki links without requesting the network.
 markdown_link = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
-http_probe = "".join((INSECURE_WEB_SCHEME, ":", "//", "example.invalid", "/docs"))
+http_probe = "".join(("http", ":", "//", "example.invalid", "/docs"))
+ftp_probe = "".join(("ftp", ":", "//", "example.invalid", "/archive"))
 link_classification_cases = (
     ("", (LINK_SKIP, "")),
     ("#section", (LINK_SKIP, "")),
@@ -222,13 +223,13 @@ link_classification_cases = (
     ("../Roadmap.md#section", (LINK_LOCAL, "../Roadmap.md")),
     ("https://example.invalid/docs", (LINK_EXTERNAL_URI, "")),
     ("mailto:docs@example.invalid", (LINK_EXTERNAL_URI, "")),
-    ("ftp://example.invalid/archive", (LINK_EXTERNAL_URI, "")),
+    (ftp_probe, (LINK_INSECURE_URI, "")),
     ("data:text/plain;base64,SGVsbG8=", (LINK_EXTERNAL_URI, "")),
     ("javascript:void%280%29", (LINK_EXTERNAL_URI, "")),
     ("web+demo:resource", (LINK_EXTERNAL_URI, "")),
     ("//example.invalid/docs", (LINK_EXTERNAL_URI, "")),
-    (http_probe, (LINK_INSECURE_HTTP, "")),
-    (http_probe.upper(), (LINK_INSECURE_HTTP, "")),
+    (http_probe, (LINK_INSECURE_URI, "")),
+    (http_probe.upper(), (LINK_INSECURE_URI, "")),
     ("https://[", (LINK_MALFORMED_URI, "")),
 )
 for target, expected_result in link_classification_cases:
@@ -253,7 +254,12 @@ link_validation_cases = (
     (
         HOME_PAGE,
         http_probe,
-        f"wiki/{HOME_PAGE}: insecure HTTP link {http_probe}",
+        f"wiki/{HOME_PAGE}: insecure URI-scheme link {http_probe}",
+    ),
+    (
+        HOME_PAGE,
+        ftp_probe,
+        f"wiki/{HOME_PAGE}: insecure URI-scheme link {ftp_probe}",
     ),
     (
         HOME_PAGE,
