@@ -8,11 +8,24 @@ import json
 import re
 import sys
 from pathlib import Path
-from urllib.parse import unquote
+from urllib.parse import unquote, urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[1]
 WIKI = ROOT / "wiki"
+README_PATH = "README.md"
+CHANGELOG_PATH = "CHANGELOG.md"
+SERVER_STATUS_PATH = "SERVER_STATUS.md"
+DEPLOY_COMMAND_PATH = ".claude/commands/verifimind-deploy.md"
+PUBLIC_STATEMENTS_PAGE = "Public-Statements.md"
+TRINITY_STATEMENT_PAGE = "Statement-001-Trinity-Integrity.md"
+HOME_PAGE = "Home.md"
+LINK_SKIP = "skip"
+LINK_LOCAL = "local"
+LINK_EXTERNAL_URI = "external-uri"
+LINK_INSECURE_HTTP = "insecure-http"
+LINK_MALFORMED_URI = "malformed-uri"
+INSECURE_WEB_SCHEME = "http"
 failures: list[str] = []
 checks = 0
 
@@ -35,24 +48,72 @@ def forbid(relative: str, pattern: str, label: str) -> None:
         failures.append(f"{relative}: contains stale/unsafe {label}")
 
 
-# Concise public front door and release-bound truth.
-require("README.md", "version-v0.5.58", "v0.5.58 badge")
-require("README.md", "13 defined / 8 active / 5 temporarily unavailable", "availability taxonomy")
-require("README.md", "21345820", "MACP v2.5 version DOI")
-require("README.md", "Multi-Agent Communication Protocol (MACP) v2.5 — Loop Engineering", "MACP v2.5 title")
-require("README.md", "version   = {2.5.0}", "MACP v2.5 record version")
-require("README.md", "/wiki", "Wiki textbook/playbook link")
-forbid("README.md", r"v0\.6\.0--Beta|v0\.6\.0-Beta", "Beta-as-current marker")
-forbid("README.md", r"creator35lwb-web/verifimind-genesis-mcp", "private Hub link")
-forbid("README.md", r"\*\*Providers:\*\*\s*7\b", "conflated remote/local provider count")
+def classify_wiki_link(raw_target: str) -> tuple[str, str]:
+    """Classify a Markdown target and return its local path when applicable."""
+    stripped_target = raw_target.strip()
+    target = unquote(stripped_target.split()[0].strip("<>")) if stripped_target else ""
+    if not target or target.startswith("#"):
+        return LINK_SKIP, ""
 
-changelog_match = re.search(
-    r"^## v0\.5\.58\b.*?(?=^---\s*$|^## v0\.)",
-    text("CHANGELOG.md"),
-    flags=re.IGNORECASE | re.MULTILINE | re.DOTALL,
+    try:
+        parsed = urlsplit(target)
+    except ValueError:
+        return LINK_MALFORMED_URI, ""
+
+    scheme = parsed.scheme.casefold()
+    if scheme == INSECURE_WEB_SCHEME:
+        return LINK_INSECURE_HTTP, ""
+    if scheme or parsed.netloc:
+        return LINK_EXTERNAL_URI, ""
+    return LINK_LOCAL, parsed.path
+
+
+def wiki_link_failure(page: str, raw_target: str) -> str | None:
+    """Return one deterministic contract failure for a Wiki link, if any."""
+    classification, local_target = classify_wiki_link(raw_target)
+    if classification in {LINK_SKIP, LINK_EXTERNAL_URI}:
+        return None
+    if classification == LINK_INSECURE_HTTP:
+        return f"wiki/{page}: insecure HTTP link {raw_target}"
+    if classification == LINK_MALFORMED_URI:
+        return f"wiki/{page}: malformed URI reference {raw_target}"
+
+    if not local_target:
+        return None
+    if local_target.endswith(".md") or "/" in local_target:
+        candidate = (WIKI / page).parent / local_target
+    else:
+        candidate = WIKI / f"{local_target}.md"
+    if not candidate.exists():
+        return f"wiki/{page}: broken local link {raw_target}"
+    return None
+
+
+# Concise public front door and release-bound truth.
+require(README_PATH, "version-v0.5.58", "v0.5.58 badge")
+require(README_PATH, "13 defined / 8 active / 5 temporarily unavailable", "availability taxonomy")
+require(README_PATH, "21345820", "MACP v2.5 version DOI")
+require(README_PATH, "Multi-Agent Communication Protocol (MACP) v2.5 — Loop Engineering", "MACP v2.5 title")
+require(README_PATH, "version   = {2.5.0}", "MACP v2.5 record version")
+require(README_PATH, "/wiki", "Wiki textbook/playbook link")
+forbid(README_PATH, r"v0\.6\.0--Beta|v0\.6\.0-Beta", "Beta-as-current marker")
+forbid(README_PATH, r"creator35lwb-web/verifimind-genesis-mcp", "private Hub link")
+forbid(README_PATH, r"\*\*Providers:\*\*\s*7\b", "conflated remote/local provider count")
+
+changelog_sections = re.split(
+    r"(?=^## v0\.)",
+    text(CHANGELOG_PATH),
+    flags=re.IGNORECASE | re.MULTILINE,
 )
-changelog_current = changelog_match.group(0) if changelog_match else ""
-checks += 4
+changelog_current = next(
+    (
+        section
+        for section in changelog_sections
+        if re.match(r"^## v0\.5\.58\b", section, flags=re.IGNORECASE)
+    ),
+    "",
+)
+checks += 5
 if "v0.5.58" not in changelog_current:
     failures.append("CHANGELOG.md: current section is not v0.5.58")
 if re.search(r"candidate|not merged|not deployed", changelog_current, re.IGNORECASE):
@@ -61,17 +122,19 @@ if "3019f5c4889d8334063d4a2d9243e87d96fc93a8" not in changelog_current:
     failures.append("CHANGELOG.md: exact v0.5.58 merge is absent")
 if "be6ed621-c0b8-49a3-a9f3-7ba36e68c7ea" not in changelog_current:
     failures.append("CHANGELOG.md: exact v0.5.58 build is absent")
+if re.search(r"^## v0\.5\.57\b", changelog_current, flags=re.IGNORECASE | re.MULTILINE):
+    failures.append("CHANGELOG.md: current section includes the prior release")
 
-require("SERVER_STATUS.md", "| Application | **v0.5.58**", "current production version")
-require("SERVER_STATUS.md", "31 pass / 0 stop / 0 instrument", "post-deploy smoke")
-require("SERVER_STATUS.md", "Serving revision", "serving-revision provenance field")
+require(SERVER_STATUS_PATH, "| Application | **v0.5.58**", "current production version")
+require(SERVER_STATUS_PATH, "31 pass / 0 stop / 0 instrument", "post-deploy smoke")
+require(SERVER_STATUS_PATH, "Serving revision", "serving-revision provenance field")
 require("MCP_SERVER_FEATURES.md", "MCP 2025-11-25", "current MCP protocol")
 forbid("MCP_SERVER_FEATURES.md", r"Gemini 2\.5 Flash|2025-03-26|\bxAI\b", "stale runtime/catalogue claim")
 
 # The public command delegates; it must never grow a second cloud recipe.
-require(".claude/commands/verifimind-deploy.md", "mcp-server/deploy-cloudrun.sh", "canonical recovery carrier")
-forbid(".claude/commands/verifimind-deploy.md", r"^\s*gcloud\s+(?:builds\s+submit|run\s+deploy)\b", "standalone deployment recipe")
-forbid(".claude/commands/verifimind-deploy.md", r"git add -A", "indiscriminate staging")
+require(DEPLOY_COMMAND_PATH, "mcp-server/deploy-cloudrun.sh", "canonical recovery carrier")
+forbid(DEPLOY_COMMAND_PATH, r"^\s*gcloud\s+(?:builds\s+submit|run\s+deploy)\b", "standalone deployment recipe")
+forbid(DEPLOY_COMMAND_PATH, r"git add -A", "indiscriminate staging")
 require(".github/workflows/docs-ci-bypass.yml", "python scripts/verify_public_docs_contract.py", "docs CI contract execution")
 require(".github/workflows/docs-ci-bypass.yml", "- 'wiki/**'", "Wiki-source CI path")
 
@@ -99,12 +162,12 @@ if "README.md" in manifest_pages:
     failures.append("wiki/manifest.json: source-control README must not be published")
 
 for required_page in (
-    "Home.md",
+    HOME_PAGE,
     "Current-Production-Status.md",
     "Operations-Playbook.md",
     "Trust-and-Safety.md",
-    "Public-Statements.md",
-    "Statement-001-Trinity-Integrity.md",
+    PUBLIC_STATEMENTS_PAGE,
+    TRINITY_STATEMENT_PAGE,
 ):
     checks += 1
     if required_page not in manifest_pages:
@@ -113,7 +176,7 @@ for required_page in (
 current_wiki = [
     page
     for page in manifest_pages
-    if page not in {"Public-Statements.md", "Statement-001-Trinity-Integrity.md"}
+    if page not in {PUBLIC_STATEMENTS_PAGE, TRINITY_STATEMENT_PAGE}
 ]
 stale_wiki = re.compile(
     r"Gemini 2\.5 Flash|MCP 2025-03-26|server v0\.5\.49|registry v?3\.11\.0|"
@@ -133,8 +196,8 @@ expected_trust_hashes = {
 }
 checks += 2
 if set(expected_trust_hashes) != {
-    "Public-Statements.md",
-    "Statement-001-Trinity-Integrity.md",
+    PUBLIC_STATEMENTS_PAGE,
+    TRINITY_STATEMENT_PAGE,
 }:
     failures.append("wiki/manifest.json: protected trust-ledger set is incomplete")
 if manifest.get("sourceWikiHead") != "774620481d13b123d9882af24aeacba3fdf8ae9a":
@@ -148,26 +211,72 @@ for page, expected in expected_trust_hashes.items():
 
 # Validate local Wiki links without requesting the network.
 markdown_link = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+http_probe = "".join((INSECURE_WEB_SCHEME, ":", "//", "example.invalid", "/docs"))
+link_classification_cases = (
+    ("", (LINK_SKIP, "")),
+    ("#section", (LINK_SKIP, "")),
+    ("Home", (LINK_LOCAL, "Home")),
+    ("Home.md#section", (LINK_LOCAL, HOME_PAGE)),
+    ("./Home.md?view=1#section", (LINK_LOCAL, f"./{HOME_PAGE}")),
+    ("Some%20Page.md#section", (LINK_LOCAL, "Some Page.md")),
+    ("../Roadmap.md#section", (LINK_LOCAL, "../Roadmap.md")),
+    ("https://example.invalid/docs", (LINK_EXTERNAL_URI, "")),
+    ("mailto:docs@example.invalid", (LINK_EXTERNAL_URI, "")),
+    ("ftp://example.invalid/archive", (LINK_EXTERNAL_URI, "")),
+    ("data:text/plain;base64,SGVsbG8=", (LINK_EXTERNAL_URI, "")),
+    ("javascript:void%280%29", (LINK_EXTERNAL_URI, "")),
+    ("web+demo:resource", (LINK_EXTERNAL_URI, "")),
+    ("//example.invalid/docs", (LINK_EXTERNAL_URI, "")),
+    (http_probe, (LINK_INSECURE_HTTP, "")),
+    (http_probe.upper(), (LINK_INSECURE_HTTP, "")),
+    ("https://[", (LINK_MALFORMED_URI, "")),
+)
+for target, expected_result in link_classification_cases:
+    checks += 1
+    actual_result = classify_wiki_link(target)
+    if actual_result != expected_result:
+        failures.append(
+            "link-classifier regression: "
+            f"{target!r} classified as {actual_result!r}, expected {expected_result!r}"
+        )
+
+link_validation_cases = (
+    (HOME_PAGE, "Home", None),
+    (HOME_PAGE, f"./{HOME_PAGE}?view=1#section", None),
+    (HOME_PAGE, "https://example.invalid/docs", None),
+    (HOME_PAGE, "data:text/plain,hello", None),
+    (
+        HOME_PAGE,
+        "D-129-10-missing-probe",
+        f"wiki/{HOME_PAGE}: broken local link D-129-10-missing-probe",
+    ),
+    (
+        HOME_PAGE,
+        http_probe,
+        f"wiki/{HOME_PAGE}: insecure HTTP link {http_probe}",
+    ),
+    (
+        HOME_PAGE,
+        "https://[",
+        f"wiki/{HOME_PAGE}: malformed URI reference https://[",
+    ),
+)
+for page, raw_target, expected_failure in link_validation_cases:
+    checks += 1
+    actual_failure = wiki_link_failure(page, raw_target)
+    if actual_failure != expected_failure:
+        failures.append(
+            "link-validator regression: "
+            f"{raw_target!r} returned {actual_failure!r}, expected {expected_failure!r}"
+        )
+
 for page in sorted(source_pages):
     body = (WIKI / page).read_text(encoding="utf-8")
     for raw_target in markdown_link.findall(body):
-        target = unquote(raw_target.strip().split()[0].strip("<>"))
-        # Skip in-page anchors and anything carrying a URI scheme. Testing for
-        # "://" rather than listing http/https also skips ftp:, data: and other
-        # schemes, which the previous tuple let fall through to local-path
-        # resolution and report as a spurious missing file.
-        if not target or target.startswith(("#", "mailto:")) or "://" in target:
-            continue
-        target = target.split("#", 1)[0]
-        if not target:
-            continue
         checks += 1
-        if target.endswith(".md") or "/" in target:
-            candidate = (WIKI / page).parent / target
-        else:
-            candidate = WIKI / f"{target}.md"
-        if not candidate.exists():
-            failures.append(f"wiki/{page}: broken local link {raw_target}")
+        failure = wiki_link_failure(page, raw_target)
+        if failure:
+            failures.append(failure)
 
 if failures:
     print(f"PUBLIC_DOCS_CONTRACT_FAIL checks={checks} failures={len(failures)}")
