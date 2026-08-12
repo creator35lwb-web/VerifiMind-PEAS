@@ -35,8 +35,46 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest pytest-asyncio pytest-cov
-          pip install -e .  # Install local package for imports
-      
+          # `pip install -e .` re-resolves pyproject.toml, the deployment
+          # authority, and OVERWRITES anything requirements.txt installed above.
+          # It must therefore run LAST, and what it leaves behind is what the
+          # suite actually exercises — asserted in the next step.
+          pip install -e .
+
+      # Added 2026-08-13 (PR #329). Without this, a requirements.txt-only change
+      # installs, is silently reverted by `pip install -e .`, and the suite passes
+      # against the OLD set while the PR claims the new one. That is exactly what
+      # PR #329 did at head 946d733 with nine green checks.
+      - name: Assert installed dependency set matches the deployment authority
+        run: |
+          cd mcp-server
+          pip check
+          python - <<'PY'
+          import sys, tomllib
+          from importlib.metadata import PackageNotFoundError, version
+          deps = tomllib.load(open("pyproject.toml","rb"))["project"]["dependencies"]
+          exact = {}
+          for entry in deps:
+              if "==" in entry:
+                  name, _, want = entry.partition("==")
+                  exact[name.split("[")[0].strip()] = want.strip()
+          if not exact:
+              sys.exit("no exact pins found in pyproject.toml — refusing to pass vacuously")
+          bad = []
+          for name, want in sorted(exact.items()):
+              try:
+                  got = version(name)
+              except PackageNotFoundError:
+                  got = "NOT INSTALLED"
+              status = "ok" if got == want else "MISMATCH"
+              print(f"  {name:24s} declared={want:12s} installed={got:12s} {status}")
+              if got != want:
+                  bad.append(name)
+          if bad:
+              sys.exit(f"installed set does not match the deployment authority: {bad}")
+          print(f"OK — {len(exact)} exact pins verified against the installed environment")
+          PY
+
       - name: Run unit tests
         run: |
           cd mcp-server
@@ -57,6 +95,70 @@ jobs:
           pytest tests/integration/ -v --tb=short --no-cov
         env:
           VERIFIMIND_TEST_MODE: "true"
+
+  # Added 2026-08-13 (PR #329). The `test` job runs Python 3.11 + pip; production
+  # runs Python 3.12 + `uv pip install .` from the Dockerfile. Those are different
+  # interpreters resolving a different manifest, so a green `test` job is not
+  # evidence about the deployed image. This job builds the real candidate image
+  # and asserts the dependency set INSIDE it.
+  production-image-parity:
+    name: Production Image Dependency Parity
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Build the candidate production image
+        run: docker build -t verifimind-candidate:ci ./mcp-server
+
+      - name: Assert the image carries the declared dependency set
+        run: |
+          docker run --rm --entrypoint python verifimind-candidate:ci - <<'PY'
+          import sys, tomllib
+          from importlib.metadata import PackageNotFoundError, version
+          print("interpreter:", sys.version.split()[0])
+          with open("/app/pyproject.toml","rb") as fh:
+              deps = tomllib.load(fh)["project"]["dependencies"]
+          exact = {}
+          for entry in deps:
+              if "==" in entry:
+                  name, _, want = entry.partition("==")
+                  exact[name.split("[")[0].strip()] = want.strip()
+          if not exact:
+              sys.exit("no exact pins found — refusing to pass vacuously")
+          bad = []
+          for name, want in sorted(exact.items()):
+              try:
+                  got = version(name)
+              except PackageNotFoundError:
+                  got = "NOT INSTALLED"
+              print(f"  {name:24s} declared={want:12s} in-image={got:12s}"
+                    f" {'ok' if got==want else 'MISMATCH'}")
+              if got != want:
+                  bad.append(name)
+          if bad:
+              sys.exit(f"production image does not carry the declared set: {bad}")
+          print(f"OK — {len(exact)} exact pins verified inside the production image")
+          PY
+
+      - name: Assert removed packages are absent from the image
+        run: |
+          docker run --rm --entrypoint python verifimind-candidate:ci - <<'PY'
+          import sys
+          from importlib.metadata import PackageNotFoundError, version
+          # smithery has zero imports and was removed 2026-08-13; it also pulled
+          # toml/typer/art/shellingham into the image. Absence is asserted here
+          # because the in-suite check for it is skipif-disabled by its presence.
+          leaked = []
+          for name in ("smithery",):
+              try:
+                  leaked.append(f"{name}=={version(name)}")
+              except PackageNotFoundError:
+                  pass
+          if leaked:
+              sys.exit(f"removed packages present in the production image: {leaked}")
+          print("OK — removed packages absent from the production image")
+          PY
 
   health-check:
     name: Server Health Check

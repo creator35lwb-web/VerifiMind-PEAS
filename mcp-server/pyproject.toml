@@ -4,14 +4,21 @@ version = "0.1.0"
 description = "Model Context Protocol server for VerifiMind-PEAS"
 readme = "README.md"
 requires-python = ">=3.11"
+# THIS FILE IS THE DEPLOYMENT DEPENDENCY AUTHORITY.
+# The production Dockerfile runs `uv pip install --system --no-cache .`, which
+# resolves THIS list. `requirements.txt` is a CI/dev mirror and is NOT installed
+# into the production image — a change made only there does not ship.
+# `tests/unit/test_dependency_manifest_parity.py` fails closed on any drift
+# between the two, because that drift is silent and green by default.
 dependencies = [
     # MCP/web stack PINNED exactly (2026-07-06): the Cloud Build trigger re-resolves
     # deps on every deploy — floating floors let prod jump fastmcp 2.x -> 3.4.2
     # unchosen (rev 00464). With the 2026-07-28 MCP spec RC landing in SDKs, SDK
-    # bumps must be deliberate PRs. Versions = what prod serves + 613 tests pass on.
+    # bumps must be deliberate PRs. Versions = what prod serves + the full suite
+    # passes on. Batch bumped 2026-08-13 (PR #329): fastmcp/starlette/fastapi/uvicorn.
     "mcp==1.28.1",
-    "fastmcp==3.4.4",
-    "starlette==1.3.1",
+    "fastmcp==3.4.6",
+    "starlette==1.4.1",
     "pydantic==2.13.4",
     "httpx==0.28.1",
     "openai>=1.0.0",
@@ -20,9 +27,13 @@ dependencies = [
     "groq>=1.1.2",
     "mistralai>=1.0.0",
     "python-dotenv>=1.2.2",
-    "smithery>=0.4.4",
-    "fastapi==0.140.1",
-    "uvicorn[standard]==0.51.0",
+    # smithery REMOVED 2026-08-13: zero imports in the codebase, and
+    # tests/unit/test_v050_foundation.py::TestSmitheryRemoval has asserted its
+    # removal since v0.5.0 while only ever checking requirements.txt. This entry
+    # kept it — plus toml/typer/art/shellingham — in the production image, and
+    # its presence auto-skipped the one test that would have caught that.
+    "fastapi==0.141.1",
+    "uvicorn[standard]==0.52.1",
     "google-cloud-firestore>=2.26.0",
     "email-validator>=2.0.0",
     "standardwebhooks>=1.0.0"
