@@ -1757,7 +1757,16 @@ AUTHORIZED_EXEC = {
     "mcp-server/deploy-cloudrun.sh",      # manual path (guards + archive)
 }
 RETIRED_STUBS = {"mcp-server/deploy-gcp.sh"}
-DELEGATING_DOCS = {".claude/commands/verifimind-deploy.md"}
+DELEGATING_DOCS = {
+    ".claude/commands/verifimind-deploy.md",
+    # PR #325 (merged fbcdd973): the published operator playbook names the
+    # protected-main trigger as the deployment lane, reserves
+    # mcp-server/deploy-cloudrun.sh as the sole canonical manual carrier, and
+    # EXPLICITLY forbids docs from embedding a second standalone recipe. It
+    # delegates; it does not execute. Detector family: default_config_build
+    # (fires on the prose naming the trigger + the quoted forbidden commands).
+    "wiki/Operations-Playbook.md",
+}
 SUPERSEDED_DOCS = {                       # banner-redirected, non-operational
     "mcp-server/DEPLOY_GCP.md",
     "docs/GCP_DEPLOYMENT_GUIDE.md",
@@ -1767,8 +1776,20 @@ HISTORICAL_OR_CONFIG = {                  # narrative / permission entries
     "docs/DEVELOPMENT_JOURNEY.md",
     ".claude/settings.local.json",
 }
+VERIFICATION_ORACLES = {
+    # PR #325 (merged fbcdd973): the executable docs contract QUOTES the
+    # gcloud deploy-command shape inside a forbid() regex in order to BAN it
+    # from documentation — the same reason this test file quotes deploy
+    # grammar, but it lives outside the mcp-server/tests/ path exclusion.
+    # Detector family: ambiguous_shell_candidate (fail-closed on ambiguity —
+    # correct behaviour, resolved here by explicit classification). The
+    # closure test asserts these surfaces have no execution capability, so
+    # this class cannot silently become a loophole for real deploy code.
+    "scripts/verify_public_docs_contract.py",
+}
 _CLASSIFIED = (AUTHORIZED_EXEC | RETIRED_STUBS | DELEGATING_DOCS
-               | SUPERSEDED_DOCS | HISTORICAL_OR_CONFIG)
+               | SUPERSEDED_DOCS | HISTORICAL_OR_CONFIG
+               | VERIFICATION_ORACLES)
 
 
 def _classify_offenders(surfaces):
@@ -1793,6 +1814,14 @@ def test_deploy_surface_inventory_closed():
     for name in SUPERSEDED_DOCS & set(surfaces):
         assert "SUPERSEDED — HISTORICAL REFERENCE ONLY" in surfaces[name] \
             or "HARD-RETIRED" in surfaces[name], name
+    for name in VERIFICATION_ORACLES & set(surfaces):
+        # An "oracle" that can actually execute anything is misclassified —
+        # the class is safe only while its members are inert verifiers.
+        for token in ("subprocess", "os.system", "os.exec", "Popen"):
+            assert token not in surfaces[name], (
+                f"verification oracle {name} contains execution capability "
+                f"({token}) — reclassify it, do not leave it in this set"
+            )
 
 
 # --- B-98-1: T's two grammar counterexamples, VERBATIM (contract 4) ---------

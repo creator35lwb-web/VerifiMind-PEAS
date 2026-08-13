@@ -35,8 +35,52 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest pytest-asyncio pytest-cov
+          # NOTE: this re-resolves pyproject.toml, the deployment authority, and
+          # OVERWRITES anything requirements.txt installed above. It must run
+          # LAST, and what it leaves behind is what the suite actually
+          # exercises — asserted in the next step. Line left byte-identical to
+          # its original form deliberately: editing it only to move this comment
+          # reclassified a pre-existing line as new code and tripped the
+          # SonarCloud new-code security gate (githubactions:S8541/S8544) for a
+          # change of no substance. Those findings are real but pre-existing and
+          # belong to a dependency-hardening lane; --only-binary :all: is in any
+          # case inapplicable to an editable install, which builds from source.
           pip install -e .  # Install local package for imports
-      
+
+      # Added 2026-08-13 (PR #329). Without this, a requirements.txt-only change
+      # installs, is silently reverted by `pip install -e .`, and the suite passes
+      # against the OLD set while the PR claims the new one. That is exactly what
+      # PR #329 did at head 946d733 with nine green checks.
+      - name: Assert installed dependency set matches the deployment authority
+        run: |
+          cd mcp-server
+          pip check
+          python - <<'PY'
+          import sys, tomllib
+          from importlib.metadata import PackageNotFoundError, version
+          deps = tomllib.load(open("pyproject.toml","rb"))["project"]["dependencies"]
+          exact = {}
+          for entry in deps:
+              if "==" in entry:
+                  name, _, want = entry.partition("==")
+                  exact[name.split("[")[0].strip()] = want.strip()
+          if not exact:
+              sys.exit("no exact pins found in pyproject.toml — refusing to pass vacuously")
+          bad = []
+          for name, want in sorted(exact.items()):
+              try:
+                  got = version(name)
+              except PackageNotFoundError:
+                  got = "NOT INSTALLED"
+              status = "ok" if got == want else "MISMATCH"
+              print(f"  {name:24s} declared={want:12s} installed={got:12s} {status}")
+              if got != want:
+                  bad.append(name)
+          if bad:
+              sys.exit(f"installed set does not match the deployment authority: {bad}")
+          print(f"OK — {len(exact)} exact pins verified against the installed environment")
+          PY
+
       - name: Run unit tests
         run: |
           cd mcp-server
@@ -57,6 +101,96 @@ jobs:
           pytest tests/integration/ -v --tb=short --no-cov
         env:
           VERIFIMIND_TEST_MODE: "true"
+
+  # Added 2026-08-13 (PR #329). The `test` job runs Python 3.11 + pip; production
+  # runs Python 3.12 + `uv pip install .` from the Dockerfile. Those are different
+  # interpreters resolving a different manifest, so a green `test` job is not
+  # evidence about the deployed image. This job builds the real candidate image
+  # and asserts the dependency set INSIDE it.
+  production-image-parity:
+    name: Production Image Dependency Parity
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Build the candidate production image
+        run: docker build -t verifimind-candidate:ci ./mcp-server
+
+      # T S132 HOLD repair (2026-08-13): the first version of these two steps ran
+      # `docker run --rm --entrypoint python ... -` WITHOUT -i. Docker then does
+      # not attach the heredoc to container stdin, `python -` reads EOF, receives
+      # NO program, and exits 0 — both steps passed green having executed nothing
+      # (Actions run 31624300896 / job 94206607604: zero runtime receipts). The
+      # in-script "refusing to pass vacuously" guard never ran, because vacuity
+      # happened one layer beneath it. Repair: -i attaches stdin, the output is
+      # captured, and the step FAILS unless the expected runtime receipts are
+      # present — an empty or partial run can no longer look like a pass.
+      - name: Assert the image carries the declared dependency set
+        run: |
+          set -euo pipefail
+          out=$(docker run -i --rm --entrypoint python verifimind-candidate:ci - <<'PY'
+          import sys, tomllib
+          from importlib.metadata import PackageNotFoundError, version
+          print("interpreter:", sys.version.split()[0])
+          with open("/app/pyproject.toml","rb") as fh:
+              deps = tomllib.load(fh)["project"]["dependencies"]
+          exact = {}
+          for entry in deps:
+              if "==" in entry:
+                  name, _, want = entry.partition("==")
+                  exact[name.split("[")[0].strip()] = want.strip()
+          if not exact:
+              sys.exit("no exact pins found — refusing to pass vacuously")
+          bad = []
+          for name, want in sorted(exact.items()):
+              try:
+                  got = version(name)
+              except PackageNotFoundError:
+                  got = "NOT INSTALLED"
+              print(f"  {name:24s} declared={want:12s} in-image={got:12s}"
+                    f" {'ok' if got==want else 'MISMATCH'}")
+              if got != want:
+                  bad.append(name)
+          if bad:
+              sys.exit(f"production image does not carry the declared set: {bad}")
+          print(f"OK — {len(exact)} exact pins verified inside the production image")
+          PY
+          )
+          printf '%s\n' "$out"
+          # Non-vacuous runtime receipts: the interpreter must have announced
+          # itself AND the final verdict line must be present. If python received
+          # no program, $out is empty and both greps fail the step.
+          printf '%s\n' "$out" | grep -q '^interpreter: 3\.12\.'
+          printf '%s\n' "$out" | grep -q '^OK — [0-9]\+ exact pins verified inside the production image$'
+
+      - name: Assert removed packages are absent from the image
+        run: |
+          set -euo pipefail
+          out=$(docker run -i --rm --entrypoint python verifimind-candidate:ci - <<'PY'
+          import sys
+          from importlib.metadata import PackageNotFoundError, version
+          # smithery has zero imports and was removed 2026-08-13. ONLY smithery's
+          # absence is asserted here (its in-suite check is skipif-disabled by
+          # the package's own presence, so the image needs an always-on guard).
+          # Its four transitives — toml/typer/art/shellingham — left the image
+          # with it and were verified absent once in the exact-head real-image
+          # run, but they are deliberately NOT asserted permanently: any of them
+          # could legitimately return later as a dependency of some other
+          # package, and this gate must fail only on contract violations.
+          leaked = []
+          for name in ("smithery",):
+              try:
+                  leaked.append(f"{name}=={version(name)}")
+              except PackageNotFoundError:
+                  pass
+          if leaked:
+              sys.exit(f"removed packages present in the production image: {leaked}")
+          print("OK — removed packages absent from the production image")
+          PY
+          )
+          printf '%s\n' "$out"
+          printf '%s\n' "$out" | grep -q '^OK — removed packages absent from the production image$'
 
   health-check:
     name: Server Health Check

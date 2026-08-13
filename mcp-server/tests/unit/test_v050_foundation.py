@@ -26,17 +26,44 @@ class TestSmitheryRemoval:
     """Verify smithery has been fully removed from the codebase."""
 
     def test_smithery_not_in_requirements(self):
-        """requirements.txt must not list smithery (this is the canonical check)."""
+        """requirements.txt must not list smithery."""
         req_path = Path(__file__).parent.parent.parent / "requirements.txt"
         content = req_path.read_text(encoding="utf-8").lower()
         assert "smithery" not in content
 
+    def test_smithery_not_in_pyproject(self):
+        """pyproject.toml must not list smithery — this is the carrier PRODUCTION reads.
+
+        Added 2026-08-13 (PR #329). Until this test existed, the class above was
+        the entire guard, and it inspected only requirements.txt. pyproject.toml
+        carried `smithery>=0.4.4` the whole time, so the production image shipped
+        smithery plus toml/typer/art/shellingham while this class reported the
+        removal green. Checking one carrier of a two-carrier fact is not a check.
+        """
+        pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
+        content = pyproject_path.read_text(encoding="utf-8").lower()
+        # The removal rationale is documented in a comment naming the package;
+        # only an actual dependency entry (a quoted requirement) is a failure.
+        declared = [
+            line for line in content.splitlines()
+            if "smithery" in line and line.strip().startswith('"')
+        ]
+        assert not declared, f"smithery declared as a dependency: {declared}"
+
     @pytest.mark.skipif(
         importlib.util.find_spec("smithery") is not None,
-        reason="smithery still installed globally in dev env — passes in CI after fresh pip install"
+        reason="smithery installed in this environment — see test_smithery_not_in_pyproject, "
+               "which cannot be disabled by the condition it detects"
     )
     def test_smithery_not_importable(self):
-        """In CI (fresh install from requirements.txt), smithery must not be importable."""
+        """Fresh-install environments must not be able to import smithery.
+
+        NOTE: this test is self-disabling by construction — the state it exists to
+        detect (smithery installed) is exactly the state that skips it. It is kept
+        as a fast local signal, but it is NOT the guard. The guards are
+        test_smithery_not_in_pyproject and test_smithery_not_in_requirements,
+        which read the manifests directly and always run.
+        """
         assert importlib.util.find_spec("smithery") is None
 
     def test_no_smithery_in_requirements(self):
@@ -67,8 +94,8 @@ class TestSmitheryRemoval:
     def test_server_version_is_current(self):
         """SERVER_VERSION must match the current release candidate."""
         from verifimind_mcp.server import SERVER_VERSION
-        assert SERVER_VERSION == "0.5.58", (
-            f"Expected 0.5.58, got {SERVER_VERSION}"
+        assert SERVER_VERSION == "0.5.59", (
+            f"Expected 0.5.59, got {SERVER_VERSION}"
         )
 
 
