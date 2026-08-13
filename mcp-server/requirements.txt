@@ -16,7 +16,7 @@
 # Versions = what prod serves and the full suite passes on.
 mcp==1.28.1
 fastmcp==3.4.6
-starlette==1.4.1
+starlette==1.6.0
 
 # Data Validation
 pydantic==2.13.4
