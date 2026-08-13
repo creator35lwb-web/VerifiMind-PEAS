@@ -170,9 +170,14 @@ jobs:
           out=$(docker run -i --rm --entrypoint python verifimind-candidate:ci - <<'PY'
           import sys
           from importlib.metadata import PackageNotFoundError, version
-          # smithery has zero imports and was removed 2026-08-13; it also pulled
-          # toml/typer/art/shellingham into the image. Absence is asserted here
-          # because the in-suite check for it is skipif-disabled by its presence.
+          # smithery has zero imports and was removed 2026-08-13. ONLY smithery's
+          # absence is asserted here (its in-suite check is skipif-disabled by
+          # the package's own presence, so the image needs an always-on guard).
+          # Its four transitives — toml/typer/art/shellingham — left the image
+          # with it and were verified absent once in the exact-head real-image
+          # run, but they are deliberately NOT asserted permanently: any of them
+          # could legitimately return later as a dependency of some other
+          # package, and this gate must fail only on contract violations.
           leaked = []
           for name in ("smithery",):
               try:

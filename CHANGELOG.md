@@ -19,6 +19,68 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.59 - Dependency Authority (August 13, 2026)
+
+**RELEASE CANDIDATE — PR #329, draft. This version is not yet merged and not
+yet in production; v0.5.58 remains the deployed release.** This entry records
+the candidate's content at its exact head; a bounded follow-up will replace
+this status line with the merge commit, Cloud Build ID, and deployment
+receipts after an authorized deployment, per the operations playbook.
+
+A maintenance release with no user-facing feature change, versioned because the
+production image changes materially: four framework upgrades and one package
+removal. It supersedes dependency PRs #317, #326, #327, and #328, which were
+individually green against a base that stopped existing once any one of them
+merged.
+
+### What changed
+
+- **Framework batch upgrade (one tested set):** FastAPI 0.140.1 → 0.141.1,
+  Starlette 1.3.1 → 1.4.1, Uvicorn 0.51.0 → 0.52.1, FastMCP 3.4.4 → 3.4.6 —
+  resolved, installed, and tested together rather than as four sequential
+  deployments.
+- **Dependency authority declared and enforced:** the production installer
+  reads `pyproject.toml`, not `requirements.txt`. The original candidate
+  changed only `requirements.txt`, so CI installed the new versions and then
+  silently reverted them before testing while the built image would have kept
+  the old set. Both manifests are now aligned, `pyproject.toml` is documented
+  in-file as the deployment authority, and a new fail-closed parity test suite
+  (`test_dependency_manifest_parity.py`) makes silent drift between the two
+  manifests a test failure.
+- **smithery removed from the production image:** it had zero imports anywhere
+  in the codebase, and the test class asserting its removal since v0.5.0 read
+  only `requirements.txt` while `pyproject.toml` still shipped it — along with
+  its transitive dependencies toml, typer, art, and shellingham. Only
+  smithery's absence is permanently asserted in CI (its transitives could
+  legitimately return via other packages); all five were verified absent in
+  the exact-head real-image run.
+- **CI now proves what production runs:** after the final install step, every
+  exact pin is asserted against the installed environment (`pip check` plus a
+  declared-vs-installed comparison), and a new `production-image-parity` job
+  builds the real container image (Python 3.12 + uv — the actual production
+  path, which the Python 3.11 test job cannot represent) and asserts the
+  dependency set inside it with mandatory runtime receipts: the steps fail
+  unless the in-container interpreter and verdict lines actually appear in
+  captured output, so a probe that executes nothing can no longer pass.
+- **Deploy-surface inventory closure:** the first CI run of this branch
+  combined with the v0.5.58-era documentation merge surfaced two
+  documentation-lane files carrying deployment-command grammar that the
+  deploy-surface oracle had never classified (a latent failure on the default
+  branch, invisible because docs-only merges do not trigger the test
+  workflow). Both are now classified — the operator playbook as a delegating
+  document, the docs-contract verifier in a new verification-oracle class
+  whose members are asserted to contain no execution capability.
+- **Version surfaces:** runtime `0.5.59` in both `SERVER_VERSION` carriers and
+  all current-version test assertions; MCP Registry manifest `3.36.0` with the
+  description updated to `v0.5.59`.
+
+### Review trail
+
+Four dependency PRs batched (RNA S133) → manifest-authority HOLD and repair
+(T S130, RNA S134) → vacuous-probe HOLD and repair with mandatory runtime
+receipts (T S132, RNA S135) → release identity assigned on T's GO (RNA, this
+entry). Every hold is preserved with its evidence in the private Hub records.
+
 ## v0.5.58 - Trinity Traceability and Provider Currency (August 7, 2026)
 
 This release repairs the flagship Trinity failure boundary discovered by live
