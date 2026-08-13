@@ -117,9 +117,19 @@ jobs:
       - name: Build the candidate production image
         run: docker build -t verifimind-candidate:ci ./mcp-server
 
+      # T S132 HOLD repair (2026-08-13): the first version of these two steps ran
+      # `docker run --rm --entrypoint python ... -` WITHOUT -i. Docker then does
+      # not attach the heredoc to container stdin, `python -` reads EOF, receives
+      # NO program, and exits 0 — both steps passed green having executed nothing
+      # (Actions run 31624300896 / job 94206607604: zero runtime receipts). The
+      # in-script "refusing to pass vacuously" guard never ran, because vacuity
+      # happened one layer beneath it. Repair: -i attaches stdin, the output is
+      # captured, and the step FAILS unless the expected runtime receipts are
+      # present — an empty or partial run can no longer look like a pass.
       - name: Assert the image carries the declared dependency set
         run: |
-          docker run --rm --entrypoint python verifimind-candidate:ci - <<'PY'
+          set -euo pipefail
+          out=$(docker run -i --rm --entrypoint python verifimind-candidate:ci - <<'PY'
           import sys, tomllib
           from importlib.metadata import PackageNotFoundError, version
           print("interpreter:", sys.version.split()[0])
@@ -146,10 +156,18 @@ jobs:
               sys.exit(f"production image does not carry the declared set: {bad}")
           print(f"OK — {len(exact)} exact pins verified inside the production image")
           PY
+          )
+          printf '%s\n' "$out"
+          # Non-vacuous runtime receipts: the interpreter must have announced
+          # itself AND the final verdict line must be present. If python received
+          # no program, $out is empty and both greps fail the step.
+          printf '%s\n' "$out" | grep -q '^interpreter: 3\.12\.'
+          printf '%s\n' "$out" | grep -q '^OK — [0-9]\+ exact pins verified inside the production image$'
 
       - name: Assert removed packages are absent from the image
         run: |
-          docker run --rm --entrypoint python verifimind-candidate:ci - <<'PY'
+          set -euo pipefail
+          out=$(docker run -i --rm --entrypoint python verifimind-candidate:ci - <<'PY'
           import sys
           from importlib.metadata import PackageNotFoundError, version
           # smithery has zero imports and was removed 2026-08-13; it also pulled
@@ -165,6 +183,9 @@ jobs:
               sys.exit(f"removed packages present in the production image: {leaked}")
           print("OK — removed packages absent from the production image")
           PY
+          )
+          printf '%s\n' "$out"
+          printf '%s\n' "$out" | grep -q '^OK — removed packages absent from the production image$'
 
   health-check:
     name: Server Health Check
