@@ -90,7 +90,7 @@ def wiki_link_failure(page: str, raw_target: str) -> str | None:
 
 
 # Concise public front door and release-bound truth.
-require(README_PATH, "version-v0.5.58", "v0.5.58 badge")
+require(README_PATH, "version-v0.5.59", "v0.5.59 badge")
 require(README_PATH, "13 defined / 8 active / 5 temporarily unavailable", "availability taxonomy")
 require(README_PATH, "21345820", "MACP v2.5 version DOI")
 require(README_PATH, "Multi-Agent Communication Protocol (MACP) v2.5 — Loop Engineering", "MACP v2.5 title")
@@ -109,24 +109,24 @@ changelog_current = next(
     (
         section
         for section in changelog_sections
-        if re.match(r"^## v0\.5\.58\b", section, flags=re.IGNORECASE)
+        if re.match(r"^## v0\.5\.59\b", section, flags=re.IGNORECASE)
     ),
     "",
 )
 checks += 5
-if "v0.5.58" not in changelog_current:
-    failures.append("CHANGELOG.md: current section is not v0.5.58")
+if "v0.5.59" not in changelog_current:
+    failures.append("CHANGELOG.md: current section is not v0.5.59")
 if re.search(r"candidate|not merged|not deployed", changelog_current, re.IGNORECASE):
-    failures.append("CHANGELOG.md: v0.5.58 still described as a candidate")
-if "3019f5c4889d8334063d4a2d9243e87d96fc93a8" not in changelog_current:
-    failures.append("CHANGELOG.md: exact v0.5.58 merge is absent")
-if "be6ed621-c0b8-49a3-a9f3-7ba36e68c7ea" not in changelog_current:
-    failures.append("CHANGELOG.md: exact v0.5.58 build is absent")
-if re.search(r"^## v0\.5\.57\b", changelog_current, flags=re.IGNORECASE | re.MULTILINE):
+    failures.append("CHANGELOG.md: v0.5.59 still described as a candidate")
+if "505951fe663aec4df2cd0b1d984ca04d4fc8f55a" not in changelog_current:
+    failures.append("CHANGELOG.md: exact v0.5.59 merge is absent")
+if "2a4a666c-ef70-4e10-92a2-7eb478fd3d69" not in changelog_current:
+    failures.append("CHANGELOG.md: exact v0.5.59 build is absent")
+if re.search(r"^## v0\.5\.58\b", changelog_current, flags=re.IGNORECASE | re.MULTILINE):
     failures.append("CHANGELOG.md: current section includes the prior release")
 
-require(SERVER_STATUS_PATH, "| Application | **v0.5.58**", "current production version")
-require(SERVER_STATUS_PATH, "31 pass / 0 stop / 0 instrument", "post-deploy smoke")
+require(SERVER_STATUS_PATH, "| Application | **v0.5.59**", "current production version")
+require(SERVER_STATUS_PATH, "X/Z/CS = real/real/real", "post-deploy smoke")
 require(SERVER_STATUS_PATH, "Serving revision", "serving-revision provenance field")
 require("MCP_SERVER_FEATURES.md", "MCP 2025-11-25", "current MCP protocol")
 forbid("MCP_SERVER_FEATURES.md", r"Gemini 2\.5 Flash|2025-03-26|\bxAI\b", "stale runtime/catalogue claim")

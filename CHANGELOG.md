@@ -21,11 +21,20 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ## v0.5.59 - Dependency Authority (August 13, 2026)
 
-**RELEASE CANDIDATE — PR #329, draft. This version is not yet merged and not
-yet in production; v0.5.58 remains the deployed release.** This entry records
-the candidate's content at its exact head; a bounded follow-up will replace
-this status line with the merge commit, Cloud Build ID, and deployment
-receipts after an authorized deployment, per the operations playbook.
+**DEPLOYED.** Production deployment is bound to merge commit
+`505951fe663aec4df2cd0b1d984ca04d4fc8f55a` (PR #329), whose parents are the
+public base `fbcdd9737b079daabf4a18548fe15e252a828b16` and the T-reviewed head
+`fd661e33776bde3db7f24c3d6400b5ad6b2b018c` — no unreviewed commit rode along.
+Cloud Build `2a4a666c-ef70-4e10-92a2-7eb478fd3d69` completed successfully at
+2026-08-13T15:00Z with its source bound to the merge SHA; serving revision
+`verifimind-mcp-server-00493-rj2` carries 100% of traffic. Post-deploy smoke:
+every version surface (`/health`, server-card, `/mcp/` serverInfo, root)
+reports 0.5.59, and a live Trinity run returned **X/Z/CS = real/real/real**
+with the quality gate passed. An initial Trinity attempt was rate-limited on
+the shared hosted Z/CS provider and returned an honestly degraded partial
+with typed `PROVIDER_RATE_LIMITED` stage errors and populated retry windows —
+direct operational evidence that the v0.5.58 per-stage degradation contract
+survived the dependency upgrades intact.
 
 A maintenance release with no user-facing feature change, versioned because the
 production image changes materially: four framework upgrades and one package
@@ -40,7 +49,7 @@ merged.
   resolved, installed, and tested together rather than as four sequential
   deployments.
 - **Dependency authority declared and enforced:** the production installer
-  reads `pyproject.toml`, not `requirements.txt`. The original candidate
+  reads `pyproject.toml`, not `requirements.txt`. The PR's first head
   changed only `requirements.txt`, so CI installed the new versions and then
   silently reverted them before testing while the built image would have kept
   the old set. Both manifests are now aligned, `pyproject.toml` is documented

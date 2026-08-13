@@ -1,8 +1,8 @@
 # VerifiMind-PEAS Server Status
 
-**Last updated:** August 10, 2026
+**Last updated:** August 13, 2026
 
-**Evidence cutoff:** v0.5.58 release verification completed August 7, 2026
+**Evidence cutoff:** v0.5.59 release verification completed August 13, 2026
 
 **Status authority:** this dated operational snapshot; release history lives in
 [`CHANGELOG.md`](CHANGELOG.md) and [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases).
@@ -11,14 +11,14 @@
 
 | Surface | Verified state |
 |---|---|
-| Application | **v0.5.58**, verified by the release smoke described below |
-| Public merge | [`3019f5c4889d8334063d4a2d9243e87d96fc93a8`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/3019f5c4889d8334063d4a2d9243e87d96fc93a8) |
-| Reviewed candidate | `67815f7bbf2070af68bdf14bea76b2b14c4d2f42` |
-| Reviewed base | `08f136c7faaeb3150d2c399ee7fee0d7e74fe2de` |
-| Cloud Build | `be6ed621-c0b8-49a3-a9f3-7ba36e68c7ea` — **SUCCESS**, completed 2026-08-07T20:35:03Z |
-| Serving revision | **Not captured in the public v0.5.58 provenance record; no revision is inferred here** |
-| Rollback target | `08f136c7faaeb3150d2c399ee7fee0d7e74fe2de`, captured and unused |
-| MCP Registry package | **3.35.0** |
+| Application | **v0.5.59**, verified by the release smoke described below |
+| Public merge | [`505951fe663aec4df2cd0b1d984ca04d4fc8f55a`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/505951fe663aec4df2cd0b1d984ca04d4fc8f55a) |
+| Reviewed candidate | `fd661e33776bde3db7f24c3d6400b5ad6b2b018c` (T S134 TECHNICAL RELEASE PASS bound to this exact head) |
+| Reviewed base | `fbcdd9737b079daabf4a18548fe15e252a828b16` |
+| Cloud Build | `2a4a666c-ef70-4e10-92a2-7eb478fd3d69` — **SUCCESS**, completed 2026-08-13T15:00Z, source bound to the merge SHA |
+| Serving revision | **`verifimind-mcp-server-00493-rj2`** at 100% traffic — captured in public provenance, closing the v0.5.58 gap |
+| Rollback target | `fbcdd9737b079daabf4a18548fe15e252a828b16` (v0.5.58 tree), captured and unused |
+| MCP Registry package | **3.36.0** — publish workflow succeeded and the live registry serves 3.36.0 with the v0.5.59 description |
 | Tool inventory | **13 defined / 8 active / 5 temporarily unavailable** |
 | Firestore | Connected during verified post-deploy health checks |
 | Runtime failover | `runtime_failover_enabled: false` |
@@ -29,22 +29,31 @@
 
 ## Release verification
 
-- [Public PR #324](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/324)
-  merged the exact reviewed head into the exact reviewed base; no unreviewed
+- [Public PR #329](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/329)
+  merged the exact T-reviewed head into the exact public base; no unreviewed
   product commit was included.
-- T automation: **9/9 remote checks passed** at the unchanged reviewed head.
-- RNA security review: **PASS**.
-- Independent CS run 6: **PASS**, including simultaneous X/Z/CS failure and
-  all-provider exception-propagation checks.
-- Human merge and deployment authorization: recorded before execution.
-- Post-deploy smoke: **31 pass / 0 stop / 0 instrument**.
-- [GitHub Release v0.5.58](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.58)
-  resolves to the exact production merge.
+- Review chain at exact SHAs: T S130 HOLD (dependency authority) → repaired;
+  T S132 HOLD (delivery-layer vacuity) → repaired with mandatory runtime
+  receipts; T S133 TECHNICAL PASS; T S134 TECHNICAL RELEASE PASS at the merged
+  head. Human merge and deployment authorization: recorded before execution.
+- CI at the reviewed head: 10/10 checks; the production-image job proved
+  Python 3.12.12 and 7/7 `declared == in-image` pins with non-vacuous runtime
+  receipts; the test job proved `pip check` clean, 7/7 installed pins, and
+  1,207 passed / 3 skipped / 0 failed.
+- Post-deploy smoke: every version surface (`/health`, server-card, `/mcp/`
+  serverInfo, root) reports v0.5.59; live Trinity **X/Z/CS = real/real/real**
+  with the quality gate passed.
+- [GitHub Release v0.5.59](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.59)
+  resolves to the exact production merge and triggered the successful MCP
+  Registry publish.
 
-The real-inference smoke encountered an unforced X-stage failure while Z and CS
-completed. Production preserved both successful stages, marked X unavailable,
-withheld aggregate confidence, and returned an honestly incomplete result. This
-is direct operational evidence for v0.5.58's per-stage degradation contract.
+An initial post-deploy Trinity attempt was rate-limited on the shared hosted
+Z/CS provider and returned an honestly degraded partial: typed
+`PROVIDER_RATE_LIMITED` stage errors with populated `retry_after_seconds`,
+aggregate confidence withheld, recommendation capped, and the completed X stage
+preserved. The retry after the advertised window completed real/real/real.
+This is direct operational evidence that the per-stage degradation contract
+introduced in v0.5.58 survived the v0.5.59 dependency upgrades intact.
 
 ## Availability
 
@@ -66,12 +75,16 @@ Core Tools Always Free pledge is unchanged.
 - Coordination and custom-template mutation remain contained, not restored.
 - Runtime cross-provider failover remains disabled. The hosted routing shown
   above is construction-time routing, not request-time failover.
+- No "vulnerability clean" claim is made for this release: the Safety CI job is
+  advisory (`|| true`) and its deprecated command skipped possible matches
+  under unpinned `mistralai>=1.0.0`. Dependency-security policy modernization
+  is routed as separate follow-up.
 - `safe_diagnostic_value` is a character-bounding helper, not a general secret
   redactor. Current structured-error call sites pass controlled identifiers;
   renaming/documentation or true redaction remains follow-up work.
-- The public release evidence does not contain a serving revision identifier.
-  The merge, build, health, release tag, and smoke identities above are the
-  available public provenance.
+- The `server.json` registry manifest carries pre-existing double-encoded
+  em-dash characters in four tool descriptions; a bounded cleanup is planned
+  separately from release changes.
 - Qualified-counsel review and any retrospective incident-notification decision
   remain parallel human/legal work. Software verification does not close them.
 
