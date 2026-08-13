@@ -1,5 +1,6 @@
-name: Docs CI Bypass
-# Provides the required "Bandit SAST Analysis" check for non-mcp-server PRs.
+name: Docs Contract and CI Bypass
+# Provides the required "Bandit SAST Analysis" check for non-mcp-server PRs
+# and makes the public documentation authority contract executable.
 # The security-scan.yml workflow only triggers on mcp-server/** paths,
 # so PRs that only touch docs, config, or registry files have no check
 # to satisfy the branch protection ruleset. This workflow fills that gap
@@ -10,6 +11,8 @@ on:
     paths:
       - '**.md'
       - 'docs/**'
+      - 'wiki/**'
+      - 'scripts/verify_public_docs_contract.py'
       - 'LICENSE'
       - '.gitignore'
       - '**.txt'
@@ -27,5 +30,16 @@ jobs:
     name: Bandit SAST Analysis
     runs-on: ubuntu-latest
     steps:
-      - name: Skip security scan for non-mcp-server changes
-        run: echo "Non-mcp-server change detected — security scan not required."
+      - name: Check out reviewed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.11'
+
+      - name: Verify public documentation contract
+        run: python scripts/verify_public_docs_contract.py
+
+      - name: Confirm runtime security scan is out of scope
+        run: echo "Non-mcp-server change verified; runtime Bandit scan is not required."

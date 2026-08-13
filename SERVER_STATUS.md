@@ -1,93 +1,79 @@
 # VerifiMind-PEAS Server Status
 
-**Last updated:** August 6, 2026
-**Status authority:** current operational snapshot; release history lives in
+**Last updated:** August 10, 2026
+
+**Evidence cutoff:** v0.5.58 release verification completed August 7, 2026
+
+**Status authority:** this dated operational snapshot; release history lives in
 [`CHANGELOG.md`](CHANGELOG.md) and [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases).
 
 ## Current production snapshot
 
-- Production application version: **v0.5.57**
-- Source commit: **`6faadef55fefe0a2347d54450f3cf29e7c56b85a`** (PR #322)
-- Cloud Build: **`ca5742a7-9d55-43a7-9f8d-b7e8b19502c7`** — successful, live 2026-08-06T11:27:35Z
-- Previous production release: v0.5.56 at `40a489245702d2db23b2d1f6fd8eb124e33c0f15` (rollback target)
-- MCP protocol advertised by production: **2025-11-25**
-- Tool inventory: **13 defined / 8 active / 5 temporarily unavailable**
-- Temporarily unavailable:
-  - `coordination_handoff_create`
-  - `coordination_handoff_read`
-  - `coordination_team_status`
-  - `register_custom_template`
-  - `import_template_from_url`
-- Firestore: connected at the verified deployment smoke
-- Runtime provider failover: disabled and disclosed
-- Hosted routing:
-  - X: Gemini `gemini-3.5-flash-lite`
-  - Z: Groq `openai/gpt-oss-120b`
-  - CS: Groq `openai/gpt-oss-120b`
-- Current paid services: **none**
-- Registration: free UUID/cohort registration; not a time-limited entitlement
-- Live policies: Terms v2.3 and Privacy v2.4
+| Surface | Verified state |
+|---|---|
+| Application | **v0.5.58**, verified by the release smoke described below |
+| Public merge | [`3019f5c4889d8334063d4a2d9243e87d96fc93a8`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/3019f5c4889d8334063d4a2d9243e87d96fc93a8) |
+| Reviewed candidate | `67815f7bbf2070af68bdf14bea76b2b14c4d2f42` |
+| Reviewed base | `08f136c7faaeb3150d2c399ee7fee0d7e74fe2de` |
+| Cloud Build | `be6ed621-c0b8-49a3-a9f3-7ba36e68c7ea` — **SUCCESS**, completed 2026-08-07T20:35:03Z |
+| Serving revision | **Not captured in the public v0.5.58 provenance record; no revision is inferred here** |
+| Rollback target | `08f136c7faaeb3150d2c399ee7fee0d7e74fe2de`, captured and unused |
+| MCP Registry package | **3.35.0** |
+| Tool inventory | **13 defined / 8 active / 5 temporarily unavailable** |
+| Firestore | Connected during verified post-deploy health checks |
+| Runtime failover | `runtime_failover_enabled: false` |
+| Hosted X | Gemini `gemini-3.5-flash-lite` |
+| Hosted Z | Groq `openai/gpt-oss-120b` |
+| Hosted CS | Groq `openai/gpt-oss-120b` |
+| Policies | Terms v2.4 / Privacy v2.5 |
 
-Post-deploy verification completed with **24 pass / 0 stop / 0 instrument**,
-including a real X-Z-CS chain in which all three stages reported real inference.
-This is operational evidence, not a legal certification or an incident-closure
-claim.
+## Release verification
 
-## Release publication
+- [Public PR #324](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/324)
+  merged the exact reviewed head into the exact reviewed base; no unreviewed
+  product commit was included.
+- T automation: **9/9 remote checks passed** at the unchanged reviewed head.
+- RNA security review: **PASS**.
+- Independent CS run 6: **PASS**, including simultaneous X/Z/CS failure and
+  all-provider exception-propagation checks.
+- Human merge and deployment authorization: recorded before execution.
+- Post-deploy smoke: **31 pass / 0 stop / 0 instrument**.
+- [GitHub Release v0.5.58](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.58)
+  resolves to the exact production merge.
 
-- [v0.5.55 — Integrated Security and Public-Truth Repair](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.55)
-  is bound to merge commit `dd78cbe4ce05d57fdd3978a5ea1b4dda55b2826f`.
-- [v0.5.56 — Core Integrity, Containment, and Legal Truth](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.56)
-  is bound to merge commit `40a489245702d2db23b2d1f6fd8eb124e33c0f15`
-  and is the latest GitHub Release.
+The real-inference smoke encountered an unforced X-stage failure while Z and CS
+completed. Production preserved both successful stages, marked X unavailable,
+withheld aggregate confidence, and returned an honestly incomplete result. This
+is direct operational evidence for v0.5.58's per-stage degradation contract.
 
-The two missing release records were restored on August 6, 2026. Creating those
-records did not merge code or trigger a deployment.
+## Availability
 
-## v0.5.57 (deployed August 6, 2026)
+The five temporarily unavailable tools are:
 
-The bounded post-release reliability lane delivered:
+- `coordination_handoff_create`
+- `coordination_handoff_read`
+- `coordination_team_status`
+- `register_custom_template`
+- `import_template_from_url`
 
-- MCP Registry description shortened below the 100-character hard limit.
-- Discovery-card prompt resource renamed from stale `v4.2` copy to the live
-  production-methodology identity.
-- Firestore opt-out read/write failures normalized to a structured,
-  non-enumerating HTTP 503 without false deletion success.
-- Opt-in shared history capped at the 20 newest entries, pruned on every
-  read/write, cleared on instance replacement, and reported truthfully when a
-  write fails.
-- Terms v2.4 / Privacy v2.5 wording that describes the enforced entry-bound
-  retention contract; RNA security review PASS and human ratification both
-  obtained before publication.
-- Dead duplicate Privacy/Terms HTML bodies removed so canonical policy modules
-  are the only served legal-text source.
+The three coordination tools return `COORDINATION_TEMPORARILY_DISABLED`; the two
+custom-template mutation tools return `CUSTOM_TEMPLATE_TEMPORARILY_DISABLED`.
+Built-in template reads and all four validation tools remain available. The
+Core Tools Always Free pledge is unchanged.
 
-The private Command Central Gate #1 provenance repair is isolated separately in
-private draft PR #82. It requires an explicit canonical public checkout, full
-expected SHA, matching origin/root/HEAD, and a clean worktree.
-
-## Gates spent for v0.5.57
-
-1. Local unit, integration, security, and canonical-currency gates: complete.
-2. Bounded public change published as a draft PR tied to one exact SHA.
-3. RNA/security review of that exact head: **PASS**.
-4. Human ratification of Terms v2.4 / Privacy v2.5 publication wording: **obtained**.
-   Qualified-counsel review of statutory notice sufficiency remains a separate,
-   parallel track and is not represented as closed.
-5. Independent CS review at the exact head: **PASS**, with a parent-commit
-   differential of 16 failing contracts.
-6. Separate human merge/deployment authorization: **obtained**.
-7. Post-deployment verification of health, discovery, policy, opt-out behaviour,
-   bounded history, and real-inference Trinity: **25 passed / 0 stop / 0 instrument**.
-
-## Known limitations and follow-up lanes
+## Known limitations and follow-up
 
 - Coordination and custom-template mutation remain contained, not restored.
-- Owner-scoped persistence, migration, and deletion remain separate design work.
-- MCP 2026-07-28 dual-version support remains a compatibility lane.
-- Runtime cross-provider failover remains disabled.
-- Counsel review and any retrospective incident-notification decision remain
-  parallel human/legal work and are not closed by software tests.
+- Runtime cross-provider failover remains disabled. The hosted routing shown
+  above is construction-time routing, not request-time failover.
+- `safe_diagnostic_value` is a character-bounding helper, not a general secret
+  redactor. Current structured-error call sites pass controlled identifiers;
+  renaming/documentation or true redaction remains follow-up work.
+- The public release evidence does not contain a serving revision identifier.
+  The merge, build, health, release tag, and smoke identities above are the
+  available public provenance.
+- Qualified-counsel review and any retrospective incident-notification decision
+  remain parallel human/legal work. Software verification does not close them.
 
 ## Public endpoints
 
@@ -98,3 +84,4 @@ expected SHA, matching origin/root/HEAD, and a clean worktree.
 - Register: `https://verifimind.ysenseai.org/register`
 - Terms: `https://verifimind.ysenseai.org/terms`
 - Privacy: `https://verifimind.ysenseai.org/privacy`
+- Public statements: `https://github.com/creator35lwb-web/VerifiMind-PEAS/wiki/Public-Statements`

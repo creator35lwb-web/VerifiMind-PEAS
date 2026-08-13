@@ -1,483 +1,112 @@
-# VerifiMind™ PEAS Roadmap
+# VerifiMind PEAS Roadmap
 
-<div align="center">
+**Last reviewed:** August 10, 2026
 
-**Building the Future of Ethical AI Validation**
+**Current production baseline:** v0.5.58
+
+**Roadmap authority:** [Evaluation Roadmap v1.0](docs/research/evaluation-roadmap/roadmap-v1.0.md), frozen by tag `roadmap-v1.0`
 
-*Last Updated: March 1, 2026*
+This page is the project-roadmap index. It does not silently replace the
+pre-registered Evaluation Roadmap, predict release dates, or mark a milestone
+complete. Exact releases record what shipped; live discovery records what is
+running; tagged roadmap artifacts and dated retrospectives record what the
+project promised and learned.
 
-[![Version](https://img.shields.io/badge/Current-v0.4.5-blue.svg)](CHANGELOG.md)
-[![Next](https://img.shields.io/badge/Next-v0.5.0_Foundation-orange.svg)](#v050-foundation)
-[![Status](https://img.shields.io/badge/Status-Active%20Development-brightgreen.svg)](#current-status)
+## Three sources, three jobs
 
-</div>
+| Question | Authority |
+|---|---|
+| What is running now? | [`/health`](https://verifimind.ysenseai.org/health), [`/setup`](https://verifimind.ysenseai.org/setup), and the [server card](https://verifimind.ysenseai.org/.well-known/mcp/server-card.json) |
+| What shipped, and from which source? | [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases) and [`CHANGELOG.md`](CHANGELOG.md) |
+| What evidence must the project produce next? | [Evaluation Roadmap v1.0](docs/research/evaluation-roadmap/roadmap-v1.0.md) and its future tagged successors |
 
----
+The public [Wiki](https://github.com/creator35lwb-web/VerifiMind-PEAS/wiki)
+explains the stable methodology and operator playbook. It should link these
+authorities instead of creating another version calendar.
 
-## 📋 Table of Contents
+## Current shipped foundation
 
-- [Vision & Philosophy](#-vision--philosophy)
-- [Current Status](#-current-status)
-- [Completed Milestones](#-completed-milestones)
-- [Roadmap Timeline](#-roadmap-timeline)
-- [Version Details](#-version-details)
-- [Multi-Standard Strategy](#-multi-standard-strategy)
-- [Sustainability Model](#-sustainability-model)
-- [Community & Contribution](#-community--contribution)
-- [Metrics & Goals](#-metrics--goals)
+As of the evidence cutoff above:
 
----
+- v0.5.58 is live from public merge
+  [`3019f5c4`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/3019f5c4889d8334063d4a2d9243e87d96fc93a8);
+- 13 MCP tools are defined, 8 are active, and 5 remain temporarily unavailable
+  under security containment;
+- the X → Z → CS pipeline preserves successful real stages when a sibling
+  provider stage fails and withholds aggregate confidence from incomplete runs;
+- runtime cross-provider failover remains disabled;
+- the MCP Registry package is 3.35.0;
+- the Core Tools Always Free pledge remains in force.
 
-## 🎯 Vision & Philosophy
+See [`SERVER_STATUS.md`](SERVER_STATUS.md) for the dated evidence snapshot and
+live discovery for changes after that cutoff.
 
-### Core Principle
+## Active work lanes
 
-> **"The methodology is free. The convenience is optional."**
+These lanes organize current work. They are not promised release numbers or
+claims of completion.
 
-VerifiMind-PEAS is committed to keeping the Genesis Prompt Engineering Methodology **free and open-source forever**. We believe ethical AI validation should be accessible to everyone, regardless of resources.
+### 1. Containment before restoration
 
-### What's Free Forever
+The coordination and custom-template mutation paths stay unavailable until
+their replacement contracts have owner-scoped authorization, bounded storage,
+deletion semantics, migration handling, adversarial tests, and independent
+review. Availability pressure does not override the containment boundary.
 
-| Component | Status | Description |
-|-----------|--------|-------------|
-| Genesis Methodology | ✅ Free | The complete 5-step validation process |
-| MCP Server Code | ✅ Free | Full source code on GitHub |
-| Documentation | ✅ Free | All guides, tutorials, and white papers |
-| Self-Hosting | ✅ Free | Deploy on your own infrastructure |
-| BYOK Support | ✅ Free | Use your own API keys (v0.4.5+) |
-| Community Support | ✅ Free | GitHub Discussions & Issues |
+### 2. Reliability without overstating validity
 
-### What May Be Paid (Future)
+Provider-seat separation, in-flight failover, retry policy, and degraded-output
+semantics remain evaluation lanes. A routing configuration or passing test is
+not evidence that the methodology is accurate, calibrated, or superior to a
+single-model baseline.
 
-| Component | Status | Description |
-|-----------|--------|-------------|
-| Hosted Orchestration | 🔮 Future | Managed multi-agent routing & synthesis |
-| Priority Support | 🔮 Future | Dedicated response times |
-| Custom Integrations | 🔮 Future | Enterprise-specific features |
-| Training & Workshops | 🔮 Future | Team onboarding sessions |
+### 3. The public evaluation clock
 
-> *"Education is free, but consultation and management is personalized charges."*
+The year-one Evaluation Roadmap runs from May 2026 through April 2027. Its
+milestones cover governance, labeled data, inter-rater reliability,
+co-maintainership, sandboxing, calibration, external benchmarks, NIST AI RMF
+self-attestation, and the year-one continue/pivot/sunset decision.
 
----
+The seed evaluation dataset is public at
+[Hugging Face](https://huggingface.co/datasets/YSenseAI/verifimind-peas-eval)
+with DOI [10.5281/zenodo.21276884](https://doi.org/10.5281/zenodo.21276884).
+That artifact does not by itself claim that every M2 acceptance condition is
+closed. Milestone status belongs in a dated retrospective with the required
+external signal.
 
-## 📊 Current Status
+### 4. Documentation as an authority graph
 
-### v0.4.5 BYOK Live (Current Release)
+The README remains the concise front door. The Wiki becomes the indexed
+textbook and operator playbook. Volatile versions, models, provider routing,
+tool counts, deployment identifiers, and policy versions stay in live or
+release-bound sources. Public Statements preserve dated disclosures and
+explicit non-claims.
 
-**Released:** February 28, 2026 | **PR:** [#55](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/55)
+### 5. Sustainable open-source operation
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| MCP Server (Streamable-HTTP) | ✅ Live | verifimind.ysenseai.org |
-| Official MCP Registry | ✅ Listed | registry.modelcontextprotocol.io |
-| HuggingFace Demo | ✅ Live | Wisdom Canvas (YSenseAI/wisdom-canvas) |
-| 4 Core Tools | ✅ Available | validate_concept, analyze_security, check_ethics, synthesize_insights |
-| **BYOK Per-Tool-Call** | ✅ **LIVE** | Ephemeral provider override on every tool call |
-| Auto-Detect Key Format | ✅ Working | `gsk_` → Groq, `sk-ant-` → Anthropic, `sk-` → OpenAI, etc. |
-| Multi-Provider Support | ✅ Working | Gemini, OpenAI, Anthropic, Groq, Mistral, Ollama |
-| Rate Limiting | ✅ Active | 10 req/min per IP, 100 req/min global |
-| Smart Fallback | ✅ Working | Per-agent provider support |
-| Input Sanitization | ✅ Active | Prompt injection detection (v0.3.5+) |
-| CI/CD Pipeline | ✅ Active | Bandit SAST + 175 automated tests |
+The methodology, server code, self-hosting path, documentation, and BYOK
+support remain open under the repository's licenses. A second maintainer,
+external reviewers, reproducible evidence, and transparent failure reports are
+more important at this stage than a speculative paid tier or a version-number
+deadline.
 
-**BYOK Validation:** Triple-validated by Manus AI (6/6), Claude Code (6/6), and CI pipeline (175 tests).
+## Change discipline
 
-### Platform Listings
-
-| Platform | Status | Link |
-|----------|--------|------|
-| Official MCP Registry | ✅ Listed | [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/?q=verifimind) |
-| GitHub | ✅ Active | [creator35lwb-web/VerifiMind-PEAS](https://github.com/creator35lwb-web/VerifiMind-PEAS) |
-| HuggingFace Spaces | ✅ Live | [YSenseAI/wisdom-canvas](https://huggingface.co/spaces/YSenseAI/wisdom-canvas) |
-| Zenodo (DOI) | ✅ Published | [10.5281/zenodo.17645665](https://doi.org/10.5281/zenodo.17645665) |
-| Landing Page | ✅ Live | [verifimind.ysenseai.org](https://verifimind.ysenseai.org) |
-
-### Active Users
-
-Based on our server logs (7-day analysis):
-
-- **19,542** total log entries
-- **Claude-User** connections detected (real MCP client usage!)
-- **Cursor** client connections
-- **Browser** visitors from Chrome 144
-
-**Thank you to our early adopters!** 🙏
-
----
-
-## ✅ Completed Milestones
-
-### v0.4.x Series (February 2026)
-
-| Version | Release Date | Key Achievement |
-|---------|-------------|-----------------|
-| v0.4.5 | Feb 28, 2026 | **BYOK Live** — Per-tool-call provider override with auto-detect |
-| v0.4.4 | Feb 27, 2026 | Version bump, 48x48 favicon with dark background |
-| v0.4.3 | Feb 26, 2026 | Streamable-HTTP transport upgrade |
-| v0.4.2 | Feb 25, 2026 | Multi-Model Trinity (Gemini + Anthropic + Perplexity) |
-| v0.4.1 | Feb 24, 2026 | Agent model labels, enhanced health endpoint |
-| v0.4.0 | Feb 23, 2026 | Unified prompt templates, MCP Registry listing |
-
-### v0.3.x Series (January 2026)
-
-| Version | Release Date | Key Achievement |
-|---------|-------------|-----------------|
-| v0.3.5 | Jan 30, 2026 | Input sanitization, prompt injection detection |
-| v0.3.4 | Jan 29, 2026 | Rate limiting, smart fallback |
-| v0.3.0 | Jan 15, 2026 | Initial GCP Cloud Run deployment |
-
-### Pre-Release (December 2025 – January 2026)
-
-| Milestone | Date | Achievement |
-|-----------|------|-------------|
-| Zenodo DOI | Jan 2026 | [10.5281/zenodo.17645665](https://doi.org/10.5281/zenodo.17645665) |
-| White Paper | Dec 2025 | Genesis Prompt Engineering Methodology published |
-| First Commit | Dec 2025 | Project inception |
-
----
-
-## 🗓️ Roadmap Timeline
-
-```
-2026 Q1 (DONE)              2026 Q1-Q2                  2026 Q2
-   │                            │                          │
-   ▼                            ▼                          ▼
-┌──────────┐              ┌──────────┐              ┌──────────┐
-│  v0.4.5  │              │  v0.5.0  │              │  v0.5.x  │
-│  BYOK    │──────────────│ Founda-  │──────────────│ Stabi-   │
-│  Live ✅  │              │  tion    │              │  lity    │
-└──────────┘              └──────────┘              └──────────┘
-   Feb 2026                Mar-Apr 2026              Apr-May 2026
-
-2026 Q2-Q3                  2026 Q3                    2026 Q3+
-   │                          │                          │
-   ▼                          ▼                          ▼
-┌──────────┐              ┌──────────┐              ┌──────────┐
-│  v0.6.0  │              │  v0.7.0  │              │  v0.8.0+ │
-│  Agent   │──────────────│  MCP     │──────────────│  Quad    │
-│  Skills  │              │  App     │              │  CLI     │
-└──────────┘              └──────────┘              └──────────┘
-  May-Jun 2026              Jun-Jul 2026             Q3+ 2026
-                                                   (Discussion)
-```
-
----
-
-## 📦 Version Details
-
-### v0.5.0: Foundation
-**Target:** March–April 2026 | **Priority:** CRITICAL
-
-The most important release — building the solid foundation everything else depends on.
-
-| Feature | Description | Status |
-|---------|-------------|--------|
-| Smithery Sunset Migration | Ensure all users migrate to direct MCP config | 🔲 Planned |
-| Streamable-HTTP Primary | Complete transition from SSE to streamable-HTTP | 🔲 Planned |
-| Security Specification | Formal security model document (Z-Protocol spec) | 🔲 Planned |
-| Comprehensive Test Suite | Target: 200+ tests (currently 175) | 🔲 Planned |
-| Documentation Overhaul | Updated guides for v0.4.5+ features | 🔲 Planned |
-| Error Handling v2 | Structured error responses with recovery hints | 🔲 Planned |
-| Health Endpoint v2 | Enhanced diagnostics, uptime tracking | 🔲 Planned |
-| BYOK Hardening | Edge case handling, provider timeout management | 🔲 Planned |
-
-**Why Foundation First?**
-
-> Every feature we build after v0.5.0 depends on the foundation being rock-solid. BYOK, Agent Skills, MCP App — all of these are only as reliable as the core engine underneath. v0.5.0 is about making that engine unbreakable.
-
-**Smithery Sunset Note:** March 1, 2026 marks the Smithery platform sunset. Users who discovered VerifiMind-PEAS through Smithery need clear migration guidance to direct MCP configuration.
-
----
-
-### v0.5.x: Stability
-**Target:** April–May 2026 | **Priority:** HIGH
-
-Production hardening and reliability improvements.
-
-| Feature | Description | Status |
-|---------|-------------|--------|
-| Production Hardening | Memory optimization, connection pooling | 🔲 Planned |
-| Performance Optimization | Response time improvements, caching | 🔲 Planned |
-| Monitoring & Alerting | Structured logging, uptime monitoring | 🔲 Planned |
-| BYOK Analytics | Anonymous usage patterns for provider optimization | 🔲 Planned |
-| Migration Guide | Smithery → direct MCP config documentation | 🔲 Planned |
-
----
-
-### v0.6.0: Agent Skills Support
-**Target:** May–June 2026 | **Priority:** HIGH
-
-Vendor-neutral Agent Skills standard support for multi-platform compatibility.
-
-| Feature | Description | Status |
-|---------|-------------|--------|
-| /.well-known/agent-skills.json | Standard discovery manifest | 🔲 Planned |
-| /skills/ Endpoints | OpenAPI-like skill definitions | 🔲 Planned |
-| Multi-Vendor Support | Works with non-Anthropic agents | 🔲 Planned |
-| Skill Versioning | Track skill evolution | 🔲 Planned |
-| Core Extraction | Shared validation engine module | 🔲 Planned |
-
-**Why Agent Skills?**
-
-Agent Skills (agentskills.io) is an emerging **vendor-neutral** standard initiated by Vercel. Unlike MCP (Anthropic-specific), Agent Skills works across multiple AI platforms.
-
-| Aspect | MCP | Agent Skills |
-|--------|-----|--------------|
-| Origin | Anthropic | Vercel (open consortium) |
-| Adoption | Claude-centric | Multi-vendor |
-| Discovery | Manual config | Automatic via /.well-known |
-| Format | JSON-RPC | OpenAPI-like |
-
-**Proposed Structure:**
-```
-verifimind.ysenseai.org/
-├── /mcp/                      → MCP Server (existing)
-├── /.well-known/
-│   └── agent-skills.json      → Agent Skills manifest (new)
-└── /skills/
-    ├── validate-concept/
-    ├── analyze-security/
-    ├── check-ethics/
-    └── genesis-council/
-```
-
----
-
-### v0.7.0: MCP App Development
-**Target:** June–July 2026 | **Priority:** MEDIUM
-
-Transform VerifiMind-PEAS from an MCP Server into an **MCP App** with rich UI.
-
-| Feature | Description | Status |
-|---------|-------------|--------|
-| Visual Dashboard | AI Council session visualization | 🔲 Planned |
-| Persistent History | Store validation sessions | 🔲 Planned |
-| One-Click Install | MCP App Store distribution | 🔲 Planned |
-| Rich UI | Interactive validation interface | 🔲 Planned |
-| Local Model Support | Ollama, LM Studio integration | 🔲 Planned |
-
-**Background:** Anthropic announced MCP Apps (January 2026) — evolving MCP from tools to full applications.
-
-| Aspect | MCP Tools (Current) | MCP Apps (New) |
-|--------|---------------------|----------------|
-| Scope | Single-function tools | Full applications |
-| UI | None | Rich interfaces |
-| State | Stateless | Stateful sessions |
-| Distribution | Manual config | App store model |
-
----
-
-### v0.8.0+: Quad Validation CLI (Discussion Phase)
-**Target:** Q3+ 2026 | **Priority:** FUTURE | **Status:** Discussion Only
-
-> ⚠️ **This feature is in discussion phase only.** It will NOT be implemented until the foundation (v0.5.0–v0.7.0) is robust and proven. The separate repository `verifimind-quad-cli` will be created only when the commercialization readiness gate is met.
-
-A standalone CLI tool for simultaneous 4-agent validation orchestration.
-
-| Feature | Description | Status |
-|---------|-------------|--------|
-| 4-Agent Orchestration | Run Y, X, Z, CS simultaneously | 💬 Discussion |
-| G-Agent (Grok) | Fifth agent for additional perspective | 💬 Discussion |
-| Shared Core | Imports from extracted VerifiMind core engine | 💬 Discussion |
-| CLI Interface | Click/Typer-based command line tool | 💬 Discussion |
-| Separate Repository | verifimind-quad-cli (when ready) | 💬 Discussion |
-
-**Commercialization Readiness Gate:**
-1. ✅ v0.5.0 Foundation complete and stable
-2. 🔲 Proven BYOK adoption (>20 active BYOK users)
-3. 🔲 Community demand for CLI interface validated
-4. 🔲 Core engine extracted as shared module (v0.6.0)
-5. 🔲 Security specification inherited from v0.5.0
-
-**Architecture Decision:** The quad-cli will be a **separate repository** that imports from a shared core engine. This follows the industry pattern (Terraform, Kubernetes, Docker) of keeping a monorepo until the core is stable, then splitting interfaces when there's proven demand.
-
----
-
-## 🌐 Multi-Standard Strategy
-
-### Genesis Skills Package Vision
-
-VerifiMind-PEAS aims to be the **reference implementation** for ethical multi-model AI validation, available across multiple standards:
-
-```
-                    ┌─────────────────────────────────┐
-                    │     Genesis Skills Package      │
-                    │  "Ethical AI Validation Suite"  │
-                    └─────────────────────────────────┘
-                                    │
-            ┌───────────────────────┼───────────────────────┐
-            │                       │                       │
-    ┌───────▼───────┐      ┌───────▼───────┐      ┌───────▼───────┐
-    │   MCP Server  │      │  Agent Skills │      │   MCP App     │
-    │  (v0.4.5 ✅)  │      │    (v0.6.0)   │      │   (v0.7.0)    │
-    └───────────────┘      └───────────────┘      └───────────────┘
-            │                       │                       │
-            └───────────────────────┼───────────────────────┘
-                                    │
-                    ┌───────────────▼───────────────┐
-                    │      VerifiMind-PEAS Core     │
-                    │   Genesis Methodology Engine  │
-                    └───────────────────────────────┘
-                                    │
-                         ┌──────────▼──────────┐
-                         │   Quad CLI (v0.8.0+)│
-                         │   (Discussion Only) │
-                         └─────────────────────┘
-```
-
-### Academic Validation
-
-Our "AI Council" methodology has received independent academic validation:
-
-> **"Cyborg Orchestration in LLM Council-Double Delphi"**  
-> Author: Valeri Chukhlomin (SSRN, December 2025)  
-> [https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5990855](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5990855)
-
-| Academic Term | VerifiMind Equivalent |
-|---------------|----------------------|
-| LLM Council | AI Council (Y, X, Z, CS) |
-| Cyborg Orchestration | Human-Centric Orchestration |
-| Double Delphi | Multi-Model Validation |
-| Problem Structuring Methods | Genesis 5-Step Process |
-
----
-
-## 💰 Sustainability Model
-
-### The Challenge
-
-As an open-source project with real infrastructure costs, we face the classic sustainability paradox:
-- Open-source = Free for users
-- Infrastructure = Real costs (GCP, domains)
-- Growth = More costs (more users = more API calls)
-
-### Our Solution: BYOK-First
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Cost Distribution                         │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  Maintainer Costs (Fixed)          User Costs (Variable)   │
-│  ─────────────────────────         ────────────────────    │
-│  • GCP Cloud Run (~RM60/mo)        • Their own API keys    │
-│  • Domain (~RM5/mo)                • Their token usage     │
-│  • GitHub (Free)                   • Optional donations    │
-│                                                             │
-│  Result: Costs stay fixed regardless of user growth         │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Commercialization Path (Future)
-
-| Layer | Free/Paid | Rationale |
-|-------|-----------|-----------|
-| Genesis Methodology | FREE forever | Education is free |
-| MCP Server (self-host) | FREE forever | Open-source commitment |
-| MCP Server (hosted, BYOK) | FREE | Users pay their own API costs |
-| Quad-CLI (open-source) | FREE (future) | Code is always free |
-| Hosted Orchestration | PAID (future) | Managed routing & synthesis |
-| Enterprise Dashboard | PAID (future) | Analytics & management |
-
-> *"Education is free, but consultation and management is personalized charges."*
-
-### Transparency
-
-| Metric | Current | Target |
-|--------|---------|--------|
-| Monthly Infrastructure Cost | ~RM 87-97 | < RM 100 |
-| Budget Allocation | RM 100/month | 1-year experiment |
-| Revenue | RM 0 | Not primary goal (yet) |
-| Funding Source | Personal | Community (future) |
-
-### How You Can Help
-
-1. **Use BYOK** — Bring your own API keys to reduce server costs
-2. **Star the repo** — Visibility helps attract contributors
-3. **Report issues** — Help us improve without hiring QA
-4. **Contribute code** — PRs welcome!
-5. **Spread the word** — Tell others about ethical AI validation
-
----
-
-## 👥 Community & Contribution
-
-### Get Involved
-
-| Channel | Purpose | Link |
-|---------|---------|------|
-| GitHub Discussions | Questions, ideas, feedback | [Discussions](https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions) |
-| GitHub Issues | Bug reports, feature requests | [Issues](https://github.com/creator35lwb-web/VerifiMind-PEAS/issues) |
-| X (Twitter) | Updates & announcements | [@YSenseAI](https://x.com/YSenseAI) |
-| Landing Page | Project overview & demos | [verifimind.ysenseai.org](https://verifimind.ysenseai.org) |
-
-### Contribution Areas
-
-| Area | Skill Level | Impact |
-|------|-------------|--------|
-| Documentation | Beginner | High |
-| Bug Fixes | Intermediate | High |
-| New LLM Providers | Intermediate | High |
-| Agent Skills Implementation | Intermediate | High |
-| Testing | Beginner | Medium |
-| Translations | Beginner | Medium |
-
----
-
-## 📈 Metrics & Goals
-
-### Zenodo Publication Impact
-
-| Publication | Views | Downloads | Download Rate |
-|-------------|-------|-----------|---------------|
-| **VerifiMind-PEAS** | **302** | **75** | **24.8%** |
-| YSenseAI White Paper | 200 | 9 | 4.5% |
-| GodelAI C-S-P Framework | 92 | 0 | 0% |
-| **Total** | **605** | **88** | **14.5%** |
-
-### Year 1 Targets (2026)
-
-| Metric | Current | Q1 Target | Q2 Target | Year-End |
-|--------|---------|-----------|-----------|----------|
-| GitHub Stars | ~10 | 100 | 300 | 500 |
-| Monthly MCP Connections | ~50 | 100 | 200 | 500 |
-| BYOK Users | ~5 | 20 | 50 | 100 |
-| Contributors | 1 | 3 | 5 | 10 |
-| Automated Tests | 175 | 200 | 250 | 300 |
-
-### Success Indicators
-
-- ✅ Listed on Official MCP Registry
-- ✅ Live production deployment (GCP Cloud Run)
-- ✅ Real user activity detected (19K+ log entries)
-- ✅ HuggingFace demo live (Wisdom Canvas)
-- ✅ DOI-cited publication (Zenodo)
-- ✅ BYOK multi-provider support (v0.4.5)
-- ✅ Triple-validated BYOK (Manus AI + Claude Code + CI)
-- ✅ Landing page live (verifimind.ysenseai.org)
-- 🔲 First external contributor
-- 🔲 100 GitHub stars
-- 🔲 Agent Skills support (v0.6.0)
-- 🔲 Featured in AI newsletter/blog
-- 🔲 v0.5.0 Foundation release
-
----
-
-## 📞 Contact & Support
-
-**Maintainer:** Team YSenseAI
-
-- **Website:** [verifimind.ysenseai.org](https://verifimind.ysenseai.org)
-- **GitHub:** [@creator35lwb-web](https://github.com/creator35lwb-web)
-- **White Paper:** [DOI 10.5281/zenodo.17645665](https://doi.org/10.5281/zenodo.17645665)
-
----
-
-<div align="center">
-
-**Built with 💙 by Team YSenseAI**
-
-*"Crystal Balls Inside the Black Box"*
-
-</div>
+1. Do not edit the frozen `roadmap-v1.0` artifact without a new tagged roadmap
+   version and an explicit reason.
+2. Do not mark a milestone complete without its required artifact, witness, and
+   retrospective.
+3. Do not convert a planned lane into a shipped claim until an exact Release
+   and public evidence exist.
+4. Keep missed dates visible. A miss produces a retrospective, not a rewritten
+   past.
+5. Keep legal certification, calibrated accuracy, and incident closure outside
+   software-release claims unless the named independent authority supplies the
+   required evidence.
+
+## Historical note
+
+Earlier revisions of this file contained a March 2026 version calendar and
+called v0.4.5 the current release. Git history preserves that planning record;
+it is no longer presented as the current roadmap. The tagged Evaluation
+Roadmap is the durable commitment surface going forward.
