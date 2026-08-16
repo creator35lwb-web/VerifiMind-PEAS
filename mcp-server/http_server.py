@@ -237,7 +237,12 @@ async def health_handler(request):
             "circuit": circuit_snapshot(),
             "admission_scope": ADMISSION_SCOPE,
         }
-    return JSONResponse(payload)
+    # v0.5.60 (P3-C): /health is a liveness/version truth surface — it must
+    # never be served stale. The origin previously sent NO cache header, which
+    # let intermediaries (observed: CDN edge during the v0.5.58 rollout) cache
+    # an old version string with a frozen uptime while the MCP surface was
+    # already newer.
+    return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
 async def mcp_config_handler(request):
     """MCP configuration endpoint for Claude Desktop and other MCP clients.

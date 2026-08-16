@@ -1,0 +1,442 @@
+"""v0.5.60 Trinity Completion — orchestration-layer retry + stagger contracts.
+
+The completion guardrail these tests pin: a retry either produces a REAL
+second attempt or propagates the second failure into the unchanged honest
+degradation contract. No path may convert a failure into a fabricated
+success, and no failure class without a provider-stated wait may retry.
+"""
+
+import asyncio
+
+import pytest
+
+from verifimind_mcp.utils import trinity_retry
+from verifimind_mcp.utils.trinity_retry import (
+    RETRY_AFTER_CAP_SECONDS,
+    RETRY_MARGIN_SECONDS,
+    SHARED_PROVIDER_STAGGER_SECONDS,
+    TrinityRetryBudget,
+    analyze_with_completion_retry,
+    retry_wait_for,
+    stagger_if_shared_provider,
+)
+from verifimind_mcp.utils.provider_failures import trinity_stage_failure
+
+
+# --- fakes -----------------------------------------------------------------
+
+class FakeRateLimitError(Exception):
+    """Class name contains 'ratelimit' -> PROVIDER_RATE_LIMITED."""
+    def __init__(self, retry_after=None):
+        super().__init__("capacity exhausted")
+        self.status_code = 429
+        if retry_after is not None:
+            self.retry_after = retry_after
+
+
+class FakeTimeoutError(Exception):
+    """-> PROVIDER_TIMEOUT: retryable but carries NO provider-stated wait."""
+    def __init__(self):
+        super().__init__("request timed out")
+        self.status_code = 504
+
+
+class FakeAuthError(Exception):
+    """-> auth failure: non-retryable."""
+    def __init__(self):
+        super().__init__("invalid api key")
+        self.status_code = 401
+
+
+class FakeProvider:
+    def __init__(self, model_name):
+        self._model_name = model_name
+
+    def get_model_name(self):
+        return self._model_name
+
+
+class SleepRecorder:
+    def __init__(self):
+        self.calls = []
+
+    async def __call__(self, seconds):
+        self.calls.append(seconds)
+
+
+@pytest.fixture
+def no_sleep(monkeypatch):
+    # Overrides the conftest autouse instant-sleep on the SAME seam, so these
+    # tests can assert the exact waits production would have slept.
+    rec = SleepRecorder()
+    monkeypatch.setattr(trinity_retry, "_sleep", rec)
+    return rec
+
+
+def make_stage(outcomes):
+    """A stage whose successive calls raise or return per `outcomes`."""
+    calls = {"n": 0}
+
+    async def stage():
+        idx = min(calls["n"], len(outcomes) - 1)
+        calls["n"] += 1
+        outcome = outcomes[idx]
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    return stage, calls
+
+
+# --- retry_wait_for eligibility matrix -------------------------------------
+
+class TestRetryEligibility:
+    def test_retryable_with_short_wait_is_honoured_with_margin(self):
+        assert retry_wait_for(
+            {"retryable": True, "retry_after_seconds": 8.0}
+        ) == 8.0 + RETRY_MARGIN_SECONDS
+
+    def test_retryable_without_wait_is_deliberately_not_eligible(self):
+        assert retry_wait_for(
+            {"retryable": True, "retry_after_seconds": None}
+        ) is None
+
+    def test_non_retryable_never_eligible_even_with_wait(self):
+        assert retry_wait_for(
+            {"retryable": False, "retry_after_seconds": 5.0}
+        ) is None
+
+    def test_wait_above_cap_not_eligible(self):
+        # The observed 54s outlier: holding a request open that long trades an
+        # honest partial for a probable client-side timeout.
+        assert retry_wait_for(
+            {"retryable": True, "retry_after_seconds": 54.0}
+        ) is None
+
+    def test_wait_exactly_at_cap_is_eligible(self):
+        assert retry_wait_for(
+            {"retryable": True, "retry_after_seconds": RETRY_AFTER_CAP_SECONDS}
+        ) == RETRY_AFTER_CAP_SECONDS + RETRY_MARGIN_SECONDS
+
+    def test_garbage_wait_not_eligible(self):
+        assert retry_wait_for(
+            {"retryable": True, "retry_after_seconds": "soon"}
+        ) is None
+        assert retry_wait_for(
+            {"retryable": True, "retry_after_seconds": -3}
+        ) is None
+
+
+# --- analyze_with_completion_retry -----------------------------------------
+
+class TestCompletionRetry:
+    def test_first_attempt_success_calls_once_and_sleeps_never(self, no_sleep):
+        stage, calls = make_stage(["real-result"])
+        budget = TrinityRetryBudget()
+        result = asyncio.run(analyze_with_completion_retry(
+            stage, agent_id="Z", byok=False, session_id="s1", budget=budget,
+        ))
+        assert result == "real-result"
+        assert calls["n"] == 1
+        assert no_sleep.calls == []
+        assert budget.summary() == {}
+
+    def test_rate_limited_then_success_recovers(self, no_sleep):
+        stage, calls = make_stage([FakeRateLimitError(retry_after=8), "recovered"])
+        budget = TrinityRetryBudget()
+        result = asyncio.run(analyze_with_completion_retry(
+            stage, agent_id="Z", byok=False, session_id="s2", budget=budget,
+        ))
+        assert result == "recovered"
+        assert calls["n"] == 2
+        assert no_sleep.calls == [8.0 + RETRY_MARGIN_SECONDS]
+        assert budget.summary()["Z"]["outcome"] == "recovered"
+        assert budget.summary()["Z"]["on_error_code"] == "PROVIDER_RATE_LIMITED"
+
+    def test_rate_limited_twice_raises_second_with_marker(self, no_sleep):
+        second = FakeRateLimitError(retry_after=9)
+        stage, calls = make_stage([FakeRateLimitError(retry_after=8), second])
+        budget = TrinityRetryBudget()
+        with pytest.raises(FakeRateLimitError) as excinfo:
+            asyncio.run(analyze_with_completion_retry(
+                stage, agent_id="CS", byok=False, session_id="s3", budget=budget,
+            ))
+        assert excinfo.value is second
+        assert getattr(excinfo.value, "_trinity_retry_attempted", False) is True
+        assert calls["n"] == 2
+        assert budget.summary()["CS"]["outcome"] == "failed_again"
+
+    def test_auth_failure_never_retries(self, no_sleep):
+        first = FakeAuthError()
+        stage, calls = make_stage([first, "must-not-reach"])
+        budget = TrinityRetryBudget()
+        with pytest.raises(FakeAuthError) as excinfo:
+            asyncio.run(analyze_with_completion_retry(
+                stage, agent_id="X", byok=True, session_id="s4", budget=budget,
+            ))
+        assert excinfo.value is first
+        assert calls["n"] == 1
+        assert no_sleep.calls == []
+        assert budget.summary() == {}
+
+    def test_timeout_without_stated_wait_never_retries(self, no_sleep):
+        # The deliberate boundary: retryable-but-unscheduled failures do not
+        # get a blind re-run.
+        first = FakeTimeoutError()
+        stage, calls = make_stage([first, "must-not-reach"])
+        budget = TrinityRetryBudget()
+        with pytest.raises(FakeTimeoutError):
+            asyncio.run(analyze_with_completion_retry(
+                stage, agent_id="Z", byok=False, session_id="s5", budget=budget,
+            ))
+        assert calls["n"] == 1
+        assert no_sleep.calls == []
+
+    def test_exhausted_budget_blocks_retry(self, no_sleep):
+        first = FakeRateLimitError(retry_after=8)
+        stage, calls = make_stage([first, "must-not-reach"])
+        budget = TrinityRetryBudget(budget_seconds=5.0)  # below 8.5 needed
+        with pytest.raises(FakeRateLimitError) as excinfo:
+            asyncio.run(analyze_with_completion_retry(
+                stage, agent_id="Z", byok=False, session_id="s6", budget=budget,
+            ))
+        assert excinfo.value is first
+        assert calls["n"] == 1
+        assert no_sleep.calls == []
+
+    def test_budget_depletes_across_stages(self, no_sleep):
+        budget = TrinityRetryBudget(budget_seconds=20.0)
+        stage_z, _ = make_stage([FakeRateLimitError(retry_after=10), "z-ok"])
+        asyncio.run(analyze_with_completion_retry(
+            stage_z, agent_id="Z", byok=False, session_id="s7", budget=budget,
+        ))
+        # 20 - 10.5 = 9.5 left; a 10s wait no longer fits
+        first = FakeRateLimitError(retry_after=10)
+        stage_cs, calls_cs = make_stage([first, "must-not-reach"])
+        with pytest.raises(FakeRateLimitError):
+            asyncio.run(analyze_with_completion_retry(
+                stage_cs, agent_id="CS", byok=False, session_id="s7", budget=budget,
+            ))
+        assert calls_cs["n"] == 1
+
+    def test_no_fabrication_on_double_failure(self, no_sleep):
+        """The guardrail: a failed retry yields the SAME honest degradation
+        contract as no retry — plus the retry_attempted disclosure."""
+        second = FakeRateLimitError(retry_after=9)
+        second._trinity_retry_attempted = True  # as the wrapper sets it
+        placeholder, record = trinity_stage_failure(
+            agent_id="Z",
+            provider=FakeProvider("groq/openai/gpt-oss-120b"),
+            exc=second,
+            byok=False,
+            session_id="s8",
+        )
+        assert placeholder._inference_quality == "unavailable"
+        assert record["error_code"] == "PROVIDER_RATE_LIMITED"
+        assert record["retryable"] is True
+        assert record["retry_attempted"] is True
+
+    def test_record_without_marker_has_no_retry_attempted_key(self):
+        _, record = trinity_stage_failure(
+            agent_id="Z",
+            provider=FakeProvider("groq/openai/gpt-oss-120b"),
+            exc=FakeRateLimitError(retry_after=9),
+            byok=False,
+            session_id="s9",
+        )
+        assert "retry_attempted" not in record
+
+
+# --- catch-all contract (§2.2 repair) ---------------------------------------
+
+class TestCatchallContract:
+    """The 'omit BYOK params' hint must never reach a caller who sent none."""
+
+    def test_no_byok_generic_failure_does_not_mention_byok(self):
+        from verifimind_mcp.utils.provider_failures import trinity_catchall_contract
+        contract = trinity_catchall_contract(
+            RuntimeError("something unexpected"), byok_supplied=False,
+        )
+        assert contract["error_code"] == "TRINITY_ERROR"
+        assert "byok" not in contract["recovery_hint"].lower()
+
+    def test_byok_generic_failure_keeps_the_byok_hint(self):
+        from verifimind_mcp.utils.provider_failures import trinity_catchall_contract
+        contract = trinity_catchall_contract(
+            RuntimeError("something unexpected"), byok_supplied=True,
+        )
+        assert contract["error_code"] == "TRINITY_ERROR"
+        assert "BYOK" in contract["recovery_hint"]
+
+    def test_auth_shaped_without_byok_is_hosted_lane_not_byok(self):
+        from verifimind_mcp.utils.provider_failures import trinity_catchall_contract
+        contract = trinity_catchall_contract(
+            RuntimeError("401 authentication failed"), byok_supplied=False,
+        )
+        assert contract["error_code"] == "PROVIDER_AUTH_FAILED"
+        assert "api_key" not in contract["recovery_hint"].lower()
+
+    def test_auth_shaped_with_byok_stays_byok_attributed(self):
+        from verifimind_mcp.utils.provider_failures import trinity_catchall_contract
+        contract = trinity_catchall_contract(
+            RuntimeError("invalid api key"), byok_supplied=True,
+        )
+        assert contract["error_code"] == "BYOK_AUTH_FAILED"
+
+    def test_timeout_shape_preserved(self):
+        from verifimind_mcp.utils.provider_failures import trinity_catchall_contract
+        contract = trinity_catchall_contract(
+            RuntimeError("request timed out"), byok_supplied=False,
+        )
+        assert contract["error_code"] == "PROVIDER_TIMEOUT"
+
+
+# --- small batch: templates, monitor ----------------------------------------
+
+class TestTemplateAttribution:
+    """P2-B: every breakdown sums to total_templates by construction, and the
+    shared-'all' templates are reachable through the filter for the first time."""
+
+    def _registry(self):
+        # Hermetic fresh instance: object.__new__ (never the singleton slot)
+        # + a real load from the shipped library YAMLs. TemplateRegistry() is
+        # a process-wide singleton and other suites may have shaped it.
+        from pathlib import Path
+        from verifimind_mcp.templates import registry as registry_module
+        from verifimind_mcp.templates.registry import TemplateRegistry
+        reg = object.__new__(TemplateRegistry)
+        reg._templates = {}
+        reg._libraries = {}
+        reg._custom_templates = {}
+        reg._initialized = True
+        reg._library_path = Path(registry_module.__file__).parent / "library"
+        reg._load_builtin_templates()
+        return reg
+
+    def test_agent_breakdown_sums_to_total(self):
+        stats = self._registry().get_statistics()
+        assert sum(stats["templates_by_agent"].values()) == stats["total_templates"]
+        assert stats["templates_by_agent"] == {"X": 6, "Z": 3, "CS": 6, "all": 4}
+
+    def test_phase_breakdown_sums_to_total(self):
+        # One template carries two genesis-phase tags; attribution counts it
+        # once (under its primary tag) so the sum equals the total.
+        stats = self._registry().get_statistics()
+        assert sum(stats["templates_by_phase"].values()) == stats["total_templates"]
+
+    def test_shared_templates_match_agent_queries(self):
+        registry = self._registry()
+        # "all" query returns exactly the shared set
+        assert len(registry.list_templates(agent_id="all")) == 4
+        # an agent query includes its own PLUS the shared set (membership)
+        assert len(registry.list_templates(agent_id="X")) == 10
+        assert len(registry.list_templates(agent_id="Z")) == 7
+        assert len(registry.list_templates(agent_id="CS")) == 10
+
+    def test_tags_filter_still_works_at_registry_layer(self):
+        registry = self._registry()
+        hits = registry.list_templates(tags=["stride"])
+        assert [t.template_id for t in hits] == ["security-threat-modeling"]
+
+
+class TestTagsInputCoercion:
+    """P2-A: a stringified JSON array — the shape MCP clients actually send —
+    resolves instead of becoming a literal '[\"stride\"]' tag."""
+
+    @pytest.mark.asyncio
+    async def test_json_array_shaped_tags_resolve(self):
+        from verifimind_mcp import server as server_mod
+        from .mcp_tool_harness import call
+        app = server_mod.create_http_server()
+        payload = await call(app, "list_prompt_templates", {"tags": '["stride"]'})
+        assert payload["count"] == 1
+        assert payload["templates"][0]["template_id"] == "security-threat-modeling"
+
+    @pytest.mark.asyncio
+    async def test_documented_string_form_unchanged(self):
+        from verifimind_mcp import server as server_mod
+        from .mcp_tool_harness import call
+        app = server_mod.create_http_server()
+        payload = await call(app, "list_prompt_templates", {"tags": "stride"})
+        assert payload["count"] == 1
+
+
+class TestCsTokenMonitor:
+    """P3-B: CS gets the instrumentation Z has had since v0.5.3."""
+
+    def test_cs_monitor_mirrors_z_thresholds(self):
+        from verifimind_mcp.utils import check_cs_agent_response
+        low = check_cs_agent_response(1000)
+        assert low["risk_level"] == "LOW" and low["truncated"] is False
+        critical = check_cs_agent_response(8192)
+        assert critical["risk_level"] == "CRITICAL" and critical["truncated"] is True
+
+
+# --- canonical agent labels + run events ------------------------------------
+
+class TestStructuredLogVocabulary:
+    def test_display_names_map_to_canonical_ids(self):
+        from verifimind_mcp.utils.provider_failures import canonical_agent_id
+        assert canonical_agent_id("CS Security") == "CS"
+        assert canonical_agent_id("X Intelligent") == "X"
+        assert canonical_agent_id("Z Guardian") == "Z"
+        # the sanitizer's historical space-stripped forms map too
+        assert canonical_agent_id("CSSecurity") == "CS"
+        assert canonical_agent_id("CS") == "CS"
+        assert canonical_agent_id(None) is None
+
+    def test_emit_uses_canonical_id_for_display_name(self, capsys):
+        import json
+        from verifimind_mcp.utils.provider_failures import emit_structured_failure
+        emit_structured_failure(
+            error_code="PROVIDER_RATE_LIMITED",
+            agent="CS Security",
+            exc=FakeRateLimitError(retry_after=5),
+        )
+        line = capsys.readouterr().err.strip().splitlines()[-1]
+        assert json.loads(line)["agent"] == "CS"
+
+    def test_run_event_bounds_all_string_fields(self, capsys):
+        import json
+        from verifimind_mcp.utils.provider_failures import emit_trinity_run_event
+        emit_trinity_run_event(
+            event="trinity_run_completed",
+            session_id="abc123",
+            outcome="full",
+            agents_failed=None,          # None fields are omitted entirely
+            retried_stages=["Z"],
+            stagger_applied=True,
+        )
+        payload = json.loads(capsys.readouterr().err.strip().splitlines()[-1])
+        assert payload["event"] == "trinity_run_completed"
+        assert payload["outcome"] == "full"
+        assert "agents_failed" not in payload
+        assert payload["retried_stages"] == ["Z"]
+        assert payload["stagger_applied"] is True
+
+
+# --- stagger ---------------------------------------------------------------
+
+class TestSharedProviderStagger:
+    def test_same_family_staggers(self, no_sleep):
+        applied = asyncio.run(stagger_if_shared_provider(
+            FakeProvider("groq/openai/gpt-oss-120b"),
+            FakeProvider("groq/openai/gpt-oss-120b"),
+        ))
+        assert applied is True
+        assert no_sleep.calls == [SHARED_PROVIDER_STAGGER_SECONDS]
+
+    def test_cross_provider_pays_nothing(self, no_sleep):
+        applied = asyncio.run(stagger_if_shared_provider(
+            FakeProvider("groq/openai/gpt-oss-120b"),
+            FakeProvider("cerebras/zai-glm-4.7"),
+        ))
+        assert applied is False
+        assert no_sleep.calls == []
+
+    def test_unknown_provider_identity_skips_stagger(self, no_sleep):
+        applied = asyncio.run(stagger_if_shared_provider(
+            None, FakeProvider("groq/openai/gpt-oss-120b"),
+        ))
+        assert applied is False
+        assert no_sleep.calls == []

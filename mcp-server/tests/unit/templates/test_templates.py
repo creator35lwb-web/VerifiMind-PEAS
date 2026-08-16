@@ -233,9 +233,18 @@ def test_prompt_template_provider_compatibility(sample_template):
 
 @pytest.fixture
 def registry():
-    """Get a fresh template registry."""
-    # Create new registry instance (bypass singleton for testing)
-    reg = TemplateRegistry.__new__(TemplateRegistry)
+    """Get a fresh template registry.
+
+    v0.5.60 fix: this fixture intended to bypass the singleton, but
+    ``TemplateRegistry.__new__(TemplateRegistry)`` RUNS the singleton
+    override — so on the first call it installed this empty, load-skipping
+    instance as the process-wide singleton, and (because ``templates/``
+    collates before ``test_*``) every later consumer in the unit run saw an
+    empty registry. Nothing asserted registry contents downstream until
+    v0.5.60, so the poisoning was invisible. ``object.__new__`` is the true
+    bypass: it never touches the class slot.
+    """
+    reg = object.__new__(TemplateRegistry)
     reg._templates = {}
     reg._libraries = {}
     reg._custom_templates = {}

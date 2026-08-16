@@ -36,6 +36,7 @@ from verifimind_mcp.utils.uuid_tracer import emit_tracer
 from verifimind_mcp.utils.trinity_history import persist_trinity_result
 from verifimind_mcp.utils.provider_failures import (
     emit_structured_failure,
+    emit_trinity_run_event,
     provider_failure_contract,
     provider_identity,
     trinity_stage_failure,
@@ -1222,6 +1223,13 @@ def _create_mcp_instance():
                 accept = getattr(req_ctx, 'accept', '')
             if 'text/markdown' in str(accept):
                 output_format = "markdown"
+        # v0.5.60 (§2.2 repair): hoisted so the outer exception handlers can
+        # condition their hints on whether BYOK params were ACTUALLY supplied —
+        # an exception before provider resolution must not NameError here.
+        # _run_session_id likewise: the error-path completion event must be
+        # able to fire even when the failure predates session creation.
+        byok_status = {}
+        _run_session_id = None
         try:
             from .models import Concept, PriorReasoning
             from .agents import XAgent, ZAgent, CSAgent
@@ -1245,7 +1253,6 @@ def _create_mcp_instance():
 
             # v0.4.5 BYOK: Resolve per-agent providers with fallback to global BYOK, then server default
             from .config_helper import get_trinity_providers, create_ephemeral_provider
-            byok_status = {}
 
             agent_byok_params = {
                 "X": (x_provider or llm_provider, x_api_key or api_key),
@@ -1276,14 +1283,40 @@ def _create_mcp_instance():
             # v0.5.0 SessionContext: unique ID for run traceability and log correlation
             from .models.session import SessionContext
             session = SessionContext(concept_name=concept_name)
+            _run_session_id = session.session_id
+            # v0.5.60: run-intake event (pairs with exactly one
+            # trinity_run_completed on every exit path).
+            emit_trinity_run_event(
+                event="trinity_run_started",
+                session_id=session.session_id,
+                byok_agents=sorted(a for a, b in byok_status.items() if b) or None,
+            )
 
             # v0.4.3.1 C-S-P State: Track inference quality across chain
             chain_status = {}
             stage_errors = {}
 
+            # v0.5.60 Trinity Completion: one orchestration-layer retry per stage
+            # when the provider explicitly states a retryable wait, under a
+            # per-run sleep budget. Provider-layer D-115-2 (429s never retry at
+            # the admission-correction path) is untouched — this re-executes a
+            # whole stage, once, on the provider's own stated schedule.
+            from .utils.trinity_retry import (
+                TrinityRetryBudget,
+                analyze_with_completion_retry,
+                stagger_if_shared_provider,
+            )
+            retry_budget = TrinityRetryBudget()
+
             # Step 1: X Agent analysis (no prior reasoning)
             try:
-                x_result = await x_agent.analyze(concept)
+                x_result = await analyze_with_completion_retry(
+                    lambda: x_agent.analyze(concept),
+                    agent_id="X",
+                    byok=byok_status["X"],
+                    session_id=session.session_id,
+                    budget=retry_budget,
+                )
                 x_quality = getattr(x_result, '_inference_quality', 'unknown')
                 chain_status["x_agent"] = x_quality
                 logger.info(
@@ -1312,9 +1345,6 @@ def _create_mcp_instance():
                 x_cot = None
 
             # Step 2: Z Agent analysis (sees X's reasoning)
-            z_prior = PriorReasoning()
-            if x_cot is not None:
-                z_prior.add(x_cot)
             from .utils import check_z_agent_response
             z_token_monitor = {
                 "token_count": None,
@@ -1324,7 +1354,19 @@ def _create_mcp_instance():
                 "truncated": None,
             }
             try:
-                z_result = await z_agent.analyze(concept, z_prior)
+                # v0.5.60 gate audit: prior assembly lives INSIDE the stage
+                # gate — a failure here degrades this stage instead of
+                # discarding the completed prior stages via the catch-all.
+                z_prior = PriorReasoning()
+                if x_cot is not None:
+                    z_prior.add(x_cot)
+                z_result = await analyze_with_completion_retry(
+                    lambda: z_agent.analyze(concept, z_prior),
+                    agent_id="Z",
+                    byok=byok_status["Z"],
+                    session_id=session.session_id,
+                    budget=retry_budget,
+                )
                 z_quality = getattr(z_result, '_inference_quality', 'unknown')
                 chain_status["z_agent"] = z_quality
                 logger.info(
@@ -1366,13 +1408,43 @@ def _create_mcp_instance():
                 z_cot = None
 
             # Step 3: CS Agent analysis (sees X and Z reasoning)
-            cs_prior = PriorReasoning()
-            if x_cot is not None:
-                cs_prior.add(x_cot)
-            if z_cot is not None:
-                cs_prior.add(z_cot)
+            # v0.5.60: Z and CS bill the same hosted provider today — a short
+            # stagger between their calls reduces same-window quota collision
+            # (VM-TR §1.3). Cross-provider configurations skip it entirely.
+            cs_stagger_applied = await stagger_if_shared_provider(
+                resolved_providers["Z"], resolved_providers["CS"]
+            )
+            if cs_stagger_applied:
+                logger.info(
+                    "Trinity CS stage staggered after Z (shared provider) session=%s",
+                    session.session_id,
+                )
+            # v0.5.60 (P3-B): CS gets the same token-ceiling instrumentation Z
+            # has had since v0.5.3 — CS has truncated in production with no
+            # monitor. UNAVAILABLE default mirrors the Z monitor's failure shape.
+            from .utils import check_cs_agent_response
+            cs_token_monitor = {
+                "token_count": None,
+                "ceiling": 8192,
+                "utilization": None,
+                "risk_level": "UNAVAILABLE",
+                "truncated": None,
+            }
             try:
-                cs_result = await cs_agent.analyze(concept, cs_prior)
+                # v0.5.60 gate audit: prior assembly inside the stage gate
+                # (see Z-stage note).
+                cs_prior = PriorReasoning()
+                if x_cot is not None:
+                    cs_prior.add(x_cot)
+                if z_cot is not None:
+                    cs_prior.add(z_cot)
+                cs_result = await analyze_with_completion_retry(
+                    lambda: cs_agent.analyze(concept, cs_prior),
+                    agent_id="CS",
+                    byok=byok_status["CS"],
+                    session_id=session.session_id,
+                    budget=retry_budget,
+                )
                 cs_quality = getattr(cs_result, '_inference_quality', 'unknown')
                 chain_status["cs_agent"] = cs_quality
                 logger.info(
@@ -1380,6 +1452,16 @@ def _create_mcp_instance():
                     cs_quality,
                     session.session_id,
                 )
+                cs_output_tokens = getattr(cs_result, '_output_tokens', 0)
+                cs_token_monitor = check_cs_agent_response(cs_output_tokens)
+                if cs_token_monitor["risk_level"] in ("HIGH", "CRITICAL"):
+                    logger.warning(
+                        "CS Agent token ceiling risk: %s (%s/%s) risk=%s",
+                        cs_token_monitor["utilization"],
+                        cs_token_monitor["token_count"],
+                        cs_token_monitor["ceiling"],
+                        cs_token_monitor["risk_level"],
+                    )
                 session.write("CS", {
                     "score": cs_result.security_score if cs_quality == "real" else None,
                     "provider": resolved_providers["CS"].get_model_name(),
@@ -1489,6 +1571,23 @@ def _create_mcp_instance():
                     "_stage_errors": stage_errors,
                     "_agents_failed": sorted(stage_errors),
                 }
+            # v0.5.60: surface what the completion retry actually did (empty
+            # when no stage needed one) — acted-on evidence, not just advice.
+            _trinity_retries = retry_budget.summary()
+            if _trinity_retries:
+                _stage_failure_meta["_stage_retries"] = _trinity_retries
+
+            # v0.5.60: exactly one completion event per run (this is the
+            # completion-rate denominator; emitted before the format branch so
+            # both JSON and markdown returns are counted).
+            emit_trinity_run_event(
+                event="trinity_run_completed",
+                session_id=session.session_id,
+                outcome=overall_quality,
+                agents_failed=sorted(stage_errors) or None,
+                retried_stages=sorted(_trinity_retries) or None,
+                stagger_applied=cs_stagger_applied,
+            )
 
             # Return result — Markdown-first if requested (v0.4.1)
             if output_format == "markdown":
@@ -1503,6 +1602,8 @@ def _create_mcp_instance():
                     "_overall_quality": overall_quality,
                     "_schema_diagnostics": schema_diagnostics,
                     "_z_token_monitor": z_token_monitor,
+                "_cs_token_monitor": cs_token_monitor,
+                    "_cs_token_monitor": cs_token_monitor,
                     **_byok_meta,
                     **_stage_failure_meta,
                     **session.to_metadata(),
@@ -1599,6 +1700,7 @@ def _create_mcp_instance():
                 "_overall_quality": overall_quality,
                 "_schema_diagnostics": schema_diagnostics,
                 "_z_token_monitor": z_token_monitor,
+                "_cs_token_monitor": cs_token_monitor,
                 **_byok_meta,
                 **_stage_failure_meta,
                 **session.to_metadata(),
@@ -1633,40 +1735,38 @@ def _create_mcp_instance():
         except (FailoverExhaustedError, FailoverTerminalError) as e:
             # B-90-8: hosted-lane typed contract — distinct from BYOK_AUTH_FAILED
             # below (BYOK providers never enter the failover executor).
+            emit_trinity_run_event(
+                event="trinity_run_completed",
+                session_id=_run_session_id,
+                severity="ERROR",
+                outcome="error",
+                error_code=getattr(e, "error_code", "FAILOVER_ERROR"),
+            )
             return wrap_response(failover_error_payload(e, "Trinity", concept_name))
         except Exception as e:
-            err_str = str(e).lower()
-            # Detect BYOK authentication failures for targeted recovery hints
-            if "401" in err_str or "invalid api key" in err_str or "authentication" in err_str:
-                return wrap_response(build_error_response(
-                    error_code="BYOK_AUTH_FAILED",
-                    message="API key authentication failed.",
-                    recovery_hint=(
-                        "Check your api_key is valid and matches the llm_provider. "
-                        "Get a free Groq key at console.groq.com or omit api_key to use server defaults."
-                    ),
-                    agent="Trinity",
-                    original_error=e,
-                ))
-            elif "timeout" in err_str or "timed out" in err_str:
-                return wrap_response(build_error_response(
-                    error_code="PROVIDER_TIMEOUT",
-                    message="The LLM provider timed out.",
-                    recovery_hint=(
-                        "The LLM provider took too long. Try again, or switch to a faster provider "
-                        "(e.g. llm_provider='groq' for low-latency inference)."
-                    ),
-                    agent="Trinity",
-                    original_error=e,
-                ))
-            else:
-                return wrap_response(build_error_response(
-                    error_code="TRINITY_ERROR",
-                    message="The Trinity analysis could not be completed.",
-                    recovery_hint="Try again. If the issue persists, omit BYOK params to use server defaults.",
-                    agent="Trinity",
-                    original_error=e,
-                ))
+            # v0.5.60 (§2.2): hints condition on whether BYOK was actually
+            # supplied — "omit BYOK params" must never be shown to a caller
+            # who sent none. Contract logic lives in trinity_catchall_contract
+            # (unit-tested); this branch only binds it to the response shape.
+            from .utils.provider_failures import trinity_catchall_contract
+            contract = trinity_catchall_contract(
+                e, byok_supplied=any(byok_status.values()),
+            )
+            # Denominator integrity: catch-all runs are still completed runs.
+            emit_trinity_run_event(
+                event="trinity_run_completed",
+                session_id=_run_session_id,
+                severity="ERROR",
+                outcome="error",
+                error_code=contract["error_code"],
+            )
+            return wrap_response(build_error_response(
+                error_code=contract["error_code"],
+                message=contract["message"],
+                recovery_hint=contract["recovery_hint"],
+                agent="Trinity",
+                original_error=e,
+            ))
 
     # ===== v0.4.0 TEMPLATE TOOLS =====
 
@@ -1698,10 +1798,23 @@ def _create_mcp_instance():
 
             registry = TemplateRegistry()
 
-            # Parse tags if provided
+            # Parse tags if provided. v0.5.60 (P2-A): the parameter is a
+            # comma-separated string, but MCP clients naturally send arrays,
+            # which arrive here stringified — '["stride"]' then became the
+            # literal tag '["stride"]' and matched nothing. A JSON-array-shaped
+            # value is now decoded before splitting; the documented string form
+            # is unchanged.
             tag_list = None
             if tags:
-                tag_list = [t.strip() for t in tags.split(',')]
+                raw_tags = tags.strip()
+                if raw_tags.startswith('[') and raw_tags.endswith(']'):
+                    try:
+                        decoded = json.loads(raw_tags)
+                        if isinstance(decoded, list):
+                            raw_tags = ','.join(str(item) for item in decoded)
+                    except (ValueError, TypeError):
+                        pass  # fall through: treat as a literal string
+                tag_list = [t.strip() for t in raw_tags.split(',') if t.strip()]
 
             templates = registry.list_templates(
                 agent_id=agent_id,

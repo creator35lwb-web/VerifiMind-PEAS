@@ -16,6 +16,7 @@ from .synthesis import (
 
 from .token_monitor import (
     check_z_agent_response,
+    check_cs_agent_response,
     is_z_response_safe,
     Z_AGENT_CEILING,
 )
@@ -35,6 +36,7 @@ from .sanitization import (
 __all__ = [
     # Token monitor
     "check_z_agent_response",
+    "check_cs_agent_response",
     "is_z_response_safe",
     "Z_AGENT_CEILING",
     # Synthesis functions

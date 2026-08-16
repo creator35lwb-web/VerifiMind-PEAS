@@ -197,7 +197,15 @@ async def test_z_rate_limit_preserves_x_runs_cs_and_withholds_aggregate(
         "model": "openai/gpt-oss-120b",
         "retryable": True,
         "retry_after_seconds": 7.0,
+        # v0.5.60 contract EXTENSION: the orchestrator spent its one bounded
+        # completion retry on this stage (7s is within the cap; the fake fails
+        # both attempts) and discloses that fact. Every v0.5.58 field above is
+        # unchanged — the degradation contract itself did not move.
+        "retry_attempted": True,
     }
+    # v0.5.60: the retry summary surfaces what was actually attempted.
+    assert payload["_stage_retries"]["Z"]["outcome"] == "failed_again"
+    assert payload["_stage_retries"]["Z"]["on_error_code"] == "PROVIDER_RATE_LIMITED"
     assert payload["_z_token_monitor"]["risk_level"] == "UNAVAILABLE"
 
     stderr = capsys.readouterr().err
@@ -212,6 +220,24 @@ async def test_z_rate_limit_preserves_x_runs_cs_and_withholds_aggregate(
     assert structured[-1]["severity"] == "ERROR"
     assert structured[-1]["error_code"] == "PROVIDER_RATE_LIMITED"
     assert structured[-1]["agent"] == "Z"
+
+    # v0.5.60: run-lifecycle events — exactly one started and one completed
+    # per run, the completed carrying the honest outcome. This is the
+    # completion-rate denominator that never existed before.
+    started = [
+        json.loads(line) for line in stderr.splitlines()
+        if line.startswith("{") and "trinity_run_started" in line
+    ]
+    completed = [
+        json.loads(line) for line in stderr.splitlines()
+        if line.startswith("{") and "trinity_run_completed" in line
+    ]
+    assert len(started) == 1
+    assert len(completed) == 1
+    assert completed[0]["outcome"] == "partial"
+    assert completed[0]["agents_failed"] == ["Z"]
+    assert completed[0]["retried_stages"] == ["Z"]
+    assert completed[0]["session_id"] == started[0]["session_id"]
 
 
 def test_truncation_has_typed_trace_and_never_reflects_provider_body(capsys):
