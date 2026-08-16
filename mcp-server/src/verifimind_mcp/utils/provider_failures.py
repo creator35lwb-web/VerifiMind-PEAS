@@ -227,11 +227,13 @@ def trinity_catchall_contract(exc: Exception, *, byok_supplied: bool) -> dict:
     auth-shaped failure on a hosted run is attributed to the hosted lane, not
     to the caller's (absent) key.
     """
-    err_str = ""
     try:
         err_str = str(exc).lower()
     except Exception:
-        pass
+        # Deliberate (CodeQL #223): an exception whose __str__ itself raises
+        # must not mask the original failure — classification proceeds on the
+        # empty string and the generic TRINITY_ERROR contract applies.
+        err_str = ""
 
     auth_shaped = (
         "401" in err_str or "invalid api key" in err_str or "authentication" in err_str

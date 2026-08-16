@@ -379,6 +379,144 @@ class TestCsTokenMonitor:
         assert critical["truncated"] is True
 
 
+# --- T S135 end-to-end regressions (F-331-T1 / F-331-T2) ---------------------
+
+def _lifecycle_events(stderr):
+    import json as _json
+    started = [
+        _json.loads(line) for line in stderr.splitlines()
+        if line.startswith("{") and '"trinity_run_started"' in line
+    ]
+    completed = [
+        _json.loads(line) for line in stderr.splitlines()
+        if line.startswith("{") and '"trinity_run_completed"' in line
+    ]
+    return started, completed
+
+
+class TestLifecycleAndByokEndToEnd:
+    """T S135's exact-head counterexamples, pinned so they cannot return."""
+
+    @pytest.fixture
+    def app(self):
+        from verifimind_mcp import server as server_mod
+        return server_mod.create_http_server()
+
+    @pytest.mark.asyncio
+    async def test_invalid_byok_before_resolution_is_byok_attributed(
+        self, app, monkeypatch, capsys
+    ):
+        # F-331-T2: a BYOK parameter that fails during resolution — before
+        # byok_status is ever populated — must be attributed to the caller's
+        # BYOK input, never to the hosted service.
+        from verifimind_mcp import config_helper
+        from .mcp_tool_harness import call
+
+        def _boom(_provider, _key, _agent):
+            raise ValueError("unknown provider prefix")
+
+        monkeypatch.setattr(config_helper, "create_ephemeral_provider", _boom)
+        payload = await call(app, "run_full_trinity", {
+            "concept_name": "byok-preresolution-probe",
+            "concept_description": "F-331-T2 regression.",
+            "llm_provider": "bogus-provider",
+            "api_key": "not-a-real-key",
+        })
+        assert payload["status"] == "error"
+        hint = payload["recovery_hint"]
+        assert "BYOK" in hint
+        assert "no change to your request" not in hint.lower()
+
+        started, completed = _lifecycle_events(capsys.readouterr().err)
+        assert len(started) == 1
+        assert len(completed) == 1
+        assert completed[0]["outcome"] == "error"
+        assert completed[0]["session_id"] == started[0]["session_id"]
+
+    @pytest.mark.asyncio
+    async def test_pre_resolution_failure_has_paired_start(
+        self, app, monkeypatch, capsys
+    ):
+        # F-331-T1 (zero-start shape): a failure during request preparation
+        # must still produce one started AND one completed, same session.
+        from verifimind_mcp import utils as utils_mod
+        from .mcp_tool_harness import call
+
+        def _boom(**_kwargs):
+            raise RuntimeError("sanitizer exploded")
+
+        monkeypatch.setattr(utils_mod, "sanitize_concept_input", _boom)
+        payload = await call(app, "run_full_trinity", {
+            "concept_name": "paired-start-probe",
+            "concept_description": "F-331-T1 zero-start regression.",
+        })
+        assert payload["status"] == "error"
+        started, completed = _lifecycle_events(capsys.readouterr().err)
+        assert len(started) == 1
+        assert len(completed) == 1
+        assert completed[0]["outcome"] == "error"
+        assert completed[0]["session_id"] == started[0]["session_id"]
+
+    @pytest.mark.asyncio
+    async def test_post_analysis_failure_yields_exactly_one_error_completion(
+        self, app, monkeypatch, capsys
+    ):
+        # F-331-T1 (double-completion shape): a failure AFTER all three stages
+        # succeed but BEFORE the response exists must produce exactly ONE
+        # completion, outcome=error — never full followed by error.
+        from verifimind_mcp import config_helper, utils as utils_mod
+        from verifimind_mcp.agents import CSAgent, XAgent, ZAgent
+        from .mcp_tool_harness import call
+        from .test_v0558_trinity_traceability import _NamedProvider, _real_results
+
+        x_result, z_result, cs_result = _real_results()
+        providers = {
+            "X": _NamedProvider("gemini/gemini-3.5-flash-lite"),
+            "Z": _NamedProvider("groq/openai/gpt-oss-120b"),
+            "CS": _NamedProvider("groq/openai/gpt-oss-120b"),
+        }
+        monkeypatch.setattr(
+            config_helper, "get_trinity_providers", lambda _ctx: providers
+        )
+
+        async def x_analyze(_self, _concept, _prior=None, _metrics=None):
+            return x_result
+
+        async def z_analyze(_self, _concept, _prior=None, _metrics=None):
+            return z_result
+
+        async def cs_analyze(_self, _concept, _prior=None, _metrics=None):
+            return cs_result
+
+        monkeypatch.setattr(XAgent, "analyze", x_analyze)
+        monkeypatch.setattr(ZAgent, "analyze", z_analyze)
+        monkeypatch.setattr(CSAgent, "analyze", cs_analyze)
+
+        # Injection point matters (known-positive lesson): create_trinity_result
+        # raises BEFORE the pre-repair emit and therefore never discriminated.
+        # persist_trinity_result sits AFTER the old early emit and BEFORE the
+        # repaired per-return emit — exactly T's full+error counterexample
+        # window on the old head, and the exactly-once proof on the new one.
+        from verifimind_mcp import server as server_inner
+
+        def _render_boom(*_args, **_kwargs):
+            raise RuntimeError("post-analysis assembly exploded")
+
+        monkeypatch.setattr(server_inner, "persist_trinity_result", _render_boom)
+        payload = await call(app, "run_full_trinity", {
+            "concept_name": "exactly-once-probe",
+            "concept_description": "F-331-T1 double-completion regression.",
+        })
+        assert payload["status"] == "error"
+        started, completed = _lifecycle_events(capsys.readouterr().err)
+        assert len(started) == 1
+        assert len(completed) == 1, (
+            f"expected exactly one completion, got {len(completed)}: "
+            f"{[c.get('outcome') for c in completed]}"
+        )
+        assert completed[0]["outcome"] == "error"
+
+
 # --- canonical agent labels + run events ------------------------------------
 
 class TestStructuredLogVocabulary:

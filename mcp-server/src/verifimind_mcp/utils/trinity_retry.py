@@ -2,12 +2,17 @@
 
 Scope and the decision boundary this module respects
 ----------------------------------------------------
-D-115-2 rules that at the PROVIDER layer an HTTP 429 must fail rather than
-retry — that decision governs the admission-correction path inside a single
-provider call, and it stands. This module operates one layer up: when a whole
-Trinity stage fails and the provider's error explicitly states BOTH that the
-failure is retryable AND how long to wait, the orchestrator re-executes that
-stage exactly once after sleeping the provider-stated interval.
+D-115-2 (stated precisely — T S135 corrected an earlier shorthand here):
+that decision selected exactly ONE provider-informed retry at the provider
+layer, for the structured Groq HTTP 413 admission shape, and rejected
+blind/generic 413 retry. As part of its scope, the provider layer
+deliberately re-raises 429s rather than retrying them there — leaving
+rate-limit backoff to a bounded CALLER-level layer, which did not exist
+until now. This module is that layer: when a whole Trinity stage fails and
+the provider's error explicitly states BOTH that the failure is retryable
+AND how long to wait, the orchestrator re-executes that stage exactly once
+after sleeping the provider-stated interval. It is compatible with D-115-2,
+not a reversal of it.
 
 Live evidence this encodes (VM-TR-2026-08-13-V0559-01 §1.4): Groq returns
 ``retryable: true`` + ``retry_after_seconds`` in rate-limit rejections, and

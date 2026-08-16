@@ -1230,10 +1230,51 @@ def _create_mcp_instance():
         # able to fire even when the failure predates session creation.
         byok_status = {}
         _run_session_id = None
+        # F-331-T2: the IMMUTABLE INPUT FACT, snapshotted before any fallible
+        # resolution. byok_status above reflects what resolution REACHED; a
+        # bad provider name or unknown key prefix raises before it is ever
+        # populated, and attributing that failure by resolved status blamed
+        # the hosted service for the caller's own parameter. Providers count
+        # as intent too: they are part of the BYOK failure surface.
+        _byok_requested = any(
+            bool(param) for param in (
+                api_key, x_api_key, z_api_key, cs_api_key,
+                llm_provider, x_provider, z_provider, cs_provider,
+            )
+        )
+        # F-331-T1: exactly-once completion guard. The final outcome must not
+        # be pre-claimed — completion is emitted only when the response is
+        # fully constructed (success paths) or by the outer handlers, and
+        # whichever fires first wins; every other attempt is a no-op.
+        _completion_emitted = False
+
+        def _emit_completion_once(**fields):
+            nonlocal _completion_emitted
+            if _completion_emitted:
+                return
+            _completion_emitted = True
+            emit_trinity_run_event(
+                event="trinity_run_completed",
+                session_id=_run_session_id,
+                **fields,
+            )
         try:
             from .models import Concept, PriorReasoning
             from .agents import XAgent, ZAgent, CSAgent
             from .utils import create_trinity_result, sanitize_concept_input
+
+            # F-331-T1: session + start receipt established BEFORE any fallible
+            # request preparation (sanitization, provider resolution, agent
+            # construction). Every completion — including a pre-resolution
+            # error — now has a paired start with the same session id.
+            from .models.session import SessionContext
+            session = SessionContext(concept_name=concept_name)
+            _run_session_id = session.session_id
+            emit_trinity_run_event(
+                event="trinity_run_started",
+                session_id=session.session_id,
+                byok_requested=_byok_requested,
+            )
 
             # Sanitize inputs for security (v0.3.5)
             sanitized = sanitize_concept_input(
@@ -1280,17 +1321,9 @@ def _create_mcp_instance():
             z_agent = ZAgent(llm_provider=resolved_providers["Z"])
             cs_agent = CSAgent(llm_provider=resolved_providers["CS"])
 
-            # v0.5.0 SessionContext: unique ID for run traceability and log correlation
-            from .models.session import SessionContext
-            session = SessionContext(concept_name=concept_name)
-            _run_session_id = session.session_id
-            # v0.5.60: run-intake event (pairs with exactly one
-            # trinity_run_completed on every exit path).
-            emit_trinity_run_event(
-                event="trinity_run_started",
-                session_id=session.session_id,
-                byok_agents=sorted(a for a, b in byok_status.items() if b) or None,
-            )
+            # v0.5.0 SessionContext: created at try-entry (F-331-T1) — see the
+            # start-receipt block above. Resolved per-agent BYOK status is
+            # response metadata; the catch-all uses the raw-intent snapshot.
 
             # v0.4.3.1 C-S-P State: Track inference quality across chain
             chain_status = {}
@@ -1298,9 +1331,11 @@ def _create_mcp_instance():
 
             # v0.5.60 Trinity Completion: one orchestration-layer retry per stage
             # when the provider explicitly states a retryable wait, under a
-            # per-run sleep budget. Provider-layer D-115-2 (429s never retry at
-            # the admission-correction path) is untouched — this re-executes a
-            # whole stage, once, on the provider's own stated schedule.
+            # per-run sleep budget. D-115-2's provider layer (one structured
+            # Groq 413 admission retry; 429s deliberately re-raised for a
+            # caller-level backoff layer) is untouched — this module IS that
+            # caller-level layer, re-executing a whole stage once on the
+            # provider's own stated schedule.
             from .utils.trinity_retry import (
                 TrinityRetryBudget,
                 analyze_with_completion_retry,
@@ -1577,17 +1612,19 @@ def _create_mcp_instance():
             if _trinity_retries:
                 _stage_failure_meta["_stage_retries"] = _trinity_retries
 
-            # v0.5.60: exactly one completion event per run (this is the
-            # completion-rate denominator; emitted before the format branch so
-            # both JSON and markdown returns are counted).
-            emit_trinity_run_event(
-                event="trinity_run_completed",
-                session_id=session.session_id,
-                outcome=overall_quality,
-                agents_failed=sorted(stage_errors) or None,
-                retried_stages=sorted(_trinity_retries) or None,
-                stagger_applied=cs_stagger_applied,
-            )
+            # F-331-T1: the success-path completion is emitted per return
+            # branch, AFTER the response is fully constructed — the outcome is
+            # never pre-claimed, and the exactly-once guard makes any later
+            # failure's error-completion a no-op double rather than a second
+            # event (or vice versa: if construction fails, the outer handler
+            # emits the ONLY completion, honestly, as an error).
+            def _emit_success_completion():
+                _emit_completion_once(
+                    outcome=overall_quality,
+                    agents_failed=sorted(stage_errors) or None,
+                    retried_stages=sorted(_trinity_retries) or None,
+                    stagger_applied=cs_stagger_applied,
+                )
 
             # Return result — Markdown-first if requested (v0.4.1)
             if output_format == "markdown":
@@ -1622,6 +1659,7 @@ def _create_mcp_instance():
                     )
                 if not stage_errors:
                     persist_trinity_result(user_uuid, "run_full_trinity", md_payload)
+                _emit_success_completion()
                 return wrap_response(md_payload)
 
             payload = {
@@ -1729,32 +1767,34 @@ def _create_mcp_instance():
                 )
             if not stage_errors:
                 persist_trinity_result(user_uuid, "run_full_trinity", payload)
+            _emit_success_completion()
             return wrap_response(payload)
 
         except (FailoverExhaustedError, FailoverTerminalError) as e:
             # B-90-8: hosted-lane typed contract — distinct from BYOK_AUTH_FAILED
             # below (BYOK providers never enter the failover executor).
-            emit_trinity_run_event(
-                event="trinity_run_completed",
-                session_id=_run_session_id,
+            _emit_completion_once(
                 severity="ERROR",
                 outcome="error",
                 error_code=getattr(e, "error_code", "FAILOVER_ERROR"),
             )
             return wrap_response(failover_error_payload(e, "Trinity", concept_name))
         except Exception as e:
-            # v0.5.60 (§2.2): hints condition on whether BYOK was actually
-            # supplied — "omit BYOK params" must never be shown to a caller
-            # who sent none. Contract logic lives in trinity_catchall_contract
-            # (unit-tested); this branch only binds it to the response shape.
+            # v0.5.60 (§2.2) + F-331-T2: hints condition on the RAW input fact
+            # (_byok_requested, snapshotted before resolution) — resolved
+            # byok_status is empty when the failure precedes resolution, and
+            # using it here blamed the hosted service for the caller's own
+            # invalid BYOK parameter. Contract logic lives in
+            # trinity_catchall_contract (unit-tested); this branch only binds
+            # it to the response shape.
             from .utils.provider_failures import trinity_catchall_contract
             contract = trinity_catchall_contract(
-                e, byok_supplied=any(byok_status.values()),
+                e, byok_supplied=_byok_requested,
             )
-            # Denominator integrity: catch-all runs are still completed runs.
-            emit_trinity_run_event(
-                event="trinity_run_completed",
-                session_id=_run_session_id,
+            # Denominator integrity: catch-all runs are still completed runs —
+            # and exactly-once: if the success emit already fired, this is a
+            # no-op rather than a second completion for the same run.
+            _emit_completion_once(
                 severity="ERROR",
                 outcome="error",
                 error_code=contract["error_code"],
