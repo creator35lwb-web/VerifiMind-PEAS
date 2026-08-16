@@ -19,6 +19,67 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.60 - Trinity Completion (August 17, 2026)
+
+**RELEASE CANDIDATE — PR pending review. This version has not shipped;
+v0.5.59 remains the deployed release.** A bounded follow-up converts this
+status line to deployment receipts after an authorized merge, per the
+operations playbook.
+
+Built from live end-user testing (technical findings report
+VM-TR-2026-08-13-V0559-01): the core validation product works and its
+failure-handling is honest — the constraint is completion. Two of three live
+Trinity runs were ending in an honest partial because two agents share one
+hosted free-tier budget, the provider's own stated retry window was being
+surfaced to the caller and acted on by no one, and hard failures could
+bypass the per-stage degradation machinery.
+
+### What changed
+
+- **The Trinity now acts on the provider's stated retry window:** when a
+  stage fails rate-limited and the provider says it is retryable within a
+  short stated wait (≤15s), the orchestrator sleeps that interval and
+  re-executes the stage once, under a 30-second per-run budget. A failed
+  retry returns the same honest degraded partial as before, now with
+  `retry_attempted` disclosed and a `_stage_retries` summary of what was
+  attempted. Failures without a provider-stated wait deliberately do not
+  retry, and nothing in the mechanism can convert a failure into a
+  fabricated success.
+- **Shared-provider stagger:** when Z and CS bill the same provider family
+  (the hosted default), their calls are spaced by a short fixed gap to
+  reduce same-window quota collision. Split-provider configurations pay
+  nothing.
+- **Recovery hints tell the truth about whose problem it is:** the
+  catch-all's "omit BYOK params" advice never reaches a caller who sent no
+  BYOK parameters; auth-shaped failures on hosted runs are attributed to
+  the hosted lane. Prior-reasoning assembly now lives inside each stage's
+  degradation gate, so a failure there degrades one stage instead of
+  discarding completed work.
+- **Completion is finally measurable:** every run emits structured
+  `trinity_run_started` / `trinity_run_completed` events (any outcome,
+  including hard errors), giving operations a true completion-rate
+  denominator — previously only failures were instrumented. Structured-log
+  agent labels are normalized to one vocabulary.
+- **Template discovery repairs:** shared (`all`-agent) templates now match
+  agent queries and the `all` filter — a case-comparison defect had made
+  them unreachable through every query since the feature shipped; registry
+  statistics now sum to the total by construction; tag filters accept the
+  JSON-array shape MCP clients actually send alongside the documented
+  comma form.
+- **Observability:** `/health` is served with `Cache-Control: no-store`
+  (intermediaries had cached a stale version during a prior rollout); the
+  CS agent gains the same token-ceiling monitor Z has had since v0.5.3
+  (`_cs_token_monitor`) — CS has truncated in production with no
+  instrumentation.
+- **Version surfaces:** runtime `0.5.60`; MCP Registry manifest `3.37.0`.
+
+### What deliberately did NOT change
+
+Hosted routing (X Gemini; Z/CS Groq), `runtime_failover_enabled: false`,
+and the per-stage degradation contract are all unchanged. Activating the
+staged failover hop chains and splitting Z/CS across providers remain
+explicit human decisions, tracked separately.
+
 ## v0.5.59 - Dependency Authority (August 13, 2026)
 
 **DEPLOYED.** Production deployment is bound to merge commit
