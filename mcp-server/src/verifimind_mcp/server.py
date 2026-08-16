@@ -1602,7 +1602,6 @@ def _create_mcp_instance():
                     "_overall_quality": overall_quality,
                     "_schema_diagnostics": schema_diagnostics,
                     "_z_token_monitor": z_token_monitor,
-                "_cs_token_monitor": cs_token_monitor,
                     "_cs_token_monitor": cs_token_monitor,
                     **_byok_meta,
                     **_stage_failure_meta,

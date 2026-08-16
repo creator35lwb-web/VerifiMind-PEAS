@@ -157,10 +157,11 @@ class TestCompletionRetry:
         second = FakeRateLimitError(retry_after=9)
         stage, calls = make_stage([FakeRateLimitError(retry_after=8), second])
         budget = TrinityRetryBudget()
+        attempt = analyze_with_completion_retry(
+            stage, agent_id="CS", byok=False, session_id="s3", budget=budget,
+        )
         with pytest.raises(FakeRateLimitError) as excinfo:
-            asyncio.run(analyze_with_completion_retry(
-                stage, agent_id="CS", byok=False, session_id="s3", budget=budget,
-            ))
+            asyncio.run(attempt)
         assert excinfo.value is second
         assert getattr(excinfo.value, "_trinity_retry_attempted", False) is True
         assert calls["n"] == 2
@@ -170,10 +171,11 @@ class TestCompletionRetry:
         first = FakeAuthError()
         stage, calls = make_stage([first, "must-not-reach"])
         budget = TrinityRetryBudget()
+        attempt = analyze_with_completion_retry(
+            stage, agent_id="X", byok=True, session_id="s4", budget=budget,
+        )
         with pytest.raises(FakeAuthError) as excinfo:
-            asyncio.run(analyze_with_completion_retry(
-                stage, agent_id="X", byok=True, session_id="s4", budget=budget,
-            ))
+            asyncio.run(attempt)
         assert excinfo.value is first
         assert calls["n"] == 1
         assert no_sleep.calls == []
@@ -185,10 +187,11 @@ class TestCompletionRetry:
         first = FakeTimeoutError()
         stage, calls = make_stage([first, "must-not-reach"])
         budget = TrinityRetryBudget()
+        attempt = analyze_with_completion_retry(
+            stage, agent_id="Z", byok=False, session_id="s5", budget=budget,
+        )
         with pytest.raises(FakeTimeoutError):
-            asyncio.run(analyze_with_completion_retry(
-                stage, agent_id="Z", byok=False, session_id="s5", budget=budget,
-            ))
+            asyncio.run(attempt)
         assert calls["n"] == 1
         assert no_sleep.calls == []
 
@@ -196,10 +199,11 @@ class TestCompletionRetry:
         first = FakeRateLimitError(retry_after=8)
         stage, calls = make_stage([first, "must-not-reach"])
         budget = TrinityRetryBudget(budget_seconds=5.0)  # below 8.5 needed
+        attempt = analyze_with_completion_retry(
+            stage, agent_id="Z", byok=False, session_id="s6", budget=budget,
+        )
         with pytest.raises(FakeRateLimitError) as excinfo:
-            asyncio.run(analyze_with_completion_retry(
-                stage, agent_id="Z", byok=False, session_id="s6", budget=budget,
-            ))
+            asyncio.run(attempt)
         assert excinfo.value is first
         assert calls["n"] == 1
         assert no_sleep.calls == []
@@ -213,10 +217,11 @@ class TestCompletionRetry:
         # 20 - 10.5 = 9.5 left; a 10s wait no longer fits
         first = FakeRateLimitError(retry_after=10)
         stage_cs, calls_cs = make_stage([first, "must-not-reach"])
+        attempt = analyze_with_completion_retry(
+            stage_cs, agent_id="CS", byok=False, session_id="s7", budget=budget,
+        )
         with pytest.raises(FakeRateLimitError):
-            asyncio.run(analyze_with_completion_retry(
-                stage_cs, agent_id="CS", byok=False, session_id="s7", budget=budget,
-            ))
+            asyncio.run(attempt)
         assert calls_cs["n"] == 1
 
     def test_no_fabrication_on_double_failure(self, no_sleep):
@@ -367,9 +372,11 @@ class TestCsTokenMonitor:
     def test_cs_monitor_mirrors_z_thresholds(self):
         from verifimind_mcp.utils import check_cs_agent_response
         low = check_cs_agent_response(1000)
-        assert low["risk_level"] == "LOW" and low["truncated"] is False
+        assert low["risk_level"] == "LOW"
+        assert low["truncated"] is False
         critical = check_cs_agent_response(8192)
-        assert critical["risk_level"] == "CRITICAL" and critical["truncated"] is True
+        assert critical["risk_level"] == "CRITICAL"
+        assert critical["truncated"] is True
 
 
 # --- canonical agent labels + run events ------------------------------------

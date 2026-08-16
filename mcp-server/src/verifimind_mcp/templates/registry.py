@@ -432,7 +432,7 @@ class TemplateRegistry:
             by_agent[raw if raw in ("X", "Z", "CS") else "all"] += 1
 
         phase_values = [phase.value for phase in GenesisPhase]
-        by_phase: Dict[str, int] = {value: 0 for value in phase_values}
+        by_phase: Dict[str, int] = dict.fromkeys(phase_values, 0)
         unphased = 0
         for template in counted:
             primary = next(
