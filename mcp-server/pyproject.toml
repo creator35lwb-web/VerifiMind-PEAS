@@ -33,7 +33,7 @@ dependencies = [
     # kept it — plus toml/typer/art/shellingham — in the production image, and
     # its presence auto-skipped the one test that would have caught that.
     "fastapi==0.141.1",
-    "uvicorn[standard]==0.52.1",
+    "uvicorn[standard]==0.52.3",
     "google-cloud-firestore>=2.26.0",
     "email-validator>=2.0.0",
     "standardwebhooks>=1.0.0"
