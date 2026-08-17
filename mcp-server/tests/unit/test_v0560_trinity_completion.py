@@ -517,6 +517,76 @@ class TestLifecycleAndByokEndToEnd:
         assert completed[0]["outcome"] == "error"
 
 
+# --- T S136 counterexamples (R-331-T136-1 / R-331-T136-2) --------------------
+
+class TestPhaseAwareAttributionAndPrelude:
+    """T S136's two exact counterexamples, pinned end-to-end."""
+
+    @pytest.fixture
+    def app(self):
+        from verifimind_mcp import server as server_mod
+        return server_mod.create_http_server()
+
+    @pytest.mark.asyncio
+    async def test_keyless_selector_post_resolution_failure_is_hosted(
+        self, app, monkeypatch, capsys
+    ):
+        # R-331-T136-1: a supported provider selector WITHOUT a key is
+        # deliberately ignored by resolution (hosted defaults). A hosted-side
+        # failure AFTER that boundary must be attributed to the hosted lane —
+        # the caller's inert parameter is not the cause.
+        from verifimind_mcp import config_helper
+        from .mcp_tool_harness import call
+
+        def _hosted_boom(_ctx):
+            raise RuntimeError("hosted provider construction exploded")
+
+        monkeypatch.setattr(config_helper, "get_trinity_providers", _hosted_boom)
+        payload = await call(app, "run_full_trinity", {
+            "concept_name": "keyless-selector-probe",
+            "concept_description": "R-331-T136-1 regression.",
+            "llm_provider": "groq",  # supported selector, NO key -> ignored
+        })
+        assert payload["status"] == "error"
+        hint = payload["recovery_hint"]
+        assert "BYOK" not in hint
+        assert "hosted" in hint.lower()
+
+        started, completed = _lifecycle_events(capsys.readouterr().err)
+        assert len(started) == 1
+        assert len(completed) == 1
+        assert completed[0]["outcome"] == "error"
+        assert completed[0]["session_id"] == started[0]["session_id"]
+
+    @pytest.mark.asyncio
+    async def test_prelude_failure_has_lifecycle_and_structured_error(
+        self, app, monkeypatch, capsys
+    ):
+        # R-331-T136-2: a failure in the request prelude (detail
+        # normalization — T's exact injection) must yield ONE structured
+        # error response with one paired start + one error completion, never
+        # a raw ToolError with zero lifecycle events.
+        from verifimind_mcp.utils import reasoning_view
+        from .mcp_tool_harness import call
+
+        def _prelude_boom(_detail):
+            raise RuntimeError("detail normalization exploded")
+
+        monkeypatch.setattr(reasoning_view, "normalize_detail", _prelude_boom)
+        payload = await call(app, "run_full_trinity", {
+            "concept_name": "prelude-probe",
+            "concept_description": "R-331-T136-2 regression.",
+        })
+        assert payload["status"] == "error"
+        assert payload["error_code"] == "TRINITY_ERROR"
+
+        started, completed = _lifecycle_events(capsys.readouterr().err)
+        assert len(started) == 1
+        assert len(completed) == 1
+        assert completed[0]["outcome"] == "error"
+        assert completed[0]["session_id"] == started[0]["session_id"]
+
+
 # --- canonical agent labels + run events ------------------------------------
 
 class TestStructuredLogVocabulary:

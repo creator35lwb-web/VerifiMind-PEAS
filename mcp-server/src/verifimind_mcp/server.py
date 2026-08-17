@@ -1205,50 +1205,38 @@ def _create_mcp_instance():
         Returns:
             Complete Trinity validation result with all agent analyses and synthesis
         """
-        if user_uuid:
-            emit_tracer(user_uuid, "run_full_trinity")
-        # v0.5.44: normalize reasoning verbosity (invalid → "standard")
-        from .utils.reasoning_view import normalize_detail
-        detail = normalize_detail(detail)
-        # Check Accept header for markdown content negotiation
-        output_format = "json"
-        if ctx and hasattr(ctx, 'request_context'):
-            req_ctx = ctx.request_context
-            # RequestContext may be a dict or object — handle both safely
-            if isinstance(req_ctx, dict):
-                accept = req_ctx.get('accept', '')
-            elif hasattr(req_ctx, 'get'):
-                accept = req_ctx.get('accept', '')
-            else:
-                accept = getattr(req_ctx, 'accept', '')
-            if 'text/markdown' in str(accept):
-                output_format = "markdown"
-        # v0.5.60 (§2.2 repair): hoisted so the outer exception handlers can
-        # condition their hints on whether BYOK params were ACTUALLY supplied —
-        # an exception before provider resolution must not NameError here.
-        # _run_session_id likewise: the error-path completion event must be
-        # able to fire even when the failure predates session creation.
+        # ==== v0.5.60 lifecycle boundary (F-331-T1 + R-331-T136-2) ==========
+        # NOTHING fallible may precede this block. Session, start receipt, the
+        # exactly-once completion guard, and the raw BYOK-intent snapshot are
+        # all infallible constructions; the outer try opens immediately after
+        # the start emit and covers the COMPLETE fallible prelude — tracer,
+        # detail normalization, Accept negotiation — which previously ran
+        # unguarded and produced T S136's zero-start/zero-completion
+        # counterexample as a raw ToolError.
         byok_status = {}
-        _run_session_id = None
-        # F-331-T2: the IMMUTABLE INPUT FACT, snapshotted before any fallible
-        # resolution. byok_status above reflects what resolution REACHED; a
-        # bad provider name or unknown key prefix raises before it is ever
-        # populated, and attributing that failure by resolved status blamed
-        # the hosted service for the caller's own parameter. Providers count
-        # as intent too: they are part of the BYOK failure surface.
+        # R-331-T136-1: attribution is PHASE-AWARE. During resolution the truth
+        # is the caller's RAW inputs (keys AND provider selectors — an invalid
+        # value of either raises there and is the caller's to fix). AFTER
+        # resolution completes, the truth is what resolution actually CREATED:
+        # a supported keyless selector is deliberately ignored (hosted
+        # defaults), so a later hosted-side failure must not be blamed on the
+        # caller's inert parameter. _byok_attribution starts as raw intent and
+        # is flipped to resolved reality at the resolution boundary.
         _byok_requested = any(
             bool(param) for param in (
                 api_key, x_api_key, z_api_key, cs_api_key,
                 llm_provider, x_provider, z_provider, cs_provider,
             )
         )
-        # F-331-T1: exactly-once completion guard. The final outcome must not
-        # be pre-claimed — completion is emitted only when the response is
-        # fully constructed (success paths) or by the outer handlers, and
-        # whichever fires first wins; every other attempt is a no-op.
+        _byok_attribution = _byok_requested
+        from .models.session import SessionContext
+        session = SessionContext(concept_name=concept_name)
+        _run_session_id = session.session_id
         _completion_emitted = False
 
         def _emit_completion_once(**fields):
+            # F-331-T1: the final outcome must not be pre-claimed — whichever
+            # emit fires first wins; every other attempt is a no-op.
             nonlocal _completion_emitted
             if _completion_emitted:
                 return
@@ -1258,23 +1246,36 @@ def _create_mcp_instance():
                 session_id=_run_session_id,
                 **fields,
             )
+
+        emit_trinity_run_event(
+            event="trinity_run_started",
+            session_id=session.session_id,
+            byok_requested=_byok_requested,
+        )
         try:
+            # ---- fallible prelude, now inside the lifecycle guard ----------
+            if user_uuid:
+                emit_tracer(user_uuid, "run_full_trinity")
+            # v0.5.44: normalize reasoning verbosity (invalid → "standard")
+            from .utils.reasoning_view import normalize_detail
+            detail = normalize_detail(detail)
+            # Check Accept header for markdown content negotiation
+            output_format = "json"
+            if ctx and hasattr(ctx, 'request_context'):
+                req_ctx = ctx.request_context
+                # RequestContext may be a dict or object — handle both safely
+                if isinstance(req_ctx, dict):
+                    accept = req_ctx.get('accept', '')
+                elif hasattr(req_ctx, 'get'):
+                    accept = req_ctx.get('accept', '')
+                else:
+                    accept = getattr(req_ctx, 'accept', '')
+                if 'text/markdown' in str(accept):
+                    output_format = "markdown"
+
             from .models import Concept, PriorReasoning
             from .agents import XAgent, ZAgent, CSAgent
             from .utils import create_trinity_result, sanitize_concept_input
-
-            # F-331-T1: session + start receipt established BEFORE any fallible
-            # request preparation (sanitization, provider resolution, agent
-            # construction). Every completion — including a pre-resolution
-            # error — now has a paired start with the same session id.
-            from .models.session import SessionContext
-            session = SessionContext(concept_name=concept_name)
-            _run_session_id = session.session_id
-            emit_trinity_run_event(
-                event="trinity_run_started",
-                session_id=session.session_id,
-                byok_requested=_byok_requested,
-            )
 
             # Sanitize inputs for security (v0.3.5)
             sanitized = sanitize_concept_input(
@@ -1309,6 +1310,13 @@ def _create_mcp_instance():
                     byok_status[agent_id] = True
                 else:
                     byok_status[agent_id] = False
+
+            # R-331-T136-1: the resolution boundary — from here on, the truth
+            # about "is BYOK in play" is what resolution actually CREATED, not
+            # what the caller typed. A supported keyless selector was ignored
+            # above (ephemeral None → hosted defaults), so failures beyond this
+            # line with no active ephemeral are hosted-side and must say so.
+            _byok_attribution = any(byok_status.values())
 
             # Fill in any agents that didn't get BYOK providers
             server_providers = get_trinity_providers(ctx)
@@ -1780,16 +1788,17 @@ def _create_mcp_instance():
             )
             return wrap_response(failover_error_payload(e, "Trinity", concept_name))
         except Exception as e:
-            # v0.5.60 (§2.2) + F-331-T2: hints condition on the RAW input fact
-            # (_byok_requested, snapshotted before resolution) — resolved
-            # byok_status is empty when the failure precedes resolution, and
-            # using it here blamed the hosted service for the caller's own
-            # invalid BYOK parameter. Contract logic lives in
+            # v0.5.60 (§2.2, F-331-T2, R-331-T136-1): hints condition on the
+            # PHASE-AWARE attribution fact. Before/during resolution it is the
+            # caller's raw inputs (their invalid key or provider is theirs to
+            # fix); after the resolution boundary it is what resolution
+            # actually created (an ignored keyless selector must not turn a
+            # hosted failure into caller blame). Contract logic lives in
             # trinity_catchall_contract (unit-tested); this branch only binds
             # it to the response shape.
             from .utils.provider_failures import trinity_catchall_contract
             contract = trinity_catchall_contract(
-                e, byok_supplied=_byok_requested,
+                e, byok_supplied=_byok_attribution,
             )
             # Denominator integrity: catch-all runs are still completed runs —
             # and exactly-once: if the success emit already fired, this is a
