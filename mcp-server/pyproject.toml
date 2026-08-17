@@ -17,7 +17,7 @@ dependencies = [
     # bumps must be deliberate PRs. Versions = what prod serves + the full suite
     # passes on. Batch bumped 2026-08-13 (PR #329): fastmcp/starlette/fastapi/uvicorn.
     "mcp==1.28.1",
-    "fastmcp==3.4.6",
+    "fastmcp==3.4.7",
     "starlette==1.4.1",
     "pydantic==2.13.4",
     "httpx==0.28.1",
