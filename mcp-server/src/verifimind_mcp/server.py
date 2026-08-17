@@ -1311,18 +1311,28 @@ def _create_mcp_instance():
                 else:
                     byok_status[agent_id] = False
 
-            # R-331-T136-1: the resolution boundary — from here on, the truth
-            # about "is BYOK in play" is what resolution actually CREATED, not
-            # what the caller typed. A supported keyless selector was ignored
-            # above (ephemeral None → hosted defaults), so failures beyond this
-            # line with no active ephemeral are hosted-side and must say so.
+            # R-331-T136-1 + R-331-T137: the resolution boundary, LANE-AWARE.
+            # From here the truth about "is BYOK in play" is what resolution
+            # actually CREATED — but active-any is not the failing lane: a
+            # hosted-fill failure is hosted even when an unrelated ephemeral
+            # is active, and an all-resolved run must never execute hosted
+            # construction at all.
             _byok_attribution = any(byok_status.values())
-
-            # Fill in any agents that didn't get BYOK providers
-            server_providers = get_trinity_providers(ctx)
-            for agent_id in ("X", "Z", "CS"):
-                if agent_id not in resolved_providers:
+            unresolved_agents = [
+                agent_id for agent_id in ("X", "Z", "CS")
+                if agent_id not in resolved_providers
+            ]
+            if unresolved_agents:
+                # Filling required hosted lanes is a HOSTED operation: while
+                # it runs, a construction failure is hosted-side regardless of
+                # unrelated active ephemerals.
+                _byok_attribution = False
+                server_providers = get_trinity_providers(ctx)
+                for agent_id in unresolved_agents:
                     resolved_providers[agent_id] = server_providers[agent_id]
+                # Fill succeeded: attribution returns to resolved reality
+                # (active ephemerals are caller-attributed again).
+                _byok_attribution = any(byok_status.values())
 
             # Initialize agents with their resolved providers
             x_agent = XAgent(llm_provider=resolved_providers["X"])

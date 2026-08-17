@@ -587,6 +587,79 @@ class TestPhaseAwareAttributionAndPrelude:
         assert completed[0]["session_id"] == started[0]["session_id"]
 
 
+# --- T S137 counterexamples (R-331-T137, mixed-lane resolution) --------------
+
+class TestMixedLaneResolution:
+    """T S137: active-any is not the failing lane. A hosted-fill failure must
+    be hosted even when an unrelated ephemeral is active, and an all-resolved
+    run must never execute hosted construction at all."""
+
+    @pytest.fixture
+    def app(self):
+        from verifimind_mcp import server as server_mod
+        return server_mod.create_http_server()
+
+    @pytest.mark.asyncio
+    async def test_mixed_lane_hosted_fill_failure_is_hosted(
+        self, app, monkeypatch, capsys
+    ):
+        # X carries a real active ephemeral (gsk_ prefix -> Groq); Z/CS need
+        # the hosted fill, which fails. The failing LANE is hosted — the
+        # unrelated X ephemeral must not convert this into caller blame.
+        from verifimind_mcp import config_helper
+        from .mcp_tool_harness import call
+
+        def _hosted_boom(_ctx):
+            raise RuntimeError("hosted provider construction exploded")
+
+        monkeypatch.setattr(config_helper, "get_trinity_providers", _hosted_boom)
+        payload = await call(app, "run_full_trinity", {
+            "concept_name": "mixed-lane-probe",
+            "concept_description": "R-331-T137 mixed-lane regression.",
+            "x_api_key": "gsk_fakefakefake123",  # active X ephemeral
+        })
+        assert payload["status"] == "error"
+        hint = payload["recovery_hint"]
+        assert "BYOK" not in hint
+        assert "hosted" in hint.lower()
+
+        started, completed = _lifecycle_events(capsys.readouterr().err)
+        assert len(started) == 1
+        assert len(completed) == 1
+        assert completed[0]["outcome"] == "error"
+
+    @pytest.mark.asyncio
+    async def test_all_resolved_run_never_calls_hosted_construction(
+        self, app, monkeypatch, capsys
+    ):
+        # All three agents resolve to ephemerals: hosted construction is not
+        # needed and must be SKIPPED — a hosted-side outage cannot fail a run
+        # that never required the hosted lane.
+        from verifimind_mcp import config_helper
+        from .mcp_tool_harness import call
+
+        def _hosted_boom(_ctx):
+            raise RuntimeError("hosted construction must not be called")
+
+        monkeypatch.setattr(config_helper, "get_trinity_providers", _hosted_boom)
+        payload = await call(app, "run_full_trinity", {
+            "concept_name": "all-resolved-probe",
+            "concept_description": "R-331-T137 all-resolved regression.",
+            "x_api_key": "gsk_fakefakefake123",
+            "z_api_key": "gsk_fakefakefake456",
+            "cs_api_key": "gsk_fakefakefake789",
+        })
+        # The run must reach the STAGES (which fail per-stage on the fake
+        # keys, honestly) — never the catch-all via hosted construction.
+        assert payload.get("error_code") != "TRINITY_ERROR"
+        assert "_stage_errors" in payload
+        assert sorted(payload["_agents_failed"]) == ["CS", "X", "Z"]
+
+        started, completed = _lifecycle_events(capsys.readouterr().err)
+        assert len(started) == 1
+        assert len(completed) == 1
+
+
 # --- canonical agent labels + run events ------------------------------------
 
 class TestStructuredLogVocabulary:
