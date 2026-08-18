@@ -19,6 +19,31 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.61 - Framework Maintenance (August 18, 2026)
+
+**RELEASE CANDIDATE — PR #338 remains open and draft. This version has not
+been merged or deployed; v0.5.60 remains the live production release.** A
+bounded post-deploy truth conversion will replace this status only after an
+authorized merge, deployment, and smoke-test receipt.
+
+This maintenance candidate updates the server framework set as one tested
+unit in both dependency manifests:
+
+- FastMCP `3.4.6` → `3.4.7` for the upstream CIMD authorization repair.
+- Starlette `1.4.1` → `1.6.0` for upstream response and range-handling fixes.
+- Uvicorn `0.52.1` → `0.52.3` for bounded upstream maintenance fixes.
+
+No VerifiMind application-code, hosted-provider routing, runtime failover
+policy, or tool-availability policy changes are included in this candidate.
+Uvicorn 0.52.4 and all other dependency updates remain outside scope. The
+pre-existing escaped text encoding defects in `server.json` are also unchanged
+and remain a separately reviewed cleanup.
+
+- **Version surfaces:** candidate runtime `0.5.61`; candidate MCP Registry
+  manifest `3.38.0`.
+- **Deployed truth surfaces:** `README.md` and `SERVER_STATUS.md` deliberately
+  remain at v0.5.60 until deployment evidence exists.
+
 ## v0.5.60 - Trinity Completion (August 17, 2026)
 
 **DEPLOYED.** Production deployment is bound to merge commit
