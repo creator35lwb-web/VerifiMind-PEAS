@@ -217,6 +217,90 @@ def provider_failure_contract(
     }
 
 
+def trinity_catchall_contract(exc: Exception, *, byok_supplied: bool) -> dict:
+    """Typed contract for exceptions that escape every per-stage gate.
+
+    v0.5.60 (§2.2 repair): the old catch-all unconditionally advised "omit
+    BYOK params to use server defaults" — including on runs where NO BYOK
+    parameter was supplied, sending users to change something they were not
+    using. Hints now condition on whether BYOK was actually in play, and an
+    auth-shaped failure on a hosted run is attributed to the hosted lane, not
+    to the caller's (absent) key.
+    """
+    try:
+        err_str = str(exc).lower()
+    except Exception:
+        # Deliberate (CodeQL #223): an exception whose __str__ itself raises
+        # must not mask the original failure — classification proceeds on the
+        # empty string and the generic TRINITY_ERROR contract applies.
+        err_str = ""
+
+    auth_shaped = (
+        "401" in err_str or "invalid api key" in err_str or "authentication" in err_str
+    )
+    if auth_shaped:
+        if byok_supplied:
+            return {
+                "error_code": "BYOK_AUTH_FAILED",
+                "message": "API key authentication failed.",
+                "recovery_hint": (
+                    "Check your api_key is valid and matches the llm_provider. "
+                    "Get a free Groq key at console.groq.com or omit api_key to use server defaults."
+                ),
+            }
+        return {
+            "error_code": "PROVIDER_AUTH_FAILED",
+            "message": "The hosted provider authentication check failed.",
+            "recovery_hint": (
+                "No BYOK key was supplied; this is a hosted-credential issue. "
+                "Try again shortly — operator credential review is required if it persists."
+            ),
+        }
+
+    if "timeout" in err_str or "timed out" in err_str:
+        return {
+            "error_code": "PROVIDER_TIMEOUT",
+            "message": "The LLM provider timed out.",
+            "recovery_hint": (
+                "The LLM provider took too long. Try again"
+                + (", or switch to a faster provider." if byok_supplied else " shortly.")
+            ),
+        }
+
+    return {
+        "error_code": "TRINITY_ERROR",
+        "message": "The Trinity analysis could not be completed.",
+        "recovery_hint": (
+            "Try again. If the issue persists, omit BYOK params to use server defaults."
+            if byok_supplied else
+            "Try again shortly. If the issue persists, the failure is on the hosted "
+            "service side — no change to your request is required."
+        ),
+    }
+
+
+# v0.5.60: structured-log agent labels are the canonical short IDs, always.
+# The standalone consult tools pass display names ("CS Security"), and the
+# sanitizer's space-stripping turned them into a THIRD label ("CSSecurity")
+# that broke cross-run aggregation (VM-TR follow-up finding). User-facing
+# payloads keep display names; logs get one vocabulary.
+_CANONICAL_AGENT_IDS = {
+    "X Intelligent": "X",
+    "Z Guardian": "Z",
+    "CS Security": "CS",
+    "XIntelligent": "X",
+    "ZGuardian": "Z",
+    "CSSecurity": "CS",
+    "Trinity": "Trinity",
+}
+
+
+def canonical_agent_id(agent: Optional[str]) -> Optional[str]:
+    if agent is None:
+        return None
+    return _CANONICAL_AGENT_IDS.get(str(agent), str(agent))
+
+
 def emit_structured_failure(
     *,
     error_code: str,
@@ -232,7 +316,7 @@ def emit_structured_failure(
         "severity": "ERROR",
         "event": "trinity_provider_failure",
         "error_code": safe_diagnostic_value(error_code),
-        "agent": safe_diagnostic_value(agent),
+        "agent": safe_diagnostic_value(canonical_agent_id(agent)),
         "provider": safe_diagnostic_value(provider),
         "model": safe_diagnostic_value(model),
         "session_id": safe_diagnostic_value(session_id),
@@ -244,6 +328,39 @@ def emit_structured_failure(
         file=sys.stderr,
         flush=True,
     )
+
+
+def emit_trinity_run_event(
+    *,
+    event: str,
+    session_id: Optional[str],
+    severity: str = "INFO",
+    **fields: Any,
+) -> None:
+    """v0.5.60: run-lifecycle events — the completion-rate DENOMINATOR.
+
+    Until now only failures were instrumented (`trinity_provider_failure`),
+    so no production completion rate was computable from logs — client-side
+    burst tests were the only rate anyone had, and those load the same quota
+    they measure. Every run now emits exactly one `trinity_run_completed`
+    (any outcome, including catch-all errors); `trinity_run_started` marks
+    intake. Rate = completed-with-outcome-full / all-completed.
+    """
+    payload = {
+        "severity": severity,
+        "event": safe_diagnostic_value(event),
+        "session_id": safe_diagnostic_value(session_id),
+    }
+    for key, value in fields.items():
+        if value is None:
+            continue
+        if isinstance(value, (int, float, bool)):
+            payload[key] = value
+        elif isinstance(value, (list, tuple)):
+            payload[key] = [safe_diagnostic_value(item) for item in value]
+        else:
+            payload[key] = safe_diagnostic_value(value)
+    print(json.dumps(payload), file=sys.stderr, flush=True)
 
 
 def unavailable_agent_result(agent_id: str, exc: Exception):
@@ -314,6 +431,11 @@ def trinity_stage_failure(
     }
     if contract["retry_after_seconds"] is not None:
         record["retry_after_seconds"] = contract["retry_after_seconds"]
+    # v0.5.60: when the orchestrator already spent its one bounded retry on
+    # this stage, say so — the caller should not expect an immediate manual
+    # retry to behave differently.
+    if getattr(exc, "_trinity_retry_attempted", False):
+        record["retry_attempted"] = True
     emit_structured_failure(
         error_code=contract["error_code"],
         agent=agent_id,

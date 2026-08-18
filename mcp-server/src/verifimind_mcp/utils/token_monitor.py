@@ -61,3 +61,19 @@ def check_z_agent_response(
 def is_z_response_safe(output_tokens: int, ceiling: int = Z_AGENT_CEILING) -> bool:
     """Return True if Z Agent response is below HIGH risk threshold."""
     return output_tokens <= RISK_HIGH_THRESHOLD
+
+
+# v0.5.60 (P3-B): CS runs the same configured 8192 output ceiling as Z
+# (both raised in v0.5.46) and HAS truncated in production
+# (PROVIDER_OUTPUT_TRUNCATED, VM-TR attempt 9) with no instrumentation —
+# the monitor existed for Z only. Same thresholds; separate constant so the
+# ceilings can diverge deliberately later without a silent coupling.
+CS_AGENT_CEILING = 8192
+
+
+def check_cs_agent_response(
+    output_tokens: int,
+    ceiling: int = CS_AGENT_CEILING
+) -> dict:
+    """Monitor CS Agent response token utilization (mirror of the Z monitor)."""
+    return check_z_agent_response(output_tokens, ceiling=ceiling)

@@ -207,12 +207,17 @@ class TemplateRegistry:
         if include_custom:
             all_templates.extend(self._custom_templates.values())
 
-        # Filter by agent_id
+        # Filter by agent_id. v0.5.60 (P2-B root cause): the stored shared
+        # value is lowercase "all" but this comparison was against 'ALL', so
+        # shared templates matched NO query — not even agent_id="all" — since
+        # the feature shipped. Comparison is now case-normalized on both sides:
+        # an X/Z/CS query includes the shared templates; an "all" query returns
+        # exactly the shared ones.
         if agent_id:
             agent_id_upper = agent_id.upper()
             all_templates = [
                 t for t in all_templates
-                if t.agent_id == agent_id_upper or t.agent_id == 'ALL'
+                if t.agent_id.upper() in (agent_id_upper, 'ALL')
             ]
 
         # Filter by category
@@ -405,25 +410,49 @@ class TemplateRegistry:
         logger.info("Reloaded all library templates")
 
     def get_statistics(self, include_custom: bool = False) -> Dict[str, Any]:
-        """Get registry statistics."""
+        """Get registry statistics.
+
+        v0.5.60 (P2-B): both breakdowns are now ATTRIBUTION counts — every
+        template is counted exactly once, so each breakdown sums to
+        ``total_templates`` by construction. Previously they were derived from
+        parallel filter queries, which undercounted (the shared-"all" case
+        bug hid 4 templates: 15 vs 19) and double-counted (one template
+        carries two genesis-phase tags: 20 vs 19). Filter queries still
+        answer "which templates can agent X use" (membership); these numbers
+        answer "where does each template live" (attribution).
+        """
         custom_count = len(self._custom_templates) if include_custom else 0
+        counted = list(self._templates.values())
+        if include_custom:
+            counted.extend(self._custom_templates.values())
+
+        by_agent: Dict[str, int] = {"X": 0, "Z": 0, "CS": 0, "all": 0}
+        for template in counted:
+            raw = str(template.agent_id).upper()
+            by_agent[raw if raw in ("X", "Z", "CS") else "all"] += 1
+
+        phase_values = [phase.value for phase in GenesisPhase]
+        by_phase: Dict[str, int] = dict.fromkeys(phase_values, 0)
+        unphased = 0
+        for template in counted:
+            primary = next(
+                (tag for tag in (template.tags or []) if tag in by_phase),
+                None,
+            )
+            if primary is None:
+                unphased += 1
+            else:
+                by_phase[primary] += 1
+        if unphased:
+            by_phase["unphased"] = unphased
+
         return {
             "total_templates": len(self._templates) + custom_count,
             "builtin_templates": len(self._templates),
             "custom_templates": custom_count,
             "libraries": len(self._libraries),
-            "templates_by_agent": {
-                "X": len(self.list_templates(agent_id="X", include_custom=False)),
-                "Z": len(self.list_templates(agent_id="Z", include_custom=False)),
-                "CS": len(self.list_templates(agent_id="CS", include_custom=False)),
-                "all": len(self.list_templates(agent_id="all", include_custom=False)),
-            },
-            "templates_by_phase": {
-                phase.value: len(self.get_templates_by_genesis_phase(
-                    phase, include_custom=include_custom
-                ))
-                for phase in GenesisPhase
-            }
+            "templates_by_agent": by_agent,
+            "templates_by_phase": by_phase,
         }
 
 
