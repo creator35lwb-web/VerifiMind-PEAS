@@ -90,7 +90,7 @@ def wiki_link_failure(page: str, raw_target: str) -> str | None:
 
 
 # Concise public front door and release-bound truth.
-require(README_PATH, "version-v0.5.59", "v0.5.59 badge")
+require(README_PATH, "version-v0.5.60", "v0.5.60 badge")
 require(README_PATH, "13 defined / 8 active / 5 temporarily unavailable", "availability taxonomy")
 require(README_PATH, "21345820", "MACP v2.5 version DOI")
 require(README_PATH, "Multi-Agent Communication Protocol (MACP) v2.5 — Loop Engineering", "MACP v2.5 title")
@@ -109,23 +109,23 @@ changelog_current = next(
     (
         section
         for section in changelog_sections
-        if re.match(r"^## v0\.5\.59\b", section, flags=re.IGNORECASE)
+        if re.match(r"^## v0\.5\.60\b", section, flags=re.IGNORECASE)
     ),
     "",
 )
 checks += 5
-if "v0.5.59" not in changelog_current:
-    failures.append("CHANGELOG.md: current section is not v0.5.59")
+if "v0.5.60" not in changelog_current:
+    failures.append("CHANGELOG.md: current section is not v0.5.60")
 if re.search(r"candidate|not merged|not deployed", changelog_current, re.IGNORECASE):
-    failures.append("CHANGELOG.md: v0.5.59 still described as a candidate")
-if "505951fe663aec4df2cd0b1d984ca04d4fc8f55a" not in changelog_current:
-    failures.append("CHANGELOG.md: exact v0.5.59 merge is absent")
-if "2a4a666c-ef70-4e10-92a2-7eb478fd3d69" not in changelog_current:
-    failures.append("CHANGELOG.md: exact v0.5.59 build is absent")
-if re.search(r"^## v0\.5\.58\b", changelog_current, flags=re.IGNORECASE | re.MULTILINE):
+    failures.append("CHANGELOG.md: v0.5.60 still described as a candidate")
+if "41d3187672d7350b35b2f5084918db805971801c" not in changelog_current:
+    failures.append("CHANGELOG.md: exact v0.5.60 merge is absent")
+if "d7dd84c2-053f-4e06-85d6-c0df5ad2d9cc" not in changelog_current:
+    failures.append("CHANGELOG.md: exact v0.5.60 build is absent")
+if re.search(r"^## v0\.5\.59\b", changelog_current, flags=re.IGNORECASE | re.MULTILINE):
     failures.append("CHANGELOG.md: current section includes the prior release")
 
-require(SERVER_STATUS_PATH, "| Application | **v0.5.59**", "current production version")
+require(SERVER_STATUS_PATH, "| Application | **v0.5.60**", "current production version")
 require(SERVER_STATUS_PATH, "X/Z/CS = real/real/real", "post-deploy smoke")
 require(SERVER_STATUS_PATH, "Serving revision", "serving-revision provenance field")
 require("MCP_SERVER_FEATURES.md", "MCP 2025-11-25", "current MCP protocol")

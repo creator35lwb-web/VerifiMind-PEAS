@@ -21,10 +21,22 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ## v0.5.60 - Trinity Completion (August 17, 2026)
 
-**RELEASE CANDIDATE — PR pending review. This version has not shipped;
-v0.5.59 remains the deployed release.** A bounded follow-up converts this
-status line to deployment receipts after an authorized merge, per the
-operations playbook.
+**DEPLOYED.** Production deployment is bound to merge commit
+`41d3187672d7350b35b2f5084918db805971801c` (PR #331), whose parents are the
+public base `d7396c71c65a3e2a15ae7fb441d646aaf4ec5a45` and the T-reviewed head
+`1c2f56a67afc8f3c865a9956925e6f669d0b281e` — four independent T review rounds
+(S135–S139) preceded the TECHNICAL PASS, each contributing exact-head
+counterexamples now pinned by eight discriminating regressions. Cloud Build
+`d7dd84c2-053f-4e06-85d6-c0df5ad2d9cc` completed successfully at
+2026-08-18T07:44Z with its source bound to the merge SHA; serving revision
+`verifimind-mcp-server-00494-qr9` carries 100% of traffic. Post-deploy smoke:
+every version surface reports 0.5.60, `/health` is served `Cache-Control:
+no-store`, and a live Trinity returned **X/Z/CS = real/real/real** with the
+quality gate passed — after an earlier smoke leg demonstrated the completion
+retry's first production execution: a rate-limited Z stage slept the
+provider-stated 7.5 seconds, re-executed, and **recovered**, disclosed in
+`_stage_retries`, while a CS truncation on the same run was correctly NOT
+retried (no provider-stated wait) and degraded honestly per-stage.
 
 Built from live end-user testing (technical findings report
 VM-TR-2026-08-13-V0559-01): the core validation product works and its
