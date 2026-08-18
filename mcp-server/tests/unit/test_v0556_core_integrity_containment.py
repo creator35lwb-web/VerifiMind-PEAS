@@ -961,7 +961,7 @@ def test_discovery_card_matches_runtime_privacy_and_routing_contract():
     )
     routing = get_public_contract()["free_tier_routing"]
 
-    assert card["version"] == "0.5.60"
+    assert card["version"] == "0.5.61"
     assert "8 MCP tools are active" in card["description"]
     assert "5 tools" in card["description"]
     for agent_id in ("X", "Z", "CS"):
