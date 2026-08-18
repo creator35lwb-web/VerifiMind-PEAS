@@ -538,10 +538,12 @@ class TestPhaseAwareAttributionAndPrelude:
         from verifimind_mcp import config_helper
         from .mcp_tool_harness import call
 
-        def _hosted_boom(_ctx):
+        def _hosted_boom(_agent_id, _ctx=None):
             raise RuntimeError("hosted provider construction exploded")
 
-        monkeypatch.setattr(config_helper, "get_trinity_providers", _hosted_boom)
+        # R-331-T138 moved hosted construction to the per-agent seam; this
+        # counterexample (hosted fill fails) injects there now.
+        monkeypatch.setattr(config_helper, "get_agent_provider", _hosted_boom)
         payload = await call(app, "run_full_trinity", {
             "concept_name": "keyless-selector-probe",
             "concept_description": "R-331-T136-1 regression.",
@@ -609,10 +611,11 @@ class TestMixedLaneResolution:
         from verifimind_mcp import config_helper
         from .mcp_tool_harness import call
 
-        def _hosted_boom(_ctx):
+        def _hosted_boom(_agent_id, _ctx=None):
             raise RuntimeError("hosted provider construction exploded")
 
-        monkeypatch.setattr(config_helper, "get_trinity_providers", _hosted_boom)
+        # Per-agent seam (R-331-T138): the required Z/CS fill fails hosted.
+        monkeypatch.setattr(config_helper, "get_agent_provider", _hosted_boom)
         payload = await call(app, "run_full_trinity", {
             "concept_name": "mixed-lane-probe",
             "concept_description": "R-331-T137 mixed-lane regression.",
@@ -658,6 +661,54 @@ class TestMixedLaneResolution:
         started, completed = _lifecycle_events(capsys.readouterr().err)
         assert len(started) == 1
         assert len(completed) == 1
+
+
+# --- T S138 counterexample (R-331-T138, partial-lane construction scope) -----
+
+class TestPartialLaneConstructionScope:
+    """T S138: filtered selection must not invoke a bulk constructor — hosted
+    construction executes for exactly the unresolved lanes, never a resolved
+    one."""
+
+    @pytest.fixture
+    def app(self):
+        from verifimind_mcp import server as server_mod
+        return server_mod.create_http_server()
+
+    @pytest.mark.asyncio
+    async def test_resolved_x_is_never_reconstructed(
+        self, app, monkeypatch, capsys
+    ):
+        # T's exact probe: X resolved ephemerally (x_provider="mock"), only
+        # Z/CS unresolved; hosted X construction FAILS if called; construction
+        # calls must be exactly ["Z", "CS"]; no TRINITY_ERROR; the run reaches
+        # stage-level handling with one paired lifecycle completion.
+        from verifimind_mcp import config_helper
+        from .mcp_tool_harness import call
+        from .test_v0558_trinity_traceability import _NamedProvider
+
+        constructed = []
+
+        def _instrumented(agent_id, _ctx=None):
+            constructed.append(agent_id)
+            if agent_id == "X":
+                raise RuntimeError("hosted X construction must not occur")
+            return _NamedProvider("groq/openai/gpt-oss-120b")
+
+        monkeypatch.setattr(config_helper, "get_agent_provider", _instrumented)
+        payload = await call(app, "run_full_trinity", {
+            "concept_name": "partial-lane-probe",
+            "concept_description": "R-331-T138 regression.",
+            "x_provider": "mock",  # X resolves ephemerally; Z/CS stay hosted
+        })
+        assert constructed == ["Z", "CS"], constructed
+        assert payload.get("error_code") != "TRINITY_ERROR"
+        assert "_stage_errors" in payload or payload.get("status") in ("partial", "success")
+
+        started, completed = _lifecycle_events(capsys.readouterr().err)
+        assert len(started) == 1
+        assert len(completed) == 1
+        assert completed[0]["session_id"] == started[0]["session_id"]
 
 
 # --- canonical agent labels + run events ------------------------------------

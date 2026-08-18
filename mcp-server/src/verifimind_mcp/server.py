@@ -1327,9 +1327,16 @@ def _create_mcp_instance():
                 # it runs, a construction failure is hosted-side regardless of
                 # unrelated active ephemerals.
                 _byok_attribution = False
-                server_providers = get_trinity_providers(ctx)
+                # R-331-T138: construct hosted providers for EXACTLY the
+                # unresolved lanes via the existing per-agent API — the bulk
+                # constructor built all three unconditionally, so a resolved
+                # lane could abort the run through a hosted construction it
+                # never required. Execution scope now equals the missing-lane
+                # set; provider choice/routing semantics are unchanged
+                # (get_agent_provider is the same callee the bulk path used).
+                from .config_helper import get_agent_provider
                 for agent_id in unresolved_agents:
-                    resolved_providers[agent_id] = server_providers[agent_id]
+                    resolved_providers[agent_id] = get_agent_provider(agent_id, ctx)
                 # Fill succeeded: attribution returns to resolved reality
                 # (active ephemerals are caller-attributed again).
                 _byok_attribution = any(byok_status.values())

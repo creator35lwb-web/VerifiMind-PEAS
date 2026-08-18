@@ -131,8 +131,11 @@ async def test_z_rate_limit_preserves_x_runs_cs_and_withholds_aggregate(
         "Z": _NamedProvider("groq/openai/gpt-oss-120b"),
         "CS": _NamedProvider("groq/openai/gpt-oss-120b"),
     }
+    # R-331-T138: hosted construction is per-agent now; supply the fakes
+    # through the same seam the tool actually calls.
     monkeypatch.setattr(
-        config_helper, "get_trinity_providers", lambda _ctx: providers
+        config_helper, "get_agent_provider",
+        lambda agent_id, _ctx=None: providers[agent_id],
     )
 
     async def x_analyze(_self, _concept, _prior=None, _metrics=None):
