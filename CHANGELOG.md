@@ -21,12 +21,20 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ## v0.5.61 - Framework Maintenance (August 18, 2026)
 
-**RELEASE CANDIDATE — PR #338 remains open and draft. This version has not
-been merged or deployed; v0.5.60 remains the live production release.** A
-bounded post-deploy truth conversion will replace this status only after an
-authorized merge, deployment, and smoke-test receipt.
+**DEPLOYED.** Production deployment is bound to merge commit
+`ba02fd0262ff91fb9452d2f025ee7e7cb7c59fea` (PR #338), whose parents are the
+public base `f289f2796da1f7ed95fcf72a1abdd25d57f63c63` and the T-PASSED head
+`fa6a35aafc2f4c9e7a33aa8f4ccfca9a3fe9a1ae`. Cloud Build
+`82444203-10d0-4e79-a11b-f8d7ce3ecc76` completed successfully at
+2026-08-18T21:02Z with its source bound to the merge SHA; serving revision
+`verifimind-mcp-server-00495-whr` carries 100% of traffic. Post-deploy smoke:
+`/health` reports 0.5.61 with `Cache-Control: no-store`; a live Trinity
+returned **X/Z/CS = real/real/real** with the quality gate passed and both
+token monitors live — and the completion retry recovered a rate-limited Z
+stage (provider-stated 4.5s wait) on an earlier smoke leg, its second
+production recovery since shipping in v0.5.60.
 
-This maintenance candidate updates the server framework set as one tested
+This maintenance release updates the server framework set as one tested
 unit in both dependency manifests:
 
 - FastMCP `3.4.6` → `3.4.7` for the upstream CIMD authorization repair.
@@ -34,12 +42,12 @@ unit in both dependency manifests:
 - Uvicorn `0.52.1` → `0.52.3` for bounded upstream maintenance fixes.
 
 No VerifiMind application-code, hosted-provider routing, runtime failover
-policy, or tool-availability policy changes are included in this candidate.
+policy, or tool-availability policy changes are included in this release.
 Uvicorn 0.52.4 and all other dependency updates remain outside scope. The
 pre-existing escaped text encoding defects in `server.json` are also unchanged
 and remain a separately reviewed cleanup.
 
-- **Version surfaces:** candidate runtime `0.5.61`; candidate MCP Registry
+- **Version surfaces:** runtime `0.5.61`; MCP Registry
   manifest `3.38.0`.
 - **Deployed truth surfaces:** `README.md` and `SERVER_STATUS.md` deliberately
   remain at v0.5.60 until deployment evidence exists.

@@ -1,8 +1,8 @@
 # VerifiMind-PEAS Server Status
 
-**Last updated:** August 18, 2026
+**Last updated:** August 19, 2026
 
-**Evidence cutoff:** v0.5.60 release verification completed August 18, 2026
+**Evidence cutoff:** v0.5.61 release verification completed August 18, 2026 (21:02–21:50 UTC)
 
 **Status authority:** this dated operational snapshot; release history lives in
 [`CHANGELOG.md`](CHANGELOG.md) and [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases).
@@ -11,14 +11,14 @@
 
 | Surface | Verified state |
 |---|---|
-| Application | **v0.5.60**, verified by the release smoke described below |
-| Public merge | [`41d3187672d7350b35b2f5084918db805971801c`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/41d3187672d7350b35b2f5084918db805971801c) |
-| Reviewed candidate | `1c2f56a67afc8f3c865a9956925e6f669d0b281e` (T TECHNICAL PASS after four exact-head review rounds, S135–S139) |
-| Reviewed base | `d7396c71c65a3e2a15ae7fb441d646aaf4ec5a45` |
-| Cloud Build | `d7dd84c2-053f-4e06-85d6-c0df5ad2d9cc` — **SUCCESS**, completed 2026-08-18T07:44Z, source bound to the merge SHA |
-| Serving revision | **`verifimind-mcp-server-00494-qr9`** at 100% traffic |
-| Rollback target | `d7396c71c65a3e2a15ae7fb441d646aaf4ec5a45` (v0.5.59 tree), captured and unused |
-| MCP Registry package | **3.37.0** — publish workflow succeeded; live registry serves 3.37.0 with the v0.5.60 description |
+| Application | **v0.5.61**, verified by the release smoke described below |
+| Public merge | [`ba02fd0262ff91fb9452d2f025ee7e7cb7c59fea`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/ba02fd0262ff91fb9452d2f025ee7e7cb7c59fea) |
+| Reviewed candidate | `fa6a35aafc2f4c9e7a33aa8f4ccfca9a3fe9a1ae` (T TECHNICAL RELEASE PASS, S141 — identity executed by T on Alton's bounded authorization) |
+| Reviewed base | `f289f2796da1f7ed95fcf72a1abdd25d57f63c63` |
+| Cloud Build | `82444203-10d0-4e79-a11b-f8d7ce3ecc76` — **SUCCESS**, completed 2026-08-18T21:02Z, source bound to the merge SHA |
+| Serving revision | **`verifimind-mcp-server-00495-whr`** at 100% traffic |
+| Rollback target | `f289f2796da1f7ed95fcf72a1abdd25d57f63c63` (v0.5.60 tree), captured and unused |
+| MCP Registry package | **3.38.0** — publish workflow succeeded; live registry serves 3.38.0 with the v0.5.61 description |
 | Tool inventory | **13 defined / 8 active / 5 temporarily unavailable** |
 | Firestore | Connected during verified post-deploy health checks |
 | Runtime failover | `runtime_failover_enabled: false` |
@@ -29,32 +29,28 @@
 
 ## Release verification
 
-- [Public PR #331](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/331)
-  merged the exact T-reviewed head into the exact public base; no unreviewed
+- [Public PR #338](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/338)
+  merged the exact T-PASSED head into the exact public base; no unreviewed
   product commit was included.
-- Review chain at exact SHAs: four independent T review rounds (S135–S139),
-  each contributing exact-head counterexamples now pinned by **eight
-  discriminating regressions** (each set fails at its parent head and passes
-  repaired). T TECHNICAL PASS at the merged head. Human merge and deployment
-  authorization: recorded before execution.
-- CI at the reviewed head: 10/10 checks; the production-image job proved
-  Python 3.12.12 with exact pins and non-vacuous runtime receipts; the test
-  job proved 1,248 passed / 3 skipped / 0 failed.
-- Post-deploy smoke: every version surface (`/health`, server-card, `/mcp/`
-  serverInfo) reports v0.5.60; `/health` is served with `Cache-Control:
-  no-store`; live Trinity **X/Z/CS = real/real/real** with the quality gate
-  passed and both token monitors (`_z_token_monitor`, `_cs_token_monitor`)
-  reporting live values.
-- **The completion retry executed in production during the smoke:** a
-  rate-limited Z stage slept the provider-stated 7.5 seconds, re-executed,
-  and recovered — disclosed in `_stage_retries` — while a CS truncation on
-  the same run was correctly NOT retried (no provider-stated wait) and
-  degraded honestly per-stage. Run-lifecycle events (`trinity_run_started` /
-  `trinity_run_completed`, exactly once per run) are live: the production
-  completion rate is measurable for the first time.
-- [GitHub Release v0.5.60](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.60)
+- Chain at exact SHAs: RNA current-main rebind (`27d76b3`, receipts bound to
+  synthetic `8750ec74`) → T acceptance of the dependency graph → Alton's
+  bounded identity authorization → T-executed identity commit → **T TECHNICAL
+  RELEASE PASS at `fa6a35aa`** → human merge and deployment by the project
+  owner. Framework deltas only (FastMCP 3.4.7, Starlette 1.6.0, Uvicorn
+  0.52.3); no VerifiMind application code or policy changed.
+- CI at the reviewed head: 10/10 checks; production-image job proved Python
+  3.12.12 with 7/7 exact in-image pins and non-vacuous runtime receipts; test
+  job proved `pip check` clean, 7/7 installed pins, 1,248 passed / 3 skipped /
+  0 failed.
+- Post-deploy smoke: `/health` 0.5.61 with `Cache-Control: no-store`; live
+  Trinity **X/Z/CS = real/real/real** with the quality gate passed and both
+  token monitors live. An earlier smoke leg recorded the completion retry's
+  **second production recovery** (rate-limited Z, provider-stated 4.5s wait,
+  recovered) and one CS truncation at the known ~1/day intermittent rate,
+  correctly not retried.
+- [GitHub Release v0.5.61](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.61)
   resolves to the exact production merge and triggered the successful MCP
-  Registry publish.
+  Registry publish (3.38.0, API-verified).
 
 ## Availability
 
