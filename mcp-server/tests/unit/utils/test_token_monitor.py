@@ -4,6 +4,7 @@ import pytest
 from verifimind_mcp.utils.token_monitor import (
     check_z_agent_response,
     is_z_response_safe,
+    unavailable_agent_token_monitor,
     Z_AGENT_CEILING,
     RISK_HIGH_THRESHOLD,
     RISK_MEDIUM_THRESHOLD,
@@ -21,6 +22,8 @@ def test_token_monitor_exists_and_returns_required_fields():
     assert "truncated" in result
     assert result["token_count"] == 4450
     assert result["ceiling"] == Z_AGENT_CEILING
+    assert result["configured_ceiling"] == Z_AGENT_CEILING
+    assert result["ceiling_source"] == "agent_config"
 
 
 @pytest.mark.unit
@@ -70,3 +73,123 @@ def test_token_monitor_truncation_guard():
     assert zero["risk_level"] == "LOW"
     assert zero["truncated"] is False
     assert zero["utilization"] == "0.0%"
+
+
+@pytest.mark.unit
+def test_effective_provider_budget_scales_risk_thresholds():
+    high = check_z_agent_response(
+        output_tokens=2600,
+        ceiling=2700,
+        configured_ceiling=8192,
+    )
+    critical = check_z_agent_response(
+        output_tokens=2700,
+        ceiling=2700,
+        configured_ceiling=8192,
+    )
+
+    assert high == {
+        "token_count": 2600,
+        "ceiling": 2700,
+        "configured_ceiling": 8192,
+        "ceiling_source": "provider_completion_reservation",
+        "utilization": "96.3%",
+        "risk_level": "HIGH",
+        "truncated": False,
+    }
+    assert critical["risk_level"] == "CRITICAL"
+    assert critical["truncated"] is True
+    assert is_z_response_safe(2600, ceiling=2700) is False
+
+
+@pytest.mark.unit
+def test_default_threshold_equalities_preserve_the_legacy_contract():
+    assert check_z_agent_response(5500)["risk_level"] == "LOW"
+    assert check_z_agent_response(7000)["risk_level"] == "MEDIUM"
+    assert is_z_response_safe(7000) is True
+
+
+@pytest.mark.unit
+def test_truncation_failure_uses_bounded_provider_metadata_only():
+    exc = ValueError("Groq response truncated before completion")
+    exc._completion_token_reservation = 2700
+    exc._provider_reported_output_tokens = 2700
+
+    monitor = unavailable_agent_token_monitor(
+        configured_ceiling=8192,
+        exc=exc,
+        truncated=True,
+    )
+
+    assert monitor == {
+        "token_count": 2700,
+        "ceiling": 2700,
+        "configured_ceiling": 8192,
+        "ceiling_source": "provider_completion_reservation",
+        "utilization": "100.0%",
+        "risk_level": "CRITICAL",
+        "truncated": True,
+    }
+
+
+@pytest.mark.unit
+def test_failure_without_a_sent_request_never_invents_an_effective_ceiling():
+    monitor = unavailable_agent_token_monitor(
+        configured_ceiling=8192,
+        exc=ValueError("preflight failure"),
+    )
+
+    assert monitor == {
+        "token_count": None,
+        "ceiling": None,
+        "configured_ceiling": 8192,
+        "ceiling_source": "unknown",
+        "utilization": None,
+        "risk_level": "UNAVAILABLE",
+        "truncated": None,
+    }
+
+
+@pytest.mark.unit
+def test_wrapped_failure_reads_only_the_bounded_numeric_cause_metadata():
+    cause = ValueError("provider body must never be reflected")
+    cause._completion_token_reservation = 2450
+    wrapper = RuntimeError("wrapper")
+    wrapper.__cause__ = cause
+
+    monitor = unavailable_agent_token_monitor(
+        configured_ceiling=8192,
+        exc=wrapper,
+    )
+
+    assert monitor["ceiling"] == 2450
+    assert monitor["token_count"] is None
+    assert monitor["ceiling_source"] == "provider_completion_reservation"
+
+
+@pytest.mark.unit
+def test_wrapped_failover_truncation_remains_critical():
+    from verifimind_mcp.llm.failover import FailoverTerminalError
+
+    cause = ValueError("Groq response truncated before completion")
+    cause._completion_token_reservation = 2700
+    cause._provider_reported_output_tokens = 2700
+    cause._provider_output_truncated = True
+    wrapper = FailoverTerminalError(
+        "hosted provider groq terminal failure (invalid_request)",
+        [{"provider": "groq", "model": "groq/test", "outcome_class": "invalid_request"}],
+        "invalid_request",
+        "abcd1234",
+        final_provider="groq",
+    )
+    wrapper.__cause__ = cause
+
+    monitor = unavailable_agent_token_monitor(
+        configured_ceiling=8192,
+        exc=wrapper,
+    )
+
+    assert monitor["ceiling"] == 2700
+    assert monitor["token_count"] == 2700
+    assert monitor["risk_level"] == "CRITICAL"
+    assert monitor["truncated"] is True

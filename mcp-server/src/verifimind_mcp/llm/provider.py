@@ -633,6 +633,39 @@ _ANTHROPIC_TRUNCATION_STOP_REASONS = frozenset({
 _GROQ_TRUNCATION_FINISH_REASONS = frozenset({"length"})
 
 
+def _attach_completion_telemetry(
+    exc: Exception,
+    *,
+    reservation: Optional[int],
+    output_tokens: Optional[int] = None,
+) -> None:
+    """Attach bounded numeric request metadata without wrapping provider errors."""
+    fields = {
+        "_completion_token_reservation": reservation,
+        "_provider_reported_output_tokens": output_tokens,
+    }
+    for name, value in fields.items():
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            continue
+        try:
+            setattr(exc, name, value)
+        except Exception:
+            # Some third-party exception classes disallow new attributes. The
+            # original exception contract is more important than telemetry.
+            pass
+
+
+def _safe_usage_token_count(usage: Any, field: str) -> Optional[int]:
+    """Read one non-negative SDK usage counter without affecting verdicts."""
+    try:
+        value = getattr(usage, field, None)
+    except Exception:
+        return None
+    if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+        return value
+    return None
+
+
 def _thinking_aware_max_tokens(model: str, requested: int) -> int:
     """Add a thinking allowance so `requested` remains available for the ANSWER.
 
@@ -665,11 +698,15 @@ def _raise_if_anthropic_truncated(stop_reason: str | None, model: str) -> None:
 def _raise_if_groq_truncated(finish_reason: str | None, model: str) -> None:
     """Reject OpenAI-compatible Groq responses cut off at the token ceiling."""
     if finish_reason in _GROQ_TRUNCATION_FINISH_REASONS:
-        raise ValueError(
+        exc = ValueError(
             "Groq response truncated before completion "
             f"(model={model}, finish_reason={finish_reason}). The answer is "
             "incomplete and must not be parsed as a complete Trinity stage."
         )
+        # Privacy-safe semantic marker survives typed failover wrappers via
+        # their cause chain; the public stage-error contract stays unchanged.
+        exc._provider_output_truncated = True
+        raise exc
 
 
 def _first_text_block(blocks) -> str:
@@ -1296,6 +1333,7 @@ class GroqProvider(LLMProvider):
         # v0.5.55: Groq admission is input + completion, not completion alone.
         max_tokens = _groq_8k_tpm_max_tokens(self.model, messages, max_tokens)
 
+        reported_output_tokens = None
         try:
             try:
                 response = await self.client.chat.completions.create(
@@ -1328,17 +1366,34 @@ class GroqProvider(LLMProvider):
                 )
 
             choice = response.choices[0]
-            _raise_if_groq_truncated(
-                getattr(choice, "finish_reason", None), self.model
-            )
-            content = choice.message.content
+            finish_reason = getattr(choice, "finish_reason", None)
 
-            # Extract token usage
+            # Usage is optional provider metadata. A missing/partial usage
+            # object must never outrank an authoritative truncation verdict.
+            try:
+                response_usage = getattr(response, "usage", None)
+            except Exception:
+                response_usage = None
+            input_tokens = _safe_usage_token_count(
+                response_usage, "prompt_tokens"
+            )
+            reported_output_tokens = _safe_usage_token_count(
+                response_usage, "completion_tokens"
+            )
+            total_tokens = _safe_usage_token_count(
+                response_usage, "total_tokens"
+            )
             usage = {
-                "input_tokens": response.usage.prompt_tokens if hasattr(response, 'usage') else 0,
-                "output_tokens": response.usage.completion_tokens if hasattr(response, 'usage') else 0,
-                "total_tokens": response.usage.total_tokens if hasattr(response, 'usage') else 0
+                "input_tokens": input_tokens if input_tokens is not None else 0,
+                "output_tokens": (
+                    reported_output_tokens
+                    if reported_output_tokens is not None
+                    else 0
+                ),
+                "total_tokens": total_tokens if total_tokens is not None else 0,
             }
+            _raise_if_groq_truncated(finish_reason, self.model)
+            content = choice.message.content
 
             # v0.4.4: Same robust extraction pipeline as GeminiProvider
             expected_fields = []
@@ -1423,9 +1478,15 @@ class GroqProvider(LLMProvider):
                 "_inference_quality": inference_quality,
                 "_schema_repaired_fields": repaired_fields,
                 "_schema_incomplete_fields": quality_incomplete_fields,
+                "_completion_token_reservation": max_tokens,
             }
 
         except Exception as e:
+            _attach_completion_telemetry(
+                e,
+                reservation=max_tokens,
+                output_tokens=reported_output_tokens,
+            )
             _log_provider_exception("Groq", "API request", e)
             raise
 

@@ -113,6 +113,7 @@ async def test_groq_generate_admits_measured_cs_orchestrated_shape(monkeypatch):
     assert result["content"]["ok"] is True
     assert GROQ_MIN_COMPLETION_TOKENS <= captured["max_tokens"] < GROQ_8K_TPM_COMPLETION_CAP
     assert 4794 + captured["max_tokens"] <= GROQ_8K_TPM_LIMIT
+    assert result["_completion_token_reservation"] == captured["max_tokens"]
 
 
 @pytest.mark.asyncio
@@ -124,8 +125,42 @@ async def test_groq_generate_rejects_token_ceiling_truncation(monkeypatch):
         return_value=_groq_response('{"ok": true', finish_reason="length")
     )
 
-    with pytest.raises(ValueError, match="Groq response truncated"):
+    with pytest.raises(ValueError, match="Groq response truncated") as raised:
         await provider.generate("probe", max_tokens=1024)
+
+    assert raised.value._completion_token_reservation == 1024
+    assert raised.value._provider_reported_output_tokens == 5
+    assert raised.value._provider_output_truncated is True
+    assert "probe" not in str(raised.value)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("usage", [None, type("PartialUsage", (), {
+    "completion_tokens": 7,
+})()])
+async def test_truncation_verdict_survives_missing_or_partial_usage(
+    monkeypatch, usage
+):
+    from verifimind_mcp.utils.provider_failures import provider_failure_contract
+
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_test")
+    provider = GroqProvider(model="openai/gpt-oss-120b")
+    provider.client = MagicMock()
+    response = _groq_response('{"partial": true', finish_reason="length")
+    response.usage = usage
+    provider.client.chat.completions.create = AsyncMock(return_value=response)
+
+    with pytest.raises(ValueError, match="Groq response truncated") as raised:
+        await provider.generate("probe", max_tokens=1024)
+
+    assert provider_failure_contract(raised.value)["error_code"] == (
+        "PROVIDER_OUTPUT_TRUNCATED"
+    )
+    assert raised.value._completion_token_reservation == 1024
+    if usage is None:
+        assert not hasattr(raised.value, "_provider_reported_output_tokens")
+    else:
+        assert raised.value._provider_reported_output_tokens == 7
 
 
 def test_budget_keeps_safety_margin_against_local_estimate():
@@ -276,10 +311,59 @@ async def test_production_path_retries_exactly_once_then_succeeds():
         provider = GroqProvider(model="openai/gpt-oss-120b", api_key="test-key")
     provider.client = type("Cl", (), {"chat": type("Ch", (), {"completions": _Completions()})()})()
 
-    await provider.generate("hello", max_tokens=4096)
+    result = await provider.generate("hello", max_tokens=4096)
 
     assert len(calls) == 2, f"expected exactly one retry, saw {len(calls)} calls"
     assert 6000 + calls[1] <= 8000, "retry budget must fit the provider limit"
+    assert result["_completion_token_reservation"] == calls[1]
+
+
+@pytest.mark.asyncio
+async def test_retry_then_truncation_reports_the_second_request_budget():
+    """The rejected first reservation must never masquerade as the live ceiling."""
+    import os
+    from unittest.mock import patch
+
+    calls = []
+
+    class _Completions:
+        async def create(self, **kwargs):
+            calls.append(kwargs["max_tokens"])
+            if len(calls) == 1:
+                raise _tpm_error(6000 + kwargs["max_tokens"], limit=8000)
+            return _groq_response(
+                '{"partial": true',
+                prompt_tokens=6000,
+                completion_tokens=kwargs["max_tokens"],
+                finish_reason="length",
+            )
+
+    with patch.dict(os.environ, {"GROQ_API_KEY": "test-key"}):
+        provider = GroqProvider(model="openai/gpt-oss-120b", api_key="test-key")
+    provider.client = type(
+        "Cl", (), {"chat": type("Ch", (), {"completions": _Completions()})()}
+    )()
+
+    with pytest.raises(ValueError, match="Groq response truncated") as raised:
+        await provider.generate("hello", max_tokens=4096)
+
+    assert len(calls) == 2
+    assert raised.value._completion_token_reservation == calls[1]
+    assert raised.value._provider_reported_output_tokens == calls[1]
+    assert raised.value._completion_token_reservation != calls[0]
+
+
+@pytest.mark.asyncio
+async def test_preflight_rejection_does_not_invent_a_sent_reservation(monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "gsk_test")
+    provider = GroqProvider(model="openai/gpt-oss-120b")
+    provider.client = MagicMock()
+
+    with pytest.raises(ValueError, match="not admissible") as raised:
+        await provider.generate("x" * 30000, max_tokens=4096)
+
+    assert not hasattr(raised.value, "_completion_token_reservation")
+    provider.client.chat.completions.create.assert_not_called()
 
 
 @pytest.mark.asyncio
