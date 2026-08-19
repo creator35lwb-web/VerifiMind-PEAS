@@ -49,8 +49,8 @@ and remain a separately reviewed cleanup.
 
 - **Version surfaces:** runtime `0.5.61`; MCP Registry
   manifest `3.38.0`.
-- **Deployed truth surfaces:** `README.md` and `SERVER_STATUS.md` deliberately
-  remain at v0.5.60 until deployment evidence exists.
+- **Deployed truth surfaces:** `README.md` and `SERVER_STATUS.md` are bound to
+  the exact merge, build, serving revision, smoke, and Registry receipts above.
 
 ## v0.5.60 - Trinity Completion (August 17, 2026)
 
