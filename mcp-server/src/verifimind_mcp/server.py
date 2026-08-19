@@ -1416,9 +1416,6 @@ def _create_mcp_instance():
                 check_z_agent_response,
                 unavailable_agent_token_monitor,
             )
-            z_token_monitor = unavailable_agent_token_monitor(
-                configured_ceiling=Z_AGENT_CEILING
-            )
             try:
                 # v0.5.60 gate audit: prior assembly lives INSIDE the stage
                 # gate — a failure here degrades this stage instead of
@@ -1510,10 +1507,7 @@ def _create_mcp_instance():
                 )
             # v0.5.60 (P3-B): CS gets the same token-ceiling instrumentation Z
             # has had since v0.5.3 — CS has truncated in production with no
-            # monitor. UNAVAILABLE default mirrors the Z monitor's failure shape.
-            cs_token_monitor = unavailable_agent_token_monitor(
-                configured_ceiling=CS_AGENT_CEILING
-            )
+            # monitor. Failure handling mirrors the Z monitor's UNAVAILABLE shape.
             try:
                 # v0.5.60 gate audit: prior assembly inside the stage gate
                 # (see Z-stage note).
