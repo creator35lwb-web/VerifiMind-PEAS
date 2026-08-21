@@ -210,6 +210,10 @@ async def test_z_rate_limit_preserves_x_runs_cs_and_withholds_aggregate(
     assert payload["_stage_retries"]["Z"]["outcome"] == "failed_again"
     assert payload["_stage_retries"]["Z"]["on_error_code"] == "PROVIDER_RATE_LIMITED"
     assert payload["_z_token_monitor"]["risk_level"] == "UNAVAILABLE"
+    assert payload["_z_token_monitor"]["ceiling"] is None
+    assert payload["_z_token_monitor"]["configured_ceiling"] == 8192
+    assert payload["_z_token_monitor"]["ceiling_source"] == "unknown"
+    assert payload["_z_token_monitor"]["truncated"] is None
 
     stderr = capsys.readouterr().err
     assert "SENSITIVE-PROVIDER-BODY" not in stderr
@@ -241,6 +245,60 @@ async def test_z_rate_limit_preserves_x_runs_cs_and_withholds_aggregate(
     assert completed[0]["agents_failed"] == ["Z"]
     assert completed[0]["retried_stages"] == ["Z"]
     assert completed[0]["session_id"] == started[0]["session_id"]
+
+
+@pytest.mark.asyncio
+async def test_cs_truncation_monitor_reports_the_actual_provider_reservation(
+    app, monkeypatch
+):
+    x_result, z_result, _ = _real_results()
+    providers = {
+        "X": _NamedProvider("gemini/gemini-3.5-flash-lite"),
+        "Z": _NamedProvider("gemini/gemini-3.5-flash-lite"),
+        "CS": _NamedProvider("groq/openai/gpt-oss-120b"),
+    }
+    monkeypatch.setattr(
+        config_helper, "get_agent_provider",
+        lambda agent_id, _ctx=None: providers[agent_id],
+    )
+
+    async def x_analyze(_self, _concept, _prior=None, _metrics=None):
+        return x_result
+
+    async def z_analyze(_self, _concept, _prior=None, _metrics=None):
+        return z_result
+
+    async def cs_analyze(_self, _concept, _prior=None, _metrics=None):
+        exc = ValueError(
+            "Groq response truncated before completion "
+            "(model=openai/gpt-oss-120b, finish_reason=length)."
+        )
+        exc._completion_token_reservation = 2700
+        exc._provider_reported_output_tokens = 2700
+        raise exc
+
+    monkeypatch.setattr(XAgent, "analyze", x_analyze)
+    monkeypatch.setattr(ZAgent, "analyze", z_analyze)
+    monkeypatch.setattr(CSAgent, "analyze", cs_analyze)
+    monkeypatch.setattr(server, "persist_trinity_result", lambda *args, **kwargs: None)
+
+    payload = await call(app, "run_full_trinity", {
+        "concept_name": "Effective budget probe",
+        "concept_description": "Verify bounded completion telemetry.",
+        "save_to_history": False,
+    })
+
+    assert payload["_stage_errors"]["CS"]["error_code"] == "PROVIDER_OUTPUT_TRUNCATED"
+    assert "completion_token_reservation" not in payload["_stage_errors"]["CS"]
+    assert payload["_cs_token_monitor"] == {
+        "token_count": 2700,
+        "ceiling": 2700,
+        "configured_ceiling": 8192,
+        "ceiling_source": "provider_completion_reservation",
+        "utilization": "100.0%",
+        "risk_level": "CRITICAL",
+        "truncated": True,
+    }
 
 
 def test_truncation_has_typed_trace_and_never_reflects_provider_body(capsys):

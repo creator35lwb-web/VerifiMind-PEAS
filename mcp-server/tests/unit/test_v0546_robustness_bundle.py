@@ -20,6 +20,7 @@ from verifimind_mcp.config_helper import create_ephemeral_provider
 from verifimind_mcp.agents.base_agent import GROQ_SAFE_MAX_OUTPUT_TOKENS
 from verifimind_mcp.agents import XAgent
 from verifimind_mcp.llm import MockProvider, GroqProvider, AnthropicProvider
+from verifimind_mcp.models import Concept
 
 
 # --- 1. Provider-format normalization (D-AZ-0618-1) -------------------------
@@ -84,3 +85,38 @@ def test_monitor_flags_truncation_at_ceiling():
     m = check_z_agent_response(8192)
     assert m["risk_level"] == "CRITICAL"
     assert m["truncated"] is True
+
+
+@pytest.mark.asyncio
+async def test_base_agent_propagates_provider_completion_reservation():
+    class _ReservationProvider:
+        def get_model_name(self):
+            return "groq/test-model"
+
+        async def generate(self, **_kwargs):
+            return {
+                "content": {
+                    "reasoning_steps": [{
+                        "step_number": 1,
+                        "thought": "Bounded analysis.",
+                        "confidence": 0.9,
+                    }],
+                    "innovation_score": 8.0,
+                    "strategic_value": 7.5,
+                    "opportunities": ["Opportunity"],
+                    "risks": ["Risk"],
+                    "recommendation": "Proceed carefully.",
+                    "confidence": 0.8,
+                },
+                "usage": {"output_tokens": 2600},
+                "_inference_quality": "real",
+                "_completion_token_reservation": 2700,
+            }
+
+    result = await XAgent(llm_provider=_ReservationProvider()).analyze(Concept(
+        name="Reservation propagation",
+        description="Verify private provider telemetry reaches the result.",
+    ))
+
+    assert result._output_tokens == 2600
+    assert result._completion_token_reservation == 2700

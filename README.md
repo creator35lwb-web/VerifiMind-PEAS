@@ -178,14 +178,14 @@ Our contribution: **productization quality**, **MCP integration path**, **multi-
 
 - **Server:** `v0.5.61` — [verifimind.ysenseai.org](https://verifimind.ysenseai.org) · [/health](https://verifimind.ysenseai.org/health)
 - **Landing Page:** [verifimind.io](https://verifimind.io)
-- **Release:** merge [`3019f5c4`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/3019f5c4889d8334063d4a2d9243e87d96fc93a8) · Cloud Build `be6ed621` · post-deploy smoke **31/0/0**
+- **Release:** merge [`ba02fd02`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/ba02fd0262ff91fb9452d2f025ee7e7cb7c59fea) · Cloud Build `82444203-10d0-4e79-a11b-f8d7ce3ecc76` · revision `verifimind-mcp-server-00495-whr` · post-deploy Trinity **X/Z/CS = real/real/real**
 - **Tools:** 13 defined / 8 active / 5 temporarily unavailable (all remain free)
 - **Providers:** 6 remote BYOK catalogues (Gemini · Anthropic · OpenAI · Groq · Cerebras · Mistral) plus caller-managed local Ollama
 - **Hosted routing:** X = Gemini `gemini-3.5-flash-lite`; Z/CS = Groq `openai/gpt-oss-120b`
 - **Runtime provider failover:** disabled (`runtime_failover_enabled: false`)
-- **MCP Registry package:** `3.35.0`
+- **MCP Registry package:** `3.38.0`
 
-For live release history, see [`/changelog`](https://verifimind.ysenseai.org/changelog). We deliberately do not display unaudited "total users" numbers because bot, scanner, and development traffic can distort them. Exact deployment provenance and the currently unavailable serving-revision field are documented in [SERVER_STATUS.md](SERVER_STATUS.md).
+For live release history, see [`/changelog`](https://verifimind.ysenseai.org/changelog). We deliberately do not display unaudited "total users" numbers because bot, scanner, and development traffic can distort them. Exact deployment provenance and the full dated operational snapshot are documented in [SERVER_STATUS.md](SERVER_STATUS.md).
 
 ---
 

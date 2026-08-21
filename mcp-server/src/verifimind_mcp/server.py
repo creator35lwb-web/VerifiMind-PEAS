@@ -43,13 +43,14 @@ from verifimind_mcp.utils.provider_failures import (
 )
 from verifimind_mcp.llm.failover import FailoverExhaustedError, FailoverTerminalError
 from verifimind_mcp.availability import system_notice_is_compatible
+from verifimind_mcp.middleware.tool_invocation import ToolInvocationTelemetry
 
 # Initialize logger for security events
 logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 _RAW_SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.5.61"
+SERVER_VERSION = "0.5.62"
 
 # Agent role names + master prompt filename — single source of truth.
 # (SonarCloud P2 batch-2: extracted in v0.5.39 from 13 dup-literal occurrences
@@ -681,6 +682,9 @@ def _create_mcp_instance():
     """
     # Initialize MCP server
     app = FastMCP("verifimind-genesis", version=SERVER_VERSION)
+    # v0.5.62: one name-only event at the outer tools/call boundary. Register
+    # first so future internal retries or handler middleware cannot multiply it.
+    app.add_middleware(ToolInvocationTelemetry())
 
     # ===== RESOURCES =====
 
@@ -1405,14 +1409,13 @@ def _create_mcp_instance():
                 x_cot = None
 
             # Step 2: Z Agent analysis (sees X's reasoning)
-            from .utils import check_z_agent_response
-            z_token_monitor = {
-                "token_count": None,
-                "ceiling": 8192,
-                "utilization": None,
-                "risk_level": "UNAVAILABLE",
-                "truncated": None,
-            }
+            from .utils import (
+                CS_AGENT_CEILING,
+                Z_AGENT_CEILING,
+                check_cs_agent_response,
+                check_z_agent_response,
+                unavailable_agent_token_monitor,
+            )
             try:
                 # v0.5.60 gate audit: prior assembly lives INSIDE the stage
                 # gate — a failure here degrades this stage instead of
@@ -1437,7 +1440,20 @@ def _create_mcp_instance():
 
                 # v0.5.3 Token Ceiling Monitor — Strategy 3
                 z_output_tokens = getattr(z_result, '_output_tokens', 0)
-                z_token_monitor = check_z_agent_response(z_output_tokens)
+                z_effective_ceiling = getattr(
+                    z_result, '_completion_token_reservation', None
+                )
+                if (
+                    not isinstance(z_effective_ceiling, int)
+                    or isinstance(z_effective_ceiling, bool)
+                    or z_effective_ceiling <= 0
+                ):
+                    z_effective_ceiling = Z_AGENT_CEILING
+                z_token_monitor = check_z_agent_response(
+                    z_output_tokens,
+                    ceiling=z_effective_ceiling,
+                    configured_ceiling=Z_AGENT_CEILING,
+                )
                 if z_token_monitor["risk_level"] in ("HIGH", "CRITICAL"):
                     logger.warning(
                         "Z Agent token ceiling risk: %s (%s/%s) risk=%s",
@@ -1463,6 +1479,16 @@ def _create_mcp_instance():
                     byok=byok_status["Z"],
                     session_id=session.session_id,
                 )
+                z_token_monitor = unavailable_agent_token_monitor(
+                    configured_ceiling=Z_AGENT_CEILING,
+                    exc=e,
+                    truncated=(
+                        True
+                        if stage_errors["Z"]["error_code"]
+                        == "PROVIDER_OUTPUT_TRUNCATED"
+                        else None
+                    ),
+                )
                 z_quality = "unavailable"
                 chain_status["z_agent"] = z_quality
                 z_cot = None
@@ -1481,15 +1507,7 @@ def _create_mcp_instance():
                 )
             # v0.5.60 (P3-B): CS gets the same token-ceiling instrumentation Z
             # has had since v0.5.3 — CS has truncated in production with no
-            # monitor. UNAVAILABLE default mirrors the Z monitor's failure shape.
-            from .utils import check_cs_agent_response
-            cs_token_monitor = {
-                "token_count": None,
-                "ceiling": 8192,
-                "utilization": None,
-                "risk_level": "UNAVAILABLE",
-                "truncated": None,
-            }
+            # monitor. Failure handling mirrors the Z monitor's UNAVAILABLE shape.
             try:
                 # v0.5.60 gate audit: prior assembly inside the stage gate
                 # (see Z-stage note).
@@ -1513,7 +1531,20 @@ def _create_mcp_instance():
                     session.session_id,
                 )
                 cs_output_tokens = getattr(cs_result, '_output_tokens', 0)
-                cs_token_monitor = check_cs_agent_response(cs_output_tokens)
+                cs_effective_ceiling = getattr(
+                    cs_result, '_completion_token_reservation', None
+                )
+                if (
+                    not isinstance(cs_effective_ceiling, int)
+                    or isinstance(cs_effective_ceiling, bool)
+                    or cs_effective_ceiling <= 0
+                ):
+                    cs_effective_ceiling = CS_AGENT_CEILING
+                cs_token_monitor = check_cs_agent_response(
+                    cs_output_tokens,
+                    ceiling=cs_effective_ceiling,
+                    configured_ceiling=CS_AGENT_CEILING,
+                )
                 if cs_token_monitor["risk_level"] in ("HIGH", "CRITICAL"):
                     logger.warning(
                         "CS Agent token ceiling risk: %s (%s/%s) risk=%s",
@@ -1533,6 +1564,16 @@ def _create_mcp_instance():
                     exc=e,
                     byok=byok_status["CS"],
                     session_id=session.session_id,
+                )
+                cs_token_monitor = unavailable_agent_token_monitor(
+                    configured_ceiling=CS_AGENT_CEILING,
+                    exc=e,
+                    truncated=(
+                        True
+                        if stage_errors["CS"]["error_code"]
+                        == "PROVIDER_OUTPUT_TRUNCATED"
+                        else None
+                    ),
                 )
                 cs_quality = "unavailable"
                 chain_status["cs_agent"] = cs_quality

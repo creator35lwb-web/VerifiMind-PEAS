@@ -164,6 +164,7 @@ class BaseAgent(ABC):
         # providers (all BYOK/Ollama/override/mock) or with the runtime flag
         # off, this is a plain delegated provider.generate() call.
         from ..llm.failover import generate_with_failover
+        completion_token_reservation = None
         try:
             response = await generate_with_failover(
                 self.llm,
@@ -184,6 +185,13 @@ class BaseAgent(ABC):
                 schema_incomplete_fields = response.get(
                     "_schema_incomplete_fields", []
                 )
+                raw_reservation = response.get("_completion_token_reservation")
+                if (
+                    isinstance(raw_reservation, int)
+                    and not isinstance(raw_reservation, bool)
+                    and raw_reservation > 0
+                ):
+                    completion_token_reservation = raw_reservation
             else:
                 # Backward compatibility: response is content directly
                 content = response
@@ -232,6 +240,8 @@ class BaseAgent(ABC):
             # `_output_tokens` was never populated → the monitor always saw 0 and never
             # fired, masking truncation since v0.5.3.
             result._output_tokens = usage.get("output_tokens", 0) if usage else 0
+            if completion_token_reservation is not None:
+                result._completion_token_reservation = completion_token_reservation
 
             # Update metrics if provided
             if metrics:
@@ -248,6 +258,13 @@ class BaseAgent(ABC):
             return result
             
         except Exception as exc:
+            if completion_token_reservation is not None:
+                try:
+                    exc._completion_token_reservation = completion_token_reservation
+                except Exception:
+                    # Preserve third-party validation exception semantics if
+                    # its type does not permit telemetry attributes.
+                    pass
             # Preserve the original exception for the public error boundary.
             # Do not log-and-reraise here: provider errors may contain model content.
             if metrics:

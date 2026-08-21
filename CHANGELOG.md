@@ -19,6 +19,45 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.62 - Observability Truth (August 21, 2026)
+
+**RELEASE CANDIDATE — PR #340 remains open and draft. This version has not
+been merged or deployed; v0.5.61 remains the live production release.** A
+bounded post-deploy truth conversion will replace this status only after an
+authorized merge, deployment, and smoke-test receipt.
+
+This observability candidate makes tool activation and completion budgets
+measurable without changing any validation behavior:
+
+- **`tool_invoked` run-lifecycle event** — a name-only, allowlisted event
+  emitted at the `tools/call` boundary, so per-tool activation frequency is
+  countable from structured logs for the first time. Unknown or unlisted
+  names are never echoed; no arguments, payloads, or user content are logged.
+- **Effective-budget token monitors** — Z and CS token monitors now report
+  the provider-effective completion reservation as `ceiling` while preserving
+  `configured_ceiling` and disclosing `ceiling_source`, so an admission-clamped
+  budget (the v0.5.61 truncation mechanism) is visible instead of masked.
+  When a stage makes no provider call, the monitor reports a null ceiling
+  rather than inventing one.
+- **v0.5.61 release-receipt repair** — `README.md`/`CHANGELOG.md` receipts
+  corrected to the deployed evidence and the public docs contract (280 checks)
+  now rejects the prior merge/build/Registry identities.
+- **`server.json` encoding repair** — the four double-encoded tool
+  descriptions (escaped em-dash/arrow sequences rendering as mojibake on the
+  MCP Registry) restored to the intended characters, riding this Registry
+  manifest change.
+
+No hosted-provider routing, runtime failover policy, provider catalogue,
+tool-availability policy, or dependency changes are included. The Trinity
+validation pipeline's behavior is unchanged; this release only measures it.
+
+- **Version surfaces:** candidate runtime `0.5.62`; candidate MCP Registry
+  manifest `3.39.0`.
+- **Deployed truth surfaces:** `README.md` and `SERVER_STATUS.md` deliberately
+  remain at v0.5.61 until deployment evidence exists.
+
+---
+
 ## v0.5.61 - Framework Maintenance (August 18, 2026)
 
 **DEPLOYED.** Production deployment is bound to merge commit
@@ -49,8 +88,8 @@ and remain a separately reviewed cleanup.
 
 - **Version surfaces:** runtime `0.5.61`; MCP Registry
   manifest `3.38.0`.
-- **Deployed truth surfaces:** `README.md` and `SERVER_STATUS.md` deliberately
-  remain at v0.5.60 until deployment evidence exists.
+- **Deployed truth surfaces:** `README.md` and `SERVER_STATUS.md` are bound to
+  the exact merge, build, serving revision, smoke, and Registry receipts above.
 
 ## v0.5.60 - Trinity Completion (August 17, 2026)
 

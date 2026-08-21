@@ -91,6 +91,11 @@ def wiki_link_failure(page: str, raw_target: str) -> str | None:
 
 # Concise public front door and release-bound truth.
 require(README_PATH, "version-v0.5.61", "v0.5.61 badge")
+require(README_PATH, "ba02fd0262ff91fb9452d2f025ee7e7cb7c59fea", "exact v0.5.61 merge")
+require(README_PATH, "82444203-10d0-4e79-a11b-f8d7ce3ecc76", "exact v0.5.61 build")
+require(README_PATH, "verifimind-mcp-server-00495-whr", "exact v0.5.61 serving revision")
+require(README_PATH, "X/Z/CS = real/real/real", "v0.5.61 Trinity smoke")
+require(README_PATH, "MCP Registry package:** `3.38.0`", "current Registry identity")
 require(README_PATH, "13 defined / 8 active / 5 temporarily unavailable", "availability taxonomy")
 require(README_PATH, "21345820", "MACP v2.5 version DOI")
 require(README_PATH, "Multi-Agent Communication Protocol (MACP) v2.5 — Loop Engineering", "MACP v2.5 title")
@@ -99,6 +104,12 @@ require(README_PATH, "/wiki", "Wiki textbook/playbook link")
 forbid(README_PATH, r"v0\.6\.0--Beta|v0\.6\.0-Beta", "Beta-as-current marker")
 forbid(README_PATH, r"creator35lwb-web/verifimind-genesis-mcp", "private Hub link")
 forbid(README_PATH, r"\*\*Providers:\*\*\s*7\b", "conflated remote/local provider count")
+forbid(README_PATH, r"3019f5c4|be6ed621|MCP Registry package:\*\* `3\.35\.0`", "prior release receipts")
+forbid(
+    CHANGELOG_PATH,
+    r"Deployed truth surfaces:[^\n]*\n\s*remain at v0\.5\.60",
+    "v0.5.61 truth surfaces described as pre-deployment",
+)
 
 changelog_sections = re.split(
     r"(?=^## v0\.)",
