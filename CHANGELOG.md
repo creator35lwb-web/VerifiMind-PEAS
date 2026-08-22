@@ -21,12 +21,18 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ## v0.5.62 - Observability Truth (August 21, 2026)
 
-**RELEASE CANDIDATE — PR #340 remains open and draft. This version has not
-been merged or deployed; v0.5.61 remains the live production release.** A
-bounded post-deploy truth conversion will replace this status only after an
-authorized merge, deployment, and smoke-test receipt.
+**DEPLOYED.** Production deployment is bound to merge commit
+`b434979ea68da0a2326ad3f62dac30888b93dfcd` (PR #340), whose parents are the
+public base `398700276c22230a9dc0a64ecd4196f43f921f07` and the T-PASSED head
+`73b3fe2049f1764437d278d43b68a6bbc3f89bcb`. Cloud Build
+`e3ca9551-0292-4b02-9cbf-0cc2b92daa3e` ran from the exact merge source;
+revision `verifimind-mcp-server-00496-g7s` serves 100% of traffic. Post-deploy
+smoke: `/health` 0.5.62 with `Cache-Control: no-store`; live Trinity
+**X/Z/CS = real/real/real** with the quality gate passed; `tool_invoked`
+events live-verified in structured logs; first production effective-ceiling
+receipt captured (CS at 89.5% of a 3,708-token provider reservation).
 
-This observability candidate makes tool activation and completion budgets
+This observability release makes tool activation and completion budgets
 measurable without changing any validation behavior:
 
 - **`tool_invoked` run-lifecycle event** — a name-only, allowlisted event
@@ -51,10 +57,11 @@ No hosted-provider routing, runtime failover policy, provider catalogue,
 tool-availability policy, or dependency changes are included. The Trinity
 validation pipeline's behavior is unchanged; this release only measures it.
 
-- **Version surfaces:** candidate runtime `0.5.62`; candidate MCP Registry
-  manifest `3.39.0`.
-- **Deployed truth surfaces:** `README.md` and `SERVER_STATUS.md` deliberately
-  remain at v0.5.61 until deployment evidence exists.
+- **Version surfaces:** runtime `0.5.62`; MCP Registry manifest `3.39.0`,
+  API-verified live with the repaired tool descriptions.
+- **Review chain:** T S142 review → T S144 EXACT-HEAD TECHNICAL PASS at
+  `ff24dc1` → Alton-authorized identity commit `73b3fe2` (RNA S147) →
+  T S146 exact-head rebind PASS → human merge and auto-deploy.
 
 ---
 
