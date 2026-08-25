@@ -1,8 +1,8 @@
 # VerifiMind-PEAS Server Status
 
-**Last updated:** August 23, 2026
+**Last updated:** August 26, 2026
 
-**Evidence cutoff:** v0.5.62 release verification completed August 22, 2026 (18:09–18:15 UTC; deployment observed by T on August 21, 2026 13:09 UTC)
+**Evidence cutoff:** v0.5.62 release verification completed August 22, 2026 (18:09–18:15 UTC; deployment observed by T on August 21, 2026 13:09 UTC). Post-release maintenance verified through August 26, 2026 (see the maintenance note below).
 
 **Status authority:** this dated operational snapshot; release history lives in
 [`CHANGELOG.md`](CHANGELOG.md) and [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases).
@@ -16,7 +16,7 @@
 | Reviewed candidate | `73b3fe2049f1764437d278d43b68a6bbc3f89bcb` (T S144 EXACT-HEAD TECHNICAL PASS at `ff24dc1` + Alton-authorized identity commit, RNA S147; T S146 exact-head rebind PASS) |
 | Reviewed base | `398700276c22230a9dc0a64ecd4196f43f921f07` |
 | Cloud Build | `e3ca9551-0292-4b02-9cbf-0cc2b92daa3e` — **SUCCESS**, started 4s post-merge 2026-08-21, source bound to the merge SHA |
-| Serving revision | **`verifimind-mcp-server-00496-g7s`** at 100% traffic |
+| Serving revision | **`verifimind-mcp-server-00503-rxh`** at 100% traffic (release revision `00496-g7s`; superseded by post-release maintenance — see note below) |
 | Rollback target | `398700276c22230a9dc0a64ecd4196f43f921f07` (v0.5.61 tree), captured and unused |
 | MCP Registry package | **3.39.0** — publish workflow succeeded on the v0.5.62 Release event; live registry API-verified serving 3.39.0 with the v0.5.62 description and the repaired em-dash/arrow tool descriptions (encoding defect healed) |
 | Tool inventory | **13 defined / 8 active / 5 temporarily unavailable** |
@@ -54,6 +54,27 @@
 - [GitHub Release v0.5.62](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.62)
   resolves to the exact production merge and triggered the successful MCP
   Registry publish (3.39.0, API-verified).
+
+## Post-release maintenance (August 25–26, 2026)
+
+Release identity is unchanged: v0.5.62 at merge `b434979e`. Two bounded
+maintenance events advanced the serving revision without any application-code,
+routing, policy, or version change:
+
+- **Credential hardening (2026-08-25):** all secret configuration was migrated
+  from plaintext environment variables to **Google Secret Manager references**
+  (config revisions `00500`–`00502`, same release image), prior credentials
+  were revoked at their providers, and one retired legacy variable was removed
+  entirely. Each rotated credential was proven by a live real-inference run
+  before the old one was revoked; the post-rotation Trinity smoke returned
+  **X/Z/CS = real/real/real** with the quality gate passed. No secret values
+  appear in any repository, log, or transcript.
+- **Dependency maintenance (2026-08-25):** [PR #342](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/342)
+  (Uvicorn `0.52.3` → `0.52.4`) merged as `158f9e0` and auto-deployed via
+  Cloud Build `103ef552-dc05-42c0-9a79-d96f7ae31e92` to serving revision
+  **`00503-rxh`** (healthy restart 16:53 UTC, v0.5.62 unchanged).
+  [PR #343](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/343)
+  touched `.github/**` only and correctly caused no deployment.
 
 ## Availability
 
