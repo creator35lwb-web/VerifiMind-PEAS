@@ -996,7 +996,7 @@ _OPTOUT_BODY = """
     </ul>
     <p class="deletion-note">
       Deletion is processed within <strong>7 business days</strong> per our
-      <a href="/privacy" target="_blank" rel="noopener">Privacy Policy v1.0</a>.
+      <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.
       Your UUID is retained in pseudonymised form for audit log integrity only
       &mdash; no personal data is attached after deletion.
     </p>
@@ -1364,7 +1364,7 @@ def _canonical_policy_body(policy: str) -> str:
 
 
 def get_privacy_page() -> str:
-    """Return canonical HTML for GET /privacy — Privacy Policy v2.5."""
+    """Return canonical HTML for GET /privacy — always the current canonical version."""
     return _legal_shell(
         title="Privacy Policy",
         body=_canonical_policy_body(PRIVACY_POLICY),
@@ -1372,7 +1372,7 @@ def get_privacy_page() -> str:
 
 
 def get_terms_page() -> str:
-    """Return canonical HTML for GET /terms — Terms &amp; Conditions v2.4."""
+    """Return canonical HTML for GET /terms — always the current canonical version."""
     return _legal_shell(
         title="Terms &amp; Conditions",
         body=_canonical_policy_body(TERMS_AND_CONDITIONS),
@@ -1473,7 +1473,7 @@ def get_dashboard_page(uuid: str, records: list, firestore_available: bool = Tru
 
 <div class="notice-box" style="margin-top:2rem;">
   <strong>Privacy:</strong> No concept names or descriptions are stored — only scores,
-  recommendations, and timestamps. See <a href="/privacy">Privacy Policy v2.5</a>.
+  recommendations, and timestamps. See <a href="/privacy">the Privacy Policy</a>.
 </div>
 
 <style>

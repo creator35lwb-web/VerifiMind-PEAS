@@ -75,9 +75,32 @@ def get_public_contract() -> Dict[str, Any]:
 
     enabled = runtime_failover_enabled()
     currency_issues = provider_catalog_currency_issues()
+    # Registration gate truth: a LIVE flag read, so every projecting surface
+    # (health, mcp-config, setup, server-card) is honest in BOTH states —
+    # dark today, and on the day the flag flips, with no copy edit.
+    from .middleware.registration_gate import (
+        GATED_TOOL_NAMES,
+        registration_gate_enabled,
+    )
+    gate_on = registration_gate_enabled()
     return {
         "version": SERVER_VERSION,
         "free_tier_routing": free_tier_routing,
+        "registration": {
+            "execution_gate_enabled": gate_on,
+            "gated_tools": sorted(GATED_TOOL_NAMES),
+            "pricing": "free",
+            "summary": (
+                "The consult and Trinity execution tools require a free "
+                "registered UUID (X-VerifiMind-UUID header); discovery, "
+                "template reads, and all pages remain available without "
+                "registration."
+                if gate_on else
+                "All active tools are currently usable without registration; "
+                "a free registered UUID adds a higher rate tier and a usage "
+                "dashboard."
+            ),
+        },
         # v0.5.54 (T S88 D-88-1/D-88-2): honest failover semantics. Serving
         # True requires the WP-B deploy + failure-injection evidence + the
         # Alton-gated env flip; no surface may claim runtime failover before.

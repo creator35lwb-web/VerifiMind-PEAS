@@ -89,9 +89,16 @@ class TestRegisterUser:
         assert result.checkout_url is None
 
     async def test_uuid_in_opt_out_url(self):
+        # A PERSISTED registration links its own opt-out URL (the db-None
+        # path honestly returns persisted=False with a generic URL instead).
+        from unittest.mock import MagicMock, patch
         from verifimind_mcp.registration import UserRegistrationRequest, register_user
         req = UserRegistrationRequest(consent=True)
-        result = await register_user(req)
+        db = MagicMock()
+        db.collection.return_value.where.return_value.limit.return_value.get.return_value = []
+        with patch("verifimind_mcp.registration._get_firestore", return_value=db):
+            result = await register_user(req)
+        assert result.persisted is True
         assert result.uuid in result.opt_out_url
 
     async def test_registration_has_no_access_expiry(self):
@@ -105,8 +112,8 @@ class TestRegisterUser:
         from verifimind_mcp.registration import UserRegistrationRequest, register_user
         req = UserRegistrationRequest(consent=True)
         result = await register_user(req)
-        assert result.privacy_version == "2.5"
-        assert result.tc_version == "2.4"
+        assert result.privacy_version == "2.6"
+        assert result.tc_version == "2.5"
 
     async def test_different_calls_return_different_uuids(self):
         from verifimind_mcp.registration import UserRegistrationRequest, register_user

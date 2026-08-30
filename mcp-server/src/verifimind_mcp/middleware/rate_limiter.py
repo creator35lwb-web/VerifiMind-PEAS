@@ -45,8 +45,21 @@ TIER_LIMITS: Dict[str, int] = {
 _uuid_tier_cache: Dict[str, Tuple[str, float]] = {}
 UUID_TIER_CACHE_TTL = 300  # 5 minutes — matches Firestore session TTL
 
-# Exempt paths from rate limiting
+# Exempt paths from rate limiting.
 EXEMPT_PATHS = {"/health", "/", "/.well-known/mcp-config", "/setup", "/register", "/optout", "/privacy", "/terms", "/robots.txt", "/favicon.ico", "/early-adopters/register", "/whoami"}
+
+# Identity-minting POSTs are NOT exempt even on exempt paths: each POST can
+# create a fresh registered UUID, and once a registered UUID gates tool
+# execution, unmetered minting is the Sybil vector. Page GETs stay exempt;
+# the anonymous IP bucket (10/60s, 2x burst) comfortably covers human
+# registration submissions.
+MINTING_PATHS = {"/register", "/early-adopters/register"}
+
+
+def _is_rate_limit_exempt(path: str, method: str) -> bool:
+    if path not in EXEMPT_PATHS:
+        return False
+    return not (path in MINTING_PATHS and method == "POST")
 
 
 def _resolve_uuid_tier(uuid: str) -> str:
@@ -244,7 +257,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     """UUID tier-aware rate limiting. Anonymous→IP, Scholar/Pioneer→UUID."""
 
     async def dispatch(self, request: Request, call_next):
-        if request.url.path in EXEMPT_PATHS:
+        if _is_rate_limit_exempt(request.url.path, request.method):
             return await call_next(request)
         if request.method == "OPTIONS":
             return await call_next(request)

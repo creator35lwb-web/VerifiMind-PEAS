@@ -1401,6 +1401,39 @@ async def whoami_handler(request):
             "rate_limit": "100 req/60s",
         }, status_code=200)
 
+    # Bridge repair: lightweight POST /register identities live in the
+    # ea_registrations collection, which no reader consulted before — they
+    # were reported "unregistered" forever. resolve_registration checks both
+    # collections (status-aware) and fails closed on backend outage.
+    from verifimind_mcp.registration_lookup import (
+        NOT_REGISTERED,
+        resolve_registration,
+    )
+    reg = resolve_registration(uuid)
+    if reg.is_registered:
+        return JSONResponse({
+            "uuid": uuid,
+            "tier": reg.tier or "ea",
+            "status": "active",
+            "registration_source": reg.source,
+            "rate_limit": "30 req/60s",
+            "message": (
+                "This UUID is registered (lightweight registration). "
+                "Registration is not a time-limited access entitlement."
+            ),
+        }, status_code=200)
+    if reg.state != NOT_REGISTERED:
+        return JSONResponse({
+            "uuid": uuid,
+            "tier": "scholar",
+            "status": "status_check_unavailable",
+            "message": (
+                "The registration status check is temporarily unavailable — "
+                "this is a server-side condition, not a statement about your "
+                "UUID. Please retry in a few minutes."
+            ),
+        }, status_code=200)
+
     return JSONResponse({
         "uuid": uuid,
         "tier": "scholar",

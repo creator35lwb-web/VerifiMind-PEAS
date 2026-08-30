@@ -608,6 +608,10 @@ class UserRegistrationResponse(BaseModel):
     uuid: str
     tier: str = "ea"
     registered_at: str
+    # Honest-degradation flag (F-RES-1 parity with the EA path): False means
+    # storage was unavailable and this registration was NOT saved — the UUID
+    # cannot verify anywhere. Never report success for an unpersisted record.
+    persisted: bool = True
     # Deprecated compatibility fields. No paid service or timed entitlement is
     # currently offered, so these serialize as null.
     expires_at: Optional[str] = None
@@ -687,6 +691,24 @@ async def register_user(data: UserRegistrationRequest) -> UserRegistrationRespon
         logger.info("Lightweight registration: UUID=%s", new_uuid)
     else:
         logger.warning("Firestore unavailable — lightweight registration UUID=%s not persisted", new_uuid)
+        # F-RES-1 parity: never show a success screen for a registration
+        # that was not saved — this UUID does not exist server-side and can
+        # never verify at /whoami or any registration check.
+        return UserRegistrationResponse(
+            uuid=new_uuid,
+            tier="ea",
+            registered_at=now,
+            persisted=False,
+            message=(
+                "Registration storage is temporarily unavailable — your "
+                "registration was NOT saved. No data was stored and this UUID "
+                "is not registered. Please try again in a few minutes."
+            ),
+            opt_out_url="/register",
+            privacy_version=PRIVACY_POLICY_VERSION,
+            tc_version=TERMS_VERSION,
+            **_build_registration_extras(new_uuid),
+        )
 
     extras = _build_registration_extras(new_uuid)
 
