@@ -16,7 +16,7 @@ dependencies = [
     # unchosen (rev 00464). With the 2026-07-28 MCP spec RC landing in SDKs, SDK
     # bumps must be deliberate PRs. Versions = what prod serves + the full suite
     # passes on. Batch bumped 2026-08-13 (PR #329): fastmcp/starlette/fastapi/uvicorn.
-    "mcp==1.28.1",
+    "mcp==2.1.1",
     "fastmcp==3.4.7",
     "starlette==1.6.0",
     "pydantic==2.13.4",

@@ -14,7 +14,7 @@
 # Core MCP — PINNED exactly (2026-07-06): trigger deploys re-resolve deps, and the
 # 2026-07-28 MCP spec RC will land in SDKs soon; SDK bumps must be deliberate PRs.
 # Versions = what prod serves and the full suite passes on.
-mcp==1.28.1
+mcp==2.1.1
 fastmcp==3.4.7
 starlette==1.6.0
 
