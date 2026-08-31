@@ -136,10 +136,9 @@ Google Cloud Platform hosts the service, Firestore, and operational logs and may
 process account, feedback, validation-metadata, prompt, and request data needed to
 provide that infrastructure.
 
-Verification and account-recovery emails are sent through a transactional
-email provider acting as our processor for the recipient address and the
-verification message only; the provider is named in this section when the
-Section 3 requirement takes effect. No other registration data is shared
+Verification and account-recovery emails are sent through Brevo
+(Sendinblue SAS, France), acting as our processor for the recipient address
+and the verification message only. No other registration data is shared
 with it.
 
 Google Gemini and Groq are the active hosted AI-inference providers. The selected
@@ -319,8 +318,8 @@ masa. Mulai {_GATE_DATE_MS}, rekod kemasukan, penyiapan dan kitaran larian
 adalah syarat pelaksanaan alat berpagar dan tidak boleh dimatikan semasa
 menggunakan alat tersebut; alat tanpa pagar, semua halaman dan pengehosan
 sendiri kekal tersedia tanpanya. E-mel pengesahan dan pemulihan dihantar
-melalui pemproses e-mel transaksi bagi alamat penerima dan mesej pengesahan
-sahaja.
+melalui Brevo (Sendinblue SAS, Perancis) sebagai pemproses bagi alamat
+penerima dan mesej pengesahan sahaja.
 
 KESELAMATAN, KUKI DAN PERUBAHAN
 Kami menggunakan akses infrastruktur terhad dan peminimuman data, tetapi tiada
