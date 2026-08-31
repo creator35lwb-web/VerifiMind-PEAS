@@ -91,10 +91,11 @@ def get_public_contract() -> Dict[str, Any]:
             "gated_tools": sorted(GATED_TOOL_NAMES),
             "pricing": "free",
             "summary": (
-                "The consult and Trinity execution tools require a free "
-                "registered UUID (X-VerifiMind-UUID header); discovery, "
-                "template reads, and all pages remain available without "
-                "registration."
+                "The consult and Trinity execution tools require an "
+                "authenticated session (OAuth sign-in from your MCP client, "
+                "or a personal access token for local clients) tied to a "
+                "free registered account; discovery and all pages remain "
+                "available without registration."
                 if gate_on else
                 "All active tools are currently usable without registration; "
                 "a free registered UUID adds a higher rate tier and a usage "

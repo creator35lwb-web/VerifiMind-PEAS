@@ -491,9 +491,14 @@ async def process_optout(uuid: str) -> OptOutResponse:
         return build_optout_unavailable_response()
 
     try:
+        # UNION revocation (T S152 P0 #2): a rights request must revoke the
+        # identity in EVERY registration store and kill every live
+        # credential — success is reported only when all stores answered.
+        matched = False
         doc_ref = db.collection(COLLECTION_EA).document(uuid)
         doc = doc_ref.get()
         if doc.exists:
+            matched = True
             doc_ref.update({
                 "status": "deletion_requested",
                 "deletion_requested_at": _now_iso(),
@@ -502,6 +507,21 @@ async def process_optout(uuid: str) -> OptOutResponse:
                 "name": None,
                 "registration_feedback": None,
             })
+        light_ref = db.collection(COLLECTION_REGISTRATIONS).document(uuid)
+        light_doc = light_ref.get()
+        if light_doc.exists:
+            matched = True
+            light_ref.update({
+                "status": "deletion_requested",
+                "deletion_requested_at": _now_iso(),
+                "email": "[deletion_requested]",
+                "display_name": None,
+            })
+        if matched:
+            # Tombstone every OAuth/PAT credential for the subject; the
+            # ≤60s validation cache bounds propagation (Design v2).
+            from verifimind_mcp.oauth.stores import revoke_all_for_subject
+            revoke_all_for_subject(uuid)
             logger.info("Opt-out processed for a stored account")
         else:
             # Do not reveal whether a caller-supplied UUID belongs to an account.

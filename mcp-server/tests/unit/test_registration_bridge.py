@@ -157,9 +157,16 @@ class TestHttpSurfaces:
     """First HTTP-level coverage for POST /register and /whoami."""
 
     @pytest.fixture
-    def client(self):
+    def client(self, monkeypatch):
         import http_server
         from starlette.testclient import TestClient
+        from verifimind_mcp.middleware import rate_limiter
+        # Fresh rate-limit store per test: /register POSTs are deliberately
+        # rate-limited now (minting bound), and batch accumulation from
+        # other suites must not manufacture a 429 here.
+        monkeypatch.setattr(
+            rate_limiter, "_rate_limit_store", rate_limiter.RateLimitStore()
+        )
         with TestClient(http_server.app) as tc:
             yield tc
 

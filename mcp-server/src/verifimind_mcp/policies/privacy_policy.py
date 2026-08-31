@@ -40,13 +40,17 @@ consent record.
 
 ADVANCE NOTICE — effective {_GATE_DATE_EN}: the four execution tools
 (consult_agent_x, consult_agent_z, consult_agent_cs, run_full_trinity) will
-require presenting a free registered UUID as the X-VerifiMind-UUID header,
-for hosted-key and BYOK execution alike. Until that date, the eight active
-tools remain available anonymously. From that date, the MCP handshake, tool
-discovery, the template-read tools, and every web page remain available
-without registration, and registration remains free. From that date your UUID
-also functions as your access credential for the execution tools: keep it
-private like a key.
+require an authenticated session tied to a free registered account, for
+hosted-key and BYOK execution alike. Until that date, the eight active
+tools remain available anonymously. Registration and sign-in happen inside
+the OAuth authorization flow: we verify your email with a one-time code,
+and each client connection then receives its own revocable OAuth
+credential; local clients may use a personal access token issued from your
+account. Tool discovery, the template-read tools, and every web page remain
+available without registration, and registration remains free. Your account
+UUID remains a non-secret identifier and is never itself a credential; the
+issued tokens are the credentials — keep them private like keys, and revoke
+any of them at any time.
 
 Using a validation tool requires concept or prompt content. Additional context,
 BYOK credentials, and save_to_history are optional. Without the required
@@ -78,15 +82,20 @@ submitted concept name or description. Omitting user_uuid prevents that
 UUID-linked metadata, but ordinary IP/request security logs may still be
 retained.
 
-From {_GATE_DATE_EN}, executing one of the four gated execution tools requires
-presenting your registered UUID, and the service then records structured
-authorization and run-lifecycle events — your UUID, the tool name, run outcome
-and quality/failure metadata, and UTC timestamps — in Cloud Logging for 30
-days. These records never include your concept or prompt content. This
-recording is a condition of using the gated execution tools; the alternatives
-are using the ungated tools and pages anonymously, or self-hosting the MIT-
-licensed code. Denied or unverified execution attempts are recorded without
-any caller-supplied identifier.
+From {_GATE_DATE_EN}, executing one of the four gated execution tools
+requires an authenticated session, and the service then records structured
+admission, completion, and run-lifecycle events — a pseudonymous derived
+subject identifier (a keyed one-way code computed from your account UUID),
+the tool name, run outcome and quality/failure metadata, and UTC timestamps
+— in Cloud Logging for 30 days. These records never include your raw UUID,
+email, tokens, or your concept or prompt content. Security and operational
+logs (for example token issuance and abuse investigation) are kept
+separately for the Section 6 retention periods and are not joined into
+usage analytics as raw identifiers. This recording is a condition of using
+the gated execution tools; the alternatives are using the ungated tools and
+pages anonymously, or self-hosting the MIT-licensed code. Denied or
+unverified execution attempts are recorded without any caller-supplied
+identifier.
 
 Separately, save_to_history=true on run_full_trinity (off by default) stores the
 full result, including submitted concept text, in a shared, instance-local JSON
@@ -127,6 +136,12 @@ Google Cloud Platform hosts the service, Firestore, and operational logs and may
 process account, feedback, validation-metadata, prompt, and request data needed to
 provide that infrastructure.
 
+Verification and account-recovery emails are sent through a transactional
+email provider acting as our processor for the recipient address and the
+verification message only; the provider is named in this section when the
+Section 3 requirement takes effect. No other registration data is shared
+with it.
+
 Google Gemini and Groq are the active hosted AI-inference providers. The selected
 provider receives the concept/prompt, optional context, and any prior agent output
 needed to generate the requested analysis. Z and CS may use Gemini as a
@@ -155,11 +170,12 @@ verified email channel.
 
 You may stop the optional user_uuid argument's analytics by omitting it, leave
 save_to_history=false to avoid the shared full-result history, and withdraw
-optional email-update consent. These requests are free of charge. From
-{_GATE_DATE_EN}, the Section 5 authorization and lifecycle records are a
-condition of gated-tool execution and cannot be disabled while using those
-tools; the ungated tools, all pages, and self-hosting remain available without
-them.
+optional email-update consent. These requests are free of charge. You may
+also revoke any individual OAuth grant or personal access token at any
+time. From {_GATE_DATE_EN}, the Section 5 admission, completion, and
+lifecycle records are a condition of gated-tool execution and cannot be
+disabled while using those tools; the ungated tools, all pages, and
+self-hosting remain available without them.
 
 9. SECURITY AND COOKIES
 We use restricted infrastructure access and data minimisation, but no hosted
@@ -201,12 +217,17 @@ menerima e-mel kemas kini adalah pilihan. Pendaftaran ringan melalui API
 
 NOTIS AWAL — berkuat kuasa {_GATE_DATE_MS}: empat alat pelaksanaan
 (consult_agent_x, consult_agent_z, consult_agent_cs, run_full_trinity) akan
-memerlukan UUID berdaftar percuma yang dihantar sebagai pengepala
-X-VerifiMind-UUID, bagi pelaksanaan kunci hos dan BYOK. Sehingga tarikh itu,
-lapan alat aktif masih boleh digunakan secara tanpa nama. Selepas tarikh itu,
-penemuan alat, alat bacaan templat dan semua halaman web kekal boleh diakses
-tanpa pendaftaran, dan pendaftaran kekal percuma. UUID anda juga berfungsi
-sebagai kelayakan akses bagi alat pelaksanaan: rahsiakannya seperti kunci.
+memerlukan sesi yang disahkan yang terikat pada akaun berdaftar percuma,
+bagi pelaksanaan kunci hos dan BYOK. Sehingga tarikh itu, lapan alat aktif
+masih boleh digunakan secara tanpa nama. Pendaftaran dan log masuk berlaku
+dalam aliran kebenaran OAuth: e-mel anda disahkan dengan kod sekali guna,
+dan setiap sambungan klien menerima kelayakan OAuth sendiri yang boleh
+dibatalkan; klien tempatan boleh menggunakan token akses peribadi yang
+dikeluarkan daripada akaun anda. Penemuan alat, alat bacaan templat dan
+semua halaman web kekal boleh diakses tanpa pendaftaran, dan pendaftaran
+kekal percuma. UUID akaun anda kekal sebagai pengecam bukan rahsia dan
+bukan kelayakan; token yang dikeluarkan ialah kelayakan — rahsiakannya
+seperti kunci dan batalkannya pada bila-bila masa.
 
 Penggunaan alat memerlukan kandungan konsep atau arahan. Konteks tambahan,
 kelayakan BYOK dan save_to_history adalah pilihan. Alamat IP dan metadata
@@ -231,15 +252,19 @@ dan cap masa, tetapi bukan nama atau penerangan konsep. Tanpa UUID, metadata
 berkaitan UUID tidak disimpan; log keselamatan IP/permintaan biasa masih boleh
 disimpan.
 
-Mulai {_GATE_DATE_MS}, pelaksanaan empat alat berpagar memerlukan UUID
-berdaftar anda, dan perkhidmatan kemudian merekodkan peristiwa kebenaran dan
-kitaran larian berstruktur — UUID anda, nama alat, hasil larian serta metadata
-kualiti/kegagalan, dan cap masa UTC — dalam Cloud Logging selama 30 hari.
-Rekod ini tidak pernah mengandungi kandungan konsep atau arahan anda.
-Perekodan ini adalah syarat penggunaan alat pelaksanaan berpagar; alternatifnya
-ialah menggunakan alat dan halaman tanpa pagar secara tanpa nama, atau
-mengehos sendiri kod berlesen MIT. Percubaan pelaksanaan yang ditolak atau
-tidak disahkan direkodkan tanpa sebarang pengecam yang dibekalkan pemanggil.
+Mulai {_GATE_DATE_MS}, pelaksanaan empat alat berpagar memerlukan sesi yang
+disahkan, dan perkhidmatan kemudian merekodkan peristiwa kemasukan,
+penyiapan dan kitaran larian berstruktur — pengecam subjek samaran terbitan
+(kod sehala berkunci yang dikira daripada UUID akaun anda), nama alat,
+hasil larian serta metadata kualiti/kegagalan, dan cap masa UTC — dalam
+Cloud Logging selama 30 hari. Rekod ini tidak pernah mengandungi UUID
+mentah, e-mel, token, atau kandungan konsep/arahan anda. Log keselamatan
+dan operasi disimpan berasingan dan tidak digabungkan sebagai pengecam
+mentah ke dalam analitik penggunaan. Perekodan ini adalah syarat penggunaan
+alat pelaksanaan berpagar; alternatifnya ialah menggunakan alat dan halaman
+tanpa pagar secara tanpa nama, atau mengehos sendiri kod berlesen MIT.
+Percubaan pelaksanaan yang ditolak atau tidak disahkan direkodkan tanpa
+sebarang pengecam yang dibekalkan pemanggil.
 
 save_to_history=true (lalai: false) menyimpan keputusan penuh termasuk teks
 konsep dalam sejarah JSON setempat kepada instans yang dikongsi dan belum
@@ -288,10 +313,14 @@ persetujuan, pertanyaan atau aduan secara peribadi, e-mel alton@ysenseai.org
 pengesahan. Jangan siarkan data peribadi dalam GitHub Discussion awam. Alamat pos
 untuk surat-menyurat rasmi boleh diperoleh melalui saluran e-mel yang disahkan.
 Anda boleh menghentikan analitik argumen user_uuid dengan tidak memberikannya,
-mengekalkan save_to_history=false, dan menarik persetujuan e-mel pilihan. Mulai
-{_GATE_DATE_MS}, rekod kebenaran dan kitaran larian adalah syarat pelaksanaan
-alat berpagar dan tidak boleh dimatikan semasa menggunakan alat tersebut; alat
-tanpa pagar, semua halaman dan pengehosan sendiri kekal tersedia tanpanya.
+mengekalkan save_to_history=false, menarik persetujuan e-mel pilihan, dan
+membatalkan mana-mana geran OAuth atau token akses peribadi pada bila-bila
+masa. Mulai {_GATE_DATE_MS}, rekod kemasukan, penyiapan dan kitaran larian
+adalah syarat pelaksanaan alat berpagar dan tidak boleh dimatikan semasa
+menggunakan alat tersebut; alat tanpa pagar, semua halaman dan pengehosan
+sendiri kekal tersedia tanpanya. E-mel pengesahan dan pemulihan dihantar
+melalui pemproses e-mel transaksi bagi alamat penerima dan mesej pengesahan
+sahaja.
 
 KESELAMATAN, KUKI DAN PERUBAHAN
 Kami menggunakan akses infrastruktur terhad dan peminimuman data, tetapi tiada

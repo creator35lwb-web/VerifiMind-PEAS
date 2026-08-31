@@ -352,20 +352,75 @@ class TestProcessOptout:
         assert "No deletion action is confirmed" in result.message
 
     async def test_optout_updates_firestore_record(self):
-        mock_doc = MagicMock()
-        mock_doc.exists = True
-        mock_doc_ref = MagicMock()
-        mock_doc_ref.get.return_value = mock_doc
-        mock_db = MagicMock()
-        mock_db.collection.return_value.document.return_value = mock_doc_ref
+        # Design v2 UNION revocation (T S152 P0 #2): opt-out must revoke the
+        # identity in BOTH registration collections and tombstone every live
+        # OAuth/PAT credential — success only when all stores answered.
+        class _Doc:
+            def __init__(self, store, key):
+                self._store, self._key = store, key
 
-        with patch("verifimind_mcp.registration._get_firestore", return_value=mock_db):
+            def get(self):
+                doc = MagicMock()
+                doc.exists = self._key in self._store
+                doc.to_dict.return_value = self._store.get(self._key)
+                return doc
+
+            def update(self, fields):
+                self._store[self._key].update(fields)
+
+        class _Query:
+            def __init__(self, store, filters):
+                self._store, self._filters = store, filters
+
+            def where(self, field, op, value):
+                return _Query(self._store, self._filters + [(field, value)])
+
+            def get(self):
+                out = []
+                for key, data in self._store.items():
+                    if all(data.get(f) == v for f, v in self._filters):
+                        snap = MagicMock()
+                        snap.to_dict.return_value = data
+                        snap.reference = _Doc(self._store, key)
+                        out.append(snap)
+                return out
+
+        class _Coll:
+            def __init__(self, store):
+                self._store = store
+
+            def document(self, key):
+                return _Doc(self._store, key)
+
+            def where(self, field, op, value):
+                return _Query(self._store, [(field, value)])
+
+        class _Db:
+            def __init__(self):
+                self.data = {
+                    "early_adopters": {"test-uuid": {
+                        "uuid": "test-uuid", "email": "a@b.co", "status": "active",
+                    }},
+                    "ea_registrations": {"test-uuid": {
+                        "uuid": "test-uuid", "email": "a@b.co", "status": "active",
+                    }},
+                    "oauth_tokens": {"tok1": {
+                        "token_id": "tok1", "subject_uuid": "test-uuid",
+                        "revoked": False,
+                    }},
+                }
+
+            def collection(self, name):
+                return _Coll(self.data.setdefault(name, {}))
+
+        db = _Db()
+        with patch("verifimind_mcp.registration._get_firestore", return_value=db):
             result = await process_optout("test-uuid")
 
-        mock_doc_ref.update.assert_called_once()
-        update_args = mock_doc_ref.update.call_args[0][0]
-        assert update_args["status"] == "deletion_requested"
-        assert update_args["email"] == "[deletion_requested]"
+        assert db.data["early_adopters"]["test-uuid"]["status"] == "deletion_requested"
+        assert db.data["early_adopters"]["test-uuid"]["email"] == "[deletion_requested]"
+        assert db.data["ea_registrations"]["test-uuid"]["status"] == "deletion_requested"
+        assert db.data["oauth_tokens"]["tok1"]["revoked"] is True
         assert result.processed is True
         assert "7 business days" in result.deletion_scheduled_within
         assert "purged" in result.message

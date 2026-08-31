@@ -44,7 +44,7 @@ from verifimind_mcp.utils.provider_failures import (
 from verifimind_mcp.llm.failover import FailoverExhaustedError, FailoverTerminalError
 from verifimind_mcp.availability import system_notice_is_compatible
 from verifimind_mcp.middleware.registration_gate import (
-    VERIFIED_REGISTERED_UUID,
+    VERIFIED_SUBJECT_HMAC,
     RegistrationGate,
 )
 from verifimind_mcp.middleware.tool_invocation import ToolInvocationTelemetry
@@ -1246,12 +1246,13 @@ def _create_mcp_instance():
         session = SessionContext(concept_name=concept_name)
         _run_session_id = session.session_id
         _completion_emitted = False
-        # Verified header identity from the registration gate (contextvar
-        # read never raises; None when the gate is dark or the tool ungated).
-        # emit_trinity_run_event skips None fields, so ungated runs are
-        # byte-identical to v0.5.62. Never sourced from the user_uuid
-        # argument — caller-asserted strings are not attribution.
-        _verified_uuid = VERIFIED_REGISTERED_UUID.get()
+        # HMAC-pseudonymous authenticated subject from the gate (contextvar
+        # read never raises; None when the gate is dark). Raw UUIDs never
+        # enter lifecycle telemetry (T P0 #6); emit_trinity_run_event skips
+        # None fields, so ungated runs are byte-identical to v0.5.62. Never
+        # sourced from the user_uuid argument — caller-asserted strings are
+        # not attribution.
+        _subject = VERIFIED_SUBJECT_HMAC.get()
 
         def _emit_completion_once(**fields):
             # F-331-T1: the final outcome must not be pre-claimed — whichever
@@ -1263,7 +1264,7 @@ def _create_mcp_instance():
             emit_trinity_run_event(
                 event="trinity_run_completed",
                 session_id=_run_session_id,
-                registered_uuid=_verified_uuid,
+                subject=_subject,
                 **fields,
             )
 
@@ -1271,7 +1272,7 @@ def _create_mcp_instance():
             event="trinity_run_started",
             session_id=session.session_id,
             byok_requested=_byok_requested,
-            registered_uuid=_verified_uuid,
+            subject=_subject,
         )
         try:
             # ---- fallible prelude, now inside the lifecycle guard ----------

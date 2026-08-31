@@ -31,9 +31,9 @@ REGISTERED = "registered"
 NOT_REGISTERED = "not_registered"
 UNAVAILABLE = "unavailable"
 
-# Positive-result cache TTL. Matches the rate limiter's tier-cache horizon so
-# the two Firestore-backed readers age out on the same clock.
-REGISTRATION_CACHE_TTL = 300
+# Positive-result cache TTL. Bounded revocation contract (T S152 P0 #7):
+# any revocation/opt-out is honored within one TTL, so this stays ≤60s.
+REGISTRATION_CACHE_TTL = 60
 
 
 @dataclass(frozen=True)

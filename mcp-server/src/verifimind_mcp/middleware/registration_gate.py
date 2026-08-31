@@ -1,37 +1,30 @@
-"""Registration-auth gate for MCP tool EXECUTION — dark by default.
+"""Execution gate + evidence events for gated tools — dark by default (v2).
 
-Free tools stay free. When ACTIVE, the four execution tools require a
-registered UUID presented via the ``X-VerifiMind-UUID`` header (the same
-header every issued mcp_config already sends). Discovery — the MCP
-handshake, ``tools/list``, template reads, and every HTTP page — stays
-anonymous.
+Design v2 split (T S152/S153): the HTTP boundary (mcp_auth_boundary)
+authenticates OAuth/PAT credentials and resolves the subject; THIS
+middleware enforces per-tool semantics and emits the evidence ladder:
 
-ACTIVATION CONTRACT
--------------------
-``REGISTRATION_GATE_ENABLED`` (env) defaults OFF. While off, this middleware
-passes every call through untouched — runtime behavior is identical to the
-ungated server. The flip is a human configuration action taken on/after the
-published policy effective date; no code path activates the gate on its own.
+  tool_invoked    dispatch attempt (v0.5.62 name-only contract, unchanged)
+  tool_admitted   authenticated attempt admitted for a gated tool — proves
+                  admission only, never completion or value (T P0 #8)
+  tool_completed  terminal server completion with success/quality/actor —
+                  the external-value evidence unit
+  tool_denied     denied gated attempt; carries NO caller-supplied input
 
-SECURITY CONTRACT
------------------
-- Identity is the HTTP header, verified server-side against the registration
-  store (``resolve_registration``). The caller-typed ``user_uuid`` tool
-  argument is diagnostics, never authorization.
-- Verification FAILS CLOSED: if the registration store cannot be consulted,
-  the call is denied with a retryable ``REGISTRATION_CHECK_UNAVAILABLE`` —
-  an outage never becomes an open gate.
-- ``tool_denied`` events never carry the caller's string: unverified input
-  must not become a log label. ``tool_authorized`` carries the UUID only
-  after it verified as a registered, active identity.
-- Denials are in-band structured tool errors (the same shape handlers
-  return); registration is FREE and the denial copy says so — this is an
-  attribution gate, not a paywall.
+Identity rules (T P0 #5/#6): the authenticated subject comes only from the
+boundary contextvar; the ``user_uuid`` tool argument confers nothing and a
+mismatch with the authenticated subject FAILS CLOSED. Events carry the
+HMAC-pseudonymous subject — raw UUIDs never enter value telemetry.
+
+ACTIVATION CONTRACT: ``REGISTRATION_GATE_ENABLED`` defaults OFF; while off
+this middleware passes every call through untouched. The flip is a human
+configuration action on/after the published policy effective date.
 """
 
 import json
 import os
 import sys
+import uuid as _uuid
 from contextvars import ContextVar
 from datetime import datetime, timezone
 from typing import Optional
@@ -39,17 +32,12 @@ from typing import Optional
 from fastmcp.server.middleware import Middleware
 from fastmcp.tools.tool import ToolResult
 
-from verifimind_mcp.registration_lookup import (
-    REGISTERED,
-    UNAVAILABLE,
-    resolve_registration,
-)
-from verifimind_mcp.utils.uuid_tracer import is_valid_uuid
+from verifimind_mcp.oauth.subjects import derive_subject
 
 # The execution/inference tools named by the product decision ("consult +
-# Trinity"). Template reads stay anonymous (discovery-class, no inference);
-# the quarantined tools stay fail-closed for every caller regardless of this
-# gate — registration never unlocks a contained surface.
+# Trinity"). Template reads stay anonymous at this layer; the quarantined
+# tools stay fail-closed for every caller regardless of any credential —
+# registration/authentication never satisfies Gate R0.
 GATED_TOOL_NAMES = frozenset({
     "consult_agent_x",
     "consult_agent_z",
@@ -57,22 +45,24 @@ GATED_TOOL_NAMES = frozenset({
     "run_full_trinity",
 })
 
-UUID_HEADER = "x-verifimind-uuid"
-
 REGISTER_URL = "https://verifimind.ysenseai.org/register"
-SETUP_URL = "https://verifimind.ysenseai.org/setup"
-WHOAMI_URL = "https://verifimind.ysenseai.org/whoami"
+PRM_URL = "https://verifimind.ysenseai.org/.well-known/oauth-protected-resource"
 
-DENIAL_REGISTRATION_REQUIRED = "registration_required"
-DENIAL_CHECK_UNAVAILABLE = "registration_check_unavailable"
-
-# Verified identity for the current tools/call, set ONLY after the header
-# UUID resolved as registered-active. Downstream emitters read it to join
-# telemetry to the authenticated identity; it is never derived from tool
-# arguments.
-VERIFIED_REGISTERED_UUID: ContextVar[Optional[str]] = ContextVar(
-    "verified_registered_uuid", default=None
+# Authenticated identity for the current request, set by the HTTP boundary
+# after full token validation. Never derived from tool arguments.
+AUTH_SUBJECT_UUID: ContextVar[Optional[str]] = ContextVar(
+    "auth_subject_uuid", default=None
 )
+AUTH_ACTOR_CLASS: ContextVar[Optional[str]] = ContextVar(
+    "auth_actor_class", default=None
+)
+# HMAC-pseudonymous subject for downstream emitters (lifecycle events).
+VERIFIED_SUBJECT_HMAC: ContextVar[Optional[str]] = ContextVar(
+    "verified_subject_hmac", default=None
+)
+
+DENIAL_AUTHENTICATION_REQUIRED = "authentication_required"
+DENIAL_CROSS_SUBJECT = "cross_subject_mismatch"
 
 
 def registration_gate_enabled() -> bool:
@@ -82,45 +72,21 @@ def registration_gate_enabled() -> bool:
     }
 
 
-def _request_header_uuid() -> str:
-    """Return the X-VerifiMind-UUID header for the current request, or "".
-
-    Uses the supported fastmcp HTTP dependency. Outside an HTTP request
-    (in-process clients, stdio) there is no header, which reads as "absent"
-    — the gate then denies rather than guessing (fail closed).
-    """
-    try:
-        from fastmcp.server.dependencies import get_http_headers
-
-        headers = get_http_headers() or {}
-        return str(headers.get(UUID_HEADER, "")).strip()
-    except Exception:
-        return ""
-
-
-def _emit_gate_event(payload: dict) -> None:
+def _emit(payload: dict) -> None:
     print(json.dumps(payload), file=sys.stderr, flush=True)
 
 
-def emit_tool_authorized(tool_name: str, registered_uuid: str) -> None:
-    """One event per authorized gated call — the Registered tool-use signal.
-
-    The UUID here is server-verified against the registration store, so the
-    label cardinality is bounded by the consented registration set, never by
-    caller-controlled input.
-    """
-    _emit_gate_event({
-        "severity": "INFO",
-        "event": "tool_authorized",
-        "tool": tool_name,
-        "registered_uuid": registered_uuid,
-    })
+def emit_tool_admitted(tool_name: str, subject: Optional[str]) -> None:
+    event = {"severity": "INFO", "event": "tool_admitted", "tool": tool_name}
+    if subject:
+        event["subject"] = subject
+    _emit(event)
 
 
 def emit_tool_denied(tool_name: str, reason: str) -> None:
-    """One event per denied gated call. Deliberately carries NO identifier:
-    an unverified caller string must not become a log label."""
-    _emit_gate_event({
+    """Deliberately carries NO identifier: unverified or mismatched caller
+    input must never become a log label."""
+    _emit({
         "severity": "INFO",
         "event": "tool_denied",
         "tool": tool_name,
@@ -128,83 +94,101 @@ def emit_tool_denied(tool_name: str, reason: str) -> None:
     })
 
 
+def emit_tool_completed(
+    tool_name: str,
+    subject: Optional[str],
+    *,
+    success: bool,
+    inference_quality: str,
+    traffic_class: str,
+    execution_id: str,
+) -> None:
+    event = {
+        "severity": "INFO",
+        "event": "tool_completed",
+        "tool": tool_name,
+        "success": success,
+        "inference_quality": inference_quality,
+        "environment": "production" if os.getenv("K_SERVICE") else "development",
+        "traffic_class": traffic_class,
+        "execution_id": execution_id,
+    }
+    if subject:
+        event["subject"] = subject
+    _emit(event)
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _denial_payload(tool_name: str, uuid_status: str) -> dict:
-    """Structured REGISTRATION_REQUIRED denial. Free-registration CTA only —
-    no paid-tier language exists or may appear here."""
-    if uuid_status == "invalid":
-        hint = (
-            "A VerifiMind UUID header was received but is not a valid UUID. "
-            "Check that VERIFIMIND_UUID in your MCP config is set to your real "
-            f"UUID (not a placeholder). Setup help: {SETUP_URL}"
+def _denial_payload(tool_name: str, reason: str) -> dict:
+    if reason == DENIAL_CROSS_SUBJECT:
+        error = (
+            f"'{tool_name}' was called with a user_uuid that does not match "
+            "the authenticated account. The argument confers no authority; "
+            "remove it or use your own account's value."
         )
-    elif uuid_status == "unregistered":
         hint = (
-            "This UUID is not a registered identity (or its registration was "
-            f"closed). Check {WHOAMI_URL}, or register free in under a minute "
-            f"at {REGISTER_URL} — all gated tools remain free after "
-            "registration."
+            "Tool-argument identity is diagnostics only. Your authenticated "
+            "session already attributes this call; omit user_uuid entirely."
         )
-    else:  # absent
+    else:
+        error = (
+            f"'{tool_name}' requires an authenticated session. Discovery, "
+            "template reads, and all pages remain available without one."
+        )
         hint = (
-            "Registration is free and takes under a minute: get a UUID at "
-            f"{REGISTER_URL}, then send it as the X-VerifiMind-UUID header "
-            f"(your registration response includes a ready mcp_config; see "
-            f"{SETUP_URL})."
+            "Connect through an OAuth-capable MCP client (authorization "
+            f"server in {PRM_URL}), or register free at {REGISTER_URL} and "
+            "use a personal access token for local clients. All gated tools "
+            "remain free after registration."
         )
     return {
         "status": "error",
-        "error_code": "REGISTRATION_REQUIRED",
-        "error": (
-            f"'{tool_name}' now requires a free registered UUID. "
-            "Discovery, template reads, and all pages remain available "
-            "without registration."
+        "error_code": (
+            "CROSS_SUBJECT_MISMATCH"
+            if reason == DENIAL_CROSS_SUBJECT
+            else "AUTHENTICATION_REQUIRED"
         ),
+        "error": error,
         "recovery_hint": hint,
         "register_url": REGISTER_URL,
-        "setup_url": SETUP_URL,
+        "resource_metadata": PRM_URL,
         "retryable": False,
         "timestamp": _now_iso(),
     }
 
 
-def _unavailable_payload(tool_name: str) -> dict:
-    """Structured fail-closed denial for a registration-store outage."""
-    return {
-        "status": "error",
-        "error_code": "REGISTRATION_CHECK_UNAVAILABLE",
-        "error": (
-            "The registration check is temporarily unavailable, so "
-            f"'{tool_name}' cannot verify your UUID right now. No data was "
-            "processed."
-        ),
-        "recovery_hint": (
-            "This is a temporary server-side condition — please retry in a "
-            "few minutes. Server health: https://verifimind.ysenseai.org/health"
-        ),
-        "retryable": True,
-        "timestamp": _now_iso(),
-    }
-
-
 def _as_tool_result(payload: dict) -> ToolResult:
-    return ToolResult(
-        content=json.dumps(payload),
-        structured_content=payload,
-    )
+    return ToolResult(content=json.dumps(payload), structured_content=payload)
+
+
+def _payload_of(result) -> Optional[dict]:
+    structured = getattr(result, "structured_content", None)
+    if isinstance(structured, dict):
+        return structured
+    for block in getattr(result, "content", []) or []:
+        text = getattr(block, "text", None)
+        if text:
+            try:
+                parsed = json.loads(text)
+            except (TypeError, ValueError):
+                continue
+            if isinstance(parsed, dict):
+                return parsed
+    if isinstance(result, dict):
+        return result
+    return None
 
 
 class RegistrationGate(Middleware):
-    """Deny gated tools/call requests that lack a verified registered UUID.
+    """Per-tool authorization semantics + the evidence event ladder.
 
     Registered AFTER ToolInvocationTelemetry so a denied dispatch still
-    emits its name-only ``tool_invoked`` event — the dispatch-attempt layer
-    keeps its meaning; ``tool_authorized`` is the new authenticated layer.
-    Denials happen before the handler, so a denied Trinity call emits no
-    lifecycle events and never enters the completion-rate denominator.
+    emits its name-only ``tool_invoked`` event. Denials happen before the
+    handler, so a denied Trinity call emits no lifecycle events and never
+    enters the completion-rate denominator.
     """
 
     async def on_call_tool(self, context, call_next):
@@ -212,25 +196,55 @@ class RegistrationGate(Middleware):
         if not registration_gate_enabled() or tool_name not in GATED_TOOL_NAMES:
             return await call_next(context)
 
-        uuid = _request_header_uuid()
-        if not uuid:
-            emit_tool_denied(tool_name, DENIAL_REGISTRATION_REQUIRED)
-            return _as_tool_result(_denial_payload(tool_name, "absent"))
-        if not is_valid_uuid(uuid):
-            emit_tool_denied(tool_name, DENIAL_REGISTRATION_REQUIRED)
-            return _as_tool_result(_denial_payload(tool_name, "invalid"))
+        subject_uuid = AUTH_SUBJECT_UUID.get()
+        if not subject_uuid:
+            emit_tool_denied(tool_name, DENIAL_AUTHENTICATION_REQUIRED)
+            return _as_tool_result(
+                _denial_payload(tool_name, DENIAL_AUTHENTICATION_REQUIRED)
+            )
 
-        state = resolve_registration(uuid)
-        if state.state == UNAVAILABLE:
-            emit_tool_denied(tool_name, DENIAL_CHECK_UNAVAILABLE)
-            return _as_tool_result(_unavailable_payload(tool_name))
-        if state.state != REGISTERED:
-            emit_tool_denied(tool_name, DENIAL_REGISTRATION_REQUIRED)
-            return _as_tool_result(_denial_payload(tool_name, "unregistered"))
+        arguments = getattr(context.message, "arguments", None) or {}
+        claimed = arguments.get("user_uuid") if isinstance(arguments, dict) else None
+        if claimed and str(claimed).strip() and str(claimed) != subject_uuid:
+            emit_tool_denied(tool_name, DENIAL_CROSS_SUBJECT)
+            return _as_tool_result(
+                _denial_payload(tool_name, DENIAL_CROSS_SUBJECT)
+            )
 
-        emit_tool_authorized(tool_name, uuid)
-        token = VERIFIED_REGISTERED_UUID.set(uuid)
+        subject = derive_subject(subject_uuid)
+        traffic_class = AUTH_ACTOR_CLASS.get() or "unknown"
+        execution_id = _uuid.uuid4().hex
+        emit_tool_admitted(tool_name, subject)
+        token = VERIFIED_SUBJECT_HMAC.set(subject)
         try:
-            return await call_next(context)
+            result = await call_next(context)
+        except Exception:
+            emit_tool_completed(
+                tool_name, subject,
+                success=False,
+                inference_quality="exception",
+                traffic_class=traffic_class,
+                execution_id=execution_id,
+            )
+            raise
         finally:
-            VERIFIED_REGISTERED_UUID.reset(token)
+            VERIFIED_SUBJECT_HMAC.reset(token)
+
+        payload = _payload_of(result)
+        if payload is None:
+            success, quality = False, "unparseable"
+        else:
+            success = payload.get("status") != "error"
+            quality = str(
+                payload.get("_inference_quality")
+                or payload.get("_overall_quality")
+                or ("real" if success else "unavailable")
+            )
+        emit_tool_completed(
+            tool_name, subject,
+            success=success,
+            inference_quality=quality,
+            traffic_class=traffic_class,
+            execution_id=execution_id,
+        )
+        return result

@@ -39,6 +39,17 @@ from starlette.routing import Mount, Route
 from starlette.middleware.cors import CORSMiddleware
 from verifimind_mcp.server import create_http_server
 from verifimind_mcp.middleware import RateLimitMiddleware, get_rate_limit_stats, check_tier, IPBlocklistMiddleware
+from verifimind_mcp.middleware.mcp_auth_boundary import McpAuthBoundary
+from verifimind_mcp.oauth.endpoints import (
+    authorization_server_metadata_handler,
+    oauth_authorize_get_handler,
+    oauth_authorize_post_handler,
+    oauth_pat_handler,
+    oauth_register_handler,
+    oauth_revoke_handler,
+    oauth_token_handler,
+    protected_resource_metadata_handler,
+)
 from verifimind_mcp.registration import (
     EarlyAdopterRegistration,
     FeedbackRequest,
@@ -1984,6 +1995,18 @@ app = Starlette(
         Route("/library", library_handler, methods=["GET"]),
         Route("/library/index.json", library_index_handler, methods=["GET"]),
         Route("/mcp/test", mcp_test_handler, methods=["GET"]),
+        # Design v2: OAuth 2.1 authorization spine (dark until the
+        # registration gate is enabled; endpoints are harmless while dark).
+        Route("/.well-known/oauth-protected-resource",
+              protected_resource_metadata_handler, methods=["GET"]),
+        Route("/.well-known/oauth-authorization-server",
+              authorization_server_metadata_handler, methods=["GET"]),
+        Route("/oauth/authorize", oauth_authorize_get_handler, methods=["GET"]),
+        Route("/oauth/authorize", oauth_authorize_post_handler, methods=["POST"]),
+        Route("/oauth/token", oauth_token_handler, methods=["POST"]),
+        Route("/oauth/revoke", oauth_revoke_handler, methods=["POST"]),
+        Route("/oauth/register", oauth_register_handler, methods=["POST"]),
+        Route("/oauth/pat", oauth_pat_handler, methods=["POST"]),
         # v0.5.6 UI: human-readable registration and opt-out pages
         Route("/register", register_page_handler, methods=["GET"]),
         Route("/register", register_handler, methods=["POST"]),
@@ -2007,10 +2030,15 @@ app = Starlette(
 app.router.redirect_slashes = False
 
 # IMPORTANT: Starlette add_middleware uses insert(0) — last added runs FIRST (outermost).
-# Execution order: IPBlocklist → CORS → RateLimiting → route handlers
+# Execution order: IPBlocklist → CORS → RateLimiting → McpAuthBoundary → routes
 # 1. IP Blocklist (outermost — rejects known rogue IPs before any processing)
 # 2. CORS (handles browser preflight OPTIONS before rate-limiting fires)
 # 3. Rate Limiting (EDoS protection for legitimate traffic)
+# 4. McpAuthBoundary (innermost — OAuth 401 challenge on /mcp; passthrough
+#    while the registration gate is dark)
+
+# OAuth boundary — added first so it runs innermost (Design v2, dark by default)
+app.add_middleware(McpAuthBoundary)
 
 # Rate limiting middleware - EDoS protection
 app.add_middleware(RateLimitMiddleware)

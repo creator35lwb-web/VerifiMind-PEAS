@@ -29,17 +29,21 @@ mutation tools are unavailable to every tier during maintenance.
 
 ADVANCE NOTICE — effective {_GATE_DATE_EN}: the four execution tools
 (consult_agent_x, consult_agent_z, consult_agent_cs, run_full_trinity) will
-require a free registered UUID, presented as the X-VerifiMind-UUID header.
-This applies to hosted-key and BYOK execution alike. The MCP handshake, tool
-discovery, template-read tools, and every web page remain available without
-registration. Registration is free, takes under a minute at
-verifimind.ysenseai.org/register, and does not change what the tools cost:
-they remain free. Until that date, anonymous execution remains available.
+require an authenticated session tied to a free registered account. This
+applies to hosted-key and BYOK execution alike. OAuth-capable MCP clients
+sign in through the VerifiMind authorization page — new users register
+there with a verified email in under a minute — and each client connection
+receives its own revocable credential. Local or legacy clients may instead
+use a personal access token issued from your account. Tool discovery,
+template-read tools, and every web page remain available without
+registration, and registration does not change what the tools cost: they
+remain free. Until that date, anonymous execution remains available.
 
-From that date your UUID also functions as your access credential for the
-execution tools: keep it private like a key. A lost UUID can be replaced by
-registering again; a compromised UUID can be closed through the private
-request channel in Section 14.
+Your account UUID remains a non-secret identifier and is never a password
+or access credential. The credentials are the OAuth tokens and personal
+access tokens issued to you: keep those private like keys, revoke any of
+them individually at any time, and report a suspected compromise through
+the private request channel in Section 14.
 
 Current rate-limit targets are:
   • Anonymous: 10 requests per 60 seconds per IP
@@ -74,7 +78,7 @@ only anonymously unless you provide separate permission for attribution.
 You agree not to:
   • Probe for or attempt unauthorised access to other users' data
   • Submit secrets, credentials, or unlawful content
-  • Impersonate another user or agent, or use another user's UUID
+  • Impersonate another user or agent, or use another user's credentials
   • Register identities through automated scripts or in bulk
   • Abuse rate limits, scrape excessively, or degrade the service
   • Use outputs as a substitute for qualified legal, medical, security, or
