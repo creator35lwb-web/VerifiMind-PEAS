@@ -178,8 +178,14 @@ class TestHttpSurfaces:
         assert response.status_code == 200
         body = response.json()
         assert body["persisted"] is True
-        assert body["uuid"]
-        assert "X-VerifiMind-UUID" in str(body["mcp_config"])
+        # The cohort record is written...
+        db.collection.return_value.document.return_value.set.assert_called_once()
+        # ...but no subject identifier is handed out on an unverified path:
+        # the identifier comes only from the verified Connect ceremony
+        # (T P0-2 + adversarial B-3/B-6 pre-registration hijack).
+        assert body["uuid"] == ""
+        assert body["opt_out_url"] == ""
+        assert "Connect flow" in body["message"]
 
     def test_post_register_without_consent_is_422(self, client):
         response = client.post("/register", json={"consent": False})

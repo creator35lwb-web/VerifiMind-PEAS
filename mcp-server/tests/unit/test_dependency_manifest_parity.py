@@ -221,3 +221,33 @@ class TestSmitheryRemovalCoversBothCarriers:
 
     def test_smithery_absent_from_ci_mirror(self):
         assert "smithery" not in load_requirements()
+
+
+class TestAuthlibDependencyAuthority:
+    """D-ALTON-2026-09-01-AUTHLIB (WP-A): the OAuth core is an exact pin, not a
+    floating transitive, and the security-critical closure is bound."""
+
+    def test_authlib_is_pinned_exactly(self):
+        pyproject = load_pyproject_dependencies()
+        assert pyproject.get("authlib", (None, None))[1] == "==1.8.0", (
+            "Authlib must be an exact ==1.8.0 pin in pyproject.toml; direct "
+            "imports may not rely on FastMCP's floating transitive."
+        )
+        assert load_requirements().get("authlib", (None, None))[1] == "==1.8.0"
+
+    def test_joserfc_includes_issuer_validation_fix(self):
+        # joserfc must be >=1.7.3 (issuer-validation fix GHSA-r74j-q665-7rpj);
+        # pinned exactly here.
+        spec = load_pyproject_dependencies().get("joserfc", (None, ""))[1]
+        assert spec.startswith("=="), "joserfc must be exact-pinned"
+        version = spec.lstrip("=")
+        parts = tuple(int(p) for p in version.split(".")[:3])
+        assert parts >= (1, 7, 3), f"joserfc {version} predates the issuer fix"
+
+    def test_cryptography_backend_pinned(self):
+        assert load_pyproject_dependencies().get("cryptography", (None, None))[1].startswith("==")
+
+    def test_third_party_notices_cover_authlib(self):
+        notices = (SERVER_ROOT / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
+        for token in ("Authlib 1.8.0", "BSD-3-Clause", "joserfc", "cryptography"):
+            assert token in notices, f"THIRD_PARTY_NOTICES.md missing {token!r}"

@@ -1459,14 +1459,38 @@ async def whoami_handler(request):
     }, status_code=200)
 
 
+def _authenticated_subject(request):
+    """Resolve the authenticated OAuth subject from a Bearer credential, or
+    None. Used to gate owner-scoped surfaces once issuance is live (T P0-2)."""
+    authorization = request.headers.get("authorization", "")
+    if not authorization.lower().startswith("bearer "):
+        return None
+    try:
+        from verifimind_mcp.oauth.authlib_server import authenticate_bearer
+        record, _err = authenticate_bearer(authorization[7:].strip(), ("mcp",))
+        return record.subject_uuid if record else None
+    except Exception:
+        return None
+
+
 async def ea_dashboard_handler(request):
     """GET /early-adopters/dashboard/{uuid} — Scholar validation history dashboard (P0-B)."""
     from verifimind_mcp.utils.uuid_tracer import is_valid_uuid
+    from verifimind_mcp.oauth import config as _oauth_config
     uuid = request.path_params.get("uuid", "")
     if not is_valid_uuid(uuid):
         return HTMLResponse(
             get_dashboard_page("invalid", [], firestore_available=False),
             status_code=404,
+        )
+    # T P0-2: history is owner-scoped, UNCONDITIONALLY. Gating this on the
+    # issuance flag made the default (dark) posture the *less* protected one:
+    # any caller holding a UUID string could read that subject's history.
+    # Possession of a public identifier is not authority in either posture.
+    if _authenticated_subject(request) != uuid:
+        return HTMLResponse(
+            get_dashboard_page("unauthorized", [], firestore_available=False),
+            status_code=401,
         )
     firestore_available = _get_firestore() is not None
     records = read_trinity_history(uuid, limit=50)
@@ -1497,9 +1521,33 @@ async def ea_feedback_handler(request):
 
 async def ea_optout_handler(request):
     """POST /early-adopters/optout/{uuid} — opt-out and request data deletion."""
+    from verifimind_mcp.oauth import config as _oauth_config
     uuid = request.path_params.get("uuid", "")
     if not uuid:
         return JSONResponse({"error": "UUID required"}, status_code=400)
+
+    # T P0-2: revocation authority is owner-scoped, UNCONDITIONALLY. A bare
+    # UUID must never tombstone an account and revoke its credentials — the
+    # flag-gated version left that open in the default dark posture. Rights
+    # requests without a token go through the verified private channel named
+    # in the Privacy Policy.
+    from verifimind_mcp.utils.uuid_tracer import is_valid_uuid as _is_valid_uuid
+    if not _is_valid_uuid(uuid):
+        return JSONResponse({"error": "UUID required"}, status_code=400)
+    if _authenticated_subject(request) != uuid:
+        return JSONResponse(
+            {
+                "processed": False,
+                "message": (
+                    "Deletion requires an authenticated session for this "
+                    "account. Sign in through your MCP client's Connect flow, "
+                    "or email alton@ysenseai.org from your registered address "
+                    "to use the verified private rights channel."
+                ),
+                "deletion_scheduled_within": None,
+            },
+            status_code=401,
+        )
 
     try:
         result = await process_optout(uuid)

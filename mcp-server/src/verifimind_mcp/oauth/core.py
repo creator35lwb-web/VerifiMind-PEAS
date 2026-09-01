@@ -45,6 +45,17 @@ def constant_time_equals(a: str, b: str) -> bool:
     return hmac.compare_digest(a.encode("utf-8"), b.encode("utf-8"))
 
 
+def credential_digest(presented: str) -> str:
+    """Digest of the COMPLETE presented credential string.
+
+    The positive-validation cache is keyed on this, never on the token id
+    alone (T P0-1). A cache hit therefore proves the exact same secret was
+    presented — a same-id/wrong-secret token can never ride a warm cache
+    entry to the victim's record.
+    """
+    return hashlib.sha256(presented.strip().encode("utf-8")).hexdigest()
+
+
 def verify_pkce_s256(code_verifier: str, code_challenge: str) -> bool:
     """RFC 7636 S256: BASE64URL(SHA256(verifier)) == challenge."""
     if not (43 <= len(code_verifier) <= 128):

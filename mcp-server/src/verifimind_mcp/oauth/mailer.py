@@ -16,6 +16,7 @@ The ceremony requires actually sending mail. Backends:
 
 import os
 import smtplib
+import ssl
 import sys
 from email.message import EmailMessage
 
@@ -40,10 +41,31 @@ def mailer_ready() -> bool:
     return False
 
 
+def is_single_address(value: str) -> bool:
+    """Exactly one plain address, no list smuggling.
+
+    ``To:`` accepts a comma-separated list, and an allowlist that inspects
+    only the last @-segment would pass "attacker@evil.com, ok@allowed.org"
+    while smtplib derives BOTH envelope recipients from the header — one
+    request delivering the one-time code to an off-allowlist address.
+    """
+    candidate = (value or "").strip()
+    if not candidate or len(candidate) > 254:
+        return False
+    if any(ch in candidate for ch in ",;<>\"\\\r\n\t "):
+        return False
+    local, sep, domain = candidate.partition("@")
+    return bool(sep) and bool(local) and "@" not in domain and "." in domain
+
+
 def send_verification_email(*, to_email: str, code: str, purpose: str) -> None:
     """Send one verification/recovery code. Raises MailerUnavailable when
     no backend can safely send — callers surface an honest, retryable
     failure and never pretend the mail went out."""
+    # Single-recipient enforcement runs BEFORE any backend, so neither the
+    # console nor the SMTP path can be handed a list.
+    if not is_single_address(to_email):
+        raise MailerUnavailable("recipient must be exactly one plain address")
     backend = _backend()
     if backend == "console":
         if os.getenv("K_SERVICE"):
@@ -56,6 +78,13 @@ def send_verification_email(*, to_email: str, code: str, purpose: str) -> None:
         return
     if backend != "smtp" or not mailer_ready():
         raise MailerUnavailable("no mail backend configured")
+
+    # Staging/dev recipient containment (T P0-8): never mail arbitrary people
+    # from a non-production instance.
+    from verifimind_mcp.oauth import config as _cfg
+
+    if not _cfg.mail_recipient_allowed(to_email):
+        raise MailerUnavailable("recipient not permitted on this instance")
 
     message = EmailMessage()
     message["From"] = os.getenv("SMTP_FROM", "")
@@ -72,9 +101,12 @@ def send_verification_email(*, to_email: str, code: str, purpose: str) -> None:
     port = int(os.getenv("SMTP_PORT", "587"))
     username = os.getenv("SMTP_USERNAME", "")
     password = os.getenv("SMTP_PASSWORD", "")
+    # T P0-6: STARTTLS MUST validate the server certificate and hostname, or a
+    # network attacker can intercept SMTP credentials and one-time codes.
+    tls_context = ssl.create_default_context()
     try:
         with smtplib.SMTP(host, port, timeout=15) as client:
-            client.starttls()
+            client.starttls(context=tls_context)
             if username:
                 client.login(username, password)
             client.send_message(message)

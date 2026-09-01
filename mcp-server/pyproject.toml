@@ -36,7 +36,16 @@ dependencies = [
     "uvicorn[standard]==0.52.4",
     "google-cloud-firestore>=2.26.0",
     "email-validator>=2.0.0",
-    "standardwebhooks>=1.0.0"
+    "standardwebhooks>=1.0.0",
+    # OAuth 2.1 authorization core (D-ALTON-2026-09-01-AUTHLIB). Direct import
+    # requires an explicit exact pin — Authlib was previously only a floating
+    # transitive of fastmcp. The security-critical closure is pinned too:
+    # joserfc must be >=1.7.3 (issuer-validation fix GHSA-r74j-q665-7rpj),
+    # and cryptography is Authlib's crypto backend. BSD-3-Clause; notices in
+    # THIRD_PARTY_NOTICES.md.
+    "Authlib==1.8.0",
+    "joserfc==1.7.5",
+    "cryptography==46.0.1"
 ]
 
 [tool.hatch.build.targets.wheel]

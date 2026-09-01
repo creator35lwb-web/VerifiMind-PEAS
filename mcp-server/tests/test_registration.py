@@ -216,7 +216,8 @@ class TestRegisterEarlyAdopter:
             result = await register_early_adopter(_make_registration())
         assert result.feedback_received is False
 
-    async def test_duplicate_email_returns_existing_uuid(self):
+    async def test_duplicate_email_withholds_uuid_disclosure(self):
+        # T P0-2: a bare email lookup must not disclose the existing UUID.
         existing_uuid = "01950000-0000-7000-8000-000000000001"
         mock_doc = MagicMock()
         mock_doc.to_dict.return_value = {
@@ -234,8 +235,9 @@ class TestRegisterEarlyAdopter:
         with patch("verifimind_mcp.registration._get_firestore", return_value=mock_db):
             result = await register_early_adopter(_make_registration())
 
-        assert result.uuid == existing_uuid
-        assert "already registered" in result.message
+        assert result.uuid == ""
+        assert existing_uuid not in result.opt_out_url
+        assert "Connect flow" in result.message
 
     async def test_registration_has_no_timed_access_entitlement(self):
         with patch("verifimind_mcp.registration._get_firestore", return_value=None):
@@ -351,10 +353,13 @@ class TestProcessOptout:
         assert result.deletion_scheduled_within is None
         assert "No deletion action is confirmed" in result.message
 
-    async def test_optout_updates_firestore_record(self):
+    async def test_optout_updates_firestore_record(self, monkeypatch):
         # Design v2 UNION revocation (T S152 P0 #2): opt-out must revoke the
         # identity in BOTH registration collections and tombstone every live
         # OAuth/PAT credential — success only when all stores answered.
+        # Pin production env so OAuth collections use their bare names.
+        monkeypatch.setenv("VERIFIMIND_ENVIRONMENT", "production")
+        monkeypatch.setenv("VERIFIMIND_PUBLIC_ORIGIN", "https://verifimind.ysenseai.org")
         class _Doc:
             def __init__(self, store, key):
                 self._store, self._key = store, key
@@ -364,6 +369,9 @@ class TestProcessOptout:
                 doc.exists = self._key in self._store
                 doc.to_dict.return_value = self._store.get(self._key)
                 return doc
+
+            def set(self, data):
+                self._store[self._key] = dict(data)
 
             def update(self, fields):
                 self._store[self._key].update(fields)
@@ -421,6 +429,10 @@ class TestProcessOptout:
         assert db.data["early_adopters"]["test-uuid"]["email"] == "[deletion_requested]"
         assert db.data["ea_registrations"]["test-uuid"]["status"] == "deletion_requested"
         assert db.data["oauth_tokens"]["tok1"]["revoked"] is True
+        # A subject tombstone is written so a credential minted concurrently
+        # with (or after) the sweep is still refused at validation time —
+        # query-then-update alone could leave a live descendant behind.
+        assert "subject_test-uuid" in db.data["oauth_revocations"]
         assert result.processed is True
         assert "7 business days" in result.deletion_scheduled_within
         assert "purged" in result.message
@@ -462,14 +474,17 @@ class TestProcessOptout:
     async def test_http_handler_returns_503_when_deletion_is_not_confirmed(self):
         import http_server
 
+        owner = "01950000-0000-7000-8000-0000000000aa"
+
         class Request:
-            path_params = {"uuid": "some-uuid"}
+            path_params = {"uuid": owner}
+            headers = {"authorization": "Bearer test"}
 
         unavailable = OptOutResponse(
             processed=False,
             message="No deletion action is confirmed.",
         )
-        with patch(
+        with patch("http_server._authenticated_subject", return_value=owner), patch(
             "http_server.process_optout",
             new=AsyncMock(return_value=unavailable),
         ):
@@ -478,13 +493,32 @@ class TestProcessOptout:
         assert response.status_code == 503
         assert b"No deletion action is confirmed" in response.body
 
-    async def test_http_handler_normalizes_unexpected_failure_to_structured_503(self):
+    async def test_http_handler_refuses_unauthenticated_optout(self):
+        # T P0-2 + adversarial B-5: possession of a UUID must never tombstone
+        # an account and revoke its credentials, in EITHER gate posture.
         import http_server
 
         class Request:
-            path_params = {"uuid": "sensitive-uuid"}
+            path_params = {"uuid": "01950000-0000-7000-8000-0000000000bb"}
+            headers = {}
 
-        with patch(
+        called = AsyncMock()
+        with patch("http_server.process_optout", new=called):
+            response = await http_server.ea_optout_handler(Request())
+
+        assert response.status_code == 401
+        called.assert_not_awaited()
+
+    async def test_http_handler_normalizes_unexpected_failure_to_structured_503(self):
+        import http_server
+
+        sensitive = "01950000-0000-7000-8000-0000000000cc"
+
+        class Request:
+            path_params = {"uuid": sensitive}
+            headers = {"authorization": "Bearer test"}
+
+        with patch("http_server._authenticated_subject", return_value=sensitive), patch(
             "http_server.process_optout",
             new=AsyncMock(side_effect=RuntimeError("backend-secret-handler-error")),
         ):
@@ -495,7 +529,7 @@ class TestProcessOptout:
         assert '"processed":false' in body
         assert "No deletion action is confirmed" in body
         assert "backend-secret" not in body
-        assert "sensitive-uuid" not in body
+        assert sensitive not in body
 
 
 # ─────────────────────────────────────────────

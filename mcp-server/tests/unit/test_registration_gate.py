@@ -175,11 +175,27 @@ class TestAuthorizedPath:
         assert completed[0]["inference_quality"] == "real"
         assert completed[0]["traffic_class"] == "external"
         assert completed[0]["execution_id"]
+        # T P0-10: terminal evidence carries the route lane and an
+        # environment label bound to the OAuth env, not a K_SERVICE guess.
+        assert completed[0]["route"] == "hosted"
+        assert completed[0]["environment"] in ("production", "staging", "development")
         # Raw UUID appears in NO event (P0 #6).
         assert SUBJECT_UUID not in json.dumps(events)
         # The handler saw the hmac subject via contextvar; reset afterwards.
         assert called["hmac_ctx"] == subject
         assert VERIFIED_SUBJECT_HMAC.get() is None
+
+    @pytest.mark.asyncio
+    async def test_byok_arguments_are_routed_as_byok(self, monkeypatch, capsys):
+        _result, _called, events = await _run(
+            monkeypatch, "run_full_trinity",
+            enabled=True, subject=SUBJECT_UUID, capsys=capsys,
+            arguments={"llm_provider": "groq", "api_key": "k"},
+        )
+        completed = [e for e in events if e["event"] == "tool_completed"]
+        assert completed[0]["route"] == "byok"
+        # Raw UUID appears in NO event (P0 #6).
+        assert SUBJECT_UUID not in json.dumps(events)
 
     @pytest.mark.asyncio
     async def test_error_payload_completes_with_success_false(

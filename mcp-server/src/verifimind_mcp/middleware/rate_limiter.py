@@ -235,11 +235,17 @@ def get_client_ip(request: Request) -> str:
 
     Cloud Run sets X-Forwarded-For header.
     """
-    # Check X-Forwarded-For (set by Cloud Run and other proxies)
+    # Check X-Forwarded-For (set by Cloud Run and other proxies).
+    # Take the LAST hop, not the first: the platform APPENDS the real peer,
+    # while every earlier element is caller-supplied. Trusting the leftmost
+    # element let a single header rotate the rate-limit key at will, which
+    # defeated the only throttle in front of the registration, opt-out, and
+    # dashboard routes.
     forwarded_for = request.headers.get("x-forwarded-for")
     if forwarded_for:
-        # Take the first IP (original client)
-        return forwarded_for.split(",")[0].strip()
+        hops = [hop.strip() for hop in forwarded_for.split(",") if hop.strip()]
+        if hops:
+            return hops[-1]
 
     # Check X-Real-IP
     real_ip = request.headers.get("x-real-ip")

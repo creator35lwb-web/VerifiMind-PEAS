@@ -22,6 +22,7 @@ via contextvars; the legacy ``X-VerifiMind-UUID`` header confers nothing.
 
 import json
 import os
+from typing import Optional
 
 from verifimind_mcp.middleware.registration_gate import (
     AUTH_ACTOR_CLASS,
@@ -39,14 +40,33 @@ def boundary_mode() -> str:
     return mode if mode in ("connection", "execution") else "connection"
 
 
-def _challenge_response(status: int, error: str, description: str):
+def _prm_url() -> Optional[str]:
+    """Env-bound PRM pointer (T P0-8): staging challenges to staging.
+
+    A misconfigured environment returns None and the challenge simply omits
+    the pointer. Falling back to the hardcoded production URL would hand
+    clients of a broken staging service the PRODUCTION authorization server.
+    """
+    try:
+        from verifimind_mcp.oauth import config
+
+        return config.current_environment().prm_url
+    except Exception:
+        return None
+
+
+def _challenge_response(status: int, error: str, description: str, *, scope=""):
     body = json.dumps({"error": error, "error_description": description}).encode()
+    prm = _prm_url()
+    challenge = (
+        f'Bearer resource_metadata="{prm}", error="{error}"' if prm
+        else f'Bearer error="{error}"'
+    )
+    if scope:
+        challenge += f', scope="{scope}"'
     headers = [
         (b"content-type", b"application/json"),
-        (
-            b"www-authenticate",
-            f'Bearer resource_metadata="{_PRM_URL}", error="{error}"'.encode(),
-        ),
+        (b"www-authenticate", challenge.encode()),
         (b"cache-control", b"no-store"),
     ]
     if status == 503:
@@ -86,25 +106,34 @@ class McpAuthBoundary:
                     "resource metadata.",
                 )
             )
+        from verifimind_mcp.oauth.authlib_server import authenticate_bearer
+        from verifimind_mcp.oauth.stores import StoreUnavailable
+
         try:
-            from verifimind_mcp.oauth.stores import StoreUnavailable, validate_token
-            try:
-                record = validate_token(token)
-            except StoreUnavailable:
-                return await self._reject(
-                    send, *_challenge_response(
-                        503, "temporarily_unavailable",
-                        "Token verification is temporarily unavailable; "
-                        "retry shortly.",
-                    )
+            record, error_code = authenticate_bearer(token, ("mcp",))
+        except StoreUnavailable:
+            return await self._reject(
+                send, *_challenge_response(
+                    503, "temporarily_unavailable",
+                    "Token verification is temporarily unavailable; retry shortly.",
                 )
+            )
         except Exception:
-            record = None
+            record, error_code = None, "invalid_token"
+        if error_code == "insufficient_scope":
+            return await self._reject(
+                send, *_challenge_response(
+                    403, "insufficient_scope",
+                    "The token does not carry the required 'mcp' scope.",
+                    scope="mcp",
+                )
+            )
         if record is None:
             return await self._reject(
                 send, *_challenge_response(
                     401, "invalid_token",
-                    "The presented token is invalid, expired, or revoked.",
+                    "The presented token is invalid, expired, revoked, or "
+                    "bound to a different resource.",
                 )
             )
         subject_token = AUTH_SUBJECT_UUID.set(record.subject_uuid)
@@ -132,6 +161,7 @@ class McpAuthBoundary:
         boundary fails toward authentication, never around it."""
         chunks = []
         total = 0
+        oversized = False
         more = True
         while more:
             message = await receive()
@@ -144,7 +174,11 @@ class McpAuthBoundary:
             chunks.append(message)
             more = message.get("more_body", False)
             if total > _MAX_PEEK_BODY:
-                break
+                # Stop PARSING, never stop READING: breaking out here left the
+                # buffered chunks flagged more_body=True and the replay then
+                # terminated early, silently truncating a large body for an
+                # authenticated caller.
+                oversized = True
 
         async def replay():
             for message in chunks:
@@ -158,7 +192,7 @@ class McpAuthBoundary:
             except StopAsyncIteration:
                 return {"type": "http.request", "body": b"", "more_body": False}
 
-        if total > _MAX_PEEK_BODY:
+        if oversized:
             return True, replay_receive
         raw = b"".join(
             m.get("body", b"") for m in chunks if m.get("type") == "http.request"
@@ -172,8 +206,13 @@ class McpAuthBoundary:
             if not isinstance(item, dict):
                 return True, replay_receive
             if item.get("method") == "tools/call":
-                name = (item.get("params") or {}).get("name")
-                if name in GATED_TOOL_NAMES:
+                params = item.get("params")
+                if not isinstance(params, dict):
+                    # JSON-RPC permits array params; .get() on a list raised
+                    # AttributeError and escaped as an unhandled 500 — a free
+                    # crash primitive for any anonymous caller.
+                    return True, replay_receive
+                if params.get("name") in GATED_TOOL_NAMES:
                     return True, replay_receive
         return False, replay_receive
 

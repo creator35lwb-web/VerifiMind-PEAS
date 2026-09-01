@@ -94,6 +94,30 @@ def emit_tool_denied(tool_name: str, reason: str) -> None:
     })
 
 
+def _environment_label() -> str:
+    """Environment label from the OAuth env binding (T P0-8), so a staging
+    service never labels its traffic as production."""
+    try:
+        from verifimind_mcp.oauth import config
+
+        return config.current_environment().name
+    except Exception:
+        return "production" if os.getenv("K_SERVICE") else "development"
+
+
+def _protocol_era() -> Optional[str]:
+    """Negotiated MCP protocol revision, from the request header when the
+    call arrives over HTTP (T P0-10). None outside an HTTP request."""
+    try:
+        from fastmcp.server.dependencies import get_http_headers
+
+        headers = get_http_headers() or {}
+        era = str(headers.get("mcp-protocol-version", "")).strip()
+        return era or None
+    except Exception:
+        return None
+
+
 def emit_tool_completed(
     tool_name: str,
     subject: Optional[str],
@@ -102,6 +126,7 @@ def emit_tool_completed(
     inference_quality: str,
     traffic_class: str,
     execution_id: str,
+    route: str,
 ) -> None:
     event = {
         "severity": "INFO",
@@ -109,10 +134,14 @@ def emit_tool_completed(
         "tool": tool_name,
         "success": success,
         "inference_quality": inference_quality,
-        "environment": "production" if os.getenv("K_SERVICE") else "development",
+        "route": route,
+        "environment": _environment_label(),
         "traffic_class": traffic_class,
         "execution_id": execution_id,
     }
+    era = _protocol_era()
+    if era:
+        event["protocol_era"] = era
     if subject:
         event["subject"] = subject
     _emit(event)
@@ -214,6 +243,16 @@ class RegistrationGate(Middleware):
         subject = derive_subject(subject_uuid)
         traffic_class = AUTH_ACTOR_CLASS.get() or "unknown"
         execution_id = _uuid.uuid4().hex
+        # Route lane (T P0-10): caller-supplied provider/key parameters mean
+        # the run is BYOK; otherwise it uses hosted construction-time routing.
+        route = "byok" if (
+            isinstance(arguments, dict) and any(
+                arguments.get(param) for param in (
+                    "api_key", "x_api_key", "z_api_key", "cs_api_key",
+                    "llm_provider", "x_provider", "z_provider", "cs_provider",
+                )
+            )
+        ) else "hosted"
         emit_tool_admitted(tool_name, subject)
         token = VERIFIED_SUBJECT_HMAC.set(subject)
         try:
@@ -225,6 +264,7 @@ class RegistrationGate(Middleware):
                 inference_quality="exception",
                 traffic_class=traffic_class,
                 execution_id=execution_id,
+                route=route,
             )
             raise
         finally:
@@ -246,5 +286,6 @@ class RegistrationGate(Middleware):
             inference_quality=quality,
             traffic_class=traffic_class,
             execution_id=execution_id,
+            route=route,
         )
         return result

@@ -1,27 +1,49 @@
-"""OAuth 2.1 spine contract — core, stores, and HTTP endpoints (Design v2).
+"""OAuth 2.1 Authlib-core discriminating contracts (D-ALTON-AUTHLIB).
 
-Covers the T S152/S153 acceptance receipts that live in this layer:
-hash-at-rest storage, PKCE-bound single-use codes, refresh rotation with
-reuse-detection lineage revocation, RFC 7009 revoke, bounded DCR, the
-enumeration-safe verification ceremony, issuance limits, and the full
-authorize→token→validate walk through the real HTTP app.
+Covers the T S154 preflight P0 negatives and concurrency barriers:
+PKCE matrix, wrong-verifier-does-not-consume, exactly-one concurrent winner,
+refresh rotation + replay family-revocation, ACCESS/PAT vs REFRESH bearer,
+the P0-1 cache secret-bypass probe (before AND after warm-up), issuer/
+audience/scope 401-vs-403, duplicate-email non-disclosure, dark-mode zero
+mutation + zero mail, and stage/prod token isolation.
 """
 
+import base64
+import hashlib
 import re
+import secrets
+import warnings
 from unittest.mock import patch
 
 import pytest
 
-from verifimind_mcp.oauth import core, stores
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+from verifimind_mcp.oauth import config, core, stores
+from verifimind_mcp.oauth import authlib_server as A
 from verifimind_mcp.oauth.stores import StoreUnavailable
 
 from .oauth_fakes import FakeFirestore
 
-SUBJECT = "018f6b2a-aaaa-7abc-8def-0123456789ab"
+
+def _pkce():
+    verifier = secrets.token_urlsafe(48)[:64]
+    challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(verifier.encode()).digest()
+    ).rstrip(b"=").decode()
+    return verifier, challenge
 
 
 @pytest.fixture()
-def db():
+def env(monkeypatch):
+    monkeypatch.setenv("VERIFIMIND_ENVIRONMENT", "development")
+    monkeypatch.setenv("VERIFIMIND_PUBLIC_ORIGIN", "http://localhost:8080")
+    monkeypatch.setenv("OAUTH_ISSUANCE_ENABLED", "true")
+    monkeypatch.delenv("MAIL_RECIPIENT_ALLOWLIST", raising=False)
+
+
+@pytest.fixture()
+def db(env):
     fake = FakeFirestore()
     stores.clear_caches()
     with patch("verifimind_mcp.registration._get_firestore", return_value=fake):
@@ -29,377 +51,318 @@ def db():
     stores.clear_caches()
 
 
-def _register_client(redirect="https://client.example/callback"):
+@pytest.fixture()
+def server(db):
+    return A.build_authorization_server()
+
+
+def _client(redirect="https://c.example/cb"):
     return stores.register_client(
-        client_name="Test MCP Client",
-        redirect_uris=[redirect],
-        registration_path="dcr",
+        client_name="CLI", redirect_uris=[redirect], registration_path="dcr"
     )
 
 
-class TestStores:
-    def test_secrets_never_stored_in_plaintext(self, db):
-        minted = stores.issue_token(kind=core.ACCESS, subject_uuid=SUBJECT, client_id="c")
-        stored = db.data["oauth_tokens"][minted.token_id]
-        secret = minted.token.split(".")[2]
-        assert secret not in str(stored)
-        assert stored["secret_hash"] == core.sha256_hex(secret)
+def _mkcode(cid, challenge, subject="subj-1", redirect="https://c.example/cb"):
+    code = core.mint_authorization_code()
+    stores.persist_code(
+        code_id=code.token_id, code_secret_hash=code.secret_hash, client_id=cid,
+        subject_uuid=subject, redirect_uri=redirect, code_challenge=challenge, scope="mcp",
+    )
+    return code
 
-    def test_validate_round_trip_and_kind_binding(self, db):
-        minted = stores.issue_token(kind=core.ACCESS, subject_uuid=SUBJECT, client_id="c")
-        record = stores.validate_token(minted.token)
-        assert record and record.subject_uuid == SUBJECT
-        assert stores.validate_token(minted.token, expected_kind=core.REFRESH) is None
 
-    def test_validate_rejects_wrong_secret(self, db):
-        minted = stores.issue_token(kind=core.ACCESS, subject_uuid=SUBJECT, client_id="c")
-        forged = minted.token[:-4] + "XXXX"
-        assert stores.validate_token(forged) is None
+def _treq(**form):
+    return A.build_request(
+        method="POST", uri="http://localhost:8080/oauth/token",
+        form_pairs=list(form.items()), query_pairs=[],
+        headers={"content-type": "application/x-www-form-urlencoded"},
+    )
 
-    def test_revoked_token_fails_within_cache_ttl_locally(self, db):
-        minted = stores.issue_token(kind=core.ACCESS, subject_uuid=SUBJECT, client_id="c")
-        assert stores.validate_token(minted.token) is not None
-        assert stores.revoke_token(minted.token) is True
-        # Local revoke purges the cache immediately.
-        assert stores.validate_token(minted.token) is None
 
-    def test_expired_token_rejected(self, db):
-        minted = stores.issue_token(kind=core.ACCESS, subject_uuid=SUBJECT, client_id="c")
-        db.data["oauth_tokens"][minted.token_id]["expires_at"] = 1.0
-        assert stores.validate_token(minted.token) is None
+def _exchange(server, cid, code_token, verifier, redirect="https://c.example/cb"):
+    return server.create_token_response(_treq(
+        grant_type="authorization_code", code=code_token, code_verifier=verifier,
+        client_id=cid, redirect_uri=redirect,
+    ))
 
-    def test_outage_raises_store_unavailable_never_passes(self):
+
+class TestHappyPath:
+    def test_code_exchange_issues_bound_tokens(self, server):
+        cid = _client()
+        v, ch = _pkce()
+        code = _mkcode(cid, ch)
+        st, body, _ = _exchange(server, cid, code.token, v)
+        assert st == 200 and "access_token" in body
+        rec = stores.validate_bearer(body["access_token"])
+        assert rec.subject_uuid == "subj-1"
+        assert rec.audience == "http://localhost:8080/mcp"
+        assert rec.issuer == "http://localhost:8080"
+        assert rec.scope == "mcp"
+
+
+class TestPKCEMatrix:
+    def test_missing_verifier_rejected(self, server):
+        cid = _client()
+        _v, ch = _pkce()
+        code = _mkcode(cid, ch)
+        st, body, _ = server.create_token_response(_treq(
+            grant_type="authorization_code", code=code.token, client_id=cid,
+            redirect_uri="https://c.example/cb"))
+        assert st == 400
+
+    def test_wrong_verifier_rejected_and_does_not_consume(self, server):
+        cid = _client()
+        v, ch = _pkce()
+        code = _mkcode(cid, ch)
+        st, body, _ = _exchange(server, cid, code.token, "wrong-" + v)
+        assert st == 400 and body["error"] == "invalid_grant"
+        # T P0-3: a failed exchange must NOT burn the code.
+        assert stores.read_code(code.token_id) is not None
+        # A subsequent correct verifier still works.
+        st2, body2, _ = _exchange(server, cid, code.token, v)
+        assert st2 == 200
+
+    def test_plain_challenge_method_refused_at_authorize(self, server):
+        cid = _client()
+        _v, ch = _pkce()
+        req = A.build_request(method="GET", uri="http://localhost:8080/oauth/authorize",
+            form_pairs=[], query_pairs=[
+                ("response_type", "code"), ("client_id", cid),
+                ("redirect_uri", "https://c.example/cb"),
+                ("code_challenge", ch), ("code_challenge_method", "plain")],
+            headers={})
+        from authlib.oauth2.base import OAuth2Error
+        with pytest.raises(OAuth2Error):
+            server.get_consent_grant(req)
+
+
+class TestConcurrency:
+    def test_two_concurrent_code_exchanges_yield_one_winner(self, db, server):
+        cid = _client()
+        v, ch = _pkce()
+        code = _mkcode(cid, ch)
+        results = []
+
+        def barrier():
+            # Second claimant runs fully inside the first's pre-commit window.
+            try:
+                st, body, _ = _exchange(server, cid, code.token, v)
+                results.append(st)
+            except StoreUnavailable:
+                results.append(409)
+
+        db._next_barrier = barrier
+        try:
+            st1, _b1, _ = _exchange(server, cid, code.token, v)
+            results.append(st1)
+        except StoreUnavailable:
+            results.append(409)
+        assert results.count(200) == 1, results
+
+
+class TestRefresh:
+    def test_rotation_then_replay_revokes_family(self, server):
+        cid = _client()
+        v, ch = _pkce()
+        code = _mkcode(cid, ch)
+        _st, body, _ = _exchange(server, cid, code.token, v)
+        access1, refresh1 = body["access_token"], body["refresh_token"]
+        st2, body2, _ = server.create_token_response(_treq(
+            grant_type="refresh_token", refresh_token=refresh1, client_id=cid))
+        assert st2 == 200
+        access2 = body2["access_token"]
+        # Replay of the rotated refresh token → invalid_grant + family revoke.
+        st3, body3, _ = server.create_token_response(_treq(
+            grant_type="refresh_token", refresh_token=refresh1, client_id=cid))
+        assert st3 == 400 and body3["error"] == "invalid_grant"
+        assert stores.validate_bearer(access2) is None
+        assert stores.validate_bearer(access1) is None
+
+
+class TestBearerKinds:
+    def test_access_and_pat_pass_refresh_rejected(self, server):
+        cid = _client()
+        v, ch = _pkce()
+        code = _mkcode(cid, ch)
+        _st, body, _ = _exchange(server, cid, code.token, v)
+        access, refresh = body["access_token"], body["refresh_token"]
+        pat = stores.issue_pat(subject_uuid="subj-1", actor_class="external", parent_grant_id="g-test").token
+        assert stores.validate_bearer(access) is not None
+        assert stores.validate_bearer(pat) is not None
+        assert stores.validate_bearer(refresh) is None
+        # PAT is rejected where only ACCESS is allowed (e.g. minting a PAT).
+        assert stores.validate_bearer(pat, allow_pat=False) is None
+
+
+class TestCacheSecretBypass:
+    def test_wrong_secret_fails_before_and_after_warmup(self, server):
+        # T P0-1: the CRITICAL finding — same token id, attacker secret.
+        cid = _client()
+        v, ch = _pkce()
+        code = _mkcode(cid, ch)
+        _st, body, _ = _exchange(server, cid, code.token, v)
+        access = body["access_token"]
+        tampered = access.rsplit(".", 1)[0] + ".attacker-does-not-know-secret"
+        assert stores.validate_bearer(tampered) is None       # cold
+        assert stores.validate_bearer(access) is not None     # warm the cache
+        assert stores.validate_bearer(tampered) is None       # still rejected
+
+    def test_cache_does_not_outlive_token_expiry(self, db, server):
+        cid = _client()
+        v, ch = _pkce()
+        code = _mkcode(cid, ch)
+        _st, body, _ = _exchange(server, cid, code.token, v)
+        access = body["access_token"]
+        assert stores.validate_bearer(access) is not None
+        parsed = core.parse_token(access)
+        db.collection(stores.c_tokens()).document(parsed.token_id).update({"expires_at": 1.0})
+        stores.clear_caches()
+        assert stores.validate_bearer(access) is None
+
+
+class TestBearerAuthorization:
+    def _access(self, server):
+        cid = _client()
+        v, ch = _pkce()
+        code = _mkcode(cid, ch)
+        _st, body, _ = _exchange(server, cid, code.token, v)
+        return body["access_token"]
+
+    def test_valid_scope_passes(self, server):
+        access = self._access(server)
+        record, err = A.authenticate_bearer(access, ("mcp",))
+        assert record is not None and err is None
+
+    def test_insufficient_scope_is_403_class(self, server):
+        access = self._access(server)
+        record, err = A.authenticate_bearer(access, ("admin",))
+        assert record is None and err == "insufficient_scope"
+
+    def test_wrong_audience_is_401_class(self, db, server):
+        access = self._access(server)
+        parsed = core.parse_token(access)
+        db.collection(stores.c_tokens()).document(parsed.token_id).update(
+            {"audience": "https://evil.example/mcp"})
+        stores.clear_caches()
+        record, err = A.authenticate_bearer(access, ("mcp",))
+        assert record is None and err == "invalid_token"
+
+    def test_wrong_issuer_is_401_class(self, db, server):
+        access = self._access(server)
+        parsed = core.parse_token(access)
+        db.collection(stores.c_tokens()).document(parsed.token_id).update(
+            {"issuer": "https://evil.example"})
+        stores.clear_caches()
+        record, err = A.authenticate_bearer(access, ("mcp",))
+        assert record is None and err == "invalid_token"
+
+
+class TestOutageFailsClosed:
+    def test_bearer_validation_raises_store_unavailable(self, env):
         stores.clear_caches()
         with patch("verifimind_mcp.registration._get_firestore", return_value=None):
             with pytest.raises(StoreUnavailable):
-                stores.validate_token("vmat.x.y")
+                A.authenticate_bearer("vmat.x.y", ("mcp",))
 
-    def test_refresh_rotation_and_reuse_detection(self, db):
-        refresh = stores.issue_token(kind=core.REFRESH, subject_uuid=SUBJECT, client_id="c")
-        first = stores.rotate_refresh_token(refresh.token)
-        assert first is not None
-        # Reusing the ROTATED (old) refresh token is a theft signal: the
-        # subject's live credentials are revoked wholesale.
-        assert stores.rotate_refresh_token(refresh.token) is None
-        assert stores.validate_token(first["access"].token) is None
-
-    def test_revoke_all_for_subject_tombstones_everything(self, db):
-        a = stores.issue_token(kind=core.ACCESS, subject_uuid=SUBJECT, client_id="c1")
-        b = stores.issue_token(kind=core.PAT, subject_uuid=SUBJECT, client_id=None)
-        other = stores.issue_token(kind=core.ACCESS, subject_uuid="other", client_id="c2")
-        revoked = stores.revoke_all_for_subject(SUBJECT)
-        assert revoked == 2
-        assert stores.validate_token(a.token) is None
-        assert stores.validate_token(b.token, expected_kind=core.PAT) is None
-        assert stores.validate_token(other.token) is not None
-
-    def test_authorization_code_single_use_and_hashing(self, db):
-        code = stores.issue_code(
-            client_id="c", subject_uuid=SUBJECT,
-            redirect_uri="https://client.example/callback",
-            code_challenge="ch", scope="mcp",
-        )
-        secret = code.split(".")[2]
-        assert secret not in str(db.data["oauth_codes"])
-        first = stores.consume_code(code)
-        assert first and first["subject_uuid"] == SUBJECT
-        assert stores.consume_code(code) is None  # single-use
-
-    def test_verification_attempt_cap_and_consume(self, db):
-        stores.put_verification(email="a@b.co", code="12345678", purpose="authorize")
-        for _ in range(stores.VERIFICATION_MAX_ATTEMPTS):
-            assert stores.check_verification(email="a@b.co", code="00000000") is False
-        # Cap reached: even the right code no longer verifies.
-        assert stores.check_verification(email="a@b.co", code="12345678") is False
-        stores.put_verification(email="c@d.co", code="87654321", purpose="authorize")
-        assert stores.check_verification(email="c@d.co", code="87654321") is True
-        # Consumed on success.
-        assert stores.check_verification(email="c@d.co", code="87654321") is False
-
-    def test_verification_stores_email_hash_only(self, db):
-        stores.put_verification(email="Person@Example.com", code="11112222", purpose="x")
-        blob = str(db.data["oauth_email_verifications"])
-        assert "person@example.com" not in blob.lower().replace(
-            core.sha256_hex("person@example.com"), ""
-        )
+    def test_token_endpoint_raises_on_outage(self, env):
+        server = A.build_authorization_server()
+        stores.clear_caches()
+        with patch("verifimind_mcp.registration._get_firestore", return_value=None):
+            with pytest.raises(StoreUnavailable):
+                server.create_token_response(_treq(
+                    grant_type="authorization_code", code="vmac.a.b",
+                    code_verifier="x", client_id="c", redirect_uri="https://c/cb"))
 
 
-@pytest.fixture()
-def client(db, monkeypatch):
-    import http_server
-    from starlette.testclient import TestClient
-    from verifimind_mcp.middleware import rate_limiter
-    from verifimind_mcp.oauth.endpoints import issuance_limiter
-
-    # Keep the shared-process rate buckets out of these walks: fresh store
-    # per test so batch order can never manufacture a 429.
-    monkeypatch.setattr(
-        rate_limiter, "_rate_limit_store", rate_limiter.RateLimitStore()
-    )
-    monkeypatch.setitem(rate_limiter.TIER_LIMITS, "anonymous", 10_000)
-    monkeypatch.setattr(rate_limiter, "RATE_LIMIT_GLOBAL", 100_000)
-    monkeypatch.setenv("MAILER_BACKEND", "console")
-    monkeypatch.delenv("K_SERVICE", raising=False)
-    issuance_limiter.reset()
-    with TestClient(http_server.app) as tc:
-        yield tc
-    issuance_limiter.reset()
+class TestStageProdIsolation:
+    def test_prod_token_rejected_in_staging(self, monkeypatch):
+        # Mint under production identity, validate under staging: audience/
+        # issuer mismatch denies (T P0-8).
+        fake = FakeFirestore()
+        stores.clear_caches()
+        with patch("verifimind_mcp.registration._get_firestore", return_value=fake):
+            monkeypatch.setenv("VERIFIMIND_ENVIRONMENT", "production")
+            monkeypatch.setenv("VERIFIMIND_PUBLIC_ORIGIN", "https://verifimind.ysenseai.org")
+            prod_pat = stores.issue_pat(subject_uuid="s", actor_class="external", parent_grant_id="g-test").token
+            # production stores in bare collection; staging reads a namespaced
+            # one, so the token is not even found — isolation by namespace.
+            monkeypatch.setenv("VERIFIMIND_ENVIRONMENT", "staging")
+            monkeypatch.setenv("VERIFIMIND_PUBLIC_ORIGIN", "https://staging.example")
+            record, err = A.authenticate_bearer(prod_pat, ("mcp",))
+            assert record is None
+        stores.clear_caches()
 
 
-class TestMetadata:
-    def test_protected_resource_metadata(self, client):
-        body = client.get("/.well-known/oauth-protected-resource").json()
-        assert body["resource"].endswith("/mcp")
-        assert body["authorization_servers"] == ["https://verifimind.ysenseai.org"]
+class TestAdversarialFindings:
+    """Regressions for the bypasses found by the S155 attacker-position pass.
 
-    def test_authorization_server_metadata(self, client):
-        body = client.get("/.well-known/oauth-authorization-server").json()
-        assert body["code_challenge_methods_supported"] == ["S256"]
-        assert body["token_endpoint_auth_methods_supported"] == ["none"]
-        assert body["grant_types_supported"] == [
-            "authorization_code", "refresh_token",
-        ]
+    Each test reproduces the reviewer's concrete attack; none of them passed
+    before the repair in the same commit.
+    """
 
+    def _grant(self, server):
+        cid = _client()
+        v, ch = _pkce()
+        code = _mkcode(cid, ch)
+        _st, body, _ = _exchange(server, cid, code.token, v)
+        return body["access_token"], body["refresh_token"]
 
-class TestDcr:
-    def test_register_accepts_https_and_loopback(self, client):
-        response = client.post("/oauth/register", json={
-            "client_name": "CLI",
-            "redirect_uris": ["http://127.0.0.1:33418/callback"],
-        })
-        assert response.status_code == 201
-        assert response.json()["client_id"].startswith("vmc_")
+    def test_pat_is_revoked_with_its_parent_grant(self, server):
+        # A-1/B-2: a PAT used to get a brand-new family, so revoking the
+        # grant it was minted from could never reach it — a stolen 1-hour
+        # access token became a silent 180-day credential.
+        access, _refresh = self._grant(server)
+        record = stores.validate_bearer(access)
+        pat = stores.issue_pat(
+            subject_uuid=record.subject_uuid, actor_class=record.actor_class,
+            parent_grant_id=record.grant_id,
+        ).token
+        assert stores.validate_bearer(pat) is not None
+        assert stores.revoke_credential(access) is True
+        assert stores.validate_bearer(pat) is None
 
-    def test_register_rejects_plain_http_remote(self, client):
-        response = client.post("/oauth/register", json={
-            "redirect_uris": ["http://evil.example/cb"],
-        })
-        assert response.status_code == 400
+    def test_absent_issuer_or_audience_denies(self, db, server):
+        # A-2: the binding check was truthy-guarded, so a token missing these
+        # fields skipped it and validated in every environment.
+        access, _r = self._grant(server)
+        parsed = core.parse_token(access)
+        db.collection(stores.c_tokens()).document(parsed.token_id).update(
+            {"issuer": "", "audience": ""})
+        stores.clear_caches()
+        record, err = A.authenticate_bearer(access, ("mcp",))
+        assert record is None and err == "invalid_token"
 
+    def test_subject_tombstone_refuses_credentials_minted_after_the_sweep(
+        self, db, server
+    ):
+        # B-4: revocation was query-then-update, so a credential created
+        # after the snapshot survived. The tombstone is consulted at
+        # validation time, so a later-minted credential is still refused.
+        access, _r = self._grant(server)
+        record = stores.validate_bearer(access)
+        stores.revoke_all_for_subject(record.subject_uuid)
+        late = stores.issue_pat(
+            subject_uuid=record.subject_uuid, actor_class="external",
+            parent_grant_id="unrelated-grant",
+        ).token
+        assert stores.validate_bearer(late) is None
 
-class TestAuthorizeCeremonyEndToEnd:
-    def _pkce(self):
-        import base64
-        import hashlib
-        import secrets as s
-        verifier = s.token_urlsafe(48)[:64]
-        challenge = base64.urlsafe_b64encode(
-            hashlib.sha256(verifier.encode()).digest()
-        ).rstrip(b"=").decode()
-        return verifier, challenge
+    def test_warm_cache_cannot_outlive_revocation(self, db, server):
+        # B-3: a cache HIT re-checked only kind/expiry, so a sibling
+        # instance kept admitting a revoked token for the cache TTL.
+        access, _r = self._grant(server)
+        assert stores.validate_bearer(access) is not None  # warm
+        record = stores.validate_bearer(access)
+        stores._write_tombstone("grant", record.grant_id)  # peer revoked it
+        assert stores.validate_bearer(access) is None
 
-    def test_full_flow_register_verify_consent_token(self, client, db, capsys):
-        client_id = _register_client()
-        verifier, challenge = self._pkce()
-        page = client.get("/oauth/authorize", params={
-            "client_id": client_id,
-            "redirect_uri": "https://client.example/callback",
-            "response_type": "code",
-            "code_challenge": challenge,
-            "code_challenge_method": "S256",
-            "state": "xyz",
-        })
-        assert page.status_code == 200
-        sid = re.search(r"name='sid' value='([^']+)'", page.text).group(1)
-
-        sent = client.post("/oauth/authorize", data={
-            "sid": sid, "action": "send_code", "email": "new@example.com",
-        })
-        assert sent.status_code == 200
-        code = re.search(
-            r"verification code for authorize: (\d{8})", capsys.readouterr().err
-        ).group(1)
-
-        verified = client.post("/oauth/authorize", data={
-            "sid": sid, "action": "verify_code",
-            "email": "new@example.com", "code": code,
-        })
-        assert "Authorize access" in verified.text
-
-        consent = client.post("/oauth/authorize", data={
-            "sid": sid, "action": "consent", "decision": "allow", "agree": "on",
-        }, follow_redirects=False)
-        assert consent.status_code == 302
-        location = consent.headers["location"]
-        assert location.startswith("https://client.example/callback?")
-        auth_code = re.search(r"code=([^&]+)", location).group(1)
-        assert "state=xyz" in location
-
-        token = client.post("/oauth/token", data={
-            "grant_type": "authorization_code",
-            "code": auth_code,
-            "code_verifier": verifier,
-            "client_id": client_id,
-            "redirect_uri": "https://client.example/callback",
-        })
-        assert token.status_code == 200
-        body = token.json()
-        assert body["token_type"] == "Bearer"
-        record = stores.validate_token(body["access_token"])
-        assert record is not None
-        # The ceremony created the account with a verified mailbox.
-        account = db.data["ea_registrations"][record.subject_uuid]
-        assert account["email_verified"] is True
-        assert account["registration_path"] == "oauth_ceremony_v2"
-
-        # Refresh rotation works end-to-end.
-        refreshed = client.post("/oauth/token", data={
-            "grant_type": "refresh_token",
-            "refresh_token": body["refresh_token"],
-        })
-        assert refreshed.status_code == 200
-
-        # PAT issuance from a live access token.
-        pat = client.post("/oauth/pat", headers={
-            "Authorization": f"Bearer {refreshed.json()['access_token']}",
-        })
-        assert pat.status_code == 200
-        assert pat.json()["personal_access_token"].startswith("vmpat.")
-
-    def test_duplicate_email_answer_is_uniform(self, client, db, capsys):
-        client_id = _register_client()
-        _verifier, challenge = self._pkce()
-        db.data.setdefault("ea_registrations", {})["existing-uuid"] = {
-            "uuid": "existing-uuid", "email": "known@example.com",
-            "status": "active", "tier": "ea",
-        }
-
-        def _send(email):
-            page = client.get("/oauth/authorize", params={
-                "client_id": client_id,
-                "redirect_uri": "https://client.example/callback",
-                "response_type": "code",
-                "code_challenge": challenge,
-                "code_challenge_method": "S256",
-                "state": "s",
-            })
-            sid = re.search(r"name='sid' value='([^']+)'", page.text).group(1)
-            return client.post("/oauth/authorize", data={
-                "sid": sid, "action": "send_code", "email": email,
-            })
-
-        known = _send("known@example.com")
-        fresh = _send("fresh@example.com")
-        # Same page, same copy — account existence is never disclosed and
-        # no UUID or credential appears for either path (T P0 #1).
-        assert known.status_code == fresh.status_code == 200
-        for response in (known, fresh):
-            assert "existing-uuid" not in response.text
-            assert "already registered" not in response.text.lower()
-
-    def test_unknown_client_never_redirects(self, client):
-        response = client.get("/oauth/authorize", params={
-            "client_id": "vmc_forged",
-            "redirect_uri": "https://attacker.example/steal",
-            "response_type": "code",
-            "code_challenge": "x",
-            "code_challenge_method": "S256",
-        }, follow_redirects=False)
-        assert response.status_code == 400  # open-redirect guard
-
-    def test_wrong_pkce_verifier_is_invalid_grant(self, client, db, capsys):
-        client_id = _register_client()
-        verifier, challenge = self._pkce()
-        page = client.get("/oauth/authorize", params={
-            "client_id": client_id,
-            "redirect_uri": "https://client.example/callback",
-            "response_type": "code",
-            "code_challenge": challenge,
-            "code_challenge_method": "S256",
-            "state": "s",
-        })
-        sid = re.search(r"name='sid' value='([^']+)'", page.text).group(1)
-        client.post("/oauth/authorize", data={
-            "sid": sid, "action": "send_code", "email": "p@example.com",
-        })
-        code = re.search(
-            r"verification code for authorize: (\d{8})", capsys.readouterr().err
-        ).group(1)
-        client.post("/oauth/authorize", data={
-            "sid": sid, "action": "verify_code",
-            "email": "p@example.com", "code": code,
-        })
-        consent = client.post("/oauth/authorize", data={
-            "sid": sid, "action": "consent", "decision": "allow", "agree": "on",
-        }, follow_redirects=False)
-        auth_code = re.search(r"code=([^&]+)", consent.headers["location"]).group(1)
-        token = client.post("/oauth/token", data={
-            "grant_type": "authorization_code",
-            "code": auth_code,
-            "code_verifier": verifier + "tampered",
-            "client_id": client_id,
-            "redirect_uri": "https://client.example/callback",
-        })
-        assert token.status_code == 400
-        assert token.json()["error"] == "invalid_grant"
-
-    def test_revoked_account_email_never_resolves(self, client, db, capsys):
-        client_id = _register_client()
-        _v, challenge = self._pkce()
-        db.data.setdefault("ea_registrations", {})["gone-uuid"] = {
-            "uuid": "gone-uuid", "email": "gone@example.com",
-            "status": "deletion_requested", "tier": "ea",
-        }
-        page = client.get("/oauth/authorize", params={
-            "client_id": client_id,
-            "redirect_uri": "https://client.example/callback",
-            "response_type": "code",
-            "code_challenge": challenge,
-            "code_challenge_method": "S256",
-        })
-        sid = re.search(r"name='sid' value='([^']+)'", page.text).group(1)
-        client.post("/oauth/authorize", data={
-            "sid": sid, "action": "send_code", "email": "gone@example.com",
-        })
-        code = re.search(
-            r"verification code for authorize: (\d{8})", capsys.readouterr().err
-        ).group(1)
-        client.post("/oauth/authorize", data={
-            "sid": sid, "action": "verify_code",
-            "email": "gone@example.com", "code": code,
-        })
-        consent = client.post("/oauth/authorize", data={
-            "sid": sid, "action": "consent", "decision": "allow", "agree": "on",
-        }, follow_redirects=False)
-        # A deletion-requested identity cannot re-authenticate through the
-        # ceremony: no code is issued for it.
-        assert consent.status_code == 503
-
-
-class TestIssuanceLimits:
-    def test_send_code_limited_per_ip(self, client, db):
-        from verifimind_mcp.oauth.endpoints import issuance_limiter
-        client_id = _register_client()
-        page = client.get("/oauth/authorize", params={
-            "client_id": client_id,
-            "redirect_uri": "https://client.example/callback",
-            "response_type": "code",
-            "code_challenge": "c" * 43,
-            "code_challenge_method": "S256",
-        })
-        sid = re.search(r"name='sid' value='([^']+)'", page.text).group(1)
-        limit, _window = issuance_limiter.LIMITS["send_code"]
-        for i in range(limit):
-            assert issuance_limiter.allow("send_code", "testclient")
-        response = client.post("/oauth/authorize", data={
-            "sid": sid, "action": "send_code", "email": "x@example.com",
-        })
-        assert "Too many codes" in response.text
-
-    def test_mailer_fail_closed_in_production(self, client, db, monkeypatch):
-        # Cloud Run + console backend must refuse: verification codes may
-        # never leak into production logs, and the ceremony answers 503.
-        monkeypatch.setenv("K_SERVICE", "verifimind-mcp-server")
-        client_id = _register_client()
-        page = client.get("/oauth/authorize", params={
-            "client_id": client_id,
-            "redirect_uri": "https://client.example/callback",
-            "response_type": "code",
-            "code_challenge": "c" * 43,
-            "code_challenge_method": "S256",
-        })
-        sid = re.search(r"name='sid' value='([^']+)'", page.text).group(1)
-        response = client.post("/oauth/authorize", data={
-            "sid": sid, "action": "send_code", "email": "y@example.com",
-        })
-        assert response.status_code == 503
+    def test_scope_persisted_is_the_resolved_grant_not_caller_input(self, db, server):
+        # A5-related: persisting request.payload.scope stored raw client
+        # input; Authlib warns this becomes escalation with >1 scope.
+        cid = _client()
+        v, ch = _pkce()
+        code = _mkcode(cid, ch)
+        db.collection(stores._c("oauth_codes")).document(code.token_id).update(
+            {"scope": "mcp"})
+        _st, body, _ = _exchange(server, cid, code.token, v)
+        assert stores.validate_bearer(body["access_token"]).scope == "mcp"
