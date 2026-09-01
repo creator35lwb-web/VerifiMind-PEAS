@@ -1313,8 +1313,31 @@ async def http_exception_handler(request, exc):
 # Z-Protocol v1.1 compliant — consent-first, data minimization, opt-out
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _registration_dark_response():
+    """CS Finding 1: while issuance is dark, the account-creating registration
+    endpoints must perform ZERO Firestore writes — the P0-7 contract is that a
+    dark deploy has no public credential/account mutation, and these legacy
+    handlers previously bypassed it entirely. Returns a JSONResponse when dark,
+    else None. Scoped to account issuance; the feedback channel is not an
+    issuance path and is intentionally not gated here."""
+    from verifimind_mcp.oauth import config as _oauth_config
+    if _oauth_config.issuance_enabled():
+        return None
+    return JSONResponse({
+        "error": "registration_unavailable",
+        "detail": (
+            "Registration is not currently open. When it opens, sign in "
+            "through your MCP client's Connect flow, which verifies your email "
+            "and issues your credentials."
+        ),
+    }, status_code=503, headers={"Retry-After": "3600"})
+
+
 async def ea_register_handler(request):
     """POST /early-adopters/register — EA or Pilot registration with T&C + Privacy consent."""
+    _dark = _registration_dark_response()
+    if _dark is not None:
+        return _dark
     try:
         body = await request.json()
     except Exception:
@@ -1605,6 +1628,9 @@ async def register_handler(request):
     XV PIN #49 architecture: email optional, UUID = identity spine.
     Only consent: true is required. Returns UUIDv7 + Polar checkout URL.
     """
+    _dark = _registration_dark_response()
+    if _dark is not None:
+        return _dark
     try:
         body = await request.json()
     except Exception:

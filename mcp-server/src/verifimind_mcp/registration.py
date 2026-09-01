@@ -773,9 +773,31 @@ async def register_user(data: UserRegistrationRequest) -> UserRegistrationRespon
             **_build_registration_extras(new_uuid),
         )
 
-    # UNIFORM response, identical in shape to the duplicate-email branch: no
-    # account-existence oracle and no unproven subject identifier handed out
-    # (T P0-2 + adversarial B-3/B-6).
+    # CS Finding 2: the anonymous (email-absent) path has NO email to probe and
+    # NO victim to hijack, so withholding the UUID there orphans a legitimate
+    # maximum-privacy user at birth — they have no email and thus no way to
+    # recover the identifier through the verified ceremony. Branch on email:
+    #   - email ABSENT  → return the UUID (it is the anonymous user's only
+    #     handle; no oracle/hijack surface exists without an email).
+    #   - email PRESENT → withhold, uniform with the duplicate-email branch, so
+    #     the endpoint is neither an existence oracle nor a way to plant the
+    #     identifier a victim's future verified sign-in would adopt.
+    if data.email is None:
+        return UserRegistrationResponse(
+            uuid=new_uuid,
+            tier="ea",
+            registered_at=now,
+            message=(
+                "Registration successful. Your UUID is your identity — save it; "
+                "there is no email on this account to recover it with. "
+                f"{CURRENT_AVAILABILITY_NOTICE}"
+            ),
+            opt_out_url=f"/early-adopters/optout/{new_uuid}",
+            privacy_version=PRIVACY_POLICY_VERSION,
+            tc_version=TERMS_VERSION,
+            **_build_registration_extras(new_uuid),
+        )
+
     return UserRegistrationResponse(
         uuid="",
         tier="",

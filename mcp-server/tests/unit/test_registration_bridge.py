@@ -167,6 +167,10 @@ class TestHttpSurfaces:
         monkeypatch.setattr(
             rate_limiter, "_rate_limit_store", rate_limiter.RateLimitStore()
         )
+        # Issuance ENABLED: registration writes are what these tests exercise;
+        # the dark-registration guard (CS Finding 1) is covered separately in
+        # test_cs_review_findings.py.
+        monkeypatch.setenv("OAUTH_ISSUANCE_ENABLED", "true")
         with TestClient(http_server.app) as tc:
             yield tc
 
@@ -180,12 +184,11 @@ class TestHttpSurfaces:
         assert body["persisted"] is True
         # The cohort record is written...
         db.collection.return_value.document.return_value.set.assert_called_once()
-        # ...but no subject identifier is handed out on an unverified path:
-        # the identifier comes only from the verified Connect ceremony
-        # (T P0-2 + adversarial B-3/B-6 pre-registration hijack).
-        assert body["uuid"] == ""
-        assert body["opt_out_url"] == ""
-        assert "Connect flow" in body["message"]
+        # ...and because this is the ANONYMOUS (no-email) path, the UUID IS
+        # returned — it is the user's only handle, and with no email there is
+        # no oracle or hijack surface (CS Finding 2).
+        assert body["uuid"] and body["uuid"] != ""
+        assert body["opt_out_url"].endswith(body["uuid"])
 
     def test_post_register_without_consent_is_422(self, client):
         response = client.post("/register", json={"consent": False})

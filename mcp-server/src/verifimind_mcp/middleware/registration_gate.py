@@ -48,6 +48,24 @@ GATED_TOOL_NAMES = frozenset({
 REGISTER_URL = "https://verifimind.ysenseai.org/register"
 PRM_URL = "https://verifimind.ysenseai.org/.well-known/oauth-protected-resource"
 
+
+def _env_urls() -> tuple:
+    """Environment-bound (register_url, prm_url) for denial payloads.
+
+    CS Finding 4: the in-band denial must NOT point a staging client at the
+    PRODUCTION authorization server — that mints a production-audience token
+    the staging boundary then rejects, an endless lockout loop. Resolve from
+    the live environment; the module constants are only a last-resort fallback
+    if the environment cannot be read (a misconfigured deploy prefers the
+    honest register page over a cross-environment auth server)."""
+    try:
+        from verifimind_mcp.oauth import config
+
+        env = config.current_environment()
+        return f"{env.origin}/register", env.prm_url
+    except Exception:
+        return REGISTER_URL, None
+
 # Authenticated identity for the current request, set by the HTTP boundary
 # after full token validation. Never derived from tool arguments.
 AUTH_SUBJECT_UUID: ContextVar[Optional[str]] = ContextVar(
@@ -162,18 +180,23 @@ def _denial_payload(tool_name: str, reason: str) -> dict:
             "Tool-argument identity is diagnostics only. Your authenticated "
             "session already attributes this call; omit user_uuid entirely."
         )
-    else:
+    register_url, prm_url = _env_urls()
+    if reason != DENIAL_CROSS_SUBJECT:
+        prm_clause = (
+            f"Connect through an OAuth-capable MCP client (authorization server "
+            f"in {prm_url}), or " if prm_url else "Connect through an "
+            "OAuth-capable MCP client, or "
+        )
         error = (
             f"'{tool_name}' requires an authenticated session. Discovery, "
             "template reads, and all pages remain available without one."
         )
         hint = (
-            "Connect through an OAuth-capable MCP client (authorization "
-            f"server in {PRM_URL}), or register free at {REGISTER_URL} and "
-            "use a personal access token for local clients. All gated tools "
-            "remain free after registration."
+            f"{prm_clause}register free at {register_url} and use a personal "
+            "access token for local clients. All gated tools remain free after "
+            "registration."
         )
-    return {
+    payload = {
         "status": "error",
         "error_code": (
             "CROSS_SUBJECT_MISMATCH"
@@ -182,11 +205,13 @@ def _denial_payload(tool_name: str, reason: str) -> dict:
         ),
         "error": error,
         "recovery_hint": hint,
-        "register_url": REGISTER_URL,
-        "resource_metadata": PRM_URL,
+        "register_url": register_url,
         "retryable": False,
         "timestamp": _now_iso(),
     }
+    if prm_url:
+        payload["resource_metadata"] = prm_url
+    return payload
 
 
 def _as_tool_result(payload: dict) -> ToolResult:

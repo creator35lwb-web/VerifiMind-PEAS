@@ -424,10 +424,21 @@ def _resolve_or_create_subject(email):
             if data.get("status", "active") != "active":
                 return None
             if not data.get("email_verified"):
-                # Mailbox proven now: bind verification to the record.
+                # Mailbox proven now: bind verification to the record AND wipe
+                # every caller-injectable profile field. CS Finding 3: an
+                # unverified record could have been planted by an attacker with
+                # the victim's email and a chosen display_name/feedback; adopting
+                # it verbatim would bind attacker-chosen data to the victim's
+                # verified subject. The UUID is adopted for cohort continuity
+                # (it is non-secret and was never disclosed), but nothing the
+                # caller could set survives the verification boundary.
                 snapshot.reference.update({
                     "email_verified": True,
                     "email_verified_at": _now_iso(),
+                    "display_name": None,
+                    "name": None,
+                    "registration_feedback": None,
+                    "feedback_type": None,
                 })
             return data.get("uuid")
     new_uuid = generate_ea_uuid()
