@@ -170,6 +170,15 @@ def _now_iso() -> str:
 
 
 def _denial_payload(tool_name: str, reason: str) -> dict:
+    """Build the in-band denial payload for one admitted denial reason.
+
+    One exhaustive ``if``/``else`` decision (T S156 gate-truth repair): both
+    ``error`` and ``hint`` are bound on every path, so static analysis can
+    prove initialization. Both payloads are unchanged from the prior
+    two-branch form; any reason other than ``DENIAL_CROSS_SUBJECT`` resolves
+    to the authentication-required payload exactly as before.
+    """
+    register_url, prm_url = _env_urls()
     if reason == DENIAL_CROSS_SUBJECT:
         error = (
             f"'{tool_name}' was called with a user_uuid that does not match "
@@ -180,8 +189,7 @@ def _denial_payload(tool_name: str, reason: str) -> dict:
             "Tool-argument identity is diagnostics only. Your authenticated "
             "session already attributes this call; omit user_uuid entirely."
         )
-    register_url, prm_url = _env_urls()
-    if reason != DENIAL_CROSS_SUBJECT:
+    else:
         prm_clause = (
             f"Connect through an OAuth-capable MCP client (authorization server "
             f"in {prm_url}), or " if prm_url else "Connect through an "
