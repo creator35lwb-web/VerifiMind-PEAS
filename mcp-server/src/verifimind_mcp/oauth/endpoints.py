@@ -53,10 +53,10 @@ async def _oauth_request(request, path: str):
 
 
 def _client_ip(request) -> str:
-    """Trusted-proxy client IP for issuance limits (T P0-9 — never trust the
-    leftmost caller-supplied element). The trusted trailing element is bound
-    to the deployment's ingress via ``TRUSTED_PROXY_HOPS`` (CS round 2, F2),
-    shared with the request rate limiter."""
+    """Client IP for issuance limits (T P0-9 — never the leftmost,
+    caller-supplied element). The client's trailing element is bound to the
+    deployment's ingress via ``INGRESS_PROXY_HOPS`` (CS round 2, F2), shared
+    with the request rate limiter."""
     from verifimind_mcp.utils.client_ip import resolve_client_ip
 
     return resolve_client_ip(
@@ -366,8 +366,10 @@ async def _authorize_post(request):
         state = session.get("state", "")
         if str(form.get("decision", "")) != "allow" or not form.get("agree"):
             try:
-                stores.drop_authorize_session(sid)  # best-effort; it expires anyway
+                stores.drop_authorize_session(sid)
             except StoreUnavailable:
+                # Best-effort cleanup: the session expires on its own, and the
+                # user's decision (deny) must still reach the client.
                 pass
             return _redirect_error(redirect_uri, state, "access_denied")
         fresh = stores.get_authorize_session(sid) or {}
@@ -397,8 +399,10 @@ async def _authorize_post(request):
         except (OAuth2Error, StoreUnavailable):
             return _page("Temporarily unavailable", "<p>Retry shortly.</p>", status=503)
         try:
-            stores.drop_authorize_session(sid)  # best-effort; the code is issued
+            stores.drop_authorize_session(sid)
         except StoreUnavailable:
+            # Best-effort cleanup: the authorization code is already issued
+            # and the redirect must happen; the session expires on its own.
             pass
         location = dict(headers).get("Location", redirect_uri)
         return RedirectResponse(location, status_code=302)

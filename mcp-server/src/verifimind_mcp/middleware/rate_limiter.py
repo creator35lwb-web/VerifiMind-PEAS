@@ -233,8 +233,8 @@ def get_client_ip(request: Request) -> str:
     """
     Extract client IP from request, handling proxies.
 
-    Cloud Run sets X-Forwarded-For header. The trusted element is chosen by
-    ``TRUSTED_PROXY_HOPS`` (``verifimind_mcp.utils.client_ip``) — a property of
+    Cloud Run sets X-Forwarded-For header. The client element is chosen by
+    ``INGRESS_PROXY_HOPS`` (``verifimind_mcp.utils.client_ip``) — a property of
     the deployment's ingress, never a hardcoded index (CS round 2, F2). The
     platform APPENDS the real peer, while every earlier element is
     caller-supplied: trusting the leftmost element let a single header rotate

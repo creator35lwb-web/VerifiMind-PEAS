@@ -6,7 +6,7 @@ F1  the execution-mode body peek buffered without bound: an OOM primitive for
 F3  Firestore transaction failures escaped ``run_transaction`` as HTTP 500
     instead of the fail-closed, retryable 503 the boundary promises
 F2  the trusted ``X-Forwarded-For`` element was a hardcoded index rather than
-    a bound property of the deployment's ingress (``TRUSTED_PROXY_HOPS``)
+    a bound property of the deployment's ingress (``INGRESS_PROXY_HOPS``)
 
 Each test reproduces the reviewer's attack and asserts the repair. Every test
 marked "d125bce:" in a comment was proven to FAIL against the ``d125bce``
@@ -467,41 +467,41 @@ RESOLVERS = [rate_limiter.get_client_ip, endpoints._client_ip]
 class TestF2TrustedProxyHops:
     @pytest.mark.parametrize("resolver", RESOLVERS)
     def test_default_depth_takes_the_gfe_appended_last_element(self, monkeypatch, resolver):
-        monkeypatch.delenv("TRUSTED_PROXY_HOPS", raising=False)
+        monkeypatch.delenv("INGRESS_PROXY_HOPS", raising=False)
         assert resolver(_request(CHAIN)) == "192.0.2.1"
 
     @pytest.mark.parametrize("resolver", RESOLVERS)
     def test_depth_two_selects_the_client_behind_a_google_external_lb(self, monkeypatch, resolver):
-        monkeypatch.setenv("TRUSTED_PROXY_HOPS", "2")
+        monkeypatch.setenv("INGRESS_PROXY_HOPS", "2")
         # d125bce: 192.0.2.1 — the load balancer, one bucket for everyone.
         assert resolver(_request(CHAIN)) == "203.0.113.9"
 
     @pytest.mark.parametrize("resolver", RESOLVERS)
     def test_chain_shorter_than_trust_depth_uses_the_direct_peer(self, monkeypatch, resolver):
-        monkeypatch.setenv("TRUSTED_PROXY_HOPS", "2")
+        monkeypatch.setenv("INGRESS_PROXY_HOPS", "2")
         # d125bce: the caller-supplied element became the key.
         assert resolver(_request("198.51.100.7")) == "10.0.0.1"
 
     @pytest.mark.parametrize(
         "raw,expected",
-        [("", 1), ("abc", 1), ("0", 1), ("-3", 1), ("2", 2), ("99", trust.MAX_TRUSTED_PROXY_HOPS)],
+        [("", 1), ("abc", 1), ("0", 1), ("-3", 1), ("2", 2), ("99", trust.MAX_PROXY_HOPS)],
     )
     def test_env_parsing_defaults_and_clamps(self, monkeypatch, raw, expected):
-        monkeypatch.setenv("TRUSTED_PROXY_HOPS", raw)
-        assert trust.trusted_proxy_hops() == expected
+        monkeypatch.setenv("INGRESS_PROXY_HOPS", raw)
+        assert trust.ingress_proxy_hops() == expected
 
     def test_no_forwarded_chain_preserves_the_prior_fallbacks(self, monkeypatch):
-        monkeypatch.delenv("TRUSTED_PROXY_HOPS", raising=False)
+        monkeypatch.delenv("INGRESS_PROXY_HOPS", raising=False)
         assert rate_limiter.get_client_ip(_request(real_ip="203.0.113.5")) == "203.0.113.5"
         assert rate_limiter.get_client_ip(_request()) == "10.0.0.1"
         # The issuance limiter never honoured X-Real-IP; it still does not.
         assert endpoints._client_ip(_request(real_ip="203.0.113.5")) == "10.0.0.1"
         assert endpoints._client_ip(_request()) == "10.0.0.1"
 
-    def test_ingress_trust_disclosure_matches_configuration(self, monkeypatch):
-        monkeypatch.setenv("TRUSTED_PROXY_HOPS", "2")
-        assert trust.ingress_trust() == {
-            "trusted_proxy_hops": 2,
+    def test_ingress_disclosure_matches_configuration(self, monkeypatch):
+        monkeypatch.setenv("INGRESS_PROXY_HOPS", "2")
+        assert trust.ingress_disclosure() == {
+            "proxy_hops": 2,
             "client_element": "X-Forwarded-For[-2]",
             "short_chain_policy": "direct peer",
         }
