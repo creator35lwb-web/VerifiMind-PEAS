@@ -155,42 +155,46 @@ class McpAuthBoundary:
 
     @staticmethod
     async def _gated_call_peek(receive):
-        """Buffer the request body (bounded) to decide whether this is a
+        """Buffer the request body (BOUNDED) to decide whether this is a
         tools/call of a gated tool; return (needs_auth, replay_receive).
         Anything unparseable or oversized is treated as protected — the
-        boundary fails toward authentication, never around it."""
+        boundary fails toward authentication, never around it.
+
+        CS round 2, F1: the buffer never exceeds ``_MAX_PEEK_BODY``. Once more
+        than that has arrived the boundary stops READING, marks the request
+        protected, and the replay SPLICES — it yields the buffered messages
+        and then delegates to the live ``receive`` for the remainder. An
+        authenticated caller's large body therefore arrives intact (the S155
+        truncation concern), while an anonymous caller can never make this
+        process buffer more than the cap: the 401 goes out with the rest of
+        the body still on the wire, unread."""
         chunks = []
         total = 0
         oversized = False
         more = True
         while more:
             message = await receive()
+            chunks.append(message)
             if message["type"] != "http.request":
                 # Disconnect mid-read: treat as protected; replay verbatim.
-                chunks.append(message)
                 break
-            body = message.get("body", b"")
-            total += len(body)
-            chunks.append(message)
+            total += len(message.get("body", b""))
             more = message.get("more_body", False)
             if total > _MAX_PEEK_BODY:
-                # Stop PARSING, never stop READING: breaking out here left the
-                # buffered chunks flagged more_body=True and the replay then
-                # terminated early, silently truncating a large body for an
-                # authenticated caller.
                 oversized = True
+                break
 
-        async def replay():
-            for message in chunks:
-                yield message
-
-        iterator = replay()
+        buffered = iter(chunks)
 
         async def replay_receive():
-            try:
-                return await iterator.__anext__()
-            except StopAsyncIteration:
-                return {"type": "http.request", "body": b"", "more_body": False}
+            for message in buffered:
+                return message
+            # Buffered messages drained: hand over to the LIVE stream. Never
+            # synthesize an endless empty sentinel here — the MCP streamable-
+            # HTTP path hands this receive to the SSE disconnect listener,
+            # which loops on it; a non-blocking sentinel never yields the
+            # event loop and freezes the whole instance (S159 F1 lens).
+            return await receive()
 
         if oversized:
             return True, replay_receive

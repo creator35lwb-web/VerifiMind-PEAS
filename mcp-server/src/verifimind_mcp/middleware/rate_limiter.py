@@ -233,30 +233,21 @@ def get_client_ip(request: Request) -> str:
     """
     Extract client IP from request, handling proxies.
 
-    Cloud Run sets X-Forwarded-For header.
+    Cloud Run sets X-Forwarded-For header. The trusted element is chosen by
+    ``TRUSTED_PROXY_HOPS`` (``verifimind_mcp.utils.client_ip``) — a property of
+    the deployment's ingress, never a hardcoded index (CS round 2, F2). The
+    platform APPENDS the real peer, while every earlier element is
+    caller-supplied: trusting the leftmost element let a single header rotate
+    the rate-limit key at will (S155), and trusting the wrong trailing element
+    behind a load balancer would collapse every caller into one bucket.
     """
-    # Check X-Forwarded-For (set by Cloud Run and other proxies).
-    # Take the LAST hop, not the first: the platform APPENDS the real peer,
-    # while every earlier element is caller-supplied. Trusting the leftmost
-    # element let a single header rotate the rate-limit key at will, which
-    # defeated the only throttle in front of the registration, opt-out, and
-    # dashboard routes.
-    forwarded_for = request.headers.get("x-forwarded-for")
-    if forwarded_for:
-        hops = [hop.strip() for hop in forwarded_for.split(",") if hop.strip()]
-        if hops:
-            return hops[-1]
+    from verifimind_mcp.utils.client_ip import resolve_client_ip
 
-    # Check X-Real-IP
-    real_ip = request.headers.get("x-real-ip")
-    if real_ip:
-        return real_ip.strip()
-
-    # Fallback to direct client
-    if request.client:
-        return request.client.host
-
-    return "unknown"
+    return resolve_client_ip(
+        request.headers.get("x-forwarded-for"),
+        request.client.host if request.client else None,
+        real_ip=request.headers.get("x-real-ip"),
+    )
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):

@@ -74,14 +74,74 @@ def _db():
     return db
 
 
-def _backend_failure(exc: Exception) -> bool:
+def _backend_failure(exc: BaseException) -> bool:
     """True for a mid-life Firestore RPC failure. The client is memoized, so
     _db() only catches CONSTRUCTION failure; without this, a ServiceUnavailable
     during .get() escaped as a generic exception and the boundary reported
     401 invalid_token instead of a retryable 503 — telling healthy clients
     their credentials were bad during an outage."""
     module = type(exc).__module__ or ""
-    return module.startswith("google.api_core") or module.startswith("google.auth")
+    # grpc.* is defence in depth: GAPIC wraps every Firestore RPC, so a raw
+    # transport error is not a reachable production shape — but it IS a
+    # backend failure if it ever surfaces (S159 F3 lens, scenario D4).
+    return (
+        module.startswith("google.api_core")
+        or module.startswith("google.auth")
+        or module == "grpc"
+        or module.startswith("grpc.")
+    )
+
+
+def is_backend_failure(exc: BaseException) -> bool:
+    """True when ``exc`` — or any exception it was raised *from* or *during*
+    (``__cause__`` first, then ``__context__`` unless suppressed; bounded) —
+    is a backend RPC failure.
+
+    CS round 2, F3: the Firestore transactional wrapper retries ``Aborted``
+    and then raises a plain ``ValueError`` *from* the last one; and when the
+    very first ``BeginTransaction`` RPC fails, its rollback path raises
+    ``ValueError('...cannot be rolled back')`` whose only link to the failed
+    RPC is ``__context__``. Looking at the outer exception alone — or at
+    ``__cause__`` alone — lets both escape as a generic 500.
+    """
+    node: Optional[BaseException] = exc
+    for _ in range(8):
+        if node is None:
+            return False
+        if _backend_failure(node):
+            return True
+        following = node.__cause__
+        if following is None and not node.__suppress_context__:
+            following = node.__context__
+        node = following
+    return False
+
+
+def _guarded(operation: str):
+    """Every raw Firestore call maps a backend failure to ``StoreUnavailable``
+    so the OAuth layer fails CLOSED (retryable 503), never generic (500).
+    ``StoreUnavailable`` and application signals raised inside the guarded
+    call pass through unchanged; so do genuine programming errors."""
+
+    def decorate(fn):
+        def run(*args, **kwargs):
+            try:
+                return fn(*args, **kwargs)
+            except (StoreUnavailable, _RefreshReuseDetected):
+                raise
+            except Exception as exc:  # noqa: BLE001
+                if is_backend_failure(exc):
+                    raise StoreUnavailable(
+                        f"{operation} failed: {type(exc).__name__}"
+                    ) from exc
+                raise
+
+        run.__name__ = fn.__name__
+        run.__doc__ = fn.__doc__
+        run.__wrapped__ = fn
+        return run
+
+    return decorate
 
 
 def _now() -> float:
@@ -102,15 +162,9 @@ def c_tokens() -> str:
     return _c(_BASE_TOKENS)
 
 
+@_guarded("read")
 def _read(collection: str, doc_id: str) -> Optional[dict]:
-    try:
-        doc = _db().collection(collection).document(doc_id).get()
-    except StoreUnavailable:
-        raise
-    except Exception as exc:  # noqa: BLE001
-        if _backend_failure(exc):
-            raise StoreUnavailable(f"read failed: {type(exc).__name__}") from exc
-        raise
+    doc = _db().collection(collection).document(doc_id).get()
     return (doc.to_dict() or {}) if doc.exists else None
 
 
@@ -134,9 +188,14 @@ class _RealTxn:
         self._t.delete(self._db.collection(collection).document(doc_id))
 
 
+@_guarded("transaction")
 def run_transaction(func: Callable[[Any], Any]) -> Any:
     """Run func(txn) atomically. func may read then write via the txn; on
-    optimistic-concurrency conflict it is retried with fresh reads."""
+    optimistic-concurrency conflict it is retried with fresh reads.
+
+    Backend failures anywhere in the real path — BeginTransaction, reads,
+    commit, the exhausted-retries wrapper, rollback — surface as
+    ``StoreUnavailable`` through ``_guarded`` (CS round 2, F3)."""
     db = _db()
     if getattr(db, "is_fake", False):
         for _ in range(_TXN_MAX_ATTEMPTS):
@@ -185,6 +244,7 @@ def clear_caches() -> None:
 
 # ── clients (bounded DCR + pre-registration) ────────────────────────────────
 
+@_guarded("register_client")
 def register_client(
     *, client_name: str, redirect_uris: List[str], registration_path: str
 ) -> str:
@@ -215,6 +275,7 @@ def get_client(client_id: str) -> Optional[dict]:
 
 # ── authorization codes (non-consuming read; claim happens in save_token) ───
 
+@_guarded("persist_code")
 def persist_code(
     *, code_id: str, code_secret_hash: str, client_id: str, subject_uuid: str,
     redirect_uri: str, code_challenge: str, scope: str,
@@ -459,6 +520,7 @@ def rotate_refresh_tokens(
 
 # ── revocation (T P0-5): family-scoped, one presented credential ────────────
 
+@_guarded("write_tombstone")
 def _write_tombstone(kind: str, key: str) -> None:
     """Record a permanent revocation marker consulted at validation time.
 
@@ -506,6 +568,7 @@ def revoke_credential(presented: str) -> bool:
     return revoked > 0
 
 
+@_guarded("revoke_grant_family")
 def revoke_grant_family(grant_id: str) -> int:
     """Tombstone the grant AND every descendant (PATs minted from it).
 
@@ -530,6 +593,7 @@ def revoke_grant_family(grant_id: str) -> int:
     return count
 
 
+@_guarded("revoke_all_for_subject")
 def revoke_all_for_subject(subject_uuid: str) -> int:
     db = _db()
     _write_tombstone("subject", subject_uuid)
@@ -548,6 +612,7 @@ def revoke_all_for_subject(subject_uuid: str) -> int:
 
 # ── personal access tokens (explicit local lane, own family) ────────────────
 
+@_guarded("issue_pat")
 def issue_pat(
     *, subject_uuid: str, actor_class: str, parent_grant_id: str, scope: str = "mcp",
 ) -> MintedToken:
@@ -576,6 +641,7 @@ def issue_pat(
 
 # ── email verification: transactional attempt cap + purpose binding ─────────
 
+@_guarded("put_verification")
 def put_verification(*, email: str, code: str, purpose: str, session_id: str) -> None:
     key = _verification_key(email, session_id)
     _db().collection(_c(_BASE_VERIFICATIONS)).document(key).set({
@@ -630,6 +696,7 @@ def _peppered(value: str) -> str:
 
 # ── authorize-page sessions ─────────────────────────────────────────────────
 
+@_guarded("put_authorize_session")
 def put_authorize_session(session_id: str, payload: Dict[str, Any]) -> None:
     _db().collection(_c(_BASE_SESSIONS)).document(sha256_hex(session_id)).set({
         **payload, "expires_at": _now() + AUTHORIZE_SESSION_TTL,
@@ -643,9 +710,11 @@ def get_authorize_session(session_id: str) -> Optional[dict]:
     return data
 
 
+@_guarded("update_authorize_session")
 def update_authorize_session(session_id: str, fields: Dict[str, Any]) -> None:
     _db().collection(_c(_BASE_SESSIONS)).document(sha256_hex(session_id)).update(fields)
 
 
+@_guarded("drop_authorize_session")
 def drop_authorize_session(session_id: str) -> None:
     _db().collection(_c(_BASE_SESSIONS)).document(sha256_hex(session_id)).delete()

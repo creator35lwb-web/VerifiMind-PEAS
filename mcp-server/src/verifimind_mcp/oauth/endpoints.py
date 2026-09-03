@@ -53,14 +53,16 @@ async def _oauth_request(request, path: str):
 
 
 def _client_ip(request) -> str:
-    """Trusted-proxy client IP: Cloud Run appends the real client as the LAST
-    XFF hop (T P0-9 — never trust the leftmost caller-supplied element)."""
-    forwarded = request.headers.get("x-forwarded-for", "")
-    if forwarded:
-        hops = [h.strip() for h in forwarded.split(",") if h.strip()]
-        if hops:
-            return hops[-1]
-    return request.client.host if request.client else "unknown"
+    """Trusted-proxy client IP for issuance limits (T P0-9 — never trust the
+    leftmost caller-supplied element). The trusted trailing element is bound
+    to the deployment's ingress via ``TRUSTED_PROXY_HOPS`` (CS round 2, F2),
+    shared with the request rate limiter."""
+    from verifimind_mcp.utils.client_ip import resolve_client_ip
+
+    return resolve_client_ip(
+        request.headers.get("x-forwarded-for", ""),
+        request.client.host if request.client else None,
+    )
 
 
 # ── issuance limits (persistent per-process; global + per-action) ───────────
@@ -313,13 +315,20 @@ async def oauth_authorize_post_handler(request):
     if _issuance_blocked():
         return _page("Sign-in unavailable",
             "<p>Account sign-in is not currently enabled.</p>", status=503)
+    try:
+        return await _authorize_post(request)
+    except StoreUnavailable:
+        # CS round 2, F3 class sweep: a store outage anywhere in the ceremony
+        # is the honest, retryable 503 — never "session expired", never
+        # "invalid code", never a generic 500.
+        return _page("Temporarily unavailable", "<p>Retry shortly.</p>", status=503)
+
+
+async def _authorize_post(request):
     form = await request.form()
     sid = str(form.get("sid", ""))
     action = str(form.get("action", ""))
-    try:
-        session = stores.get_authorize_session(sid) if sid else None
-    except StoreUnavailable:
-        session = None
+    session = stores.get_authorize_session(sid) if sid else None
     if session is None:
         return _page("Session expired",
             "<p>This sign-in attempt expired. Return to your client and connect "
@@ -346,10 +355,7 @@ async def oauth_authorize_post_handler(request):
     if action == "verify_code":
         email = str(form.get("email", "")).strip()
         code = str(form.get("code", "")).strip()
-        try:
-            ok = stores.claim_verification(email=email, code=code, purpose="authorize", session_id=sid)
-        except StoreUnavailable:
-            ok = False
+        ok = stores.claim_verification(email=email, code=code, purpose="authorize", session_id=sid)
         if not ok:
             return _code_step(sid, email, "That code is not valid (or expired).")
         stores.update_authorize_session(sid, {"email_verified": True, "email": email.lower()})
@@ -359,7 +365,10 @@ async def oauth_authorize_post_handler(request):
         redirect_uri = session["redirect_uri"]
         state = session.get("state", "")
         if str(form.get("decision", "")) != "allow" or not form.get("agree"):
-            stores.drop_authorize_session(sid)
+            try:
+                stores.drop_authorize_session(sid)  # best-effort; it expires anyway
+            except StoreUnavailable:
+                pass
             return _redirect_error(redirect_uri, state, "access_denied")
         fresh = stores.get_authorize_session(sid) or {}
         if not fresh.get("email_verified"):
@@ -387,7 +396,10 @@ async def oauth_authorize_post_handler(request):
                 authorize_req, grant_user=subject)
         except (OAuth2Error, StoreUnavailable):
             return _page("Temporarily unavailable", "<p>Retry shortly.</p>", status=503)
-        stores.drop_authorize_session(sid)
+        try:
+            stores.drop_authorize_session(sid)  # best-effort; the code is issued
+        except StoreUnavailable:
+            pass
         location = dict(headers).get("Location", redirect_uri)
         return RedirectResponse(location, status_code=302)
 
@@ -395,6 +407,19 @@ async def oauth_authorize_post_handler(request):
 
 
 def _resolve_or_create_subject(email):
+    """Backend-failure boundary for the resolution below: a Firestore RPC
+    failure returns None so the caller renders the retryable 503 (CS round 2,
+    F3 class sweep) instead of escaping as a generic 500. Programming errors
+    still surface."""
+    try:
+        return _resolve_or_create_subject_unguarded(email)
+    except Exception as exc:  # noqa: BLE001
+        if stores.is_backend_failure(exc):
+            return None
+        raise
+
+
+def _resolve_or_create_subject_unguarded(email):
     """Verified-mailbox subject resolution. Only reachable AFTER the mailbox
     proof (T P0-2/P0-10).
 

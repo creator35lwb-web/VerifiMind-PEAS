@@ -2147,6 +2147,9 @@ print("SECURITY FEATURES (v0.3.5):")
 print(f"  Input Sanitization: Prompt injection protection (v0.3.5)")
 print(f"  Rate Limiting: {os.getenv('RATE_LIMIT_PER_IP', '10')} req/min per IP")
 print(f"  Global Limit:  {os.getenv('RATE_LIMIT_GLOBAL', '100')} req/min per instance")
+from verifimind_mcp.utils.client_ip import ingress_trust as _ingress_trust  # noqa: E402
+print(f"  Ingress trust: X-Forwarded-For element -{_ingress_trust()['trusted_proxy_hops']} "
+      "(TRUSTED_PROXY_HOPS; bind to THIS deployment's ingress)")
 print(f"  CORS: Enabled (all origins)")
 print("-" * 70)
 print("FREE-TIER ROUTING (generated from the truth contract, v0.5.52):")
