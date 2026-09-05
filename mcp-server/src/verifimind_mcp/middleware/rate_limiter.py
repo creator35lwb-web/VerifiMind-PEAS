@@ -88,7 +88,12 @@ def _resolve_uuid_tier(uuid: str) -> str:
         db = _get_firestore()
         if db is not None:
             doc = db.collection(collection).document(uuid).get()
-            tier = "pioneer" if doc.exists else "scholar"
+            # Cohort privilege is earned by a verified account. A record that
+            # is EXPLICITLY unverified (an unproven preregistration, possibly
+            # planted with someone else's address) earns none; legacy records
+            # that predate the flag keep their standing (S161, Lens A).
+            verified = (doc.to_dict() or {}).get("email_verified", True) if doc.exists else False
+            tier = "pioneer" if doc.exists and verified is not False else "scholar"
         else:
             tier = "scholar"
     except Exception:

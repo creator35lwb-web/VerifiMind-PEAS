@@ -915,7 +915,10 @@ class TestDeclaredStagingSeesOnlyStaging:
         assert len(rdb.docs("staging_feedback")) == 1
         assert len(rdb.docs("staging_early_adopters")) == 1
         assert not any(name in rdb.data for name in ("feedback", "early_adopters"))
-        assert set(rdb.touched) == {"staging_early_adopters", "staging_feedback"}
+        # Every collection the lane touches is the staging one — including the
+        # cross-lane ownership scan and the email-owner claim (S161).
+        assert rdb.touched and all(name.startswith("staging_") for name in rdb.touched)
+        assert {"staging_early_adopters", "staging_feedback"} <= set(rdb.touched)
 
     def test_account_status_reads_only_staging(self, staging_env, rdb):
         # pin: account reads were already namespaced; the resolver change
@@ -986,8 +989,11 @@ class TestProductionSemanticsPreserved:
             )
         ))
         assert result.feedback_received is True
-        assert set(rdb.touched) == {"early_adopters", "feedback"}
-        assert set(rdb.data) == {"early_adopters", "feedback"}
+        # Bare names everywhere the lane looks — including the cross-lane
+        # ownership scan and the email-owner claim (S161).
+        assert not any(name.startswith("staging_") for name in rdb.touched)
+        assert {"early_adopters", "feedback"} <= set(rdb.touched)
+        assert {"early_adopters", "feedback"} <= set(rdb.data)
         sync_db = HistoryFirestore()
         sync_db.records[("trinity_history", UUID_P)] = [{"tool": "run_full_trinity"}]
         with patch("verifimind_mcp.registration._get_firestore", side_effect=sync_db.handed_out):

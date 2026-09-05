@@ -150,7 +150,7 @@ class TestLightweightRegisterHonesty:
                 UserRegistrationRequest(consent=True)
             )
         assert response.persisted is True
-        assert db.collection.return_value.document.return_value.set.called
+        assert db.collection.return_value.document.return_value.create.called  # S161: create-if-absent
 
 
 class TestHttpSurfaces:
@@ -182,8 +182,8 @@ class TestHttpSurfaces:
         assert response.status_code == 200
         body = response.json()
         assert body["persisted"] is True
-        # The cohort record is written...
-        db.collection.return_value.document.return_value.set.assert_called_once()
+        # The cohort record is written (create-if-absent, S161)...
+        db.collection.return_value.document.return_value.create.assert_called_once()
         # ...and because this is the ANONYMOUS (no-email) path, the UUID IS
         # returned — it is the user's only handle, and with no email there is
         # no oracle or hijack surface (CS Finding 2).

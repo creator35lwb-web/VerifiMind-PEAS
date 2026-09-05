@@ -779,9 +779,11 @@ class TestRegistrationBillingPaths:
             result = await register_early_adopter(self._make_ea_reg())
 
         assert isinstance(result, RegistrationResponse)
-        # The cohort record IS written...
-        mock_db.collection.return_value.document.return_value.set.assert_called_once()
-        written = mock_db.collection.return_value.document.return_value.set.call_args[0][0]
+        # The cohort record IS written — with create-if-absent semantics
+        # (S161: a lane write must never overwrite a record the verified
+        # ceremony healed under the same identifier)...
+        mock_db.collection.return_value.document.return_value.create.assert_called()
+        written = mock_db.collection.return_value.document.return_value.create.call_args[0][0]
         assert written["uuid"]
         # ...and marked unverified, because this path proves no mailbox.
         assert written["email_verified"] is False
@@ -906,8 +908,10 @@ class TestRegistrationBillingPaths:
         with patch("verifimind_mcp.registration._get_firestore", return_value=mock_db):
             result = await register_user(req)
 
-        mock_db.collection.return_value.document.return_value.set.assert_called_once()
-        written = mock_db.collection.return_value.document.return_value.set.call_args[0][0]
+        # Claim document + account record are both create-if-absent (S161);
+        # the LAST create is the account record.
+        mock_db.collection.return_value.document.return_value.create.assert_called()
+        written = mock_db.collection.return_value.document.return_value.create.call_args[0][0]
         assert written["uuid"] and written["email_verified"] is False
         # Identifier withheld: it is delivered only by the verified ceremony.
         assert result.uuid == "" and result.opt_out_url == ""

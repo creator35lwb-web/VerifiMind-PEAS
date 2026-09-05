@@ -41,6 +41,7 @@ from verifimind_mcp.server import create_http_server
 from verifimind_mcp.middleware import RateLimitMiddleware, get_rate_limit_stats, check_tier, IPBlocklistMiddleware
 from verifimind_mcp.middleware.mcp_auth_boundary import McpAuthBoundary
 from verifimind_mcp.oauth.config import EnvironmentMisconfigured
+from verifimind_mcp.oauth.stores import StoreUnavailable
 from verifimind_mcp.oauth.endpoints import (
     authorization_server_metadata_handler,
     oauth_authorize_get_handler,
@@ -1507,18 +1508,56 @@ async def whoami_handler(request):
     }, status_code=200)
 
 
-def _authenticated_subject(request):
-    """Resolve the authenticated OAuth subject from a Bearer credential, or
-    None. Used to gate owner-scoped surfaces once issuance is live (T P0-2)."""
+BEARER_ABSENT = "absent"
+BEARER_INVALID = "invalid"
+BEARER_OK = "ok"
+
+_OUTAGE_HEADERS = {"Retry-After": "60", "Cache-Control": "no-store"}
+
+# Owner-route outage page: names the credential store, states that nothing
+# was read, and never blames the caller's session (T S158 Finding 4).
+_OWNER_ROUTE_OUTAGE_HTML = (
+    "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+    "<title>Temporarily unavailable</title></head><body>"
+    "<h1>Temporarily unavailable</h1>"
+    "<p>The credential store could not be consulted, so your session could not "
+    "be verified. Nothing was read. Please retry shortly.</p>"
+    "</body></html>"
+)
+
+
+def _bearer_subject(request):
+    """Classify the request's Bearer credential.
+
+    Returns ``(BEARER_ABSENT, None)`` with no Bearer header, ``(BEARER_INVALID,
+    None)`` for a credential that is present but rejected, and ``(BEARER_OK,
+    subject)`` for a validated one. Raises ``StoreUnavailable`` when the
+    credential store cannot be consulted: an outage is NEVER reported as an
+    invalid credential (T S158 Finding 4 — dashboard and opt-out used to
+    collapse it into 401, telling a healthy caller their session was bad and
+    obstructing a rights request). An unresolvable environment identity
+    propagates too (T S157 Finding 3)."""
     authorization = request.headers.get("authorization", "")
     if not authorization.lower().startswith("bearer "):
-        return None
-    try:
-        from verifimind_mcp.oauth.authlib_server import authenticate_bearer
-        record, _err = authenticate_bearer(authorization[7:].strip(), ("mcp",))
-        return record.subject_uuid if record else None
-    except Exception:
-        return None
+        return BEARER_ABSENT, None
+    from verifimind_mcp.oauth.authlib_server import authenticate_bearer
+    # Malformed credential material is handled INSIDE authenticate_bearer
+    # (the parser returns None; Authlib errors are normalized). Anything that
+    # still escapes is a store outage, an environment fault, or a programming
+    # error — none of which may be reported to the caller as "your credential
+    # is invalid" (S161, Lens A): they propagate.
+    record, _err = authenticate_bearer(authorization[7:].strip(), ("mcp",))
+    if record is None:
+        return BEARER_INVALID, None
+    return BEARER_OK, record.subject_uuid
+
+
+def _authenticated_subject(request):
+    """Resolve the authenticated OAuth subject from a Bearer credential, or
+    None (absent or invalid). Used to gate owner-scoped surfaces (T P0-2).
+    Raises ``StoreUnavailable`` when the credential store is down — callers
+    answer a retryable, non-enumerating 503, not 401."""
+    return _bearer_subject(request)[1]
 
 
 async def ea_dashboard_handler(request):
@@ -1535,7 +1574,13 @@ async def ea_dashboard_handler(request):
     # issuance flag made the default (dark) posture the *less* protected one:
     # any caller holding a UUID string could read that subject's history.
     # Possession of a public identifier is not authority in either posture.
-    if _authenticated_subject(request) != uuid:
+    try:
+        subject = _authenticated_subject(request)
+    except StoreUnavailable:
+        # Availability truth (T S158 Finding 4): the credential store is down,
+        # not the caller's session. Nothing is read; retry later.
+        return HTMLResponse(_OWNER_ROUTE_OUTAGE_HTML, status_code=503, headers=_OUTAGE_HEADERS)
+    if subject != uuid:
         return HTMLResponse(
             get_dashboard_page("unauthorized", [], firestore_available=False),
             status_code=401,
@@ -1548,7 +1593,11 @@ async def ea_dashboard_handler(request):
 async def ea_feedback_handler(request):
     """POST /early-adopters/feedback — submit feedback, issue, or recommendation.
 
-    Available to registered EAs (include uuid) and anonymous users alike.
+    Available to registered EAs and anonymous users alike. Attribution is
+    derived ONLY from a validated Bearer credential (T S158 Finding 2): a body
+    ``uuid`` is a public identifier anyone can type and is stored only as an
+    unverified claim. A Bearer that is present but invalid is refused (401);
+    a credential-store outage is a retryable 503 with nothing written.
     """
     try:
         body = await request.json()
@@ -1563,7 +1612,22 @@ async def ea_feedback_handler(request):
             status_code=422,
         )
 
-    result = await submit_feedback(data)
+    try:
+        state, subject = _bearer_subject(request)
+    except StoreUnavailable:
+        return JSONResponse(
+            {"error": "temporarily_unavailable",
+             "detail": "The credential store is temporarily unavailable; your feedback was NOT stored. Retry later."},
+            status_code=503, headers=_OUTAGE_HEADERS,
+        )
+    if state == BEARER_INVALID:
+        return JSONResponse(
+            {"error": "invalid_token",
+             "detail": "The Bearer credential was rejected; nothing was stored. Omit it to submit anonymously."},
+            status_code=401, headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
+        )
+
+    result = await submit_feedback(data, verified_subject=subject)
     return JSONResponse(result.model_dump(), status_code=201)
 
 
@@ -1582,7 +1646,17 @@ async def ea_optout_handler(request):
     from verifimind_mcp.utils.uuid_tracer import is_valid_uuid as _is_valid_uuid
     if not _is_valid_uuid(uuid):
         return JSONResponse({"error": "UUID required"}, status_code=400)
-    if _authenticated_subject(request) != uuid:
+    try:
+        subject = _authenticated_subject(request)
+    except StoreUnavailable:
+        # Availability truth (T S158 Finding 4): the credential store is down.
+        # No deletion is attempted or confirmed; the same non-enumerating
+        # retry contract the persistence path already uses.
+        return JSONResponse(
+            build_optout_unavailable_response().model_dump(),
+            status_code=503, headers=_OUTAGE_HEADERS,
+        )
+    if subject != uuid:
         return JSONResponse(
             {
                 "processed": False,

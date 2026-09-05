@@ -20,6 +20,11 @@ transaction refuses a read after its first buffered write.
 
 from typing import Any, Callable, Dict, Optional
 
+# The real client raises this from DocumentReference.create() on an existing
+# document; the fake raises the same class so registration's atomic email
+# claim behaves identically (T S158).
+from google.api_core.exceptions import AlreadyExists
+
 # Production defines the conflict type; the fake raises the same class so
 # stores.run_transaction retries identically (never a test→prod import cycle).
 from verifimind_mcp.oauth.stores import TransactionConflict
@@ -35,6 +40,10 @@ class FakeSnapshot:
     def exists(self):
         return self._data is not None
 
+    @property
+    def id(self):
+        return self.reference._id
+
     def to_dict(self):
         return dict(self._data) if self._data is not None else None
 
@@ -48,6 +57,12 @@ class FakeDocRef:
         return self._store._snapshot(self._id)
 
     def set(self, data):
+        self._store._write(self._id, dict(data))
+
+    def create(self, data):
+        """Create-if-absent, like the real client: exactly one creator wins."""
+        if self._store._raw(self._id) is not None:
+            raise AlreadyExists(f"document {self._id} already exists")
         self._store._write(self._id, dict(data))
 
     def update(self, fields):

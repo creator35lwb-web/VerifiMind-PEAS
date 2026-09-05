@@ -428,58 +428,17 @@ def _resolve_or_create_subject_unguarded(email):
     proof (T P0-2/P0-10).
 
     An account record is adopted as the OAuth subject ONLY when the mailbox
-    has been proven for it. A record written by the unverified legacy
-    register path is upgraded here — at the moment the mailbox is proven —
-    rather than being adopted on sight: otherwise anyone could pre-register
-    a victim's address and choose the identifier the victim's future
-    verified sign-in would bind to (pre-registration subject hijack).
+    has been proven for it, through ONE canonical owner per address across
+    both registration lanes (T S158 Finding 1). Mailbox proof is a
+    state-transition sanitizer, not retroactive authorship: a record written
+    by the unverified legacy register path is upgraded at this moment with
+    every caller-chosen field — profile, content, marketing consent, cohort
+    privilege — neutralized, and feedback linked before proof detached. The
+    rules live with the account store: ``registration.resolve_verified_subject``.
     """
-    from verifimind_mcp.registration import (
-        COLLECTION_EA, COLLECTION_REGISTRATIONS, _get_firestore, _now_iso,
-        account_collection, normalize_email,
-    )
-    from verifimind_mcp.utils.uuid_helper import generate_ea_uuid
+    from verifimind_mcp.registration import resolve_verified_subject
 
-    db = _get_firestore()
-    if db is None:
-        return None
-    normalized = normalize_email(email)
-    for base in (COLLECTION_EA, COLLECTION_REGISTRATIONS):
-        collection = account_collection(base)
-        found = db.collection(collection).where("email", "==", normalized).limit(1).get()
-        if found:
-            snapshot = found[0]
-            data = snapshot.to_dict() or {}
-            if data.get("status", "active") != "active":
-                return None
-            if not data.get("email_verified"):
-                # Mailbox proven now: bind verification to the record AND wipe
-                # every caller-injectable profile field. CS Finding 3: an
-                # unverified record could have been planted by an attacker with
-                # the victim's email and a chosen display_name/feedback; adopting
-                # it verbatim would bind attacker-chosen data to the victim's
-                # verified subject. The UUID is adopted for cohort continuity
-                # (it is non-secret and was never disclosed), but nothing the
-                # caller could set survives the verification boundary.
-                snapshot.reference.update({
-                    "email_verified": True,
-                    "email_verified_at": _now_iso(),
-                    "display_name": None,
-                    "name": None,
-                    "registration_feedback": None,
-                    "feedback_type": None,
-                })
-            return data.get("uuid")
-    new_uuid = generate_ea_uuid()
-    from verifimind_mcp.policies import PRIVACY_POLICY_VERSION, TERMS_VERSION
-    db.collection(account_collection(COLLECTION_REGISTRATIONS)).document(new_uuid).set({
-        "uuid": new_uuid, "email": normalized, "display_name": None, "tier": "ea",
-        "registered_at": _now_iso(), "consent": True, "consent_ts": _now_iso(),
-        "privacy_version": PRIVACY_POLICY_VERSION, "tc_version": TERMS_VERSION,
-        "status": "active", "registration_path": "oauth_ceremony_v2",
-        "email_verified": True, "email_verified_at": _now_iso(),
-    })
-    return new_uuid
+    return resolve_verified_subject(email)
 
 
 # ── token + revoke ──────────────────────────────────────────────────────────

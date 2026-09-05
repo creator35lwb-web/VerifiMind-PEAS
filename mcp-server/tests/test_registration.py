@@ -376,6 +376,10 @@ class TestProcessOptout:
             def update(self, fields):
                 self._store[self._key].update(fields)
 
+            def delete(self):
+                # S161: opt-out also releases the mailbox's ownership claim.
+                self._store.pop(self._key, None)
+
         class _Query:
             def __init__(self, store, filters):
                 self._store, self._filters = store, filters
