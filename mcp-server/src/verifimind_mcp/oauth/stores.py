@@ -65,6 +65,13 @@ class _RefreshReuseDetected(Exception):
         self.grant_id = grant_id
 
 
+class RefreshRejected(Exception):
+    """The presented refresh token cannot be rotated: it is unknown, expired,
+    revoked, tombstoned, of the wrong kind, or its persisted identity does not
+    match what the caller claimed for it. A DENIAL, never an outage — Authlib
+    normalizes it to ``invalid_grant`` (CS round 3 F1 / T S157 Finding 1)."""
+
+
 def _db():
     from verifimind_mcp.registration import _get_firestore
 
@@ -127,7 +134,7 @@ def _guarded(operation: str):
         def run(*args, **kwargs):
             try:
                 return fn(*args, **kwargs)
-            except (StoreUnavailable, _RefreshReuseDetected):
+            except (StoreUnavailable, _RefreshReuseDetected, RefreshRejected):
                 raise
             except Exception as exc:  # noqa: BLE001
                 if is_backend_failure(exc):
@@ -442,16 +449,38 @@ def validate_bearer(presented: str, *, allow_pat: bool = True) -> Optional[Token
 
 
 def validate_refresh(presented: str) -> Optional[dict]:
-    """Read (non-consuming) a refresh token record for Authlib's grant."""
+    """Read (non-consuming) a refresh token record for Authlib's grant.
+
+    Tombstone-complete (CS round 3 F1 / T S157 Finding 1): after the secret
+    is verified, a grant, parent-grant, or subject tombstone denies exactly
+    as it does for bearer validation. Before this, a refresh descendant the
+    revocation sweep never saw — created by a rotation that committed after
+    the sweep's query snapshot — validated on its own ``revoked`` flag alone
+    and could rotate forever after the family was revoked.
+    """
     parsed = parse_token(presented)
     if parsed is None or parsed.kind != REFRESH:
         return None
     data = _read(c_tokens(), parsed.token_id)
     if data is None or data.get("revoked") or data.get("rotated_to"):
         return None
+    if data.get("kind") != REFRESH:
+        # The wire prefix is caller-controlled; the PERSISTED kind is not.
+        # All kinds share one collection and one id/secret scheme, so an
+        # access or personal token re-prefixed `vmrt.` resolved to its own
+        # record — same id, same secret — and rotated into a long-lived
+        # refresh family (S160 lens finding, HIGH at fecc67c). Same check as
+        # bearer validation's kind gate, mirrored here.
+        return None
     if _now() > float(data.get("expires_at", 0)):
         return None
     if not constant_time_equals(sha256_hex(parsed.secret), data.get("secret_hash", "")):
+        return None
+    if _is_tombstoned(
+        grant_id=data.get("grant_id", ""),
+        parent_grant_id=data.get("parent_grant_id", ""),
+        subject_uuid=data.get("subject_uuid", ""),
+    ):
         return None
     return data
 
@@ -464,8 +493,8 @@ def contain_refresh_reuse(presented: str) -> bool:
     if parsed is None or parsed.kind != REFRESH:
         return False
     data = _read(c_tokens(), parsed.token_id)
-    if data is None:
-        return False
+    if data is None or data.get("kind") != REFRESH:
+        return False  # persisted kind, never the wire prefix (see validate_refresh)
     if not constant_time_equals(sha256_hex(parsed.secret), data.get("secret_hash", "")):
         return False
     if data.get("rotated_to") or data.get("revoked"):
@@ -483,38 +512,102 @@ def rotate_refresh_tokens(
     subject_uuid: str, client_id: Optional[str], scope: str, actor_class: str,
     grant_id: str,
 ) -> None:
+    """Atomically retire the presented refresh token and write its descendants.
+
+    Tombstone-complete at COMMIT (CS round 3 F1 / T S157 Finding 1). The old
+    token's PERSISTED record — read through the transaction, secret
+    re-verified — names the grant, parent grant, and subject whose tombstone
+    documents are read through that same transaction before the old token
+    is marked or any descendant is written; a caller-supplied identity that
+    disagrees with the record is refused. Because the tombstone keys are in
+    the transaction's read set, a revocation that lands between these reads
+    and the commit either conflicts this commit (the retry re-reads, sees
+    the tombstone, and denies) or — under the server's pessimistic read
+    locks — waits until this commit has happened. In that second case, as
+    whenever the rotation commits first, the descendants inherit the
+    tombstoned grant id and every validation path (bearer AND refresh)
+    refuses them. Either way nothing a revocation could miss stays usable.
+
+    Denials raise ``RefreshRejected`` (→ ``invalid_grant``) — including a
+    replayed already-rotated token, which first revokes the whole family
+    (RFC 9700 §4.14.2) and is then denied, never reported as an outage.
+    Descendants keep the record's ``parent_grant_id`` so a parent-grant
+    revocation reaches them too, whichever side of the commit it lands on.
+    """
     parsed = parse_token(presented_refresh)
-    if parsed is None:
-        raise StoreUnavailable("invalid refresh token")
-    tokens = c_tokens()
+    if parsed is None or parsed.kind != REFRESH:
+        raise RefreshRejected("not a refresh token")
+    tokens, tombstones = c_tokens(), _c(_BASE_TOMBSTONES)
     old_id = parsed.token_id
+    presented_hash = sha256_hex(parsed.secret)
 
     def _txn(txn):
         old = txn.get_dict(tokens, old_id)
         if old is None:
-            raise StoreUnavailable("refresh token gone")
+            raise RefreshRejected("refresh token unknown")
+        if not constant_time_equals(presented_hash, old.get("secret_hash", "")):
+            raise RefreshRejected("refresh token secret mismatch")
+        if old.get("kind") != REFRESH:
+            raise RefreshRejected("not a refresh token")
+        persisted_grant = old.get("grant_id", "")
+        persisted_parent = old.get("parent_grant_id", "")
+        persisted_subject = old.get("subject_uuid", "")
+        if not persisted_grant or not persisted_subject:
+            # Absence denies: a record with no grant or subject would mint
+            # descendants that no revocation could ever reach (S160 lens).
+            raise RefreshRejected("refresh token record incomplete")
+        if (
+            persisted_grant != grant_id
+            or persisted_subject != subject_uuid
+            or (old.get("client_id") or None) != (client_id or None)
+        ):
+            raise RefreshRejected("refresh token identity mismatch")
         if old.get("rotated_to"):
             # Reuse of a rotated token = theft. Family revocation is a query,
             # which cannot run inside a transaction — signal out and revoke
             # the family post-commit.
-            raise _RefreshReuseDetected(old.get("grant_id", grant_id))
+            raise _RefreshReuseDetected(persisted_grant)
         if old.get("revoked"):
-            raise StoreUnavailable("refresh token revoked")
+            raise RefreshRejected("refresh token revoked")
+        if _now() > float(old.get("expires_at", 0)):
+            raise RefreshRejected("refresh token expired")
+        # Tombstones read THROUGH the transaction — the read set is what makes
+        # a concurrent revocation conflict with this commit.
+        for kind, key in (
+            ("grant", persisted_grant),
+            ("grant", persisted_parent),
+            ("subject", persisted_subject),
+        ):
+            if key and txn.get_dict(tombstones, f"{kind}_{key}") is not None:
+                raise RefreshRejected(f"{kind} revoked")
         txn.update(tokens, old_id, {"rotated_to": access.token_id, "rotated_at": _now()})
-        txn.set(tokens, access.token_id, _token_doc(
-            access, subject_uuid=subject_uuid, client_id=client_id, scope=scope,
-            actor_class=actor_class, grant_id=grant_id, ttl=ACCESS_TOKEN_TTL,
-        ))
-        txn.set(tokens, refresh.token_id, _token_doc(
-            refresh, subject_uuid=subject_uuid, client_id=client_id, scope=scope,
-            actor_class=actor_class, grant_id=grant_id, ttl=REFRESH_TOKEN_TTL,
-        ))
+        access_doc = _token_doc(
+            access, subject_uuid=persisted_subject, client_id=client_id, scope=scope,
+            actor_class=actor_class, grant_id=persisted_grant, ttl=ACCESS_TOKEN_TTL,
+        )
+        refresh_doc = _token_doc(
+            refresh, subject_uuid=persisted_subject, client_id=client_id, scope=scope,
+            actor_class=actor_class, grant_id=persisted_grant, ttl=REFRESH_TOKEN_TTL,
+        )
+        if persisted_parent:
+            # Descendants keep the parent link, so a parent-grant tombstone
+            # that lands AFTER this commit — and the parent's sweep — still
+            # reach them (S160 lens: they used to be written without it).
+            access_doc["parent_grant_id"] = persisted_parent
+            refresh_doc["parent_grant_id"] = persisted_parent
+        txn.set(tokens, access.token_id, access_doc)
+        txn.set(tokens, refresh.token_id, refresh_doc)
 
     try:
         run_transaction(_txn)
     except _RefreshReuseDetected as reuse:
+        # Automatic reuse detection (RFC 9700 §4.14.2): the server cannot tell
+        # attacker from victim, so the whole family is revoked — and the replay
+        # is then DENIED (invalid_grant), not reported as an outage. Before:
+        # the concurrent double-refresh race surfaced as a retryable 503 that
+        # invited retries against a dead family (S160 lens).
         revoke_grant_family(reuse.grant_id)
-        raise StoreUnavailable("refresh token reuse detected") from reuse
+        raise RefreshRejected("refresh token reuse detected") from reuse
     clear_caches()
 
 
@@ -575,7 +668,9 @@ def revoke_grant_family(grant_id: str) -> int:
     A grant-level tombstone is written FIRST so a credential created by a
     concurrent rotation/PAT-mint after the sweep snapshot is still refused at
     validation time — the query-then-update window cannot leave a live
-    descendant behind.
+    descendant behind. That guarantee is only as complete as the validation
+    paths that consult the tombstone: bearer validation always did, and since
+    T S157 Finding 1 refresh validation and the rotation commit do too.
     """
     db = _db()
     _write_tombstone("grant", grant_id)

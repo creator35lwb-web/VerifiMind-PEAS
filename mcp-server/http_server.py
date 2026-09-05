@@ -40,6 +40,7 @@ from starlette.middleware.cors import CORSMiddleware
 from verifimind_mcp.server import create_http_server
 from verifimind_mcp.middleware import RateLimitMiddleware, get_rate_limit_stats, check_tier, IPBlocklistMiddleware
 from verifimind_mcp.middleware.mcp_auth_boundary import McpAuthBoundary
+from verifimind_mcp.oauth.config import EnvironmentMisconfigured
 from verifimind_mcp.oauth.endpoints import (
     authorization_server_metadata_handler,
     oauth_authorize_get_handler,
@@ -1308,6 +1309,28 @@ async def http_exception_handler(request, exc):
     }, status_code=status)
 
 
+async def environment_misconfigured_handler(request, exc):
+    """T S157 Finding 3: a service whose environment identity cannot be
+    resolved (a staging revision without its own origin, an undeclared
+    non-production service) must stop BEFORE any user-data read or write and
+    must never fall back to production collection names. Every account,
+    feedback, and history surface lets ``EnvironmentMisconfigured`` propagate
+    here; the answer is an honest, retryable 503 that names no environment
+    detail and states that nothing was stored."""
+    logger.error(
+        "Environment identity unresolved; request refused (error_type=%s)",
+        type(exc).__name__,
+    )
+    return JSONResponse({
+        "error": "service_misconfigured",
+        "detail": (
+            "This service's environment identity is not configured, so the "
+            "request was refused before any data was read or written. "
+            "Nothing was stored. Retry later."
+        ),
+    }, status_code=503, headers={"Retry-After": "300", "Cache-Control": "no-store"})
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # v0.5.6 Gateway: Early Adopter Registration Routes
 # Z-Protocol v1.1 compliant — consent-first, data minimization, opt-out
@@ -1319,7 +1342,9 @@ def _registration_dark_response():
     dark deploy has no public credential/account mutation, and these legacy
     handlers previously bypassed it entirely. Returns a JSONResponse when dark,
     else None. Scoped to account issuance; the feedback channel is not an
-    issuance path and is intentionally not gated here."""
+    issuance path and is intentionally not gated here — it is instead
+    environment-namespaced and fail-closed on an unresolvable identity
+    (T S157 Finding 2), so staging feedback never reaches production's store."""
     from verifimind_mcp.oauth import config as _oauth_config
     if _oauth_config.issuance_enabled():
         return None
@@ -1644,6 +1669,9 @@ async def register_handler(request):
     try:
         result = await register_user(data)
         return JSONResponse(result.model_dump(), status_code=200)
+    except EnvironmentMisconfigured:
+        # Refused before any write; rendered by environment_misconfigured_handler.
+        raise
     except Exception:
         logger.exception("Lightweight registration error")
         return JSONResponse({"error": "Registration failed. Please try again."}, status_code=500)
@@ -2095,7 +2123,13 @@ app = Starlette(
         Mount("/mcp", app=mcp_app),
     ],
     lifespan=mcp_app.lifespan,  # CRITICAL: Pass lifespan for session initialization
-    exception_handlers={404: http_exception_handler, 400: http_exception_handler, 405: http_exception_handler, 406: http_exception_handler},
+    exception_handlers={
+        404: http_exception_handler, 400: http_exception_handler,
+        405: http_exception_handler, 406: http_exception_handler,
+        # T S157 Finding 3: an unresolvable environment identity is refused
+        # BEFORE any user-data read or write, as an explicit 503.
+        EnvironmentMisconfigured: environment_misconfigured_handler,
+    },
 )
 
 

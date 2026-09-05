@@ -21,6 +21,11 @@ Contract:
   brief backend blip does not cut an active session. Negative and
   unavailable results are NEVER cached: revocation takes effect on the next
   check and outages retry immediately.
+- Collections resolve through the environment seam
+  (``registration.account_collection``) BEFORE any read: a declared staging
+  service consults only staging membership, and a misdeclared staging
+  service reads nothing and resolves UNAVAILABLE (T S157 Finding 3).
+  ``source`` reports the LOGICAL store name, whichever namespace was read.
 """
 
 import time
@@ -74,22 +79,30 @@ def resolve_registration(uuid: str) -> RegistrationState:
             COLLECTION_EA,
             COLLECTION_REGISTRATIONS,
             _get_firestore,
+            account_collection,
         )
 
+        # Environment identity resolves BEFORE the client or any read (T S157
+        # Finding 3). An unresolvable identity raises here, is caught below,
+        # and answers UNAVAILABLE having consulted nothing.
+        lookups = [
+            (base, account_collection(base))
+            for base in (COLLECTION_EA, COLLECTION_REGISTRATIONS)
+        ]
         db = _get_firestore()
         if db is None:
             return RegistrationState(UNAVAILABLE)
-        for collection in (COLLECTION_EA, COLLECTION_REGISTRATIONS):
+        for base, collection in lookups:
             doc = db.collection(collection).document(uuid).get()
             if doc.exists:
                 data = doc.to_dict() or {}
                 if data.get("status", "active") == "active":
                     state = RegistrationState(
-                        REGISTERED, source=collection, tier=data.get("tier")
+                        REGISTERED, source=base, tier=data.get("tier")
                     )
                     _positive_cache[uuid] = (now + REGISTRATION_CACHE_TTL, state)
                     return state
-                return RegistrationState(NOT_REGISTERED, source=collection)
+                return RegistrationState(NOT_REGISTERED, source=base)
         return RegistrationState(NOT_REGISTERED)
     except Exception:
         return RegistrationState(UNAVAILABLE)

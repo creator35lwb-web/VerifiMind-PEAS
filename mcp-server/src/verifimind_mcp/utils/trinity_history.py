@@ -3,6 +3,8 @@ P1-B: Fire-and-forget Firestore persistence for Scholar Trinity history.
 
 Writes validation metadata to:
   trinity_history/{uuid}/validations/{validation_id}
+(production keeps that bare name; a declared staging service reads and writes
+its own ``staging_trinity_history`` — T S157 Finding 3)
 
 Privacy invariants (consistent with Privacy Policy v2.6):
   - NO concept names or descriptions stored
@@ -10,15 +12,30 @@ Privacy invariants (consistent with Privacy Policy v2.6):
     validation/session identifiers, and timestamps
   - Only written when user_uuid is explicitly provided (opt-in)
   - Silently skipped if Firestore unavailable (non-blocking)
+  - Refused (no client, no I/O) when the environment identity cannot be
+    resolved — never against production's collection
 """
 
 import asyncio
 import logging
 from datetime import datetime, timezone
 
+from verifimind_mcp.oauth.config import EnvironmentMisconfigured
 from verifimind_mcp.utils.uuid_tracer import is_valid_uuid
 
 logger = logging.getLogger(__name__)
+
+COLLECTION_TRINITY_HISTORY = "trinity_history"
+
+
+def _history_collection() -> str:
+    """Environment-resolved collection name, resolved BEFORE any client or
+    I/O (T S157 Finding 3): production keeps the bare historical name, a
+    declared staging service uses its own namespace, and an unresolvable
+    identity raises ``EnvironmentMisconfigured`` for the caller to refuse."""
+    from verifimind_mcp.registration import account_collection
+
+    return account_collection(COLLECTION_TRINITY_HISTORY)
 
 
 def _get_firestore_async():
@@ -67,12 +84,20 @@ def _build_record(uuid: str, tool: str, raw_result: dict) -> dict:
 async def _write_to_firestore(uuid: str, record: dict) -> None:
     """Async Firestore write — runs as background task."""
     try:
+        collection = _history_collection()
+    except EnvironmentMisconfigured as exc:
+        logger.warning(
+            "trinity_history write refused: environment identity unresolved (%s)",
+            type(exc).__name__,
+        )
+        return
+    try:
         db = _get_firestore_async()
         if db is None:
             return
         validation_id = record.get("validation_id", _ts())
         doc_ref = (
-            db.collection("trinity_history")
+            db.collection(collection)
             .document(uuid)
             .collection("validations")
             .document(validation_id)
@@ -93,13 +118,21 @@ def read_trinity_history(uuid: str, limit: int = 50) -> list[dict]:
     if not is_valid_uuid(uuid):
         return []
     try:
+        collection = _history_collection()
+    except EnvironmentMisconfigured as exc:
+        logger.warning(
+            "trinity_history read refused: environment identity unresolved (%s)",
+            type(exc).__name__,
+        )
+        return []
+    try:
         from verifimind_mcp.registration import _get_firestore
         db = _get_firestore()
         if db is None:
             return []
         from google.cloud.firestore_v1 import Query  # type: ignore
         docs = (
-            db.collection("trinity_history")
+            db.collection(collection)
             .document(uuid)
             .collection("validations")
             .order_by("timestamp", direction=Query.DESCENDING)

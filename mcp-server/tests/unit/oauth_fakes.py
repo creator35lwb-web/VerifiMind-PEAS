@@ -1,13 +1,21 @@
 """Dict-backed fake Firestore for OAuth store tests — now with transactions.
 
 Supports document get/set/update/delete, equality where-chains, AND a
-transaction protocol with OPTIMISTIC CONCURRENCY that mirrors production
-Firestore: each document carries a hidden version; a transaction records the
-versions it read and, at commit, aborts with a conflict if any of them
-changed. `run_transaction` (stores.py) then retries. A `barrier` hook lets a
-test force two transactions to both read before either commits, so
+transaction protocol with OPTIMISTIC CONCURRENCY that MODELS production
+Firestore: each document carries a hidden version (absent documents are
+version 0, so creating one a transaction read also conflicts); a transaction
+records the versions it read and, at commit, aborts with a conflict if any of
+them changed. `run_transaction` (stores.py) then retries. A `barrier` hook
+lets a test force two transactions to both read before either commits, so
 "exactly one winner" is a real, reproducible assertion — not a mock of the
 outcome (T P0-3).
+
+Model disclosure: production server-client transactions take READ LOCKS
+instead of validating versions — a competing write waits rather than
+aborting the reader — so "the tombstone commits inside the window" here
+corresponds to "the tombstone waits until after the commit" there; both
+orderings are covered by the round-3 suite. Like the real client, a
+transaction refuses a read after its first buffered write.
 """
 
 from typing import Any, Callable, Dict, Optional
@@ -133,6 +141,12 @@ class FakeTransaction:
         self._barrier = barrier
 
     def get_dict(self, collection: str, doc_id: str) -> Optional[dict]:
+        if self._writes:
+            # The real client raises ReadAfterWriteError here (a transaction
+            # must do ALL its reads before its first write); a fake that
+            # tolerated it would green a reorder that 500s in production
+            # (S160 Lens C).
+            raise RuntimeError("read after write inside a transaction")
         store = self._db._collection_store(collection)
         snap = store._snapshot(doc_id)
         self._reads[(collection, doc_id)] = store._version(doc_id)

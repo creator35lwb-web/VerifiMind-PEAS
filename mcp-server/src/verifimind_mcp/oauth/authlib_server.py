@@ -321,16 +321,22 @@ class VerifiMindAuthorizationServer(_BaseAuthorizationServer):
             record = stores.validate_refresh(presented) if presented else None
             if record is None:
                 raise InvalidGrantError()
-            stores.rotate_refresh_tokens(
-                presented_refresh=presented,
-                access=access,
-                refresh=refresh,
-                subject_uuid=record.get("subject_uuid", ""),
-                client_id=record.get("client_id"),
-                scope=scope,
-                actor_class=record.get("actor_class", "external"),
-                grant_id=record.get("grant_id", grant_id),
-            )
+            try:
+                stores.rotate_refresh_tokens(
+                    presented_refresh=presented,
+                    access=access,
+                    refresh=refresh,
+                    subject_uuid=record.get("subject_uuid", ""),
+                    client_id=record.get("client_id"),
+                    scope=scope,
+                    actor_class=record.get("actor_class", "external"),
+                    grant_id=record.get("grant_id", grant_id),
+                )
+            except stores.RefreshRejected:
+                # The rotation transaction denied (revoked/tombstoned between
+                # validation and commit, identity mismatch): a standards
+                # invalid_grant, never a retryable outage (T S157 Finding 1).
+                raise InvalidGrantError()
         else:
             raise InvalidGrantError()
 

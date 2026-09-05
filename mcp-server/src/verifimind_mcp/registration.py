@@ -18,6 +18,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from .utils.uuid_helper import generate_ea_uuid, generate_feedback_id
 from .policies import PRIVACY_POLICY_VERSION, TERMS_VERSION
+from .oauth.config import EnvironmentMisconfigured, current_environment
 
 logger = logging.getLogger(__name__)
 
@@ -304,6 +305,10 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
     Idempotent: same email → returns existing UUID (no duplicate records).
     Slot cap: returns 410 Gone (raises ValueError with code) if tier is full.
     """
+    # Environment identity resolves BEFORE the client or any I/O: a
+    # misdeclared staging service stops here (T S157 Finding 3).
+    ea_collection = account_collection(COLLECTION_EA)
+    feedback_collection = account_collection(COLLECTION_FEEDBACK)
     db = _get_firestore()
     now = _now_iso()
 
@@ -325,7 +330,7 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
             raise SlotCapReachedError(tier, max_slots)
 
         # ── Duplicate email check ───────────────────────────────────────────────
-        existing = db.collection(account_collection(COLLECTION_EA)).where("email", "==", normalize_email(data.email)).limit(1).get()
+        existing = db.collection(ea_collection).where("email", "==", normalize_email(data.email)).limit(1).get()
         if existing:
             # T P0-2: NEVER return an existing UUID (or its opt-out URL) from a
             # bare email lookup — that is the first link in the disclosure →
@@ -379,7 +384,7 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
         record["email_verified"] = False
         if is_pilot:
             record["pilot_source"] = "system_notice_invite"
-        db.collection(account_collection(COLLECTION_EA)).document(new_uuid).set(record)
+        db.collection(ea_collection).document(new_uuid).set(record)
         logger.info(f"New {tier} cohort record created (identifier withheld)")
 
         # ── Store feedback separately ───────────────────────────────────────────
@@ -393,7 +398,9 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
                 "email": None,  # never store email in feedback collection
                 "connection_context": "registration",
             }
-            db.collection(COLLECTION_FEEDBACK).add(feedback_record)
+            # Environment-namespaced like the account it accompanies (T S157
+            # Finding 2): staging feedback never lands in production's store.
+            db.collection(feedback_collection).add(feedback_record)
 
     else:
         # F-RES-1 (v0.5.50): Firestore unavailable — the registration CANNOT be
@@ -443,18 +450,20 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
 
 
 def account_collection(base: str) -> str:
-    """Environment-namespaced account collection name.
+    """Environment-namespaced name for a USER-DATA collection — accounts
+    (``early_adopters`` / ``ea_registrations``), ``feedback``, and
+    ``trinity_history`` all resolve through this one seam.
 
     Production and local development keep the bare historical names; a
-    declared staging environment is isolated, so it can never read, create,
-    or tombstone a production account.
+    declared staging environment is prefixed, so it can never read, create,
+    or tombstone a production record. ``EnvironmentMisconfigured``
+    PROPAGATES: a staging service whose identity cannot be resolved stops
+    here, before any read or write — it must never fall back to the
+    production name (CS round 3 / T S157 Finding 3: the previous broad
+    ``except`` returned exactly that). Every caller resolves its collection
+    before it opens the client.
     """
-    try:
-        from verifimind_mcp.oauth.config import current_environment
-
-        return current_environment().account_collection(base)
-    except Exception:
-        return base
+    return current_environment().account_collection(base)
 
 
 def normalize_email(value) -> str:
@@ -469,11 +478,12 @@ def normalize_email(value) -> str:
 
 async def get_ea_status(uuid: str) -> Optional[EAStatusResponse]:
     """Return EA status for a given UUID. Returns None if not found."""
+    collection = account_collection(COLLECTION_EA)  # resolves BEFORE any read
     db = _get_firestore()
     if db is None:
         return None
 
-    doc = db.collection(account_collection(COLLECTION_EA)).document(uuid).get()
+    doc = db.collection(collection).document(uuid).get()
     if not doc.exists:
         return None
 
@@ -489,6 +499,11 @@ async def get_ea_status(uuid: str) -> Optional[EAStatusResponse]:
 
 async def submit_feedback(data: FeedbackRequest) -> FeedbackResponse:
     """Submit feedback, issue, or recommendation (registered or anonymous)."""
+    # Environment identity resolves BEFORE the client or any write: staging
+    # feedback lands in staging's collection and a misdeclared staging service
+    # writes nothing (T S157 Findings 2/3). Production keeps the bare name and
+    # its anonymous-feedback semantics exactly as they were.
+    collection = account_collection(COLLECTION_FEEDBACK)
     db = _get_firestore()
     now = _now_iso()
     feedback_id = generate_feedback_id()
@@ -504,7 +519,7 @@ async def submit_feedback(data: FeedbackRequest) -> FeedbackResponse:
     }
 
     if db is not None:
-        db.collection(COLLECTION_FEEDBACK).document(feedback_id).set(record)
+        db.collection(collection).document(feedback_id).set(record)
         logger.info(f"Feedback received: id={feedback_id}, type={data.feedback_type}")
     else:
         logger.warning(f"Firestore unavailable — feedback {feedback_id} not persisted")
@@ -523,6 +538,19 @@ async def submit_feedback(data: FeedbackRequest) -> FeedbackResponse:
 
 async def process_optout(uuid: str) -> OptOutResponse:
     """De-identify account PII and mark remaining data for bounded deletion."""
+    # Environment identity resolves BEFORE the client or any read/write; an
+    # unresolvable staging identity is reported as unavailable — never as a
+    # success receipt, never against production's stores (T S157 Finding 3).
+    try:
+        ea_collection = account_collection(COLLECTION_EA)
+        light_collection = account_collection(COLLECTION_REGISTRATIONS)
+    except EnvironmentMisconfigured as exc:
+        logger.error(
+            "Opt-out refused: environment identity unresolved (error_type=%s)",
+            type(exc).__name__,
+        )
+        return build_optout_unavailable_response()
+
     db = _get_firestore()
 
     if db is None:
@@ -534,7 +562,7 @@ async def process_optout(uuid: str) -> OptOutResponse:
         # identity in EVERY registration store and kill every live
         # credential — success is reported only when all stores answered.
         matched = False
-        doc_ref = db.collection(account_collection(COLLECTION_EA)).document(uuid)
+        doc_ref = db.collection(ea_collection).document(uuid)
         doc = doc_ref.get()
         if doc.exists:
             matched = True
@@ -546,7 +574,7 @@ async def process_optout(uuid: str) -> OptOutResponse:
                 "name": None,
                 "registration_feedback": None,
             })
-        light_ref = db.collection(account_collection(COLLECTION_REGISTRATIONS)).document(uuid)
+        light_ref = db.collection(light_collection).document(uuid)
         light_doc = light_ref.get()
         if light_doc.exists:
             matched = True
@@ -699,13 +727,16 @@ async def register_user(data: UserRegistrationRequest) -> UserRegistrationRespon
     Idempotent by UUID — each call generates a new UUID (email-based
     dedup is best-effort only, not enforced for privacy-first anonymous path).
     """
+    # Environment identity resolves BEFORE the client or any I/O: a
+    # misdeclared staging service stops here (T S157 Finding 3).
+    collection = account_collection(COLLECTION_REGISTRATIONS)
     db = _get_firestore()
     now = _now_iso()
     new_uuid = generate_ea_uuid()
     # Best-effort email dedup (only when email provided and Firestore available)
     if data.email and db is not None:
         existing = (
-            db.collection(account_collection(COLLECTION_REGISTRATIONS))
+            db.collection(collection)
             .where("email", "==", normalize_email(data.email))
             .limit(1)
             .get()
@@ -750,7 +781,7 @@ async def register_user(data: UserRegistrationRequest) -> UserRegistrationRespon
             # the OAuth ceremony upgrades the record once it is proven.
             "email_verified": False,
         }
-        db.collection(account_collection(COLLECTION_REGISTRATIONS)).document(new_uuid).set(record)
+        db.collection(collection).document(new_uuid).set(record)
         logger.info("Lightweight cohort record created (identifier withheld)")
     else:
         logger.warning("Firestore unavailable — lightweight registration UUID=%s not persisted", new_uuid)

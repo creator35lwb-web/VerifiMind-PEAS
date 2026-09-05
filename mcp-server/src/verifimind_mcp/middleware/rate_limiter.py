@@ -65,21 +65,29 @@ def _is_rate_limit_exempt(path: str, method: str) -> bool:
 def _resolve_uuid_tier(uuid: str) -> str:
     """Return tier for a valid UUID. Cached for UUID_TIER_CACHE_TTL seconds.
 
-    Checks early_adopters Firestore collection (D-30-3: B3 consolidation,
-    early_adopters = single source of truth):
+    Checks THIS environment's early_adopters cohort collection (D-30-3: B3
+    consolidation, early_adopters = single source of truth; T S157 Finding 3:
+    resolved through the environment seam, so staging consults only staging
+    and a misdeclared staging service reads nothing):
       - found → "pioneer"  (EA + Pioneer both get 100/60s)
       - not found → "scholar" (valid UUID, free tier, 30/60s)
-      - Firestore unavailable → "scholar" (fail-open, generous)
+      - Firestore unavailable / environment unresolvable → "scholar" (the
+        generous free tier — never an elevated one)
     """
     now = time.time()
     cached = _uuid_tier_cache.get(uuid)
     if cached and now < cached[1]:
         return cached[0]
     try:
-        from verifimind_mcp.registration import _get_firestore, COLLECTION_EA
+        from verifimind_mcp.registration import (
+            COLLECTION_EA,
+            _get_firestore,
+            account_collection,
+        )
+        collection = account_collection(COLLECTION_EA)  # resolves BEFORE any read
         db = _get_firestore()
         if db is not None:
-            doc = db.collection(COLLECTION_EA).document(uuid).get()
+            doc = db.collection(collection).document(uuid).get()
             tier = "pioneer" if doc.exists else "scholar"
         else:
             tier = "scholar"

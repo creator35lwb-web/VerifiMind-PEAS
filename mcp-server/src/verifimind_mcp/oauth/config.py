@@ -62,12 +62,13 @@ class OAuthEnvironment:
         return f"{self.collection_prefix}{name}"
 
     def account_collection(self, name: str) -> str:
-        """Namespace for ACCOUNT stores (early_adopters / ea_registrations).
+        """Namespace for USER-DATA stores (early_adopters / ea_registrations /
+        feedback / trinity_history — T S157 Finding 3 made the set complete).
 
-        Only a declared non-production environment is prefixed, so production
-        and local development keep the historical bare names (no migration,
-        no test churn) while a staging service can never read, create, or
-        tombstone a production account — the cross-environment write that
+        Only a declared staging environment is prefixed, so production and
+        local development keep the historical bare names (no migration, no
+        test churn) while a staging service can never read, create, or
+        tombstone a production record — the cross-environment write that
         namespacing the OAuth tables alone did not stop.
         """
         return name if self.name != ENV_STAGING else f"{self.name}_{name}"
