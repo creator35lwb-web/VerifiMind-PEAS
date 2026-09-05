@@ -89,9 +89,16 @@ class TestRegisterUser:
         assert result.checkout_url is None
 
     async def test_uuid_in_opt_out_url(self):
+        # A PERSISTED registration links its own opt-out URL (the db-None
+        # path honestly returns persisted=False with a generic URL instead).
+        from unittest.mock import MagicMock, patch
         from verifimind_mcp.registration import UserRegistrationRequest, register_user
         req = UserRegistrationRequest(consent=True)
-        result = await register_user(req)
+        db = MagicMock()
+        db.collection.return_value.where.return_value.limit.return_value.get.return_value = []
+        with patch("verifimind_mcp.registration._get_firestore", return_value=db):
+            result = await register_user(req)
+        assert result.persisted is True
         assert result.uuid in result.opt_out_url
 
     async def test_registration_has_no_access_expiry(self):
@@ -105,8 +112,8 @@ class TestRegisterUser:
         from verifimind_mcp.registration import UserRegistrationRequest, register_user
         req = UserRegistrationRequest(consent=True)
         result = await register_user(req)
-        assert result.privacy_version == "2.5"
-        assert result.tc_version == "2.4"
+        assert result.privacy_version == "2.6"
+        assert result.tc_version == "2.5"
 
     async def test_different_calls_return_different_uuids(self):
         from verifimind_mcp.registration import UserRegistrationRequest, register_user
@@ -772,8 +779,18 @@ class TestRegistrationBillingPaths:
             result = await register_early_adopter(self._make_ea_reg())
 
         assert isinstance(result, RegistrationResponse)
-        assert result.tier == "early_adopter"
+        # The cohort record IS written...
         mock_db.collection.return_value.document.return_value.set.assert_called_once()
+        written = mock_db.collection.return_value.document.return_value.set.call_args[0][0]
+        assert written["uuid"]
+        # ...and marked unverified, because this path proves no mailbox.
+        assert written["email_verified"] is False
+        # ...but the identifier is NEVER returned here (T P0-2 + adversarial
+        # B-3/B-6): the response is uniform with the duplicate-email branch,
+        # so the endpoint is neither an existence oracle nor a way to choose
+        # the subject a victim's verified sign-in will later adopt.
+        assert result.uuid == ""
+        assert result.opt_out_url == ""
 
     # --- register_early_adopter: duplicate email returns pilot record ---
 
@@ -800,9 +817,13 @@ class TestRegistrationBillingPaths:
         with patch("verifimind_mcp.registration._get_firestore", return_value=mock_db):
             result = await register_early_adopter(self._make_ea_reg())
 
-        assert result.uuid == existing_uuid
-        assert result.tier == "pilot"
-        assert "already registered" in result.message
+        # T P0-2: a bare email lookup must NEVER disclose the existing UUID or
+        # its opt-out URL — that is the first link in the disclosure →
+        # unauthenticated history → unauthenticated revocation chain.
+        assert result.uuid == ""
+        assert existing_uuid not in result.opt_out_url
+        assert result.opt_out_url == ""
+        assert "Connect flow" in result.message
 
     # --- register_early_adopter: feedback stored separately ---
 
@@ -847,7 +868,7 @@ class TestRegistrationBillingPaths:
     # --- register_user: email dedup via Firestore ---
 
     @pytest.mark.asyncio
-    async def test_register_user_email_dedup_returns_existing(self):
+    async def test_register_user_email_dedup_withholds_disclosure(self):
         from unittest.mock import MagicMock, patch
         from verifimind_mcp.registration import UserRegistrationRequest, register_user
 
@@ -866,8 +887,10 @@ class TestRegistrationBillingPaths:
         with patch("verifimind_mcp.registration._get_firestore", return_value=mock_db):
             result = await register_user(req)
 
-        assert result.uuid == existing_uuid
-        assert "already registered" in result.message
+        # T P0-2: an email lookup never returns an existing UUID.
+        assert result.uuid == ""
+        assert existing_uuid not in result.opt_out_url
+        assert "Connect flow" in result.message
 
     # --- register_user: new registration written to Firestore ---
 
@@ -883,5 +906,8 @@ class TestRegistrationBillingPaths:
         with patch("verifimind_mcp.registration._get_firestore", return_value=mock_db):
             result = await register_user(req)
 
-        assert result.uuid
         mock_db.collection.return_value.document.return_value.set.assert_called_once()
+        written = mock_db.collection.return_value.document.return_value.set.call_args[0][0]
+        assert written["uuid"] and written["email_verified"] is False
+        # Identifier withheld: it is delivered only by the verified ceremony.
+        assert result.uuid == "" and result.opt_out_url == ""

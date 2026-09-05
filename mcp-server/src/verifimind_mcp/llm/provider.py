@@ -105,7 +105,13 @@ PROVIDER_DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b"
 # prompts. v0.5.55 makes the reservation input-aware using provider-measured
 # prompt shapes, keeps a safety margin, and fails closed when useful output cannot
 # fit. Limits were live-read from x-ratelimit-limit-tokens headers 2026-07-16.
-GROQ_8K_TPM_MODELS = frozenset({"openai/gpt-oss-120b", "qwen/qwen3.6-27b"})
+# qwen3.8-27b joins the set CONSERVATIVELY: same family/size/tier as
+# qwen3.6-27b, whose 8k TPM is live-proven. Over-clamping a roomier model
+# only shortens completions; under-clamping an 8k model repeats the
+# v0.5.49 413 class. Revisit on a live per-model rate-limit probe.
+GROQ_8K_TPM_MODELS = frozenset(
+    {"openai/gpt-oss-120b", "qwen/qwen3.6-27b", "qwen/qwen3.8-27b"}
+)
 GROQ_8K_TPM_LIMIT = 8000
 GROQ_8K_TPM_COMPLETION_CAP = 4096
 GROQ_TPM_SAFETY_MARGIN = 512
@@ -346,12 +352,16 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "models": [
             PROVIDER_DEFAULT_GROQ_MODEL,
             "qwen/qwen3.6-27b",
+            # qwen3.8-27b: successor fast option, Groq Preview tier
+            # (131k context / 16,384 max completion per Groq model docs,
+            # verified 2026-08-29). 3.6 stays listed while Groq serves it.
+            "qwen/qwen3.8-27b",
         ],
         "api_key_env": "GROQ_API_KEY",
         "base_url": "https://api.groq.com/openai/v1",
         "free_tier": True,
         "rate_limit": 30,
-        "models_verified_at": "2026-07-16",
+        "models_verified_at": "2026-08-29",
     },
     "cerebras": {
         "name": "Cerebras",

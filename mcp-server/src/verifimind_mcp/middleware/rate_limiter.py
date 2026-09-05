@@ -45,28 +45,49 @@ TIER_LIMITS: Dict[str, int] = {
 _uuid_tier_cache: Dict[str, Tuple[str, float]] = {}
 UUID_TIER_CACHE_TTL = 300  # 5 minutes — matches Firestore session TTL
 
-# Exempt paths from rate limiting
+# Exempt paths from rate limiting.
 EXEMPT_PATHS = {"/health", "/", "/.well-known/mcp-config", "/setup", "/register", "/optout", "/privacy", "/terms", "/robots.txt", "/favicon.ico", "/early-adopters/register", "/whoami"}
+
+# Identity-minting POSTs are NOT exempt even on exempt paths: each POST can
+# create a fresh registered UUID, and once a registered UUID gates tool
+# execution, unmetered minting is the Sybil vector. Page GETs stay exempt;
+# the anonymous IP bucket (10/60s, 2x burst) comfortably covers human
+# registration submissions.
+MINTING_PATHS = {"/register", "/early-adopters/register"}
+
+
+def _is_rate_limit_exempt(path: str, method: str) -> bool:
+    if path not in EXEMPT_PATHS:
+        return False
+    return not (path in MINTING_PATHS and method == "POST")
 
 
 def _resolve_uuid_tier(uuid: str) -> str:
     """Return tier for a valid UUID. Cached for UUID_TIER_CACHE_TTL seconds.
 
-    Checks early_adopters Firestore collection (D-30-3: B3 consolidation,
-    early_adopters = single source of truth):
+    Checks THIS environment's early_adopters cohort collection (D-30-3: B3
+    consolidation, early_adopters = single source of truth; T S157 Finding 3:
+    resolved through the environment seam, so staging consults only staging
+    and a misdeclared staging service reads nothing):
       - found → "pioneer"  (EA + Pioneer both get 100/60s)
       - not found → "scholar" (valid UUID, free tier, 30/60s)
-      - Firestore unavailable → "scholar" (fail-open, generous)
+      - Firestore unavailable / environment unresolvable → "scholar" (the
+        generous free tier — never an elevated one)
     """
     now = time.time()
     cached = _uuid_tier_cache.get(uuid)
     if cached and now < cached[1]:
         return cached[0]
     try:
-        from verifimind_mcp.registration import _get_firestore, COLLECTION_EA
+        from verifimind_mcp.registration import (
+            COLLECTION_EA,
+            _get_firestore,
+            account_collection,
+        )
+        collection = account_collection(COLLECTION_EA)  # resolves BEFORE any read
         db = _get_firestore()
         if db is not None:
-            doc = db.collection(COLLECTION_EA).document(uuid).get()
+            doc = db.collection(collection).document(uuid).get()
             tier = "pioneer" if doc.exists else "scholar"
         else:
             tier = "scholar"
@@ -220,31 +241,28 @@ def get_client_ip(request: Request) -> str:
     """
     Extract client IP from request, handling proxies.
 
-    Cloud Run sets X-Forwarded-For header.
+    Cloud Run sets X-Forwarded-For header. The client element is chosen by
+    ``INGRESS_PROXY_HOPS`` (``verifimind_mcp.utils.client_ip``) — a property of
+    the deployment's ingress, never a hardcoded index (CS round 2, F2). The
+    platform APPENDS the real peer, while every earlier element is
+    caller-supplied: trusting the leftmost element let a single header rotate
+    the rate-limit key at will (S155), and trusting the wrong trailing element
+    behind a load balancer would collapse every caller into one bucket.
     """
-    # Check X-Forwarded-For (set by Cloud Run and other proxies)
-    forwarded_for = request.headers.get("x-forwarded-for")
-    if forwarded_for:
-        # Take the first IP (original client)
-        return forwarded_for.split(",")[0].strip()
+    from verifimind_mcp.utils.client_ip import resolve_client_ip
 
-    # Check X-Real-IP
-    real_ip = request.headers.get("x-real-ip")
-    if real_ip:
-        return real_ip.strip()
-
-    # Fallback to direct client
-    if request.client:
-        return request.client.host
-
-    return "unknown"
+    return resolve_client_ip(
+        request.headers.get("x-forwarded-for"),
+        request.client.host if request.client else None,
+        real_ip=request.headers.get("x-real-ip"),
+    )
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """UUID tier-aware rate limiting. Anonymous→IP, Scholar/Pioneer→UUID."""
 
     async def dispatch(self, request: Request, call_next):
-        if request.url.path in EXEMPT_PATHS:
+        if _is_rate_limit_exempt(request.url.path, request.method):
             return await call_next(request)
         if request.method == "OPTIONS":
             return await call_next(request)

@@ -39,6 +39,18 @@ from starlette.routing import Mount, Route
 from starlette.middleware.cors import CORSMiddleware
 from verifimind_mcp.server import create_http_server
 from verifimind_mcp.middleware import RateLimitMiddleware, get_rate_limit_stats, check_tier, IPBlocklistMiddleware
+from verifimind_mcp.middleware.mcp_auth_boundary import McpAuthBoundary
+from verifimind_mcp.oauth.config import EnvironmentMisconfigured
+from verifimind_mcp.oauth.endpoints import (
+    authorization_server_metadata_handler,
+    oauth_authorize_get_handler,
+    oauth_authorize_post_handler,
+    oauth_pat_handler,
+    oauth_register_handler,
+    oauth_revoke_handler,
+    oauth_token_handler,
+    protected_resource_metadata_handler,
+)
 from verifimind_mcp.registration import (
     EarlyAdopterRegistration,
     FeedbackRequest,
@@ -1297,13 +1309,60 @@ async def http_exception_handler(request, exc):
     }, status_code=status)
 
 
+async def environment_misconfigured_handler(request, exc):
+    """T S157 Finding 3: a service whose environment identity cannot be
+    resolved (a staging revision without its own origin, an undeclared
+    non-production service) must stop BEFORE any user-data read or write and
+    must never fall back to production collection names. Every account,
+    feedback, and history surface lets ``EnvironmentMisconfigured`` propagate
+    here; the answer is an honest, retryable 503 that names no environment
+    detail and states that nothing was stored."""
+    logger.error(
+        "Environment identity unresolved; request refused (error_type=%s)",
+        type(exc).__name__,
+    )
+    return JSONResponse({
+        "error": "service_misconfigured",
+        "detail": (
+            "This service's environment identity is not configured, so the "
+            "request was refused before any data was read or written. "
+            "Nothing was stored. Retry later."
+        ),
+    }, status_code=503, headers={"Retry-After": "300", "Cache-Control": "no-store"})
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # v0.5.6 Gateway: Early Adopter Registration Routes
 # Z-Protocol v1.1 compliant — consent-first, data minimization, opt-out
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _registration_dark_response():
+    """CS Finding 1: while issuance is dark, the account-creating registration
+    endpoints must perform ZERO Firestore writes — the P0-7 contract is that a
+    dark deploy has no public credential/account mutation, and these legacy
+    handlers previously bypassed it entirely. Returns a JSONResponse when dark,
+    else None. Scoped to account issuance; the feedback channel is not an
+    issuance path and is intentionally not gated here — it is instead
+    environment-namespaced and fail-closed on an unresolvable identity
+    (T S157 Finding 2), so staging feedback never reaches production's store."""
+    from verifimind_mcp.oauth import config as _oauth_config
+    if _oauth_config.issuance_enabled():
+        return None
+    return JSONResponse({
+        "error": "registration_unavailable",
+        "detail": (
+            "Registration is not currently open. When it opens, sign in "
+            "through your MCP client's Connect flow, which verifies your email "
+            "and issues your credentials."
+        ),
+    }, status_code=503, headers={"Retry-After": "3600"})
+
+
 async def ea_register_handler(request):
     """POST /early-adopters/register — EA or Pilot registration with T&C + Privacy consent."""
+    _dark = _registration_dark_response()
+    if _dark is not None:
+        return _dark
     try:
         body = await request.json()
     except Exception:
@@ -1401,6 +1460,39 @@ async def whoami_handler(request):
             "rate_limit": "100 req/60s",
         }, status_code=200)
 
+    # Bridge repair: lightweight POST /register identities live in the
+    # ea_registrations collection, which no reader consulted before — they
+    # were reported "unregistered" forever. resolve_registration checks both
+    # collections (status-aware) and fails closed on backend outage.
+    from verifimind_mcp.registration_lookup import (
+        NOT_REGISTERED,
+        resolve_registration,
+    )
+    reg = resolve_registration(uuid)
+    if reg.is_registered:
+        return JSONResponse({
+            "uuid": uuid,
+            "tier": reg.tier or "ea",
+            "status": "active",
+            "registration_source": reg.source,
+            "rate_limit": "30 req/60s",
+            "message": (
+                "This UUID is registered (lightweight registration). "
+                "Registration is not a time-limited access entitlement."
+            ),
+        }, status_code=200)
+    if reg.state != NOT_REGISTERED:
+        return JSONResponse({
+            "uuid": uuid,
+            "tier": "scholar",
+            "status": "status_check_unavailable",
+            "message": (
+                "The registration status check is temporarily unavailable — "
+                "this is a server-side condition, not a statement about your "
+                "UUID. Please retry in a few minutes."
+            ),
+        }, status_code=200)
+
     return JSONResponse({
         "uuid": uuid,
         "tier": "scholar",
@@ -1415,14 +1507,38 @@ async def whoami_handler(request):
     }, status_code=200)
 
 
+def _authenticated_subject(request):
+    """Resolve the authenticated OAuth subject from a Bearer credential, or
+    None. Used to gate owner-scoped surfaces once issuance is live (T P0-2)."""
+    authorization = request.headers.get("authorization", "")
+    if not authorization.lower().startswith("bearer "):
+        return None
+    try:
+        from verifimind_mcp.oauth.authlib_server import authenticate_bearer
+        record, _err = authenticate_bearer(authorization[7:].strip(), ("mcp",))
+        return record.subject_uuid if record else None
+    except Exception:
+        return None
+
+
 async def ea_dashboard_handler(request):
     """GET /early-adopters/dashboard/{uuid} — Scholar validation history dashboard (P0-B)."""
     from verifimind_mcp.utils.uuid_tracer import is_valid_uuid
+    from verifimind_mcp.oauth import config as _oauth_config
     uuid = request.path_params.get("uuid", "")
     if not is_valid_uuid(uuid):
         return HTMLResponse(
             get_dashboard_page("invalid", [], firestore_available=False),
             status_code=404,
+        )
+    # T P0-2: history is owner-scoped, UNCONDITIONALLY. Gating this on the
+    # issuance flag made the default (dark) posture the *less* protected one:
+    # any caller holding a UUID string could read that subject's history.
+    # Possession of a public identifier is not authority in either posture.
+    if _authenticated_subject(request) != uuid:
+        return HTMLResponse(
+            get_dashboard_page("unauthorized", [], firestore_available=False),
+            status_code=401,
         )
     firestore_available = _get_firestore() is not None
     records = read_trinity_history(uuid, limit=50)
@@ -1453,9 +1569,33 @@ async def ea_feedback_handler(request):
 
 async def ea_optout_handler(request):
     """POST /early-adopters/optout/{uuid} — opt-out and request data deletion."""
+    from verifimind_mcp.oauth import config as _oauth_config
     uuid = request.path_params.get("uuid", "")
     if not uuid:
         return JSONResponse({"error": "UUID required"}, status_code=400)
+
+    # T P0-2: revocation authority is owner-scoped, UNCONDITIONALLY. A bare
+    # UUID must never tombstone an account and revoke its credentials — the
+    # flag-gated version left that open in the default dark posture. Rights
+    # requests without a token go through the verified private channel named
+    # in the Privacy Policy.
+    from verifimind_mcp.utils.uuid_tracer import is_valid_uuid as _is_valid_uuid
+    if not _is_valid_uuid(uuid):
+        return JSONResponse({"error": "UUID required"}, status_code=400)
+    if _authenticated_subject(request) != uuid:
+        return JSONResponse(
+            {
+                "processed": False,
+                "message": (
+                    "Deletion requires an authenticated session for this "
+                    "account. Sign in through your MCP client's Connect flow, "
+                    "or email alton@ysenseai.org from your registered address "
+                    "to use the verified private rights channel."
+                ),
+                "deletion_scheduled_within": None,
+            },
+            status_code=401,
+        )
 
     try:
         result = await process_optout(uuid)
@@ -1513,6 +1653,9 @@ async def register_handler(request):
     XV PIN #49 architecture: email optional, UUID = identity spine.
     Only consent: true is required. Returns UUIDv7 + Polar checkout URL.
     """
+    _dark = _registration_dark_response()
+    if _dark is not None:
+        return _dark
     try:
         body = await request.json()
     except Exception:
@@ -1526,6 +1669,9 @@ async def register_handler(request):
     try:
         result = await register_user(data)
         return JSONResponse(result.model_dump(), status_code=200)
+    except EnvironmentMisconfigured:
+        # Refused before any write; rendered by environment_misconfigured_handler.
+        raise
     except Exception:
         logger.exception("Lightweight registration error")
         return JSONResponse({"error": "Registration failed. Please try again."}, status_code=500)
@@ -1951,6 +2097,18 @@ app = Starlette(
         Route("/library", library_handler, methods=["GET"]),
         Route("/library/index.json", library_index_handler, methods=["GET"]),
         Route("/mcp/test", mcp_test_handler, methods=["GET"]),
+        # Design v2: OAuth 2.1 authorization spine (dark until the
+        # registration gate is enabled; endpoints are harmless while dark).
+        Route("/.well-known/oauth-protected-resource",
+              protected_resource_metadata_handler, methods=["GET"]),
+        Route("/.well-known/oauth-authorization-server",
+              authorization_server_metadata_handler, methods=["GET"]),
+        Route("/oauth/authorize", oauth_authorize_get_handler, methods=["GET"]),
+        Route("/oauth/authorize", oauth_authorize_post_handler, methods=["POST"]),
+        Route("/oauth/token", oauth_token_handler, methods=["POST"]),
+        Route("/oauth/revoke", oauth_revoke_handler, methods=["POST"]),
+        Route("/oauth/register", oauth_register_handler, methods=["POST"]),
+        Route("/oauth/pat", oauth_pat_handler, methods=["POST"]),
         # v0.5.6 UI: human-readable registration and opt-out pages
         Route("/register", register_page_handler, methods=["GET"]),
         Route("/register", register_handler, methods=["POST"]),
@@ -1965,7 +2123,13 @@ app = Starlette(
         Mount("/mcp", app=mcp_app),
     ],
     lifespan=mcp_app.lifespan,  # CRITICAL: Pass lifespan for session initialization
-    exception_handlers={404: http_exception_handler, 400: http_exception_handler, 405: http_exception_handler, 406: http_exception_handler},
+    exception_handlers={
+        404: http_exception_handler, 400: http_exception_handler,
+        405: http_exception_handler, 406: http_exception_handler,
+        # T S157 Finding 3: an unresolvable environment identity is refused
+        # BEFORE any user-data read or write, as an explicit 503.
+        EnvironmentMisconfigured: environment_misconfigured_handler,
+    },
 )
 
 
@@ -1974,10 +2138,15 @@ app = Starlette(
 app.router.redirect_slashes = False
 
 # IMPORTANT: Starlette add_middleware uses insert(0) — last added runs FIRST (outermost).
-# Execution order: IPBlocklist → CORS → RateLimiting → route handlers
+# Execution order: IPBlocklist → CORS → RateLimiting → McpAuthBoundary → routes
 # 1. IP Blocklist (outermost — rejects known rogue IPs before any processing)
 # 2. CORS (handles browser preflight OPTIONS before rate-limiting fires)
 # 3. Rate Limiting (EDoS protection for legitimate traffic)
+# 4. McpAuthBoundary (innermost — OAuth 401 challenge on /mcp; passthrough
+#    while the registration gate is dark)
+
+# OAuth boundary — added first so it runs innermost (Design v2, dark by default)
+app.add_middleware(McpAuthBoundary)
 
 # Rate limiting middleware - EDoS protection
 app.add_middleware(RateLimitMiddleware)
@@ -2012,6 +2181,9 @@ print("SECURITY FEATURES (v0.3.5):")
 print(f"  Input Sanitization: Prompt injection protection (v0.3.5)")
 print(f"  Rate Limiting: {os.getenv('RATE_LIMIT_PER_IP', '10')} req/min per IP")
 print(f"  Global Limit:  {os.getenv('RATE_LIMIT_GLOBAL', '100')} req/min per instance")
+from verifimind_mcp.utils.client_ip import ingress_disclosure as _ingress_disclosure  # noqa: E402
+print(f"  Ingress proxy hops: X-Forwarded-For element -{_ingress_disclosure()['proxy_hops']} "
+      "(INGRESS_PROXY_HOPS; bind to THIS deployment's ingress)")
 print(f"  CORS: Enabled (all origins)")
 print("-" * 70)
 print("FREE-TIER ROUTING (generated from the truth contract, v0.5.52):")

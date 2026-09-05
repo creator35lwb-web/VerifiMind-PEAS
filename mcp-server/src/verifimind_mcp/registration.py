@@ -18,6 +18,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from .utils.uuid_helper import generate_ea_uuid, generate_feedback_id
 from .policies import PRIVACY_POLICY_VERSION, TERMS_VERSION
+from .oauth.config import EnvironmentMisconfigured, current_environment
 
 logger = logging.getLogger(__name__)
 
@@ -287,7 +288,7 @@ def _now_iso() -> str:
 def _count_tier_slots(db, tier: str) -> int:
     """Count registered slots for a given tier. Returns 0 if Firestore unavailable."""
     try:
-        docs = db.collection(COLLECTION_EA).where("tier", "==", tier).where("status", "==", "active").count().get()
+        docs = db.collection(account_collection(COLLECTION_EA)).where("tier", "==", tier).where("status", "==", "active").count().get()
         return int(docs[0][0].value)
     except Exception as e:
         logger.warning(f"Slot count query failed for tier={tier}: {e}")
@@ -304,6 +305,10 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
     Idempotent: same email → returns existing UUID (no duplicate records).
     Slot cap: returns 410 Gone (raises ValueError with code) if tier is full.
     """
+    # Environment identity resolves BEFORE the client or any I/O: a
+    # misdeclared staging service stops here (T S157 Finding 3).
+    ea_collection = account_collection(COLLECTION_EA)
+    feedback_collection = account_collection(COLLECTION_FEEDBACK)
     db = _get_firestore()
     now = _now_iso()
 
@@ -325,26 +330,31 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
             raise SlotCapReachedError(tier, max_slots)
 
         # ── Duplicate email check ───────────────────────────────────────────────
-        existing = db.collection(COLLECTION_EA).where("email", "==", str(data.email)).limit(1).get()
+        existing = db.collection(ea_collection).where("email", "==", normalize_email(data.email)).limit(1).get()
         if existing:
-            doc = existing[0].to_dict()
-            existing_tier = doc.get("tier", "early_adopter")
-            existing_label = "Pilot Member" if existing_tier == "pilot" else "Early Adopter"
-            logger.info(f"Duplicate registration for masked email {_mask_email(str(data.email))} — returning existing UUID")
+            # T P0-2: NEVER return an existing UUID (or its opt-out URL) from a
+            # bare email lookup — that is the first link in the disclosure →
+            # unauthenticated history → unauthenticated revocation chain.
+            # Account recovery goes through the verified-mailbox OAuth ceremony.
+            logger.info(
+                "Duplicate registration for masked email %s — disclosure withheld",
+                _mask_email(str(data.email)),
+            )
             return RegistrationResponse(
-                uuid=doc["uuid"],
+                uuid="",
                 email_masked=_mask_email(str(data.email)),
-                tier=existing_tier,
-                tier_label=existing_label,
-                registered_at=doc["registered_at"],
-                tc_version=doc.get("tc_version", TERMS_VERSION),
-                privacy_version=doc.get("privacy_version", PRIVACY_POLICY_VERSION),
+                tier="",
+                tier_label="",
+                registered_at=now,
+                tc_version=TERMS_VERSION,
+                privacy_version=PRIVACY_POLICY_VERSION,
                 message=(
-                    f"You're already registered as {existing_label}. "
-                    "Your UUID and cohort membership are unchanged."
+                    "If an account already exists for this email, sign in "
+                    "through your MCP client's Connect flow, which verifies "
+                    "your email. Account details are never disclosed here."
                 ),
-                benefit_summary=_build_benefit_summary(existing_tier, existing_label),
-                opt_out_url=f"/early-adopters/optout/{doc['uuid']}",
+                benefit_summary="",
+                opt_out_url="",
                 feedback_received=False,
             )
 
@@ -352,7 +362,7 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
         new_uuid = generate_ea_uuid()
         record = {
             "uuid": new_uuid,
-            "email": str(data.email),  # stored securely in Firestore, never logged
+            "email": normalize_email(data.email),  # canonical form; never logged
             "name": data.name,
             "registered_at": now,
             "tier": tier,
@@ -367,10 +377,15 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
             "feedback_type": data.feedback_type or ("new_user" if not data.feedback else "general"),
             "status": "active",
         }
+        # The mailbox is NOT proven on this path, so the record is marked
+        # unverified and its identifier is never returned (see the uniform
+        # response below). The OAuth ceremony upgrades it once the mailbox
+        # is actually proven.
+        record["email_verified"] = False
         if is_pilot:
             record["pilot_source"] = "system_notice_invite"
-        db.collection(COLLECTION_EA).document(new_uuid).set(record)
-        logger.info(f"New {tier} registered: UUID={new_uuid}")
+        db.collection(ea_collection).document(new_uuid).set(record)
+        logger.info(f"New {tier} cohort record created (identifier withheld)")
 
         # ── Store feedback separately ───────────────────────────────────────────
         if data.feedback:
@@ -383,7 +398,9 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
                 "email": None,  # never store email in feedback collection
                 "connection_context": "registration",
             }
-            db.collection(COLLECTION_FEEDBACK).add(feedback_record)
+            # Environment-namespaced like the account it accompanies (T S157
+            # Finding 2): staging feedback never lands in production's store.
+            db.collection(feedback_collection).add(feedback_record)
 
     else:
         # F-RES-1 (v0.5.50): Firestore unavailable — the registration CANNOT be
@@ -407,34 +424,66 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
             feedback_received=False,
         )
 
+    # UNIFORM response (T P0-2 + adversarial B-3/B-6): byte-identical in shape
+    # to the duplicate-email branch, so this endpoint is not an account-
+    # existence oracle, and it never hands out a subject identifier the
+    # mailbox owner has not proven. The identifier is delivered only through
+    # the verified Connect ceremony.
     return RegistrationResponse(
-        uuid=new_uuid,
+        uuid="",
         email_masked=_mask_email(str(data.email)),
-        tier=tier,
-        tier_label=tier_label,
+        tier="",
+        tier_label="",
         registered_at=now,
         tc_version=TERMS_VERSION,
         privacy_version=PRIVACY_POLICY_VERSION,
         message=(
-            f"Welcome to the VerifiMind-PEAS {tier_label} program! "
-            "Your UUID is your identifier — save it. It is not an "
-            "authentication credential and does not authorize access to "
-            "another user's data. "
+            "Thanks — your interest is recorded. Finish sign-in through your "
+            "MCP client's Connect flow, which verifies your email and issues "
+            "your credentials. Account details are never disclosed here. "
             f"{CURRENT_AVAILABILITY_NOTICE}"
         ),
-        benefit_summary=_build_benefit_summary(tier, tier_label),
-        opt_out_url=f"/early-adopters/optout/{new_uuid}",
+        benefit_summary="",
+        opt_out_url="",
         feedback_received=bool(data.feedback),
     )
 
 
+def account_collection(base: str) -> str:
+    """Environment-namespaced name for a USER-DATA collection — accounts
+    (``early_adopters`` / ``ea_registrations``), ``feedback``, and
+    ``trinity_history`` all resolve through this one seam.
+
+    Production and local development keep the bare historical names; a
+    declared staging environment is prefixed, so it can never read, create,
+    or tombstone a production record. ``EnvironmentMisconfigured``
+    PROPAGATES: a staging service whose identity cannot be resolved stops
+    here, before any read or write — it must never fall back to the
+    production name (CS round 3 / T S157 Finding 3: the previous broad
+    ``except`` returned exactly that). Every caller resolves its collection
+    before it opens the client.
+    """
+    return current_environment().account_collection(base)
+
+
+def normalize_email(value) -> str:
+    """Canonical email form used for EVERY store and lookup.
+
+    Pydantic's EmailStr lowercases only the domain, so `Bob@x.com` and
+    `bob@x.com` previously produced two accounts and defeated both dedup
+    checks — and made a verified-mailbox sign-in fork a second subject.
+    """
+    return str(value or "").strip().lower()
+
+
 async def get_ea_status(uuid: str) -> Optional[EAStatusResponse]:
     """Return EA status for a given UUID. Returns None if not found."""
+    collection = account_collection(COLLECTION_EA)  # resolves BEFORE any read
     db = _get_firestore()
     if db is None:
         return None
 
-    doc = db.collection(COLLECTION_EA).document(uuid).get()
+    doc = db.collection(collection).document(uuid).get()
     if not doc.exists:
         return None
 
@@ -450,6 +499,11 @@ async def get_ea_status(uuid: str) -> Optional[EAStatusResponse]:
 
 async def submit_feedback(data: FeedbackRequest) -> FeedbackResponse:
     """Submit feedback, issue, or recommendation (registered or anonymous)."""
+    # Environment identity resolves BEFORE the client or any write: staging
+    # feedback lands in staging's collection and a misdeclared staging service
+    # writes nothing (T S157 Findings 2/3). Production keeps the bare name and
+    # its anonymous-feedback semantics exactly as they were.
+    collection = account_collection(COLLECTION_FEEDBACK)
     db = _get_firestore()
     now = _now_iso()
     feedback_id = generate_feedback_id()
@@ -465,7 +519,7 @@ async def submit_feedback(data: FeedbackRequest) -> FeedbackResponse:
     }
 
     if db is not None:
-        db.collection(COLLECTION_FEEDBACK).document(feedback_id).set(record)
+        db.collection(collection).document(feedback_id).set(record)
         logger.info(f"Feedback received: id={feedback_id}, type={data.feedback_type}")
     else:
         logger.warning(f"Firestore unavailable — feedback {feedback_id} not persisted")
@@ -484,6 +538,19 @@ async def submit_feedback(data: FeedbackRequest) -> FeedbackResponse:
 
 async def process_optout(uuid: str) -> OptOutResponse:
     """De-identify account PII and mark remaining data for bounded deletion."""
+    # Environment identity resolves BEFORE the client or any read/write; an
+    # unresolvable staging identity is reported as unavailable — never as a
+    # success receipt, never against production's stores (T S157 Finding 3).
+    try:
+        ea_collection = account_collection(COLLECTION_EA)
+        light_collection = account_collection(COLLECTION_REGISTRATIONS)
+    except EnvironmentMisconfigured as exc:
+        logger.error(
+            "Opt-out refused: environment identity unresolved (error_type=%s)",
+            type(exc).__name__,
+        )
+        return build_optout_unavailable_response()
+
     db = _get_firestore()
 
     if db is None:
@@ -491,9 +558,14 @@ async def process_optout(uuid: str) -> OptOutResponse:
         return build_optout_unavailable_response()
 
     try:
-        doc_ref = db.collection(COLLECTION_EA).document(uuid)
+        # UNION revocation (T S152 P0 #2): a rights request must revoke the
+        # identity in EVERY registration store and kill every live
+        # credential — success is reported only when all stores answered.
+        matched = False
+        doc_ref = db.collection(ea_collection).document(uuid)
         doc = doc_ref.get()
         if doc.exists:
+            matched = True
             doc_ref.update({
                 "status": "deletion_requested",
                 "deletion_requested_at": _now_iso(),
@@ -502,6 +574,21 @@ async def process_optout(uuid: str) -> OptOutResponse:
                 "name": None,
                 "registration_feedback": None,
             })
+        light_ref = db.collection(light_collection).document(uuid)
+        light_doc = light_ref.get()
+        if light_doc.exists:
+            matched = True
+            light_ref.update({
+                "status": "deletion_requested",
+                "deletion_requested_at": _now_iso(),
+                "email": "[deletion_requested]",
+                "display_name": None,
+            })
+        if matched:
+            # Tombstone every OAuth/PAT credential for the subject; the
+            # ≤60s validation cache bounds propagation (Design v2).
+            from verifimind_mcp.oauth.stores import revoke_all_for_subject
+            revoke_all_for_subject(uuid)
             logger.info("Opt-out processed for a stored account")
         else:
             # Do not reveal whether a caller-supplied UUID belongs to an account.
@@ -608,6 +695,10 @@ class UserRegistrationResponse(BaseModel):
     uuid: str
     tier: str = "ea"
     registered_at: str
+    # Honest-degradation flag (F-RES-1 parity with the EA path): False means
+    # storage was unavailable and this registration was NOT saved — the UUID
+    # cannot verify anywhere. Never report success for an unpersisted record.
+    persisted: bool = True
     # Deprecated compatibility fields. No paid service or timed entitlement is
     # currently offered, so these serialize as null.
     expires_at: Optional[str] = None
@@ -636,43 +727,47 @@ async def register_user(data: UserRegistrationRequest) -> UserRegistrationRespon
     Idempotent by UUID — each call generates a new UUID (email-based
     dedup is best-effort only, not enforced for privacy-first anonymous path).
     """
+    # Environment identity resolves BEFORE the client or any I/O: a
+    # misdeclared staging service stops here (T S157 Finding 3).
+    collection = account_collection(COLLECTION_REGISTRATIONS)
     db = _get_firestore()
     now = _now_iso()
     new_uuid = generate_ea_uuid()
     # Best-effort email dedup (only when email provided and Firestore available)
     if data.email and db is not None:
         existing = (
-            db.collection(COLLECTION_REGISTRATIONS)
-            .where("email", "==", str(data.email))
+            db.collection(collection)
+            .where("email", "==", normalize_email(data.email))
             .limit(1)
             .get()
         )
         if existing:
-            doc = existing[0].to_dict()
+            # T P0-2: do not disclose an existing UUID from an email lookup.
             logger.info(
-                "Lightweight register: duplicate email %s — returning existing UUID",
+                "Lightweight register: duplicate email %s — disclosure withheld",
                 _mask_email(str(data.email)),
             )
-            extras = _build_registration_extras(doc["uuid"])
             return UserRegistrationResponse(
-                uuid=doc["uuid"],
-                tier=doc.get("tier", "ea"),
-                registered_at=doc["registered_at"],
+                uuid="",
+                tier="",
+                registered_at=now,
+                persisted=True,
                 message=(
-                    "You're already registered. Save your UUID — it is your "
-                    f"persistent identifier. {CURRENT_AVAILABILITY_NOTICE}"
+                    "If an account already exists for this email, sign in "
+                    "through your MCP client's Connect flow, which verifies "
+                    "your email. Account details are never disclosed here."
                 ),
-                opt_out_url=f"/early-adopters/optout/{doc['uuid']}",
+                opt_out_url="",
                 privacy_version=PRIVACY_POLICY_VERSION,
                 tc_version=TERMS_VERSION,
-                **extras,
+                **_build_registration_extras(""),
             )
 
     # Store in Firestore (when available)
     if db is not None:
         record = {
             "uuid": new_uuid,
-            "email": str(data.email) if data.email else None,
+            "email": normalize_email(data.email) if data.email else None,
             "display_name": data.display_name,
             "tier": "ea",
             "registered_at": now,
@@ -682,26 +777,70 @@ async def register_user(data: UserRegistrationRequest) -> UserRegistrationRespon
             "tc_version": TERMS_VERSION,
             "status": "active",
             "registration_path": "lightweight_v0513",
+            # Mailbox NOT proven on this path; the identifier is withheld and
+            # the OAuth ceremony upgrades the record once it is proven.
+            "email_verified": False,
         }
-        db.collection(COLLECTION_REGISTRATIONS).document(new_uuid).set(record)
-        logger.info("Lightweight registration: UUID=%s", new_uuid)
+        db.collection(collection).document(new_uuid).set(record)
+        logger.info("Lightweight cohort record created (identifier withheld)")
     else:
         logger.warning("Firestore unavailable — lightweight registration UUID=%s not persisted", new_uuid)
+        # F-RES-1 parity: never show a success screen for a registration
+        # that was not saved — this UUID does not exist server-side and can
+        # never verify at /whoami or any registration check.
+        return UserRegistrationResponse(
+            uuid=new_uuid,
+            tier="ea",
+            registered_at=now,
+            persisted=False,
+            message=(
+                "Registration storage is temporarily unavailable — your "
+                "registration was NOT saved. No data was stored and this UUID "
+                "is not registered. Please try again in a few minutes."
+            ),
+            opt_out_url="/register",
+            privacy_version=PRIVACY_POLICY_VERSION,
+            tc_version=TERMS_VERSION,
+            **_build_registration_extras(new_uuid),
+        )
 
-    extras = _build_registration_extras(new_uuid)
+    # CS Finding 2: the anonymous (email-absent) path has NO email to probe and
+    # NO victim to hijack, so withholding the UUID there orphans a legitimate
+    # maximum-privacy user at birth — they have no email and thus no way to
+    # recover the identifier through the verified ceremony. Branch on email:
+    #   - email ABSENT  → return the UUID (it is the anonymous user's only
+    #     handle; no oracle/hijack surface exists without an email).
+    #   - email PRESENT → withhold, uniform with the duplicate-email branch, so
+    #     the endpoint is neither an existence oracle nor a way to plant the
+    #     identifier a victim's future verified sign-in would adopt.
+    if data.email is None:
+        return UserRegistrationResponse(
+            uuid=new_uuid,
+            tier="ea",
+            registered_at=now,
+            message=(
+                "Registration successful. Your UUID is your identity — save it; "
+                "there is no email on this account to recover it with. "
+                f"{CURRENT_AVAILABILITY_NOTICE}"
+            ),
+            opt_out_url=f"/early-adopters/optout/{new_uuid}",
+            privacy_version=PRIVACY_POLICY_VERSION,
+            tc_version=TERMS_VERSION,
+            **_build_registration_extras(new_uuid),
+        )
 
     return UserRegistrationResponse(
-        uuid=new_uuid,
-        tier="ea",
+        uuid="",
+        tier="",
         registered_at=now,
         message=(
-            "Registration successful! Your UUID is your persistent identifier — save it. "
-            "Copy the mcp_config below into your Claude Desktop or Cursor config. "
-            "Use test_url to verify your connection, dashboard_url to track your usage. "
+            "Thanks — your interest is recorded. Finish sign-in through your "
+            "MCP client's Connect flow, which verifies your email and issues "
+            "your credentials. Account details are never disclosed here. "
             f"{CURRENT_AVAILABILITY_NOTICE}"
         ),
-        opt_out_url=f"/early-adopters/optout/{new_uuid}",
+        opt_out_url="",
         privacy_version=PRIVACY_POLICY_VERSION,
         tc_version=TERMS_VERSION,
-        **extras,
+        **_build_registration_extras(""),
     )
