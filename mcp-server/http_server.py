@@ -42,6 +42,7 @@ from verifimind_mcp.middleware import RateLimitMiddleware, get_rate_limit_stats,
 from verifimind_mcp.middleware.mcp_auth_boundary import McpAuthBoundary
 from verifimind_mcp.oauth.config import EnvironmentMisconfigured
 from verifimind_mcp.oauth.stores import StoreUnavailable
+from verifimind_mcp.registration import RegistrationStoreUnavailable
 from verifimind_mcp.oauth.endpoints import (
     authorization_server_metadata_handler,
     oauth_authorize_get_handler,
@@ -1379,6 +1380,10 @@ async def ea_register_handler(request):
 
     try:
         result = await register_early_adopter(data)
+    except RegistrationStoreUnavailable as exc:
+        # Storage outage mid-request (T S159 F-04): one honest, retryable,
+        # non-enumerating receipt for new and existing addresses alike.
+        return JSONResponse(exc.receipt.model_dump(), status_code=503, headers=_OUTAGE_HEADERS)
     except SlotCapReachedError as e:
         tier_label = "Pilot Member" if e.tier == "pilot" else "Early Adopter"
         return JSONResponse(
@@ -1746,6 +1751,10 @@ async def register_handler(request):
     except EnvironmentMisconfigured:
         # Refused before any write; rendered by environment_misconfigured_handler.
         raise
+    except RegistrationStoreUnavailable as exc:
+        # Storage outage mid-request (T S159 F-04): one honest, retryable,
+        # non-enumerating receipt for new and existing addresses alike.
+        return JSONResponse(exc.receipt.model_dump(), status_code=503, headers=_OUTAGE_HEADERS)
     except Exception:
         logger.exception("Lightweight registration error")
         return JSONResponse({"error": "Registration failed. Please try again."}, status_code=500)

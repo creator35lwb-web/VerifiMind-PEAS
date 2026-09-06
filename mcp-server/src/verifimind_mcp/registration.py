@@ -63,6 +63,29 @@ _UNIFORM_EMAIL_MESSAGE = (
     f"{CURRENT_AVAILABILITY_NOTICE}"
 )
 
+# The ONE honest receipt an email-bearing registration returns when storage
+# fails mid-request (T S159 F-04): identical for a new and an existing address
+# — both perform the same class of write, so both fail alike — and it never
+# claims persistence that did not occur (F-RES-1, v0.5.50). Rendered by the
+# handlers as a retryable 503.
+_UNSAVED_EMAIL_MESSAGE = (
+    "Registration storage is temporarily unavailable, so this request could "
+    "not be completed and no account was created. Please try again in a few "
+    "minutes."
+)
+
+
+class RegistrationStoreUnavailable(Exception):
+    """A registration lane hit a storage backend failure mid-request. Carries
+    the lane's uniform not-saved receipt; the HTTP handler renders it as one
+    retryable 503 (``Retry-After``, ``no-store``) for new and existing
+    addresses alike — never a generic 500 (an existence oracle) and never a
+    success screen (a persistence lie)."""
+
+    def __init__(self, receipt):
+        super().__init__("registration storage unavailable")
+        self.receipt = receipt
+
 # Feedback attribution grades (T S158 Finding 2): the ``uuid`` field carries a
 # subject ONLY when it was derived from a validated bearer credential.
 ATTRIBUTION_VERIFIED_BEARER = "verified_bearer"
@@ -375,58 +398,89 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
         # gets exactly the same receipt as the winner (T P0-2: never disclose
         # an existing UUID or its opt-out URL from a bare email lookup —
         # recovery goes through the verified-mailbox OAuth ceremony).
-        new_uuid = generate_ea_uuid()
-        owned = _email_already_owned(db, lanes, normalized) or not claim_email(
-            db, owners_collection, normalized, uuid=new_uuid,
-            collection_base=COLLECTION_EA, lane="early_adopters_v1", now=now,
-        )
-        if owned:
-            logger.info(
-                "Duplicate registration for masked email %s — disclosure withheld",
-                _mask_email(str(data.email)),
-            )
-            record_uuid = None
-        else:
-            record = {
-                "uuid": new_uuid,
-                "email": normalized,  # canonical form; never logged
-                "name": data.name,
-                "registered_at": now,
-                "tier": tier,
-                "tc_accepted": True,
-                "tc_version": TERMS_VERSION,
-                "tc_accepted_at": now,
-                "privacy_acknowledged": True,
-                "privacy_version": PRIVACY_POLICY_VERSION,
-                "privacy_acknowledged_at": now,
-                "updates_consent": data.updates_consent,
-                "registration_feedback": data.feedback,
-                "feedback_type": data.feedback_type or ("new_user" if not data.feedback else "general"),
-                "status": "active",
-            }
-            # The mailbox is NOT proven on this path, so the record is marked
-            # unverified and its identifier is never returned. The OAuth
-            # ceremony upgrades it once the mailbox is actually proven — and
-            # neutralizes every caller-chosen field above at that moment
-            # (resolve_verified_subject).
-            record["email_verified"] = False
-            if is_pilot:
-                record["pilot_source"] = "system_notice_invite"
-            if _create_account_record(db, ea_collection, new_uuid, record):
-                logger.info(f"New {tier} cohort record created (identifier withheld)")
-                record_uuid = new_uuid
+        try:
+            new_uuid = generate_ea_uuid()
+            legacy = _legacy_owner(db, lanes, normalized)
+            if legacy is not None:
+                # Existing address: perform the SAME class of write a new
+                # address performs (T S159 F-04), so a storage outage cannot
+                # tell the two apart — see _reassert_owner_claim.
+                _reassert_owner_claim(
+                    db, owners_collection, normalized,
+                    legacy_base=legacy[0], legacy_uuid=legacy[1], now=now,
+                )
+                owned = True
             else:
+                owned = not claim_email(
+                    db, owners_collection, normalized, uuid=new_uuid,
+                    collection_base=COLLECTION_EA, lane="early_adopters_v1", now=now,
+                )
+            if owned:
+                logger.info(
+                    "Duplicate registration for masked email %s — disclosure withheld",
+                    _mask_email(str(data.email)),
+                )
                 record_uuid = None
+            else:
+                record = {
+                    "uuid": new_uuid,
+                    "email": normalized,  # canonical form; never logged
+                    "name": data.name,
+                    "registered_at": now,
+                    "tier": tier,
+                    "tc_accepted": True,
+                    "tc_version": TERMS_VERSION,
+                    "tc_accepted_at": now,
+                    "privacy_acknowledged": True,
+                    "privacy_version": PRIVACY_POLICY_VERSION,
+                    "privacy_acknowledged_at": now,
+                    "updates_consent": data.updates_consent,
+                    "registration_feedback": data.feedback,
+                    "feedback_type": data.feedback_type or ("new_user" if not data.feedback else "general"),
+                    "status": "active",
+                }
+                # The mailbox is NOT proven on this path, so the record is
+                # marked unverified and its identifier is never returned. The
+                # OAuth ceremony upgrades it once the mailbox is actually
+                # proven — and neutralizes every caller-chosen field above at
+                # that moment (resolve_verified_subject).
+                record["email_verified"] = False
+                if is_pilot:
+                    record["pilot_source"] = "system_notice_invite"
+                if _create_account_record(db, ea_collection, new_uuid, record):
+                    logger.info(f"New {tier} cohort record created (identifier withheld)")
+                    record_uuid = new_uuid
+                else:
+                    record_uuid = None
 
-        # ── Feedback: stored as explicitly UNVERIFIED registration content ─────
-        # Recorded for new and existing addresses alike so the receipt below
-        # is truthful for both; it never carries an authoritative subject
-        # (T S158 Findings 1/2). Environment-namespaced like the account it
-        # accompanies (T S157 Finding 2).
-        if data.feedback:
-            db.collection(feedback_collection).add(
-                _registration_feedback_record(data, now, record_uuid)
-            )
+            # ── Feedback: stored as explicitly UNVERIFIED registration content ─
+            # Recorded for new and existing addresses alike so the receipt below
+            # is truthful for both; it never carries an authoritative subject
+            # (T S158 Findings 1/2). Environment-namespaced like the account it
+            # accompanies (T S157 Finding 2).
+            if data.feedback:
+                db.collection(feedback_collection).add(
+                    _registration_feedback_record(data, now, record_uuid)
+                )
+        except Exception as exc:  # noqa: BLE001
+            from .oauth.stores import is_backend_failure
+
+            if is_backend_failure(exc):
+                # Storage outage mid-request (T S159 F-04). Every email-bearing
+                # submission performs one owners-collection write (new: create;
+                # existing: backfill or re-assert), so an outage fails a new and
+                # an existing address identically. The receipt is the lane's
+                # HONEST not-saved contract (F-RES-1: never a success screen for
+                # an unsaved registration), rendered by the handler as one
+                # retryable 503 — a persistent quota or permission failure is
+                # loud, never a silent success.
+                logger.warning(
+                    "EA registration storage unavailable (error_type=%s)", type(exc).__name__,
+                )
+                raise RegistrationStoreUnavailable(
+                    _unsaved_ea_response(now, _mask_email(str(data.email)))
+                ) from exc
+            raise
 
     else:
         # F-RES-1 (v0.5.50): Firestore unavailable — the registration CANNOT be
@@ -451,13 +505,21 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
         )
 
     # UNIFORM response (T P0-2 + adversarial B-3/B-6; byte-equal for new AND
-    # existing addresses per T S158 Finding 3): this endpoint is not an
-    # account-existence oracle, and it never hands out a subject identifier
-    # the mailbox owner has not proven. The identifier is delivered only
-    # through the verified Connect ceremony.
+    # existing addresses per T S158 Finding 3, and for a partial write outage
+    # per T S159 F-04): this endpoint is not an account-existence oracle, and
+    # it never hands out a subject identifier the mailbox owner has not proven.
+    # The identifier is delivered only through the verified Connect ceremony.
+    return _uniform_ea_response(now, _mask_email(str(data.email)), bool(data.feedback))
+
+
+def _uniform_ea_response(now: str, email_masked: str, feedback_received: bool) -> "RegistrationResponse":
+    """The ONE external contract an email-bearing EA registration returns —
+    for a new address, an existing address, AND a reads-up/writes-down
+    claim-store outage (T S158 Finding 3 / T S159 F-04). It never branches on
+    account existence and never discloses a subject identifier."""
     return RegistrationResponse(
         uuid="",
-        email_masked=_mask_email(str(data.email)),
+        email_masked=email_masked,
         tier="",
         tier_label="",
         registered_at=now,
@@ -466,7 +528,28 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
         message=_UNIFORM_EMAIL_MESSAGE,
         benefit_summary="",
         opt_out_url="",
-        feedback_received=bool(data.feedback),
+        feedback_received=feedback_received,
+    )
+
+
+def _unsaved_ea_response(now: str, email_masked: str) -> "RegistrationResponse":
+    """The honest not-saved receipt for a mid-request storage outage — the
+    same bytes for a new and an existing address (T S159 F-04), no phantom
+    identifier, ``persisted`` False, and ``feedback_received`` False because
+    nothing was stored (F-RES-1)."""
+    return RegistrationResponse(
+        uuid="",
+        email_masked=email_masked,
+        tier="",
+        tier_label="",
+        registered_at=now,
+        tc_version=TERMS_VERSION,
+        privacy_version=PRIVACY_POLICY_VERSION,
+        persisted=False,
+        message=_UNSAVED_EMAIL_MESSAGE,
+        benefit_summary="",
+        opt_out_url="",
+        feedback_received=False,
     )
 
 
@@ -536,13 +619,51 @@ def _lane_collections() -> dict:
     }
 
 
-def _email_already_owned(db, lanes: dict, normalized_email: str) -> bool:
-    """A legacy (pre-claim) record in EITHER lane already owns the address."""
-    for collection in lanes.values():
+def _legacy_owner(db, lanes: dict, normalized_email: str):
+    """The account record that already owns the address in EITHER lane, as
+    ``(collection_base, uuid)`` — or None when no record carries it. A read
+    only; the write that must accompany it lives in ``_reassert_owner_claim``."""
+    for base, collection in lanes.items():
         found = db.collection(collection).where("email", "==", normalized_email).limit(1).get()
         if found:
-            return True
-    return False
+            data = found[0].to_dict() or {}
+            return base, str(data.get("uuid") or getattr(found[0], "id", "") or "")
+    return None
+
+
+def _email_already_owned(db, lanes: dict, normalized_email: str) -> bool:
+    """A legacy (pre-claim) record in EITHER lane already owns the address."""
+    return _legacy_owner(db, lanes, normalized_email) is not None
+
+
+def _reassert_owner_claim(
+    db, owners_collection: str, normalized_email: str, *,
+    legacy_base: str, legacy_uuid: str, now: str,
+) -> None:
+    """The existing-address path's ONE owners-collection write (T S159 F-04).
+
+    A new address creates its claim; an existing address used to perform no
+    write at all, so under a reads-up/writes-down outage the new address failed
+    (500) while the existing one succeeded — an existence oracle. Now every
+    email-bearing submission performs the same class of write: a record whose
+    claim is missing (a legacy, pre-claim account) gets its claim backfilled —
+    the verified resolver's own rule, applied one step earlier — and a record
+    whose claim exists gets an invariant field re-asserted (``email_hash`` is
+    always the document id, so nothing new is stored). A write outage therefore
+    fails a new and an existing address identically. A legacy record whose
+    subject is already tombstoned (an interrupted pre-repair opt-out) is never
+    named by a new claim; the resolver refuses it and opt-out cleans it."""
+    key = email_owner_key(normalized_email)
+    claim_ref = db.collection(owners_collection).document(key)
+    if claim_ref.get().exists:
+        claim_ref.update({"email_hash": key})
+        return
+    if not legacy_uuid or _subject_revoked(legacy_uuid):
+        return
+    claim_email(
+        db, owners_collection, normalized_email, uuid=legacy_uuid,
+        collection_base=legacy_base, lane="backfill", now=now,
+    )
 
 
 def claim_email(
@@ -585,6 +706,79 @@ def _create_account_record(db, collection: str, uuid: str, record: dict) -> bool
         logger.info("Account record already existed at write time — left untouched")
         return False
     return True
+
+
+def _release_owner_claim(owners_collection: str, key: str, *, expected_uuid: str) -> bool:
+    """Delete an email-owner claim IFF it still names ``expected_uuid``.
+
+    ABA-safe (T S159 F-02): a bare ``delete()`` erases whatever claim is
+    present — including a replacement a concurrent re-registration installed
+    for a DIFFERENT subject. Reading and deleting inside one transaction makes
+    a competing writer conflict (or, under the server's read locks, wait), and
+    the identity check leaves a re-pointed claim for its new owner. An
+    already-absent claim, or one now owned by someone else, counts as released
+    for THIS subject — nothing of ours remains. A backend failure propagates as
+    ``StoreUnavailable`` through ``run_transaction`` so the caller fails closed
+    and retryable, never a false success. The transaction runs on the process
+    client (``run_transaction`` resolves it), the same client every caller
+    here holds — there is deliberately no ``db`` parameter to suggest otherwise."""
+    from .oauth.stores import run_transaction
+
+    def _txn(txn):
+        current = txn.get_dict(owners_collection, key)
+        if current is None or current.get("uuid") != expected_uuid:
+            return True
+        txn.delete(owners_collection, key)
+        return True
+
+    return bool(run_transaction(_txn))
+
+
+def _release_claims_naming(db, owners_collection: str, uuid: str) -> int:
+    """Release EVERY email-owner claim that names ``uuid`` — the subject's own
+    durable cleanup identity (T S159 F-03). The lookup is the claim's ``uuid``
+    field, never the account record's email, so it still works after PII has
+    been scrubbed, and it also cleans a claim left behind by an interrupted
+    pre-repair opt-out (claim present, email already ``[deletion_requested]``).
+    Each delete is conditional (ABA-safe) because a claim could be re-pointed
+    between the query and the delete. Returns the number released; a backend
+    failure propagates so the caller fails closed."""
+    released = 0
+    for snapshot in db.collection(owners_collection).where("uuid", "==", uuid).get():
+        key = getattr(snapshot, "id", None) or (snapshot.to_dict() or {}).get("email_hash", "")
+        if key and _release_owner_claim(owners_collection, key, expected_uuid=uuid):
+            released += 1
+    return released
+
+
+def _reclaim_tombstoned_owner(
+    owners_collection: str, key: str, *,
+    expected_uuid: str, fresh_uuid: str, collection_base: str, lane: str, now: str,
+) -> bool:
+    """Atomically replace a claim that names a tombstoned subject with a fresh
+    one (T S159 F-02).
+
+    Returns True when THIS call installed ``fresh_uuid``; False when the claim
+    changed under us — a concurrent resolver already released or re-pointed it,
+    so the caller re-reads and adopts the winner instead of forking a second
+    verified subject for one mailbox. The read-and-set happen in ONE
+    transaction, so an unconditional delete can never erase a replacement
+    claim; a competing writer conflicts (fake) or waits (server read locks).
+    The fresh claim is minted ``verified: False`` exactly as ``claim_email``
+    mints it; only the account write that follows marks it verified."""
+    from .oauth.stores import run_transaction
+
+    def _txn(txn):
+        current = txn.get_dict(owners_collection, key)
+        if current is None or current.get("uuid") != expected_uuid:
+            return False
+        txn.set(owners_collection, key, {
+            "email_hash": key, "uuid": fresh_uuid, "collection": collection_base,
+            "lane": lane, "claimed_at": now, "verified": False,
+        })
+        return True
+
+    return bool(run_transaction(_txn))
 
 
 def _subject_revoked(uuid: str) -> bool:
@@ -727,9 +921,25 @@ def resolve_verified_subject(email) -> Optional[str]:
             if _subject_revoked(owner_uuid):
                 # The owner opted out (subject tombstoned) but its claim was
                 # not released: a revoked identifier is never adopted, healed,
-                # or re-issued. Release the stale claim and start over — the
-                # address gets a FRESH subject.
-                claim_ref.delete()
+                # or re-issued. Replace the stale claim with a FRESH subject in
+                # ONE transaction (T S159 F-02): a bare delete-then-recreate
+                # here could erase a replacement a concurrent resolver already
+                # installed, forking one mailbox into two verified subjects.
+                # A False return means the claim changed under us — re-read and
+                # adopt the concurrent winner instead of minting a rival.
+                fresh_uuid = generate_ea_uuid()
+                if _reclaim_tombstoned_owner(
+                    owners_collection, key, expected_uuid=owner_uuid,
+                    fresh_uuid=fresh_uuid, collection_base=COLLECTION_REGISTRATIONS,
+                    lane="oauth_ceremony_v2", now=now,
+                ):
+                    if not _create_account_record(
+                        db, lanes[COLLECTION_REGISTRATIONS], fresh_uuid,
+                        _verified_record(fresh_uuid, normalized, now),
+                    ):
+                        continue  # a concurrent writer healed it — re-read and adopt
+                    claim_ref.update({"verified": True, "verified_at": now})
+                    return fresh_uuid
                 continue
             reference = db.collection(lanes[base]).document(owner_uuid)
             snapshot = reference.get()
@@ -882,48 +1092,67 @@ async def process_optout(uuid: str) -> OptOutResponse:
 
     try:
         # UNION revocation (T S152 P0 #2): a rights request must revoke the
-        # identity in EVERY registration store and kill every live
-        # credential — success is reported only when all stores answered.
-        matched = False
-        owned_emails = set()
-        doc_ref = db.collection(ea_collection).document(uuid)
-        doc = doc_ref.get()
-        if doc.exists:
-            matched = True
-            owned_emails.add(str((doc.to_dict() or {}).get("email") or ""))
-            doc_ref.update({
-                "status": "deletion_requested",
-                "deletion_requested_at": _now_iso(),
-                # Immediately nullify PII fields
-                "email": "[deletion_requested]",
-                "name": None,
-                "registration_feedback": None,
-            })
+        # identity in EVERY registration store and kill every live credential.
+        # The order is monotonic and resumable (T S159 F-03), ordered by
+        # reversibility: de-identify PII, release every ownership claim that
+        # names this subject (found by the claim's OWN uuid field — a durable
+        # cleanup identity that survives the scrub), and tombstone + revoke the
+        # subject LAST, because that step kills the caller's bearer. Every step
+        # is idempotent, so a retry after any failure before the tombstone
+        # completes the sequence with the same credential; after the tombstone
+        # nothing that matters is left undone. Scrubbing before releasing also
+        # closes a window: a verified ceremony that runs between the release and
+        # the tombstone finds no email to backfill and mints a FRESH subject, so
+        # no claim naming this subject can be re-created behind the release.
+        ea_ref = db.collection(ea_collection).document(uuid)
+        ea_doc = ea_ref.get()
         light_ref = db.collection(light_collection).document(uuid)
         light_doc = light_ref.get()
-        if light_doc.exists:
-            matched = True
-            owned_emails.add(str((light_doc.to_dict() or {}).get("email") or ""))
-            light_ref.update({
-                "status": "deletion_requested",
-                "deletion_requested_at": _now_iso(),
-                "email": "[deletion_requested]",
-                "display_name": None,
-            })
+        matched = ea_doc.exists or light_doc.exists
+
         if matched:
-            # Tombstone every OAuth/PAT credential for the subject; the
-            # ≤60s validation cache bounds propagation (Design v2).
+            # 1. De-identify account PII in both lanes (idempotent on retry).
+            if ea_doc.exists:
+                ea_ref.update({
+                    "status": "deletion_requested",
+                    "deletion_requested_at": _now_iso(),
+                    # Immediately nullify PII fields
+                    "email": "[deletion_requested]",
+                    "name": None,
+                    "registration_feedback": None,
+                })
+            if light_doc.exists:
+                light_ref.update({
+                    "status": "deletion_requested",
+                    "deletion_requested_at": _now_iso(),
+                    "email": "[deletion_requested]",
+                    "display_name": None,
+                })
+            # 2. Release every mailbox claim that names THIS subject, each
+            #    conditionally (T S159 F-02: a re-pointed claim belongs to its
+            #    new owner and is left alone). A backend failure raises through
+            #    the guarded transaction and is handled below as a retryable
+            #    outage; the caller's bearer is still alive, so the retry finds
+            #    the claim again by uuid and finishes.
+            _release_claims_naming(db, owners_collection, uuid)
+            # 3. Tombstone the subject and revoke every OAuth/PAT credential
+            #    LAST (T S159 F-03). The subject tombstone is consulted on every
+            #    validation path, so once it has landed the erasure is complete
+            #    even if the hygiene sweep of ``revoked`` flags did not finish —
+            #    and the receipt says so instead of denying an erasure that
+            #    happened. The ≤60s validation cache bounds cross-instance
+            #    propagation (Design v2).
             from verifimind_mcp.oauth.stores import revoke_all_for_subject
-            revoke_all_for_subject(uuid)
-            # Release the mailbox: the canonical-owner claim (S161) must not
-            # outlive the identity it named, or the address could never be
-            # registered again and the erasure request would leave an
-            # email hash behind. The resolver also refuses to adopt or heal
-            # a tombstoned subject, so a release that fails here is still
-            # caught there.
-            for email in owned_emails:
-                if "@" in email:
-                    db.collection(owners_collection).document(email_owner_key(email)).delete()
+            try:
+                revoke_all_for_subject(uuid)
+            except Exception as exc:  # noqa: BLE001
+                if not _subject_revoked(uuid):
+                    raise
+                logger.warning(
+                    "Opt-out: subject tombstone landed but the credential sweep did not "
+                    "finish (error_type=%s); every validation path denies on the tombstone",
+                    type(exc).__name__,
+                )
             logger.info("Opt-out processed for a stored account")
         else:
             # Do not reveal whether a caller-supplied UUID belongs to an account.
@@ -1074,10 +1303,33 @@ async def register_user(data: UserRegistrationRequest) -> UserRegistrationRespon
     new_uuid = generate_ea_uuid()
     if data.email and db is not None:
         normalized = normalize_email(data.email)
-        owned = _email_already_owned(db, lanes, normalized) or not claim_email(
-            db, owners_collection, normalized, uuid=new_uuid,
-            collection_base=COLLECTION_REGISTRATIONS, lane="lightweight_v0513", now=now,
-        )
+        try:
+            legacy = _legacy_owner(db, lanes, normalized)
+            if legacy is not None:
+                # Existing address: the SAME class of write a new address
+                # performs (T S159 F-04) — see _reassert_owner_claim.
+                _reassert_owner_claim(
+                    db, owners_collection, normalized,
+                    legacy_base=legacy[0], legacy_uuid=legacy[1], now=now,
+                )
+                owned = True
+            else:
+                owned = not claim_email(
+                    db, owners_collection, normalized, uuid=new_uuid,
+                    collection_base=COLLECTION_REGISTRATIONS, lane="lightweight_v0513", now=now,
+                )
+        except Exception as exc:  # noqa: BLE001
+            from .oauth.stores import is_backend_failure
+
+            if is_backend_failure(exc):
+                # Storage outage mid-request (T S159 F-04): both a new and an
+                # existing address fail here identically, and the receipt is the
+                # lane's honest not-saved contract rendered as a retryable 503.
+                logger.warning(
+                    "Lightweight registration storage unavailable (error_type=%s)", type(exc).__name__,
+                )
+                raise RegistrationStoreUnavailable(_unsaved_lightweight_response(now)) from exc
+            raise
         if owned:
             # T P0-2: do not disclose an existing UUID from an email lookup —
             # and (T S158 Finding 3) say nothing that a new address would
@@ -1106,8 +1358,22 @@ async def register_user(data: UserRegistrationRequest) -> UserRegistrationRespon
             # the OAuth ceremony upgrades the record once it is proven.
             "email_verified": False,
         }
-        if _create_account_record(db, collection, new_uuid, record):
-            logger.info("Lightweight cohort record created (identifier withheld)")
+        try:
+            if _create_account_record(db, collection, new_uuid, record):
+                logger.info("Lightweight cohort record created (identifier withheld)")
+        except Exception as exc:  # noqa: BLE001
+            from .oauth.stores import is_backend_failure
+
+            # An email-bearing record-write outage must stay uniform with the
+            # existing-address receipt (T S159 F-04). The anonymous path has no
+            # address to probe, so its write failure keeps the existing honest
+            # not-saved behaviour (re-raised to the handler).
+            if is_backend_failure(exc) and data.email is not None:
+                logger.warning(
+                    "Lightweight record storage unavailable (error_type=%s)", type(exc).__name__,
+                )
+                raise RegistrationStoreUnavailable(_unsaved_lightweight_response(now)) from exc
+            raise
     else:
         logger.warning("Firestore unavailable — lightweight registration UUID=%s not persisted", new_uuid)
         # F-RES-1 parity: never show a success screen for a registration
@@ -1166,6 +1432,23 @@ def _uniform_lightweight_response(now: str) -> UserRegistrationResponse:
         registered_at=now,
         persisted=True,
         message=_UNIFORM_EMAIL_MESSAGE,
+        opt_out_url="",
+        privacy_version=PRIVACY_POLICY_VERSION,
+        tc_version=TERMS_VERSION,
+        **_build_registration_extras(""),
+    )
+
+
+def _unsaved_lightweight_response(now: str) -> UserRegistrationResponse:
+    """The honest not-saved receipt for a mid-request storage outage on the
+    lightweight lane — the same bytes for a new and an existing address
+    (T S159 F-04), no phantom identifier, ``persisted`` False (F-RES-1)."""
+    return UserRegistrationResponse(
+        uuid="",
+        tier="",
+        registered_at=now,
+        persisted=False,
+        message=_UNSAVED_EMAIL_MESSAGE,
         opt_out_url="",
         privacy_version=PRIVACY_POLICY_VERSION,
         tc_version=TERMS_VERSION,

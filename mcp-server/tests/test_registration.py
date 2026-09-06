@@ -407,7 +407,33 @@ class TestProcessOptout:
             def where(self, field, op, value):
                 return _Query(self._store, [(field, value)])
 
+        class _Txn:
+            # S162: opt-out releases the ownership claim through a transaction
+            # (ABA-safe conditional delete), so the fake must speak the
+            # run_transaction protocol. No claim is seeded here, so the release
+            # is a no-op — the record scrub and credential revocation below are
+            # what this test pins.
+            def __init__(self, db):
+                self._db = db
+
+            def get_dict(self, coll, key):
+                return self._db.data.get(coll, {}).get(key)
+
+            def set(self, coll, key, data):
+                self._db.data.setdefault(coll, {})[key] = dict(data)
+
+            def update(self, coll, key, fields):
+                self._db.data.setdefault(coll, {}).setdefault(key, {}).update(fields)
+
+            def delete(self, coll, key):
+                self._db.data.get(coll, {}).pop(key, None)
+
+            def _commit(self):
+                pass
+
         class _Db:
+            is_fake = True
+
             def __init__(self):
                 self.data = {
                     "early_adopters": {"test-uuid": {
@@ -424,6 +450,9 @@ class TestProcessOptout:
 
             def collection(self, name):
                 return _Coll(self.data.setdefault(name, {}))
+
+            def new_transaction(self):
+                return _Txn(self)
 
         db = _Db()
         with patch("verifimind_mcp.registration._get_firestore", return_value=db):

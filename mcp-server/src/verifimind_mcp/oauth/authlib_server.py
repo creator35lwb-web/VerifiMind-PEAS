@@ -320,6 +320,19 @@ class VerifiMindAuthorizationServer(_BaseAuthorizationServer):
             presented = request.form.get("refresh_token")
             record = stores.validate_refresh(presented) if presented else None
             if record is None:
+                # Save-time reuse containment (T S159 F-01). The token was
+                # valid at authenticate_refresh_token but was rotated before
+                # this second validation — a concurrent refresh won the race
+                # and now holds live descendants. EVERY secret-valid
+                # observation of an already-rotated refresh token must revoke
+                # its grant family, not merely deny: mirror the first-
+                # validation None branch (authenticate_refresh_token) here.
+                # A backend outage never reaches this branch — validate_refresh
+                # raises StoreUnavailable on a guarded-read failure and it
+                # propagates — and contain_refresh_reuse's own guarded read
+                # raises too, so an outage is never collapsed into invalid_grant.
+                if presented:
+                    stores.contain_refresh_reuse(presented)
                 raise InvalidGrantError()
             try:
                 stores.rotate_refresh_tokens(

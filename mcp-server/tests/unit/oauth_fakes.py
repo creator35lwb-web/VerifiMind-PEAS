@@ -20,10 +20,11 @@ transaction refuses a read after its first buffered write.
 
 from typing import Any, Callable, Dict, Optional
 
-# The real client raises this from DocumentReference.create() on an existing
-# document; the fake raises the same class so registration's atomic email
-# claim behaves identically (T S158).
-from google.api_core.exceptions import AlreadyExists
+# The real client raises AlreadyExists from DocumentReference.create() on an
+# existing document and NotFound from update() on a missing one; the fake
+# raises the same classes so registration's atomic email claim — and the
+# backend-failure boundary around it — behave identically (T S158 / S162).
+from google.api_core.exceptions import AlreadyExists, NotFound
 
 # Production defines the conflict type; the fake raises the same class so
 # stores.run_transaction retries identically (never a test→prod import cycle).
@@ -60,15 +61,23 @@ class FakeDocRef:
         self._store._write(self._id, dict(data))
 
     def create(self, data):
-        """Create-if-absent, like the real client: exactly one creator wins."""
+        """Create-if-absent, like the real client: exactly one creator wins.
+        The write gate runs BEFORE the existence check, as the real commit
+        does: when writes are down, create() fails with the backend error
+        whether or not the document exists (S162, fake fidelity)."""
+        self._store._write_gate()
         if self._store._raw(self._id) is not None:
             raise AlreadyExists(f"document {self._id} already exists")
         self._store._write(self._id, dict(data))
 
     def update(self, fields):
+        self._store._write_gate()
         current = self._store._raw(self._id)
         if current is None:
-            raise KeyError(self._id)
+            # The real client raises NotFound (a backend-failure class), never
+            # KeyError — a boundary that keys on is_backend_failure must see
+            # the same shape here (S162, Lens A).
+            raise NotFound(f"document {self._id} does not exist")
         merged = dict(current)
         merged.update(fields)
         self._store._write(self._id, merged)
@@ -137,11 +146,19 @@ class _Store:
         entry = self._docs.get(doc_id)
         return entry[1] if entry else 0
 
+    def _write_gate(self):
+        """Every write passes here first. Tests model a writes-down outage by
+        replacing it with a raiser, so create/set/update/delete — inside and
+        outside transactions — fail exactly as the real commit RPC would."""
+        return None
+
     def _write(self, doc_id, data):
+        self._write_gate()
         version = self._version(doc_id) + 1
         self._docs[doc_id] = (dict(data), version)
 
     def _remove(self, doc_id):
+        self._write_gate()
         self._docs.pop(doc_id, None)
 
 
