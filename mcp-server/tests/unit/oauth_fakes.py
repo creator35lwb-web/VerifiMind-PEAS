@@ -64,11 +64,13 @@ class FakeDocRef:
         """Create-if-absent, like the real client: exactly one creator wins.
         The write gate runs BEFORE the existence check, as the real commit
         does: when writes are down, create() fails with the backend error
-        whether or not the document exists (S162, fake fidelity)."""
+        whether or not the document exists (S162, fake fidelity). It runs
+        EXACTLY ONCE — the real client sends one commit RPC per logical write,
+        so a one-shot fault injection must fire once here too (T S159 R6-05)."""
         self._store._write_gate()
         if self._store._raw(self._id) is not None:
             raise AlreadyExists(f"document {self._id} already exists")
-        self._store._write(self._id, dict(data))
+        self._store._apply_write(self._id, dict(data))
 
     def update(self, fields):
         self._store._write_gate()
@@ -80,7 +82,7 @@ class FakeDocRef:
             raise NotFound(f"document {self._id} does not exist")
         merged = dict(current)
         merged.update(fields)
-        self._store._write(self._id, merged)
+        self._store._apply_write(self._id, merged)
 
     def delete(self):
         self._store._remove(self._id)
@@ -147,19 +149,28 @@ class _Store:
         return entry[1] if entry else 0
 
     def _write_gate(self):
-        """Every write passes here first. Tests model a writes-down outage by
-        replacing it with a raiser, so create/set/update/delete — inside and
-        outside transactions — fail exactly as the real commit RPC would."""
+        """Every logical write passes here EXACTLY ONCE. Tests model a
+        writes-down outage by replacing it with a raiser, so create/set/update/
+        delete — inside and outside transactions — fail exactly as the real
+        commit RPC would, and a one-shot injection fires once per write
+        (T S159 R6-05)."""
         return None
 
-    def _write(self, doc_id, data):
-        self._write_gate()
+    def _apply_write(self, doc_id, data):
+        """Ungated store mutation, for callers that already passed the gate."""
         version = self._version(doc_id) + 1
         self._docs[doc_id] = (dict(data), version)
 
+    def _apply_remove(self, doc_id):
+        self._docs.pop(doc_id, None)
+
+    def _write(self, doc_id, data):
+        self._write_gate()
+        self._apply_write(doc_id, data)
+
     def _remove(self, doc_id):
         self._write_gate()
-        self._docs.pop(doc_id, None)
+        self._apply_remove(doc_id)
 
 
 class FakeTransaction:

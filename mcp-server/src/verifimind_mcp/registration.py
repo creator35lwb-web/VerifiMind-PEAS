@@ -398,6 +398,7 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
         # gets exactly the same receipt as the winner (T P0-2: never disclose
         # an existing UUID or its opt-out URL from a bare email lookup —
         # recovery goes through the verified-mailbox OAuth ceremony).
+        feedback_stored = False
         try:
             new_uuid = generate_ea_uuid()
             legacy = _legacy_owner(db, lanes, normalized)
@@ -406,7 +407,7 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
                 # address performs (T S159 F-04), so a storage outage cannot
                 # tell the two apart — see _reassert_owner_claim.
                 _reassert_owner_claim(
-                    db, owners_collection, normalized,
+                    owners_collection, normalized,
                     legacy_base=legacy[0], legacy_uuid=legacy[1], now=now,
                 )
                 owned = True
@@ -458,10 +459,31 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
             # is truthful for both; it never carries an authoritative subject
             # (T S158 Findings 1/2). Environment-namespaced like the account it
             # accompanies (T S157 Finding 2).
+            #
+            # AUXILIARY, and therefore NON-FATAL (T S159 R6-02). It is the last
+            # write in the lane, so folding its failure into the storage-outage
+            # receipt made that receipt say "no account was created" while the
+            # account — with the address and this very feedback text — was
+            # already committed. The feedback document is not the registration:
+            # losing it costs the feedback, not the account. The receipt below
+            # reports what actually happened, and because the failure is
+            # non-fatal for a new AND an existing address alike it discloses
+            # nothing about which one this was.
             if data.feedback:
-                db.collection(feedback_collection).add(
-                    _registration_feedback_record(data, now, record_uuid)
-                )
+                try:
+                    db.collection(feedback_collection).add(
+                        _registration_feedback_record(data, now, record_uuid)
+                    )
+                    feedback_stored = True
+                except Exception as exc:  # noqa: BLE001
+                    from .oauth.stores import is_backend_failure
+
+                    if not is_backend_failure(exc):
+                        raise
+                    logger.warning(
+                        "Registration feedback not stored (error_type=%s); the account is unaffected",
+                        type(exc).__name__,
+                    )
         except Exception as exc:  # noqa: BLE001
             from .oauth.stores import is_backend_failure
 
@@ -509,7 +531,10 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
     # per T S159 F-04): this endpoint is not an account-existence oracle, and
     # it never hands out a subject identifier the mailbox owner has not proven.
     # The identifier is delivered only through the verified Connect ceremony.
-    return _uniform_ea_response(now, _mask_email(str(data.email)), bool(data.feedback))
+    # ``feedback_received`` reports whether the feedback document was actually
+    # stored, not merely whether one was submitted (T S159 R6-02) — and it is
+    # False for a new AND an existing address alike when that write fails.
+    return _uniform_ea_response(now, _mask_email(str(data.email)), feedback_stored)
 
 
 def _uniform_ea_response(now: str, email_masked: str, feedback_received: bool) -> "RegistrationResponse":
@@ -636,10 +661,60 @@ def _email_already_owned(db, lanes: dict, normalized_email: str) -> bool:
     return _legacy_owner(db, lanes, normalized_email) is not None
 
 
+CLAIM_CREATED = "created"
+CLAIM_PRESENT = "present"
+CLAIM_SEALED = "sealed"
+
+
+def _assert_claim_for_existing_subject(
+    owners_collection: str, key: str, *,
+    subject_uuid: str, collection_base: str, lane: str, now: str,
+) -> str:
+    """Create or re-assert an ownership claim for an EXISTING subject, reading
+    that subject's erasure markers THROUGH the transaction that writes it
+    (T S159 R6-01).
+
+    Before this, the marker check and the claim write were separate operations,
+    so a caller that had already read a live legacy subject could create its
+    claim AFTER erasure swept the claims and returned success — leaving a claim
+    naming an erased subject. Reading the seal and the tombstone inside the
+    transaction puts them in its read set, which serializes the two: a
+    concurrent seal either conflicts this commit (the retry sees it and
+    refuses) or waits for it (the server's read locks: this commit lands first
+    and erasure's own sweep, which runs after the seal, removes what it wrote).
+
+    Returns ``created`` (this call wrote the claim), ``present`` (a claim was
+    already there — touched when it names this subject, left alone when it
+    names another), or ``sealed`` (erasure has begun; nothing written).
+    A brand-new subject never needs this: ``claim_email``'s atomic create is
+    enough, because an identifier no one has seen cannot already be erased."""
+    from .oauth.stores import run_transaction, subject_is_sealed_or_revoked
+
+    def _txn(txn):
+        if subject_is_sealed_or_revoked(txn, subject_uuid):
+            return CLAIM_SEALED
+        current = txn.get_dict(owners_collection, key)
+        if current is not None:
+            # Touch whatever claim is present: ``email_hash`` is derived from
+            # the document id, so it is identical for every owner of this
+            # address and stores nothing new — but it keeps the existing-address
+            # path performing one owners write, which is what makes a storage
+            # outage fail a new and an existing address alike (T S159 F-04).
+            txn.update(owners_collection, key, {"email_hash": key})
+            return CLAIM_PRESENT
+        txn.set(owners_collection, key, {
+            "email_hash": key, "uuid": subject_uuid, "collection": collection_base,
+            "lane": lane, "claimed_at": now, "verified": False,
+        })
+        return CLAIM_CREATED
+
+    return str(run_transaction(_txn))
+
+
 def _reassert_owner_claim(
-    db, owners_collection: str, normalized_email: str, *,
+    owners_collection: str, normalized_email: str, *,
     legacy_base: str, legacy_uuid: str, now: str,
-) -> None:
+) -> str:
     """The existing-address path's ONE owners-collection write (T S159 F-04).
 
     A new address creates its claim; an existing address used to perform no
@@ -648,21 +723,14 @@ def _reassert_owner_claim(
     email-bearing submission performs the same class of write: a record whose
     claim is missing (a legacy, pre-claim account) gets its claim backfilled —
     the verified resolver's own rule, applied one step earlier — and a record
-    whose claim exists gets an invariant field re-asserted (``email_hash`` is
-    always the document id, so nothing new is stored). A write outage therefore
-    fails a new and an existing address identically. A legacy record whose
-    subject is already tombstoned (an interrupted pre-repair opt-out) is never
-    named by a new claim; the resolver refuses it and opt-out cleans it."""
-    key = email_owner_key(normalized_email)
-    claim_ref = db.collection(owners_collection).document(key)
-    if claim_ref.get().exists:
-        claim_ref.update({"email_hash": key})
-        return
-    if not legacy_uuid or _subject_revoked(legacy_uuid):
-        return
-    claim_email(
-        db, owners_collection, normalized_email, uuid=legacy_uuid,
-        collection_base=legacy_base, lane="backfill", now=now,
+    whose claim exists gets an invariant field re-asserted. The write happens
+    inside the erasure-serialized transaction above (T S159 R6-01)."""
+    if not legacy_uuid:
+        return CLAIM_SEALED
+    return _assert_claim_for_existing_subject(
+        owners_collection, email_owner_key(normalized_email),
+        subject_uuid=legacy_uuid, collection_base=legacy_base,
+        lane="backfill", now=now,
     )
 
 
@@ -782,11 +850,18 @@ def _reclaim_tombstoned_owner(
 
 
 def _subject_revoked(uuid: str) -> bool:
-    """True when the subject carries a revocation tombstone (opt-out ran).
-    A revoked identifier must never be adopted, healed, or re-issued."""
-    from .oauth.stores import _is_tombstoned
+    """True once erasure has BEGUN for the subject — its erasure seal or its
+    revocation tombstone is present (T S159 R6-01). A revoked identifier must
+    never be adopted, healed, or re-issued, and the seal makes that refusal
+    start at the moment erasure commits to it rather than at the tombstone,
+    which erasure writes last so the caller's bearer survives the cleanup.
 
-    return bool(uuid) and _is_tombstoned(grant_id="", parent_grant_id="", subject_uuid=uuid)
+    Non-transactional: a caller that also WRITES a claim naming this subject
+    must use ``_assert_claim_for_existing_subject`` instead, which re-reads
+    both markers inside the transaction that performs the write."""
+    from .oauth.stores import subject_is_erased
+
+    return bool(uuid) and subject_is_erased(uuid)
 
 
 def _lane_default_tier(collection_base: str) -> str:
@@ -973,8 +1048,20 @@ def resolve_verified_subject(email) -> Optional[str]:
                     # mailbox; this needs the rights channel, not a guess.
                     logger.error("Legacy account record cannot be adopted; refusing to resolve a subject")
                     return None
-                if claim_email(db, owners_collection, normalized, uuid=legacy_uuid,
-                               collection_base=base, lane="backfill", now=now):
+                # The claim for an EXISTING subject is written inside the
+                # erasure-serialized transaction (T S159 R6-01): a concurrent
+                # opt-out can no longer be out-raced between the tombstone
+                # check above and this write.
+                outcome = _assert_claim_for_existing_subject(
+                    owners_collection, key, subject_uuid=legacy_uuid,
+                    collection_base=base, lane="backfill", now=now,
+                )
+                if outcome == CLAIM_SEALED:
+                    logger.error(
+                        "Legacy account record is under erasure; refusing to resolve a subject"
+                    )
+                    return None
+                if outcome == CLAIM_CREATED:
                     subject = _adopt_verified(found[0].reference, data, base, now)
                     if subject is not None:
                         _detach_unverified_feedback(db, feedback_collection, subject)
@@ -1128,29 +1215,46 @@ async def process_optout(uuid: str) -> OptOutResponse:
                     "email": "[deletion_requested]",
                     "display_name": None,
                 })
-            # 2. Release every mailbox claim that names THIS subject, each
+            # 2. SEAL the subject before sweeping its claims (T S159 R6-01).
+            #    The seal is consulted by every claim writer and by no
+            #    credential validation path, so from here a caller that already
+            #    read this subject can no longer create a claim naming it, while
+            #    the caller's own bearer stays alive for the steps below — which
+            #    is what keeps this operation resumable. A sweep alone could not
+            #    do this: its query is a snapshot and cannot exclude a later
+            #    writer.
+            from verifimind_mcp.oauth.stores import (
+                sweep_subject_credentials,
+                write_erasure_seal,
+                write_subject_tombstone,
+            )
+            write_erasure_seal(uuid)
+            # 3. Release every mailbox claim that names THIS subject, each
             #    conditionally (T S159 F-02: a re-pointed claim belongs to its
             #    new owner and is left alone). A backend failure raises through
             #    the guarded transaction and is handled below as a retryable
             #    outage; the caller's bearer is still alive, so the retry finds
             #    the claim again by uuid and finishes.
             _release_claims_naming(db, owners_collection, uuid)
-            # 3. Tombstone the subject and revoke every OAuth/PAT credential
-            #    LAST (T S159 F-03). The subject tombstone is consulted on every
-            #    validation path, so once it has landed the erasure is complete
-            #    even if the hygiene sweep of ``revoked`` flags did not finish —
-            #    and the receipt says so instead of denying an erasure that
-            #    happened. The ≤60s validation cache bounds cross-instance
-            #    propagation (Design v2).
-            from verifimind_mcp.oauth.stores import revoke_all_for_subject
+            # 4. Commit the authoritative subject tombstone. Returning normally
+            #    means it LANDED, so no confirmation read is needed — the read
+            #    that S162 used could itself fail and denied an erasure that had
+            #    happened (T S159 R6-03). A failure here raises: the commit is
+            #    genuinely ambiguous, the receipt says only that deletion could
+            #    not be confirmed, and the private rights channel named in that
+            #    message is the continuation that does not need the bearer.
+            write_subject_tombstone(uuid)
+            # 5. Hygiene only. The tombstone is what denies on every validation
+            #    path, so a failed sweep of ``revoked`` flags cannot un-do the
+            #    erasure and must not deny it (T S159 R6-03). The ≤60s
+            #    validation cache bounds cross-instance propagation (Design v2).
             try:
-                revoke_all_for_subject(uuid)
+                sweep_subject_credentials(uuid)
             except Exception as exc:  # noqa: BLE001
-                if not _subject_revoked(uuid):
-                    raise
                 logger.warning(
-                    "Opt-out: subject tombstone landed but the credential sweep did not "
-                    "finish (error_type=%s); every validation path denies on the tombstone",
+                    "Opt-out: subject tombstone committed but the credential hygiene "
+                    "sweep did not finish (error_type=%s); every validation path "
+                    "already denies on the tombstone",
                     type(exc).__name__,
                 )
             logger.info("Opt-out processed for a stored account")
@@ -1309,7 +1413,7 @@ async def register_user(data: UserRegistrationRequest) -> UserRegistrationRespon
                 # Existing address: the SAME class of write a new address
                 # performs (T S159 F-04) — see _reassert_owner_claim.
                 _reassert_owner_claim(
-                    db, owners_collection, normalized,
+                    owners_collection, normalized,
                     legacy_base=legacy[0], legacy_uuid=legacy[1], now=now,
                 )
                 owned = True

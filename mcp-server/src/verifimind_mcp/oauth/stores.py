@@ -630,6 +630,68 @@ def _write_tombstone(kind: str, key: str) -> None:
     })
 
 
+def tombstone_ref(kind: str, key: str) -> tuple:
+    """``(collection, doc_id)`` of a revocation marker, so a caller can read it
+    THROUGH its own transaction (T S159 R6-01). A marker that is only read
+    before a write is a snapshot; a marker read inside the transaction that
+    performs the write is a serialization point."""
+    return _c(_BASE_TOMBSTONES), f"{kind}_{key}"
+
+
+@_guarded("write_erasure_seal")
+def write_erasure_seal(subject_uuid: str) -> None:
+    """Commit the ERASURE SEAL for a subject.
+
+    The seal is consulted by every ownership-claim WRITER but by no credential
+    validation path (T S159 R6-01/R6-03). Erasure writes it BEFORE sweeping the
+    subject's claims, so a writer that already read a live legacy subject can no
+    longer create a claim naming it once the sweep has run — while the caller's
+    bearer stays alive for the rest of the erasure, which is what makes the
+    operation resumable. Permanent, like every marker in this collection."""
+    _write_tombstone("erasure", subject_uuid)
+
+
+@_guarded("write_subject_tombstone")
+def write_subject_tombstone(subject_uuid: str) -> None:
+    """Commit the authoritative subject revocation marker.
+
+    Returning normally means the marker COMMITTED, so a caller knows the
+    erasure landed without a confirmation read (T S159 R6-03: a second read can
+    fail even though the write succeeded, and treating that as failure denied
+    an erasure that had happened). A failure raises — the commit is then
+    genuinely ambiguous and the caller must say so."""
+    _write_tombstone("subject", subject_uuid)
+    clear_caches()
+
+
+def subject_is_erased(subject_uuid: str) -> bool:
+    """True once erasure has BEGUN for the subject — the seal or the subject
+    tombstone is present. Non-transactional; consumers that also WRITE must use
+    ``subject_is_sealed_or_revoked`` inside their own transaction instead."""
+    if not subject_uuid:
+        return False
+    collection = _c(_BASE_TOMBSTONES)
+    for kind in ("erasure", "subject"):
+        if _read(collection, f"{kind}_{subject_uuid}") is not None:
+            return True
+    return False
+
+
+def subject_is_sealed_or_revoked(txn, subject_uuid: str) -> bool:
+    """Read the erasure seal AND the subject tombstone THROUGH ``txn``.
+
+    Both keys enter the transaction's read set, so a concurrent erasure either
+    conflicts the commit (optimistic model: the retry sees the marker and
+    refuses) or waits for it (the server's read locks: this commit lands first
+    and erasure's own claim sweep, which runs after the seal, removes what it
+    wrote). Either way erasure wins (T S159 R6-01)."""
+    collection = _c(_BASE_TOMBSTONES)
+    for kind in ("erasure", "subject"):
+        if txn.get_dict(collection, f"{kind}_{subject_uuid}") is not None:
+            return True
+    return False
+
+
 def _is_tombstoned(*, grant_id: str, parent_grant_id: str, subject_uuid: str) -> bool:
     for kind, key in (
         ("grant", grant_id), ("grant", parent_grant_id), ("subject", subject_uuid),
@@ -688,10 +750,8 @@ def revoke_grant_family(grant_id: str) -> int:
     return count
 
 
-@_guarded("revoke_all_for_subject")
-def revoke_all_for_subject(subject_uuid: str) -> int:
+def _sweep_subject_credentials(subject_uuid: str) -> int:
     db = _db()
-    _write_tombstone("subject", subject_uuid)
     query = (
         db.collection(c_tokens())
         .where("subject_uuid", "==", subject_uuid)
@@ -703,6 +763,29 @@ def revoke_all_for_subject(subject_uuid: str) -> int:
         count += 1
     clear_caches()
     return count
+
+
+@_guarded("sweep_subject_credentials")
+def sweep_subject_credentials(subject_uuid: str) -> int:
+    """HYGIENE ONLY: flip ``revoked`` on the subject's live credential documents.
+
+    The subject tombstone is what denies — every validation path consults it —
+    so this sweep only tidies flags and its failure can never un-do an erasure
+    that the tombstone already made effective (T S159 R6-03). Callers that have
+    already committed the tombstone must treat a failure here as a warning, not
+    as a failed erasure."""
+    return _sweep_subject_credentials(subject_uuid)
+
+
+@_guarded("revoke_all_for_subject")
+def revoke_all_for_subject(subject_uuid: str) -> int:
+    """Tombstone the subject and sweep its credentials, in that order.
+
+    Retained as one call for every caller that wants both halves and has no
+    resumability contract of its own; ``process_optout`` calls the two halves
+    separately so it can distinguish a committed tombstone from a failed one."""
+    _write_tombstone("subject", subject_uuid)
+    return _sweep_subject_credentials(subject_uuid)
 
 
 # ── personal access tokens (explicit local lane, own family) ────────────────

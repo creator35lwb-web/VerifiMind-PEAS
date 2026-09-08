@@ -17,13 +17,31 @@ F-04  a reads-up/writes-down claim-store outage made both registration lanes
       existence oracles: an existing address short-circuited (201/200) while a
       new address hit the failing claim write and escaped as HTTP 500.
 
-Every test whose comment begins with "68daa5c:" was demonstrated FAILING
-against the ``68daa5c`` tree at the stated point (sparse-worktree receipt in
-the S162 record; the fake is copied into the old tree with the test, so only
-the source differs). Tests marked "pin:" pass at both heads; they prove the
-repair moved nothing next to it. The HTTP client renders server exceptions as
-the 500 production would send, so an old-head failure is a status assertion,
-never a re-raised exception.
+CS round 6 (2026-09-08, T S159) then found three terminal-state defects in
+that repair, which the S163 repair here closes:
+
+R6-01 the legacy read, the tombstone check, and the claim write were three
+      separate operations, so a lane or resolver holding a live legacy subject
+      created a claim naming it AFTER opt-out's claim sweep — a query is a
+      snapshot and cannot exclude a later writer. Erasure now writes a SEAL
+      that every claim writer reads inside the transaction that writes the
+      claim, and no credential path reads.
+R6-02 the auxiliary feedback write sat inside the fatal boundary, so a
+      feedback-only failure returned "no account was created" while the
+      account, carrying the address and that feedback text, was committed.
+R6-03 success after a failed hygiene sweep depended on an immediate
+      confirmation read; when that read failed too the caller was told the
+      erasure had not happened and to retry with a bearer the committed
+      tombstone had already killed.
+
+Every test whose comment begins with an exact SHA was demonstrated FAILING
+against that tree at the stated point ("68daa5c:" for the round-5 repair,
+"84fd926:" for this one; sparse-worktree receipts in the S162 and S163
+records). The fake is copied into the old tree with the test, so only the
+source differs. Tests marked "pin:" pass at both heads; they prove the repair
+moved nothing next to it. The HTTP client renders server exceptions as the
+500 production would send, so an old-head failure is a status or state
+assertion, never a re-raised exception.
 """
 
 import asyncio
@@ -113,6 +131,28 @@ def http(monkeypatch):
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
+def _run_off_loop(coro):
+    """Drive a coroutine on its own event loop in another thread — the way a
+    concurrent request would run. Required whenever the call is interleaved
+    into code that is itself already running inside the app's event loop
+    (``asyncio.run`` refuses to nest)."""
+    out = {}
+
+    def target():
+        try:
+            out["value"] = asyncio.run(coro)
+        except Exception as exc:  # noqa: BLE001 — re-raised below, legibly
+            out["error"] = exc
+
+    worker = threading.Thread(target=target)
+    worker.start()
+    worker.join(15)
+    if "error" in out:
+        raise out["error"]
+    assert "value" in out, "the interleaved coroutine never finished"
+    return out["value"]
+
+
 def _register_and_verify(rdb):
     """Preregister the victim's address, then prove the mailbox — the state
     every F-02/F-03 test starts from: one verified subject owning the claim."""
@@ -163,13 +203,13 @@ def _writes_down(rdb, *names, exc=None):
 
 
 class _ReadsDown(dict):
+    """Every read path the fake uses — document snapshots go through ``get``,
+    queries through ``items`` — fails like a backend read outage."""
+
     def items(self):
         raise ServiceUnavailable("reads down")
 
     def get(self, *_a, **_k):
-        raise ServiceUnavailable("reads down")
-
-    def __getitem__(self, _k):
         raise ServiceUnavailable("reads down")
 
 
@@ -243,6 +283,22 @@ def _record_owner_ops(rdb):
 
 
 _WRITE_OPS = {"create", "set", "update", "delete"}
+
+
+def _count_owner_writes(rdb):
+    """Count logical writes to the owners collection at the store's commit
+    gate — one call per write whether it comes from a document reference or a
+    transaction (T S159 R6-05)."""
+    store = rdb._collection_store(OWNERS)
+    seen = {"n": 0}
+    real_gate = store._write_gate
+
+    def gate():
+        seen["n"] += 1
+        return real_gate()
+
+    store._write_gate = gate
+    return seen
 
 
 # ── F-01 · save-time refresh reuse containment ──────────────────────────────
@@ -371,7 +427,7 @@ class TestOwnerClaimReleaseIsABASafe:
         def resolve(name):
             try:
                 results[name] = endpoints._resolve_or_create_subject(VICTIM_EMAIL)
-            except BaseException as exc:  # noqa: BLE001 — surfaced below, legibly
+            except Exception as exc:  # noqa: BLE001 — surfaced below, legibly
                 errors[name] = repr(exc)
             finally:
                 if name == "a":
@@ -388,7 +444,8 @@ class TestOwnerClaimReleaseIsABASafe:
 
         # ONE mailbox → ONE verified subject; both resolvers converge on it.
         assert len(_accounts(rdb, VICTIM_EMAIL)) == 1
-        assert results["a"] == results["b"] is not None
+        assert results["a"] is not None
+        assert results["a"] == results["b"]
         fresh = _accounts(rdb, VICTIM_EMAIL)[0][2]["uuid"]
         assert results["a"] == fresh
         assert rdb.docs(OWNERS)[_owner_key(VICTIM_EMAIL)]["uuid"] == fresh
@@ -424,7 +481,8 @@ class TestOwnerClaimReleaseIsABASafe:
 
         assert state["ran"]
         assert len(_accounts(rdb, VICTIM_EMAIL)) == 1
-        assert results["a"] == results["b"] is not None
+        assert results["a"] is not None
+        assert results["a"] == results["b"]
         assert rdb.docs(OWNERS)[_owner_key(VICTIM_EMAIL)]["uuid"] == results["a"]
         assert results["a"] != subject
 
@@ -611,6 +669,68 @@ class TestOptOutIsResumable:
         assert rdb.docs("early_adopters")[subject]["email"] == "[deletion_requested]"
         assert not _bearer_alive(token)  # every validation path denies on the tombstone
 
+    def test_committed_tombstone_is_accepted_when_sweep_and_confirmation_fail(self, rdb):
+        # 84fd926: success after a failed hygiene sweep depended on an
+        # IMMEDIATE confirmation read. When that read failed too, the outer
+        # handler returned processed=false and told the caller to retry — with
+        # a bearer the committed tombstone had already killed (T S159 R6-03).
+        # The tombstone write returning normally is itself the proof it landed.
+        subject = _register_and_verify(rdb)
+        token = _issue_pat_for(subject)
+        tokens = rdb._collection_store(stores.c_tokens())
+        marks = rdb._collection_store(stores._c(stores._BASE_TOMBSTONES))
+        armed = {"on": False}
+        real_apply = marks._apply_write
+
+        class _ReadsFailWhenArmed(dict):
+            """Holds the live marker state; only READS of a subject marker fail
+            once armed, so the tombstone this test writes really persists."""
+
+            def get(self, key, default=None):
+                if armed["on"] and str(key).startswith("subject_"):
+                    raise ServiceUnavailable("marker read down")
+                return dict.get(self, key, default)
+
+        def arm_after_subject_marker(doc_id, data):
+            real_apply(doc_id, data)
+            if str(doc_id).startswith("subject_"):
+                armed["on"] = True          # the confirmation read now fails
+
+        class _SweepDown(dict):
+            def items(self):
+                raise ServiceUnavailable("token query down")
+
+        marks._docs = _ReadsFailWhenArmed(marks._docs)
+        marks._apply_write = arm_after_subject_marker
+        original_tokens = tokens._docs
+        tokens._docs = _SweepDown(original_tokens)
+        try:
+            result = _run_off_loop(registration.process_optout(subject))
+        finally:
+            armed["on"] = False              # the marker store keeps its state
+            marks._apply_write = real_apply
+            tokens._docs = original_tokens
+        # Intended first assertion: the erasure happened, so the receipt says so.
+        assert result.processed is True
+        assert _tombstoned(subject)
+        assert _owner_key(VICTIM_EMAIL) not in rdb.docs(OWNERS)
+        assert rdb.docs("early_adopters")[subject]["email"] == "[deletion_requested]"
+        assert not _bearer_alive(token)
+
+    def test_an_unprovable_tombstone_is_never_reported_as_success(self, rdb):
+        # pin: the other half of R6-03 — when the tombstone write itself fails,
+        # the commit is genuinely ambiguous and must NOT be called success. The
+        # receipt names the private rights channel, a continuation that does
+        # not depend on the possibly revoked bearer.
+        subject = _register_and_verify(rdb)
+        with patch.object(stores, "write_subject_tombstone",
+                          side_effect=StoreUnavailable("marker write down")):
+            result = asyncio.run(registration.process_optout(subject))
+        assert result.processed is False
+        assert "No deletion action is confirmed" in result.message
+        assert "alton@ysenseai.org" in result.message
+        assert not _tombstoned(subject)
+
     def test_optout_with_no_failure_still_completes_and_releases(self, rdb):
         # pin: a clean opt-out releases the claim, scrubs PII, and tombstones
         # the subject at both heads.
@@ -620,6 +740,91 @@ class TestOptOutIsResumable:
         assert _owner_key(VICTIM_EMAIL) not in rdb.docs(OWNERS)
         assert rdb.docs("early_adopters")[subject]["email"] == "[deletion_requested]"
         assert _tombstoned(subject)
+
+
+# ── R6-01 · erasure seals the subject against stale claim writers ───────────
+
+class TestErasureSealsAgainstStaleWriters:
+    """Opt-out's claim sweep is a QUERY, and a query is a snapshot: it cannot
+    exclude a writer that already read the subject and writes afterwards. The
+    seal — a marker every claim writer reads inside the transaction that writes
+    the claim, and no credential path reads — is what serializes them."""
+
+    LEGACY = "018f6b2a-9999-7abc-8def-0123456789ab"
+
+    def _seed_legacy(self, rdb, collection="early_adopters"):
+        rdb.seed(collection, self.LEGACY, {
+            "uuid": self.LEGACY, "email": VICTIM_EMAIL, "status": "active",
+            "email_verified": False,
+        })
+        return self.LEGACY
+
+    @staticmethod
+    def _erase_once_during(rdb, monkeypatch, subject):
+        """Run a COMPLETE opt-out exactly once, interleaved at the seam the
+        tree under test actually has: the bare ``claim_email`` call that
+        followed the tombstone check at 84fd926, or — on the repaired tree,
+        where there is no such gap — inside the commit window of the single
+        transaction that now performs the check and the write together."""
+        ran = {"n": 0}
+
+        def erase_once():
+            if ran["n"]:
+                return
+            ran["n"] = 1
+            assert _run_off_loop(registration.process_optout(subject)).processed is True
+
+        original_claim = registration.claim_email
+
+        def claim_hook(*a, **k):
+            erase_once()
+            return original_claim(*a, **k)
+
+        monkeypatch.setattr(registration, "claim_email", claim_hook)
+        rdb._next_barrier = erase_once
+        return ran
+
+    def _assert_no_claim_names(self, rdb, subject):
+        claim = rdb.docs(OWNERS).get(_owner_key(VICTIM_EMAIL))
+        assert claim is None or claim.get("uuid") != subject, (
+            "a claim naming the erased subject survived a completed opt-out"
+        )
+
+    def test_registration_lane_cannot_claim_for_an_erased_subject(self, rdb, http, monkeypatch):
+        # 84fd926: the lane read the legacy owner, checked the tombstone, and
+        # created the claim as THREE separate operations, so an opt-out that
+        # completed in between returned success while the lane went on to
+        # create a claim naming the erased subject (T S159 R6-01).
+        subject = self._seed_legacy(rdb)
+        ran = self._erase_once_during(rdb, monkeypatch, subject)
+        response = http.post(EA_PATH, json=_ea_payload(VICTIM_EMAIL))
+        assert ran["n"] == 1, "the erasure never interleaved; the test proved nothing"
+        assert response.status_code in (201, 503)
+        # Intended first assertion: erasure wins the race.
+        self._assert_no_claim_names(rdb, subject)
+        assert _tombstoned(subject)
+
+    def test_verified_resolver_cannot_backfill_a_claim_for_an_erased_subject(self, rdb, monkeypatch):
+        # 84fd926: the resolver's legacy backfill had the same three-operation
+        # shape between its tombstone check and claim_email (T S159 R6-01).
+        subject = self._seed_legacy(rdb)
+        ran = self._erase_once_during(rdb, monkeypatch, subject)
+        resolved = endpoints._resolve_or_create_subject(VICTIM_EMAIL)
+        assert ran["n"] == 1, "the erasure never interleaved; the test proved nothing"
+        # Intended first assertion: the erased identifier is never re-claimed.
+        self._assert_no_claim_names(rdb, subject)
+        assert resolved != subject
+        assert _tombstoned(subject)
+
+    def test_the_seal_does_not_kill_the_bearer_before_the_sweep(self, rdb):
+        # pin: the seal must be invisible to credential validation, or writing
+        # it before the sweep would re-open the non-resumability R6-03 names.
+        subject = _register_and_verify(rdb)
+        token = _issue_pat_for(subject)
+        stores.write_erasure_seal(subject)
+        assert registration._subject_revoked(subject) is True   # claim writers refuse
+        assert _bearer_alive(token)                             # the caller can still retry
+        assert not _tombstoned(subject)
 
 
 # ── F-04 · a storage outage is neither an existence oracle nor a false success ─
@@ -692,21 +897,23 @@ class TestStorageOutageIsHonestAndUniform:
     def test_existing_address_performs_exactly_one_owners_write(self, rdb, http):
         # 68daa5c: an existing address performed NO owners-collection write, so
         # only a new address could observe a write outage. The symmetry that
-        # closes F-04: an existing address with a claim re-asserts one
-        # invariant field (one update, nothing new stored); a legacy record
-        # without a claim gets exactly one backfill create.
+        # closes F-04: an existing address performs exactly ONE owners write —
+        # counted at the store's commit gate, which every logical write passes
+        # exactly once (T S159 R6-05), so the count is independent of whether
+        # the write goes through a document reference or a transaction.
         self._seed_existing(http, EA_PATH)
-        ops = _record_owner_ops(rdb)
+        writes = _count_owner_writes(rdb)
         assert self._post(http, EA_PATH, EXISTING).status_code == 201
-        assert [op for op in ops if op in _WRITE_OPS] == ["update"]
+        assert writes["n"] == 1
         assert rdb.docs(OWNERS)[_owner_key(EXISTING)]["email_hash"] == _owner_key(EXISTING)
         legacy = "018f6b2a-2222-7abc-8def-0123456789ab"
         rdb.seed("ea_registrations", legacy, {
             "uuid": legacy, "email": "legacy@example.com", "status": "active", "email_verified": False,
         })
-        ops.clear()
+        writes["n"] = 0
         assert self._post(http, LIGHT_PATH, "legacy@example.com").status_code == 200
-        assert [op for op in ops if op in _WRITE_OPS] == ["create"]
+        assert writes["n"] == 1
+        assert rdb.docs(OWNERS)[_owner_key("legacy@example.com")]["uuid"] == legacy
 
     def test_legacy_record_without_a_claim_is_backfilled_by_the_lane(self, rdb, http):
         # 68daa5c: a legacy (pre-claim) record kept its address unclaimed until
@@ -726,17 +933,47 @@ class TestStorageOutageIsHonestAndUniform:
         assert claim["lane"] == "backfill" and claim["verified"] is False
         assert len(_accounts(rdb, VICTIM_EMAIL)) == 1
 
-    def test_feedback_write_only_outage_is_one_honest_receipt(self, rdb, http):
-        # 68daa5c: both addresses escaped as 500 here — not an oracle, but not
-        # the honest retryable contract either. With feedback present both
-        # addresses write feedback, so a feedback-store outage fails both alike.
+    def test_feedback_write_only_failure_does_not_lie_about_the_account(self, rdb, http):
+        # 84fd926: the feedback add was the LAST write inside the fatal
+        # boundary, so a feedback-only failure returned the storage-outage
+        # receipt — `persisted:false`, "no account was created" — while the
+        # account, carrying the address AND that very feedback text, was
+        # already committed (T S159 R6-02). The feedback document is auxiliary:
+        # losing it costs the feedback, not the account, and the receipt must
+        # say what actually happened.
         feedback = dict(feedback="The CS questions were sharp.", feedback_type="general")
         assert self._post(http, EA_PATH, EXISTING, **feedback).status_code == 201
+        stored_before = dict(rdb.docs("feedback"))  # the seeding post stored one
         _writes_down(rdb, "feedback")
         exist = self._post(http, EA_PATH, EXISTING, **feedback)
         new = self._post(http, EA_PATH, BRAND_NEW, **feedback)
-        self._assert_honest_outage_pair(exist, new, drop=("email_masked",))
-        assert new.json()["feedback_received"] is False  # nothing was stored
+        # Intended first assertion: the registration succeeded, so say so.
+        assert new.status_code == exist.status_code == 201
+        _same_receipt(exist, new, drop=("email_masked",))
+        # Truthful about the part that failed, for BOTH addresses alike.
+        assert new.json()["feedback_received"] is False
+        assert exist.json()["feedback_received"] is False
+        # Post-state: the account really is there, and no feedback was added.
+        ((_, _uuid, record),) = _accounts(rdb, BRAND_NEW)
+        assert record["email"] == BRAND_NEW
+        assert rdb.docs("feedback") == stored_before
+
+    def test_a_storage_outage_receipt_is_backed_by_the_absent_account(self, rdb, http):
+        # pin (passes at both heads): under a full writes-down outage the claim
+        # write fails first, so no account exists and the receipt's absence
+        # claim was already true here. R6-02's violation lived in the
+        # feedback-only case above. With the auxiliary feedback write now
+        # outside the fatal boundary, EVERY remaining 503 comes from the claim
+        # or account write — this pins that the absence claim stays provable in
+        # both lanes (T S159 R6-02: absence claims require asserted absence).
+        for path, email in ((EA_PATH, BRAND_NEW), (LIGHT_PATH, "second-new@example.com")):
+            _writes_down(rdb, "early_adopters", "ea_registrations", OWNERS, "feedback")
+            response = self._post(http, path, email)
+            assert response.status_code == 503
+            body = response.json()
+            assert body["persisted"] is False and body["uuid"] == ""
+            assert "no account was created" in body["message"]
+            assert _accounts(rdb, email) == []  # the absence claim is TRUE
 
     def test_reads_down_is_one_honest_receipt_in_both_lanes(self, rdb, http):
         # 68daa5c: a reads-down outage escaped as 500 for every address. The
