@@ -851,10 +851,15 @@ def _reclaim_tombstoned_owner(
 
 def _subject_revoked(uuid: str) -> bool:
     """True once erasure has BEGUN for the subject — its erasure seal or its
-    revocation tombstone is present (T S159 R6-01). A revoked identifier must
-    never be adopted, healed, or re-issued, and the seal makes that refusal
-    start at the moment erasure commits to it rather than at the tombstone,
-    which erasure writes last so the caller's bearer survives the cleanup.
+    revocation tombstone is present (T S159 R6-01). A subject under erasure
+    must never be adopted, healed, or newly claimed, and the seal makes that
+    refusal start at the moment erasure commits to it rather than at the
+    tombstone, which erasure writes last so the caller's bearer survives the
+    cleanup.
+
+    This predicate answers "may I bind new state to this subject?" — the
+    answer is no from the seal onward. It must NOT be used to decide that the
+    address is free for a fresh subject: that is ``_subject_erasure_complete``.
 
     Non-transactional: a caller that also WRITES a claim naming this subject
     must use ``_assert_claim_for_existing_subject`` instead, which re-reads
@@ -862,6 +867,24 @@ def _subject_revoked(uuid: str) -> bool:
     from .oauth.stores import subject_is_erased
 
     return bool(uuid) and subject_is_erased(uuid)
+
+
+def _subject_erasure_complete(uuid: str) -> bool:
+    """True only once the subject's REVOCATION TOMBSTONE has landed — the
+    marker every credential path consults, and therefore the point at which
+    the erasure is finished and its mailbox may be re-issued to a fresh
+    subject (S163, after the S163 lens).
+
+    The distinction is load-bearing. Between the seal and the tombstone an
+    erasure is IN PROGRESS: its caller still holds a live bearer and is
+    expected to retry, so the address must NOT be handed to a new identity —
+    doing so mints a second account carrying the same address in clear and
+    strands the original subject untombstoned, with its credentials alive and
+    unreachable from the owner route. Reclaiming belongs to a FINISHED
+    erasure; an unfinished one fails closed and waits for the retry."""
+    from .oauth.stores import _is_tombstoned
+
+    return bool(uuid) and _is_tombstoned(grant_id="", parent_grant_id="", subject_uuid=uuid)
 
 
 def _lane_default_tier(collection_base: str) -> str:
@@ -993,15 +1016,29 @@ def resolve_verified_subject(email) -> Optional[str]:
                 # fail closed rather than guess a collection (never fall open).
                 logger.error("Email-owner claim is malformed; refusing to resolve a subject")
                 return None
-            if _subject_revoked(owner_uuid):
-                # The owner opted out (subject tombstoned) but its claim was
-                # not released: a revoked identifier is never adopted, healed,
-                # or re-issued. Replace the stale claim with a FRESH subject in
-                # ONE transaction (T S159 F-02): a bare delete-then-recreate
-                # here could erase a replacement a concurrent resolver already
-                # installed, forking one mailbox into two verified subjects.
-                # A False return means the claim changed under us — re-read and
-                # adopt the concurrent winner instead of minting a rival.
+            if not _subject_erasure_complete(owner_uuid) and _subject_revoked(owner_uuid):
+                # Erasure has BEGUN for this subject but has not finished: its
+                # seal is committed, its tombstone is not. The caller who asked
+                # for it still holds a live bearer and is expected to retry, so
+                # the address is not free (S163, after the S163 lens). Handing
+                # it to a fresh subject here would mint a second account
+                # carrying the same address in clear and strand the original —
+                # untombstoned, credentials alive, unreachable from the owner
+                # route. Fail closed and let the erasure finish.
+                logger.error(
+                    "Erasure is in progress for this mailbox's owner; refusing to resolve a subject"
+                )
+                return None
+            if _subject_erasure_complete(owner_uuid):
+                # The owner's erasure FINISHED (subject tombstoned) but its
+                # claim was not released: a revoked identifier is never
+                # adopted, healed, or re-issued. Replace the stale claim with a
+                # FRESH subject in ONE transaction (T S159 F-02): a bare
+                # delete-then-recreate here could erase a replacement a
+                # concurrent resolver already installed, forking one mailbox
+                # into two verified subjects. A False return means the claim
+                # changed under us — re-read and adopt the concurrent winner
+                # instead of minting a rival.
                 fresh_uuid = generate_ea_uuid()
                 if _reclaim_tombstoned_owner(
                     owners_collection, key, expected_uuid=owner_uuid,
@@ -1224,6 +1261,7 @@ async def process_optout(uuid: str) -> OptOutResponse:
             #    do this: its query is a snapshot and cannot exclude a later
             #    writer.
             from verifimind_mcp.oauth.stores import (
+                StoreUnavailable,
                 sweep_subject_credentials,
                 write_erasure_seal,
                 write_subject_tombstone,
@@ -1250,7 +1288,10 @@ async def process_optout(uuid: str) -> OptOutResponse:
             #    validation cache bounds cross-instance propagation (Design v2).
             try:
                 sweep_subject_credentials(uuid)
-            except Exception as exc:  # noqa: BLE001
+            except StoreUnavailable as exc:
+                # ONLY a backend outage is tolerated here. sweep_subject_credentials
+                # is guarded, so a programming error still propagates rather than
+                # hiding behind a warning about a backend condition (S163 lens).
                 logger.warning(
                     "Opt-out: subject tombstone committed but the credential hygiene "
                     "sweep did not finish (error_type=%s); every validation path "

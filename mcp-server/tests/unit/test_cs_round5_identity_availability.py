@@ -396,17 +396,24 @@ class TestOwnerClaimReleaseIsABASafe:
         lock = threading.Lock()
         seen = {"sr": 0, "car": 0}
         a_read, b_paused, a_done = threading.Event(), threading.Event(), threading.Event()
-        real_sr = registration._subject_revoked
+        def _gated(real):
+            """Hold the FIRST resolver that asks whether this subject is erased.
+            Both erasure predicates are wrapped and share one counter, so the
+            seam survives however the branch is spelled — at 68daa5c and
+            84fd926 the question is asked once, as `_subject_revoked`; from
+            S163 it is asked as `_subject_erasure_complete` first."""
 
-        def sr(u):
-            result = real_sr(u)
-            with lock:
-                seen["sr"] += 1
-                first = seen["sr"] == 1
-            if first:  # resolver A has read the stale claim; hold it there
-                a_read.set()
-                assert b_paused.wait(5), "resolver B never reached its account write"
-            return result
+            def gate(u):
+                result = real(u)
+                with lock:
+                    seen["sr"] += 1
+                    first = seen["sr"] == 1
+                if first:  # resolver A has read the stale claim; hold it there
+                    a_read.set()
+                    assert b_paused.wait(5), "resolver B never reached its account write"
+                return result
+
+            return gate
 
         real_car = registration._create_account_record
 
@@ -419,7 +426,11 @@ class TestOwnerClaimReleaseIsABASafe:
                 assert a_done.wait(5), "resolver A never finished"
             return real_car(*a, **k)
 
-        monkeypatch.setattr(registration, "_subject_revoked", sr)
+        monkeypatch.setattr(registration, "_subject_revoked",
+                            _gated(registration._subject_revoked))
+        if hasattr(registration, "_subject_erasure_complete"):
+            monkeypatch.setattr(registration, "_subject_erasure_complete",
+                                _gated(registration._subject_erasure_complete))
         monkeypatch.setattr(registration, "_create_account_record", car)
 
         results, errors = {}, {}
@@ -815,6 +826,66 @@ class TestErasureSealsAgainstStaleWriters:
         self._assert_no_claim_names(rdb, subject)
         assert resolved != subject
         assert _tombstoned(subject)
+
+    def test_an_interrupted_erasure_is_never_forked_into_a_fresh_subject(self, rdb):
+        # cedc24b: the seal was folded into the ONE predicate the resolver also
+        # uses to decide that a mailbox is free again. An erasure interrupted
+        # after the seal (its claim release failed, so the caller keeps a live
+        # bearer and is expected to retry) then looked "revoked" to the
+        # reclaim branch: the next sign-in minted a FRESH subject with a new
+        # active account carrying the address in clear, and stranded the
+        # original — never tombstoned, credentials alive, unreachable from the
+        # owner route. Reclaiming belongs to a FINISHED erasure; an unfinished
+        # one must fail closed and wait for the retry (S163 lens, HIGH).
+        subject = _register_and_verify(rdb)
+        token = _issue_pat_for(subject)
+
+        def boom(_doc_id):
+            raise ServiceUnavailable("claim store down")
+
+        rdb._collection_store(OWNERS)._remove = boom
+        assert asyncio.run(registration.process_optout(subject)).processed is False
+        assert registration._subject_revoked(subject) is True       # erasure BEGUN
+        assert not _tombstoned(subject)                             # but NOT finished
+
+        # The interrupted state must not hand the address to a new identity.
+        resolved = endpoints._resolve_or_create_subject(VICTIM_EMAIL)
+        assert resolved is None, "an unfinished erasure handed the mailbox to a fresh subject"
+        # Intended first assertion: no second account carrying the address.
+        assert [uuid for _, uuid, _ in _accounts(rdb, VICTIM_EMAIL)] == []
+        # And the caller can still finish what they started, with the bearer
+        # the interrupted erasure deliberately left alive.
+        assert _bearer_alive(token)
+        del rdb._collection_store(OWNERS)._remove
+        assert asyncio.run(registration.process_optout(subject)).processed is True
+        assert _tombstoned(subject) and not _bearer_alive(token)
+
+    def test_a_finished_erasure_still_frees_the_mailbox(self, rdb):
+        # pin: the other side of that split — once the tombstone has landed the
+        # erasure IS finished, so a stale claim is reclaimed and the address is
+        # re-issued to a fresh subject, exactly as S161/S162 established.
+        subject = _register_and_verify(rdb)
+        assert asyncio.run(registration.process_optout(subject)).processed is True
+        _seed_stale_claim(rdb, subject)          # a claim that outlived the erasure
+        fresh = endpoints._resolve_or_create_subject(VICTIM_EMAIL)
+        assert fresh and fresh != subject
+        assert not _tombstoned(fresh)
+        assert rdb.docs(OWNERS)[_owner_key(VICTIM_EMAIL)]["uuid"] == fresh
+
+    def test_an_empty_subject_is_never_treated_as_erasable_or_unerased(self, rdb):
+        # pin: both erasure predicates refuse an empty identifier rather than
+        # reading two absent markers and concluding "not erased", and the
+        # tombstone writer refuses to report success for a marker the store
+        # would silently drop (S163 lens, latent fail-open).
+        with pytest.raises(ValueError):
+            stores.write_subject_tombstone("")
+        assert registration._subject_revoked("") is False
+        assert registration._subject_erasure_complete("") is False
+
+        def _txn(txn):
+            return stores.subject_is_sealed_or_revoked(txn, "")
+
+        assert stores.run_transaction(_txn) is True  # refuses, rather than falling open
 
     def test_the_seal_does_not_kill_the_bearer_before_the_sweep(self, rdb):
         # pin: the seal must be invisible to credential validation, or writing

@@ -660,6 +660,11 @@ def write_subject_tombstone(subject_uuid: str) -> None:
     fail even though the write succeeded, and treating that as failure denied
     an erasure that had happened). A failure raises — the commit is then
     genuinely ambiguous and the caller must say so."""
+    if not subject_uuid:
+        # _write_tombstone silently ignores an empty key, which would make a
+        # normal return here a lie about a marker that was never written —
+        # exactly the contract this function exists to carry (S163 lens).
+        raise ValueError("refusing to tombstone an empty subject identifier")
     _write_tombstone("subject", subject_uuid)
     clear_caches()
 
@@ -684,7 +689,14 @@ def subject_is_sealed_or_revoked(txn, subject_uuid: str) -> bool:
     conflicts the commit (optimistic model: the retry sees the marker and
     refuses) or waits for it (the server's read locks: this commit lands first
     and erasure's own claim sweep, which runs after the seal, removes what it
-    wrote). Either way erasure wins (T S159 R6-01)."""
+    wrote). Either way erasure wins (T S159 R6-01).
+
+    An empty subject identifier is never erased-or-sealed — and never a legal
+    claim owner either; the guard mirrors ``subject_is_erased`` so a careless
+    call site cannot read two absent markers and conclude "not erased" for a
+    subject that does not exist (S163 lens)."""
+    if not subject_uuid:
+        return True
     collection = _c(_BASE_TOMBSTONES)
     for kind in ("erasure", "subject"):
         if txn.get_dict(collection, f"{kind}_{subject_uuid}") is not None:
