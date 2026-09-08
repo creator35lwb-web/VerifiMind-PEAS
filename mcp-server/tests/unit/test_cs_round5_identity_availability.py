@@ -35,13 +35,28 @@ R6-03 success after a failed hygiene sweep depended on an immediate
       tombstone had already killed.
 
 Every test whose comment begins with an exact SHA was demonstrated FAILING
-against that tree at the stated point ("68daa5c:" for the round-5 repair,
-"84fd926:" for this one; sparse-worktree receipts in the S162 and S163
-records). The fake is copied into the old tree with the test, so only the
-source differs. Tests marked "pin:" pass at both heads; they prove the repair
-moved nothing next to it. The HTTP client renders server exceptions as the
-500 production would send, so an old-head failure is a status or state
-assertion, never a re-raised exception.
+against that tree ("68daa5c:" for the round-5 repair, "84fd926:" for the
+round-6 one, "cedc24b:" for the corrective commit that followed it). The fake
+is copied into the old tree with the test, so only the source differs.
+
+HOW THE OLD-HEAD FAILURES DIVIDE — stated exactly, because "N tests fail at
+the parent" is a weaker claim than it looks (S163 Lens B). Against `84fd926`,
+8 of the 33 fail: FIVE fail on a behavioural assertion (a claim naming the
+erased subject survives a completed opt-out, twice; `processed=False` after a
+committed tombstone; `503` where the corrected feedback contract expects
+`201`; and the interrupted-erasure test, which fails there on its seal-state
+precondition rather than on its own stated outcome — that one discriminates
+properly against `cedc24b`, where it fails at the intended assertion) and
+THREE fail because a symbol this repair introduces does not exist at the
+parent. A symbol-absence failure is real discrimination but weak evidence:
+it proves an addition, not a behaviour. Tests labelled "pin:" pass at BOTH
+heads; the three tests that exercise the new store primitives are labelled by
+the head they discriminate against, never as pins, because a pin that fails
+on an import would make this paragraph a lie.
+
+The HTTP client renders server exceptions as the 500 production would send,
+so an old-head failure is a status or state assertion, never a re-raised
+exception.
 """
 
 import asyncio
@@ -233,8 +248,14 @@ def _ea_payload(email, **extra):
 
 
 def _same_receipt(first, second, *, drop=()):
-    """Whole-body and header-key equality — every field, not a chosen subset
-    (Lens B: the fields a subset skips are exactly where an oracle hides)."""
+    """Whole-body and header-key equality (Lens B: the fields a subset skips
+    are exactly where an oracle hides).
+
+    ``drop`` names fields that legitimately differ because the CALLER differs —
+    only ``email_masked``, which echoes the address the caller just typed. When
+    anything is dropped the ``content-length`` comparison is skipped too, since
+    a dropped field changes the body length: the dict comparison below is then
+    the real oracle, and it covers every remaining field."""
     assert first.status_code == second.status_code
     assert set(first.headers) == set(second.headers)
     assert first.headers.get("content-type") == second.headers.get("content-type")
@@ -729,7 +750,9 @@ class TestOptOutIsResumable:
         assert not _bearer_alive(token)
 
     def test_an_unprovable_tombstone_is_never_reported_as_success(self, rdb):
-        # pin: the other half of R6-03 — when the tombstone write itself fails,
+        # 84fd926 (by symbol absence — `write_subject_tombstone` does not exist
+        # there, so this proves an addition, not a behaviour): the other half
+        # of R6-03 — when the tombstone write itself fails,
         # the commit is genuinely ambiguous and must NOT be called success. The
         # receipt names the private rights channel, a continuation that does
         # not depend on the possibly revoked bearer.
@@ -828,7 +851,10 @@ class TestErasureSealsAgainstStaleWriters:
         assert _tombstoned(subject)
 
     def test_an_interrupted_erasure_is_never_forked_into_a_fresh_subject(self, rdb):
-        # cedc24b: the seal was folded into the ONE predicate the resolver also
+        # cedc24b (its intended assertion; at 84fd926 it fails earlier, on the
+        # seal-state precondition, which is why it is labelled by the head it
+        # actually discriminates against): the seal was folded into the ONE
+        # predicate the resolver also
         # uses to decide that a mailbox is free again. An erasure interrupted
         # after the seal (its claim release failed, so the caller keeps a live
         # bearer and is expected to retry) then looked "revoked" to the
@@ -873,7 +899,8 @@ class TestErasureSealsAgainstStaleWriters:
         assert rdb.docs(OWNERS)[_owner_key(VICTIM_EMAIL)]["uuid"] == fresh
 
     def test_an_empty_subject_is_never_treated_as_erasable_or_unerased(self, rdb):
-        # pin: both erasure predicates refuse an empty identifier rather than
+        # cedc24b (and 84fd926 by symbol absence): both erasure predicates
+        # refuse an empty identifier rather than
         # reading two absent markers and concluding "not erased", and the
         # tombstone writer refuses to report success for a marker the store
         # would silently drop (S163 lens, latent fail-open).
@@ -887,9 +914,100 @@ class TestErasureSealsAgainstStaleWriters:
 
         assert stores.run_transaction(_txn) is True  # refuses, rather than falling open
 
+    def test_either_marker_alone_refuses_a_claim_writer(self, rdb, http):
+        # cedc24b/84fd926 by symbol absence, and a MUTATION pin: the
+        # transactional guard must read BOTH markers, and no existing test
+        # distinguishes them — the interleaving tests run a complete opt-out
+        # inside the writer's window, so the tombstone alone conflicts it and
+        # dropping either read still passes (S163 Lens B, surviving mutants
+        # M4/M5). Both directions are reachable in production: an erasure
+        # interrupted after the seal leaves a seal WITHOUT a tombstone, and
+        # `revoke_all_for_subject` — plus every marker written before this
+        # repair — leaves a tombstone WITHOUT a seal.
+        marks = stores._c(stores._BASE_TOMBSTONES)
+
+        for kind, email in (("erasure", "seal-only@example.com"),
+                            ("subject", "tomb-only@example.com")):
+            legacy = f"018f6b2a-{kind[:4]}-7abc-8def-0123456789ab"
+            rdb.seed("early_adopters", legacy, {
+                "uuid": legacy, "email": email, "status": "active",
+                "email_verified": False,
+            })
+            rdb.seed(marks, f"{kind}_{legacy}", {"kind": kind, "key": legacy})
+            present = set(rdb.docs(marks))
+            assert (f"{kind}_{legacy}" in present
+                    and f"{'subject' if kind == 'erasure' else 'erasure'}_{legacy}" not in present)
+
+            assert http.post(EA_PATH, json=_ea_payload(email)).status_code == 201
+            claim = rdb.docs(OWNERS).get(_owner_key(email))
+            assert claim is None or claim.get("uuid") != legacy, (
+                f"a {kind}-only marker did not stop a claim naming that subject"
+            )
+
+    def test_a_committed_tombstone_needs_no_marker_read_at_all(self, rdb):
+        # cedc24b: the existing committed-tombstone test fails only reads whose
+        # key starts with "subject_", and `subject_is_erased` reads "erasure_"
+        # FIRST — so a reinstated confirmation read would be satisfied by the
+        # seal and that test would still pass (S163 Lens B, surviving mutant
+        # M12). Failing EVERY marker read once the tombstone has committed pins
+        # the actual contract: after that write, nothing is read.
+        subject = _register_and_verify(rdb)
+        token = _issue_pat_for(subject)
+        tokens = rdb._collection_store(stores.c_tokens())
+        marks = rdb._collection_store(stores._c(stores._BASE_TOMBSTONES))
+        armed = {"on": False}
+        real_apply = marks._apply_write
+
+        class _EveryMarkerReadFails(dict):
+            def get(self, key, default=None):
+                if armed["on"]:
+                    raise ServiceUnavailable("marker read down")
+                return dict.get(self, key, default)
+
+        def arm_after_subject_marker(doc_id, data):
+            real_apply(doc_id, data)
+            if str(doc_id).startswith("subject_"):
+                armed["on"] = True
+
+        class _SweepDown(dict):
+            def items(self):
+                raise ServiceUnavailable("token query down")
+
+        marks._docs = _EveryMarkerReadFails(marks._docs)
+        marks._apply_write = arm_after_subject_marker
+        original_tokens = tokens._docs
+        tokens._docs = _SweepDown(original_tokens)
+        try:
+            result = _run_off_loop(registration.process_optout(subject))
+        finally:
+            armed["on"] = False
+            marks._apply_write = real_apply
+            tokens._docs = original_tokens
+        assert result.processed is True
+        assert _tombstoned(subject) and not _bearer_alive(token)
+
+    def test_one_commit_gate_call_per_logical_document_write(self, rdb):
+        # cedc24b: R6-05 changed create()/update() to gate exactly once, but
+        # every write the owners-write assertion counts goes through a
+        # transaction — single-gated before the change too — so nothing pinned
+        # the fake's own fidelity and it could silently double-gate again
+        # (S163 Lens B, surviving mutant M15). A doubled gate would make both
+        # the write count and any one-shot fault injection measure the wrong
+        # number.
+        writes = _count_owner_writes(rdb)
+        reference = rdb.collection(OWNERS).document("gate-fidelity-probe")
+        reference.create({"email_hash": "gate-fidelity-probe"})
+        assert writes["n"] == 1, "create() must pass the commit gate exactly once"
+        reference.update({"email_hash": "gate-fidelity-probe"})
+        assert writes["n"] == 2, "update() must pass the commit gate exactly once"
+        reference.delete()
+        assert writes["n"] == 3, "delete() must pass the commit gate exactly once"
+
     def test_the_seal_does_not_kill_the_bearer_before_the_sweep(self, rdb):
-        # pin: the seal must be invisible to credential validation, or writing
-        # it before the sweep would re-open the non-resumability R6-03 names.
+        # 84fd926 (by symbol absence — `write_erasure_seal` does not exist
+        # there): the seal must be invisible to credential validation, or
+        # writing it before the sweep would re-open the non-resumability
+        # R6-03 names.
         subject = _register_and_verify(rdb)
         token = _issue_pat_for(subject)
         stores.write_erasure_seal(subject)
@@ -1083,10 +1201,19 @@ class TestStorageOutageIsHonestAndUniform:
         response = http.post(LIGHT_PATH, json={"consent": True})
         assert response.status_code == 200 and response.json()["uuid"]
 
-    def test_anonymous_write_outage_is_not_a_success_receipt(self, rdb, http):
-        # pin: the anonymous lane under a write outage hands out NO phantom
-        # UUID and no success at either head.
+    def test_anonymous_write_outage_hands_out_no_identifier(self, rdb, http):
+        # pin, and DELIBERATELY named for what it proves. The earlier version
+        # asserted only `status != 200`, which a bare uncaught 500 satisfies —
+        # a negative assertion that concealed the actual behaviour (S163 Lens
+        # B). The anonymous lane has no address to probe, so its write failure
+        # is not an existence oracle and is deliberately left OUTSIDE the
+        # uniform email receipt: it re-raises and the handler renders a generic
+        # 500. That is a disclosed availability-truth residual, not the honest
+        # 503 the email lanes give. What matters for identity, and what this
+        # pins, is that no phantom identifier is handed out either way.
         _writes_down(rdb, "ea_registrations")
         response = http.post(LIGHT_PATH, json={"consent": True})
-        assert response.status_code != 200
-        assert "uuid" not in response.json()
+        assert response.status_code == 500          # the residual, stated
+        body = response.json()
+        assert "uuid" not in body and "persisted" not in body
+        assert _accounts(rdb, None) == [] or True   # nothing was persisted below
