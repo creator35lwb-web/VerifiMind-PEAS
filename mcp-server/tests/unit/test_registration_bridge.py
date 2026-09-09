@@ -197,7 +197,11 @@ class TestHttpSurfaces:
     def test_post_register_during_outage_says_not_saved(self, client):
         with _patched(None):
             response = client.post("/register", json={"consent": True})
-        assert response.status_code == 200
+        # T S161 A-3 / F-5: the body said persisted=false while the transport
+        # said 200 — a success receipt to any client that reads status. Status
+        # and body now agree: an unsaved registration is a retryable 503.
+        assert response.status_code == 503
+        assert response.headers.get("retry-after") == "60"
         body = response.json()
         assert body["persisted"] is False
         assert "NOT saved" in body["message"]

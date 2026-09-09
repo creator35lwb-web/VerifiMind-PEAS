@@ -68,10 +68,18 @@ _UNIFORM_EMAIL_MESSAGE = (
 # — both perform the same class of write, so both fail alike — and it never
 # claims persistence that did not occur (F-RES-1, v0.5.50). Rendered by the
 # handlers as a retryable 503.
+#
+# It makes NO absence claim (T S161 A-3 / F-6): a write RPC that raises is an
+# AMBIGUOUS outcome — a commit whose acknowledgement was lost raises exactly
+# like a rejected one — so "no account was created" was stronger than the
+# evidence. "Could not be confirmed" is what is actually known, it is the same
+# for a new and an existing address, and the retry guidance is true either
+# way: the atomic ownership claim means resubmitting can never create a second
+# account for one address.
 _UNSAVED_EMAIL_MESSAGE = (
     "Registration storage is temporarily unavailable, so this request could "
-    "not be completed and no account was created. Please try again in a few "
-    "minutes."
+    "not be confirmed as saved. Please try again in a few minutes; "
+    "resubmitting the same address is safe and never creates a second account."
 )
 
 
@@ -182,7 +190,10 @@ class RegistrationResponse(BaseModel):
     benefit_summary: str = ""
     opt_out_url: str
     feedback_received: bool
-    persisted: bool = True  # v0.5.50 (F-RES-1): False when storage was down and the record was NOT saved
+    # v0.5.50 (F-RES-1): True only when persistence was CONFIRMED. False means
+    # not confirmed — storage was down, or a write raised (an ambiguous commit,
+    # T S161 A-3) — and is never itself a proof of absence.
+    persisted: bool = True
 
 
 class FeedbackRequest(BaseModel):
@@ -436,7 +447,13 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
                     "privacy_version": PRIVACY_POLICY_VERSION,
                     "privacy_acknowledged_at": now,
                     "updates_consent": data.updates_consent,
-                    "registration_feedback": data.feedback,
+                    # The submitted feedback TEXT is deliberately not copied
+                    # here: it lives only in the feedback document below, so
+                    # ``feedback_received`` can describe whether the text
+                    # persists ANYWHERE — one truthful answer for a new and an
+                    # existing address alike (T S161 A-3 / F-2). A copy in the
+                    # account made "feedback_received: false" false for a new
+                    # address whenever the document write failed.
                     "feedback_type": data.feedback_type or ("new_user" if not data.feedback else "general"),
                     "status": "active",
                 }
@@ -462,13 +479,13 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
             #
             # AUXILIARY, and therefore NON-FATAL (T S159 R6-02). It is the last
             # write in the lane, so folding its failure into the storage-outage
-            # receipt made that receipt say "no account was created" while the
-            # account — with the address and this very feedback text — was
-            # already committed. The feedback document is not the registration:
-            # losing it costs the feedback, not the account. The receipt below
-            # reports what actually happened, and because the failure is
-            # non-fatal for a new AND an existing address alike it discloses
-            # nothing about which one this was.
+            # receipt made that receipt claim no account existed while the
+            # account, carrying the address, was already committed. The
+            # feedback document is not the registration: losing it costs the
+            # feedback, not the account. It is also the ONLY place the
+            # submitted text is stored (T S161 F-2), so "not stored" below
+            # means the text persists nowhere — for a new AND an existing
+            # address alike, which is what keeps the receipt non-enumerating.
             if data.feedback:
                 try:
                     db.collection(feedback_collection).add(
@@ -531,9 +548,10 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
     # per T S159 F-04): this endpoint is not an account-existence oracle, and
     # it never hands out a subject identifier the mailbox owner has not proven.
     # The identifier is delivered only through the verified Connect ceremony.
-    # ``feedback_received`` reports whether the feedback document was actually
-    # stored, not merely whether one was submitted (T S159 R6-02) — and it is
-    # False for a new AND an existing address alike when that write fails.
+    # ``feedback_received`` reports whether the submitted text persists
+    # ANYWHERE (T S161 A-3): the feedback document is the only place it is
+    # written, so this is exactly "was that document stored" — and it is False
+    # for a new AND an existing address alike when that write fails.
     return _uniform_ea_response(now, _mask_email(str(data.email)), feedback_stored)
 
 
@@ -744,7 +762,23 @@ def claim_email(
     document id and raises ``AlreadyExists`` for everyone else, so two
     concurrent registrations (in the same lane or across lanes) can never
     both create an account for one address. Returns True when this call
-    won the claim, False when the address is already owned."""
+    won the claim, False when the address is already owned.
+
+    Before the create, the FRESH identifier's erasure markers are read — the
+    same authorization-state read an existing address performs inside its
+    claim transaction (``_assert_claim_for_existing_subject``). A failure of
+    the revocation-marker store therefore fails a new and an existing
+    address alike, instead of letting only the new one succeed and turning a
+    selective outage into an email-existence oracle (T S161 A-4 / F-8). For
+    a fresh identifier the markers are always absent; the read's value is
+    crossing the same failure boundary. Should one ever be present, the
+    identifier is refused rather than re-issued — a subject under erasure is
+    never claimed for (fail closed)."""
+    from .oauth.stores import subject_is_erased
+
+    if subject_is_erased(uuid):
+        logger.error("Refusing to claim an address for an identifier that is already under erasure")
+        return False
     key = email_owner_key(normalized_email)
     try:
         db.collection(owners_collection).document(key).create({
@@ -774,6 +808,34 @@ def _create_account_record(db, collection: str, uuid: str, record: dict) -> bool
         logger.info("Account record already existed at write time — left untouched")
         return False
     return True
+
+
+def _heal_claimed_record(collection: str, subject_uuid: str, record: dict) -> str:
+    """Write the account record an existing claim promised, reading the claimed
+    subject's erasure markers THROUGH the transaction that writes it (S164
+    Lens A F1).
+
+    The heal used to be a bare ``create()`` after a non-transactional marker
+    check. An erasure of the claimed subject that sealed between that check
+    and the create then completed against rows that did not yet exist, and the
+    create landed afterwards: an ACTIVE record carrying the address for a
+    tombstoned subject, which no lane or resolver could ever route again.
+    Reading both markers here puts them in the write's read set, so a seal
+    that lands after the check conflicts (or precedes) this commit and the
+    heal refuses. Returns ``created``, ``present`` (a concurrent writer landed
+    first — adopt through it) or ``sealed`` (erasure has begun; nothing
+    written; fail closed)."""
+    from .oauth.stores import run_transaction, subject_is_sealed_or_revoked
+
+    def _txn(txn):
+        if subject_is_sealed_or_revoked(txn, subject_uuid):
+            return CLAIM_SEALED
+        if txn.get_dict(collection, subject_uuid) is not None:
+            return CLAIM_PRESENT
+        txn.set(collection, subject_uuid, dict(record))
+        return CLAIM_CREATED
+
+    return str(run_transaction(_txn))
 
 
 def _release_owner_claim(owners_collection: str, key: str, *, expected_uuid: str) -> bool:
@@ -809,8 +871,11 @@ def _release_claims_naming(db, owners_collection: str, uuid: str) -> int:
     been scrubbed, and it also cleans a claim left behind by an interrupted
     pre-repair opt-out (claim present, email already ``[deletion_requested]``).
     Each delete is conditional (ABA-safe) because a claim could be re-pointed
-    between the query and the delete. Returns the number released; a backend
-    failure propagates so the caller fails closed."""
+    between the query and the delete. Returns the number released; a failure
+    propagates. ``process_optout`` runs this AFTER the authoritative subject
+    tombstone and treats a failure as hygiene debt, never as a failed erasure
+    (T S161 A-1): a claim that names a tombstoned subject is reclaimed by the
+    next verified ceremony, and the tombstone already denies its bearer."""
     released = 0
     for snapshot in db.collection(owners_collection).where("uuid", "==", uuid).get():
         key = getattr(snapshot, "id", None) or (snapshot.to_dict() or {}).get("email_hash", "")
@@ -854,8 +919,10 @@ def _subject_revoked(uuid: str) -> bool:
     revocation tombstone is present (T S159 R6-01). A subject under erasure
     must never be adopted, healed, or newly claimed, and the seal makes that
     refusal start at the moment erasure commits to it rather than at the
-    tombstone, which erasure writes last so the caller's bearer survives the
-    cleanup.
+    tombstone. Between the two the caller's bearer is still alive, so an
+    interrupted erasure is finished by a retry — and its ownership claim is
+    still present, so nothing can hand the mailbox to a new identity while
+    that bearer is admissible (T S161 A-1).
 
     This predicate answers "may I bind new state to this subject?" — the
     answer is no from the seal onward. It must NOT be used to decide that the
@@ -881,7 +948,9 @@ def _subject_erasure_complete(uuid: str) -> bool:
     doing so mints a second account carrying the same address in clear and
     strands the original subject untombstoned, with its credentials alive and
     unreachable from the owner route. Reclaiming belongs to a FINISHED
-    erasure; an unfinished one fails closed and waits for the retry."""
+    erasure; an unfinished one fails closed and waits for the retry. That is
+    only decidable because the claim outlives the tombstone (T S161 A-1): the
+    resolver reads the claim, finds the subject, and asks this question."""
     from .oauth.stores import _is_tombstoned
 
     return bool(uuid) and _is_tombstoned(grant_id="", parent_grant_id="", subject_uuid=uuid)
@@ -1060,10 +1129,19 @@ def resolve_verified_subject(email) -> Optional[str]:
             else:
                 # The claim won but its record write never landed: heal under
                 # the claimed identifier so the address keeps ONE owner. A
-                # concurrent writer that lands first wins (create-if-absent);
-                # re-read and adopt through it.
+                # concurrent writer that lands first wins; re-read and adopt
+                # through it. The write reads the subject's erasure markers
+                # through its own transaction (S164 Lens A F1): a heal that
+                # races the subject's erasure must lose, or it leaves an active
+                # record carrying the address for a tombstoned subject.
                 healed = _verified_record(owner_uuid, normalized, now, tier=_lane_default_tier(base))
-                if not _create_account_record(db, lanes[base], owner_uuid, healed):
+                outcome = _heal_claimed_record(lanes[base], owner_uuid, healed)
+                if outcome == CLAIM_SEALED:
+                    logger.error(
+                        "Claimed record cannot be healed: its subject is under erasure; refusing to resolve a subject"
+                    )
+                    return None
+                if outcome == CLAIM_PRESENT:
                     continue
                 subject = owner_uuid
             if subject is not None:
@@ -1192,6 +1270,44 @@ async def submit_feedback(
     )
 
 
+def _scrub_subject_rows(db, uuid: str, ea_collection: str, light_collection: str) -> int:
+    """De-identify every account row that belongs to ``uuid`` in both lanes —
+    the row keyed by the identifier AND any row whose ``uuid`` field names it
+    (S164 Lens A: a row keyed differently from its ``uuid`` field was never
+    scrubbed, so an accepted erasure left its address in clear). Idempotent:
+    a row already marked ``deletion_requested`` that carries no address is
+    left alone, so the same call serves as the primary scrub before the
+    tombstone and as the hygiene re-scrub after it. Returns rows scrubbed."""
+    scrubbed = 0
+    for collection, extra in (
+        (ea_collection, {"name": None, "registration_feedback": None}),
+        (light_collection, {"display_name": None}),
+    ):
+        refs = {uuid: db.collection(collection).document(uuid)}
+        for snapshot in db.collection(collection).where("uuid", "==", uuid).get():
+            doc_id = getattr(snapshot, "id", None) or uuid
+            refs.setdefault(
+                doc_id,
+                getattr(snapshot, "reference", None) or db.collection(collection).document(doc_id),
+            )
+        for reference in refs.values():
+            snapshot = reference.get()
+            if not snapshot.exists:
+                continue
+            data = snapshot.to_dict() or {}
+            carries_address = "@" in str(data.get("email") or "")
+            if data.get("status") == "deletion_requested" and not carries_address:
+                continue
+            reference.update({
+                "status": "deletion_requested",
+                "deletion_requested_at": _now_iso(),
+                "email": "[deletion_requested]",
+                **extra,
+            })
+            scrubbed += 1
+    return scrubbed
+
+
 async def process_optout(uuid: str) -> OptOutResponse:
     """De-identify account PII and mark remaining data for bounded deletion."""
     # Environment identity resolves BEFORE the client or any read/write; an
@@ -1217,91 +1333,110 @@ async def process_optout(uuid: str) -> OptOutResponse:
     try:
         # UNION revocation (T S152 P0 #2): a rights request must revoke the
         # identity in EVERY registration store and kill every live credential.
-        # The order is monotonic and resumable (T S159 F-03), ordered by
-        # reversibility: de-identify PII, release every ownership claim that
-        # names this subject (found by the claim's OWN uuid field — a durable
-        # cleanup identity that survives the scrub), and tombstone + revoke the
-        # subject LAST, because that step kills the caller's bearer. Every step
-        # is idempotent, so a retry after any failure before the tombstone
-        # completes the sequence with the same credential; after the tombstone
-        # nothing that matters is left undone. Scrubbing before releasing also
-        # closes a window: a verified ceremony that runs between the release and
-        # the tombstone finds no email to backfill and mints a FRESH subject, so
-        # no claim naming this subject can be re-created behind the release.
+        #
+        # The erasure is ONE monotonic state machine, not a sequence of
+        # individually patched operations (T S161 A-1/A-2, after CS round 7;
+        # S164 Lens A F1–F3). Its order is:
+        #   FENCE → SEAL → scrub PII → TOMBSTONE → hygiene (release, sweep, re-scrub)
+        # Every step before the tombstone is idempotent and leaves the caller's
+        # bearer alive, so a retry with the same credential finishes it. The
+        # mailbox's ownership CLAIM stays in place until the tombstone is
+        # authoritative: it is the anchor every identity-creation path finds
+        # first (the scrub removes the account email, and the seal is keyed by
+        # a subject nothing can reach once the claim is gone), so while it
+        # stands no path can mint a fresh subject for the address while the
+        # former bearer is still admissible — the fork round 7 reproduced when
+        # the claim was released before the tombstone. Everything after the
+        # tombstone is hygiene: it may fail, and its failure can never turn an
+        # accepted erasure back into an unprocessed one. A subject with no
+        # account projection in either lane is STILL a subject: the caller was
+        # authenticated as it, so the seal, the tombstone and the hygiene never
+        # depend on a row being present or readable (T S161 F-4).
         ea_ref = db.collection(ea_collection).document(uuid)
         ea_doc = ea_ref.get()
         light_ref = db.collection(light_collection).document(uuid)
         light_doc = light_ref.get()
-        matched = ea_doc.exists or light_doc.exists
+        from verifimind_mcp.oauth.stores import (
+            is_backend_failure,
+            sweep_subject_credentials,
+            write_erasure_seal,
+            write_subject_tombstone,
+        )
 
-        if matched:
-            # 1. De-identify account PII in both lanes (idempotent on retry).
-            if ea_doc.exists:
-                ea_ref.update({
-                    "status": "deletion_requested",
-                    "deletion_requested_at": _now_iso(),
-                    # Immediately nullify PII fields
-                    "email": "[deletion_requested]",
-                    "name": None,
-                    "registration_feedback": None,
-                })
-            if light_doc.exists:
-                light_ref.update({
-                    "status": "deletion_requested",
-                    "deletion_requested_at": _now_iso(),
-                    "email": "[deletion_requested]",
-                    "display_name": None,
-                })
-            # 2. SEAL the subject before sweeping its claims (T S159 R6-01).
-            #    The seal is consulted by every claim writer and by no
-            #    credential validation path, so from here a caller that already
-            #    read this subject can no longer create a claim naming it, while
-            #    the caller's own bearer stays alive for the steps below — which
-            #    is what keeps this operation resumable. A sweep alone could not
-            #    do this: its query is a snapshot and cannot exclude a later
-            #    writer.
-            from verifimind_mcp.oauth.stores import (
-                StoreUnavailable,
-                sweep_subject_credentials,
-                write_erasure_seal,
-                write_subject_tombstone,
-            )
-            write_erasure_seal(uuid)
-            # 3. Release every mailbox claim that names THIS subject, each
-            #    conditionally (T S159 F-02: a re-pointed claim belongs to its
-            #    new owner and is left alone). A backend failure raises through
-            #    the guarded transaction and is handled below as a retryable
-            #    outage; the caller's bearer is still alive, so the retry finds
-            #    the claim again by uuid and finishes.
-            _release_claims_naming(db, owners_collection, uuid)
-            # 4. Commit the authoritative subject tombstone. Returning normally
-            #    means it LANDED, so no confirmation read is needed — the read
-            #    that S162 used could itself fail and denied an erasure that had
-            #    happened (T S159 R6-03). A failure here raises: the commit is
-            #    genuinely ambiguous, the receipt says only that deletion could
-            #    not be confirmed, and the private rights channel named in that
-            #    message is the continuation that does not need the bearer.
-            write_subject_tombstone(uuid)
-            # 5. Hygiene only. The tombstone is what denies on every validation
-            #    path, so a failed sweep of ``revoked`` flags cannot un-do the
-            #    erasure and must not deny it (T S159 R6-03). The ≤60s
-            #    validation cache bounds cross-instance propagation (Design v2).
-            try:
-                sweep_subject_credentials(uuid)
-            except StoreUnavailable as exc:
-                # ONLY a backend outage is tolerated here. sweep_subject_credentials
-                # is guarded, so a programming error still propagates rather than
-                # hiding behind a warning about a backend condition (S163 lens).
-                logger.warning(
-                    "Opt-out: subject tombstone committed but the credential hygiene "
-                    "sweep did not finish (error_type=%s); every validation path "
-                    "already denies on the tombstone",
-                    type(exc).__name__,
+        # 1. FENCE. Before any address is scrubbed, a claim naming THIS subject
+        #    must exist for it (S164 Lens A F3). The scrub removes the only
+        #    email→subject route a claimless record has; a later seal or
+        #    tombstone failure would then leave the mailbox looking free while
+        #    this subject's bearer is alive — T S161 A-1's fork, one step
+        #    earlier. Written inside the erasure-serialized transaction: an
+        #    address whose claim already names this subject is touched, one
+        #    owned by another subject is left alone (that mailbox is theirs),
+        #    and an already-sealed subject skips — its fence landed before its
+        #    seal, because this step precedes the seal.
+        for base, doc in ((COLLECTION_EA, ea_doc), (COLLECTION_REGISTRATIONS, light_doc)):
+            address = str((doc.to_dict() or {}).get("email") or "") if doc.exists else ""
+            if "@" in address:
+                _assert_claim_for_existing_subject(
+                    owners_collection, email_owner_key(normalize_email(address)),
+                    subject_uuid=uuid, collection_base=base, lane="erasure_fence", now=_now_iso(),
                 )
+        # 2. SEAL the subject (T S159 R6-01), BEFORE anything is de-identified
+        #    (S164 Lens A F1/F2). Every claim writer and every heal of a claimed
+        #    record reads it inside the transaction that writes, and no
+        #    credential validation path reads it, so from here nothing can
+        #    bind new state to this subject while the caller's own bearer stays
+        #    alive for a retry. Scrubbing first left a de-identified, unsealed
+        #    subject behind a seal failure: the promised purge would then erase
+        #    the only sign that erasure was requested, and the next verified
+        #    ceremony healed an ACTIVE account with the address for it.
+        write_erasure_seal(uuid)
+        # 3. De-identify every account row that belongs to this subject in
+        #    both lanes — by identifier and by ``uuid`` field — idempotently.
+        _scrub_subject_rows(db, uuid, ea_collection, light_collection)
+        # 4. TOMBSTONE — the authoritative revocation, written while the claim
+        #    still anchors the mailbox. Returning normally means it LANDED, so
+        #    no confirmation read is needed (T S159 R6-03). A failure here
+        #    raises: the commit is genuinely ambiguous, the receipt says only
+        #    that deletion could not be confirmed, and the private rights
+        #    channel named in that message is the continuation that does not
+        #    need the bearer. Because the claim is still present, the resolver
+        #    sees an erasure IN PROGRESS and refuses to hand the address to a
+        #    fresh subject (T S161 A-1).
+        write_subject_tombstone(uuid)
+        # 5. HYGIENE, after the point of no return. Release every claim that
+        #    names THIS subject — found by the claim's OWN uuid field, a durable
+        #    cleanup identity that survives the scrub, each delete conditional
+        #    so a re-pointed claim stays with its new owner (T S159 F-02/F-03)
+        #    — flip the ``revoked`` flags, then re-scrub: a heal of this
+        #    subject's claimed record that landed between the row reads above
+        #    and the seal wrote an active row the first pass never saw (S164
+        #    Lens A F1); the re-scrub de-identifies it, and the transactional
+        #    heal refuses anything later. The tombstone already denies on every
+        #    validation path and a claim naming a tombstoned subject is
+        #    reclaimed by the next verified ceremony, so nothing here changes
+        #    the erasure's truth: ANY failure, backend or programming, is
+        #    logged and cannot negate completion (T S161 A-2, after R6-03).
+        #    The ≤60s validation cache bounds cross-instance propagation.
+        for step, action in (
+            ("ownership-claim release", lambda: _release_claims_naming(db, owners_collection, uuid)),
+            ("credential hygiene sweep", lambda: sweep_subject_credentials(uuid)),
+            ("post-tombstone PII re-scrub", lambda: _scrub_subject_rows(db, uuid, ea_collection, light_collection)),
+        ):
+            try:
+                action()
+            except Exception as exc:  # noqa: BLE001 — the tombstone is authoritative
+                logger.error(
+                    "Opt-out: subject tombstone committed but the %s did not finish "
+                    "(error_type=%s, backend_failure=%s); every validation path already "
+                    "denies on the tombstone and any remaining claim is reclaimed by the "
+                    "next verified ceremony",
+                    step, type(exc).__name__, is_backend_failure(exc),
+                )
+        if ea_doc.exists or light_doc.exists:
             logger.info("Opt-out processed for a stored account")
         else:
-            # Do not reveal whether a caller-supplied UUID belongs to an account.
-            logger.info("Opt-out request did not match a stored account")
+            # Internal only; the caller's receipt is identical either way.
+            logger.info("Opt-out processed for a subject with no stored account")
     except Exception as exc:
         # This is a rights-request path: never convert a failed read/write into a
         # success receipt, and never expose the UUID or backend error text.
@@ -1404,9 +1539,11 @@ class UserRegistrationResponse(BaseModel):
     uuid: str
     tier: str = "ea"
     registered_at: str
-    # Honest-degradation flag (F-RES-1 parity with the EA path): False means
-    # storage was unavailable and this registration was NOT saved — the UUID
-    # cannot verify anywhere. Never report success for an unpersisted record.
+    # Honest-degradation flag (F-RES-1 parity with the EA path): True only when
+    # persistence was CONFIRMED. False means not confirmed — storage was
+    # unavailable, or a write raised (an ambiguous commit, T S161 A-3) — so the
+    # UUID cannot be relied on to verify anywhere. Never a success receipt, and
+    # never itself a proof of absence.
     persisted: bool = True
     # Deprecated compatibility fields. No paid service or timed entitlement is
     # currently offered, so these serialize as null.

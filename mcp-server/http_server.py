@@ -1398,6 +1398,11 @@ async def ea_register_handler(request):
             status_code=410,
         )
 
+    if not result.persisted:
+        # Transport and body must agree (T S161 A-3 / F-5): a registration the
+        # service could not persist — no Firestore client at all — is a
+        # retryable failure, not a 201 whose body happens to say otherwise.
+        return JSONResponse(result.model_dump(), status_code=503, headers=_OUTAGE_HEADERS)
     return JSONResponse(result.model_dump(), status_code=201)
 
 
@@ -1747,6 +1752,10 @@ async def register_handler(request):
 
     try:
         result = await register_user(data)
+        if not result.persisted:
+            # Transport and body must agree (T S161 A-3 / F-5): an unsaved
+            # registration is a retryable failure, never a 200.
+            return JSONResponse(result.model_dump(), status_code=503, headers=_OUTAGE_HEADERS)
         return JSONResponse(result.model_dump(), status_code=200)
     except EnvironmentMisconfigured:
         # Refused before any write; rendered by environment_misconfigured_handler.

@@ -774,6 +774,10 @@ class TestRegistrationBillingPaths:
         mock_db = MagicMock()
         mock_db.collection.return_value.where.return_value.where.return_value.count.return_value.get.return_value = [[MagicMock(value=0)]]
         mock_db.collection.return_value.where.return_value.limit.return_value.get.return_value = []
+        # A fresh identifier's claim reads its erasure markers first (T S161
+        # A-4); a bare MagicMock snapshot has a truthy ``exists``, which would
+        # read as a phantom marker. Model "no marker" explicitly.
+        mock_db.collection.return_value.document.return_value.get.return_value.exists = False
 
         with patch("verifimind_mcp.registration._get_firestore", return_value=mock_db):
             result = await register_early_adopter(self._make_ea_reg())
@@ -903,6 +907,8 @@ class TestRegistrationBillingPaths:
 
         mock_db = MagicMock()
         mock_db.collection.return_value.where.return_value.limit.return_value.get.return_value = []
+        # No erasure marker for the fresh identifier (T S161 A-4; see above).
+        mock_db.collection.return_value.document.return_value.get.return_value.exists = False
 
         req = UserRegistrationRequest(email="newuser@example.com", consent=True)
         with patch("verifimind_mcp.registration._get_firestore", return_value=mock_db):

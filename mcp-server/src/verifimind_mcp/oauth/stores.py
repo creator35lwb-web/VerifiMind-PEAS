@@ -643,11 +643,12 @@ def write_erasure_seal(subject_uuid: str) -> None:
     """Commit the ERASURE SEAL for a subject.
 
     The seal is consulted by every ownership-claim WRITER but by no credential
-    validation path (T S159 R6-01/R6-03). Erasure writes it BEFORE sweeping the
-    subject's claims, so a writer that already read a live legacy subject can no
-    longer create a claim naming it once the sweep has run — while the caller's
-    bearer stays alive for the rest of the erasure, which is what makes the
-    operation resumable. Permanent, like every marker in this collection."""
+    validation path (T S159 R6-01/R6-03). Erasure writes it BEFORE the subject
+    tombstone and BEFORE releasing the subject's claims, so a writer that
+    already read a live legacy subject can no longer create a claim naming it
+    — while the caller's bearer stays alive until the tombstone, which is what
+    makes the erasure resumable. The ownership claim itself outlives the
+    tombstone (T S161 A-1). Permanent, like every marker in this collection."""
     _write_tombstone("erasure", subject_uuid)
 
 
