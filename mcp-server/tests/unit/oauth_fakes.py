@@ -16,6 +16,11 @@ aborting the reader — so "the tombstone commits inside the window" here
 corresponds to "the tombstone waits until after the commit" there; both
 orderings are covered by the round-3 suite. Like the real client, a
 transaction refuses a read after its first buffered write.
+
+A commit is ALL-OR-NOTHING: every write's gate is checked before any write is
+applied (T S165), as one Commit RPC would. What the fake still cannot model
+is server-side serializability under real concurrency (T S161 F-9): runtime
+race authority belongs to the emulator or isolated Firestore.
 """
 
 from typing import Any, Callable, Dict, Optional
@@ -210,16 +215,25 @@ class FakeTransaction:
         for (collection, doc_id), version in self._reads.items():
             if self._db._collection_store(collection)._version(doc_id) != version:
                 raise TransactionConflict((collection, doc_id))
+        # Phase 1 — every buffered write passes its store's commit gate BEFORE
+        # anything is applied. The real client sends a transaction's writes in
+        # ONE Commit RPC, so a transaction never half-lands; a fake that applied
+        # writes one by one let a later gate failure leave earlier writes
+        # persisted (T S165 / CS round 7 F-9). One gate call per logical write,
+        # as before (T S159 R6-05).
+        for op, collection, doc_id, payload in self._writes:
+            self._db._collection_store(collection)._write_gate()
+        # Phase 2 — apply, ungated.
         for op, collection, doc_id, payload in self._writes:
             store = self._db._collection_store(collection)
             if op == "set":
-                store._write(doc_id, payload)
+                store._apply_write(doc_id, payload)
             elif op == "update":
                 current = store._raw(doc_id) or {}
                 current.update(payload)
-                store._write(doc_id, current)
+                store._apply_write(doc_id, current)
             elif op == "delete":
-                store._remove(doc_id)
+                store._apply_remove(doc_id)
 
 
 class FakeFirestore:

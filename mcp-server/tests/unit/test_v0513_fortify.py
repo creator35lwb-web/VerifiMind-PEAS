@@ -848,7 +848,11 @@ class TestRegistrationBillingPaths:
             )
 
         assert result.feedback_received is True
-        assert mock_db.collection.return_value.add.called
+        # The feedback document is created under a deterministic id with
+        # create-if-absent (T S165 A-2), so the write is a create() on a
+        # document reference — the call whose payload carries the content.
+        creates = mock_db.collection.return_value.document.return_value.create.call_args_list
+        assert any("content" in call.args[0] for call in creates)
 
     # --- process_optout: unknown UUID (no Firestore record) ---
 

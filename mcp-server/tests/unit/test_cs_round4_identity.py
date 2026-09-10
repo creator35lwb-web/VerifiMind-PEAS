@@ -492,7 +492,11 @@ class TestEmailLanesAreNotOracles:
                    "feedback": FEEDBACK_TEXT, "feedback_type": "general"}
         first = http.post("/early-adopters/register", json=payload)   # new
         monkeypatch.setattr(registration, "_now_iso", lambda: CEREMONY_NOW)  # the clock moves on
-        second = http.post("/early-adopters/register", json=payload)  # existing
+        # A second, DISTINCT submission: since round 9 the feedback document id
+        # is deterministic per (mailbox, text, day), so resubmitting identical
+        # text is an idempotent retry that keeps ONE document (pinned in the
+        # round-9 class); this control is about the receipt bytes.
+        second = http.post("/early-adopters/register", json={**payload, "feedback": FEEDBACK_TEXT + " Again."})  # existing
         assert first.status_code == 201
         self._same_modulo_clock(first, second, CEREMONY_NOW)
         assert first.json()["feedback_received"] is True

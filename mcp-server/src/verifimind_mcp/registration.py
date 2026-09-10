@@ -189,7 +189,13 @@ class RegistrationResponse(BaseModel):
     message: str
     benefit_summary: str = ""
     opt_out_url: str
-    feedback_received: bool
+    # True = the submitted text is confirmed persisted; False = confirmed NOT
+    # persisted (nothing was attempted); None = unknown: the write raised. A
+    # raised write is an ambiguous commit — a lost acknowledgement raises
+    # exactly like a rejected write — and the receipt never reads the store
+    # back to resolve it, because that answer would tell a submitter whether
+    # this mailbox already sent this exact text (T S165 A-2; S165 lens).
+    feedback_received: Optional[bool]
     # v0.5.50 (F-RES-1): True only when persistence was CONFIRMED. False means
     # not confirmed — storage was down, or a write raised (an ambiguous commit,
     # T S161 A-3) — and is never itself a proof of absence.
@@ -487,19 +493,56 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
             # means the text persists nowhere — for a new AND an existing
             # address alike, which is what keeps the receipt non-enumerating.
             if data.feedback:
+                # The document id is DETERMINISTIC per (mailbox, text) and the
+                # write is create-if-absent, so a retry of the same submission
+                # — whenever it arrives — is idempotent: a commit whose
+                # acknowledgement was lost cannot be duplicated by the retry
+                # (T S165 A-2; the S165 lens showed a per-day id duplicated a
+                # retry across midnight).
+                feedback_id = _feedback_document_id(normalized, data.feedback)
+                feedback_ref = db.collection(feedback_collection).document(feedback_id)
                 try:
-                    db.collection(feedback_collection).add(
-                        _registration_feedback_record(data, now, record_uuid)
-                    )
+                    feedback_ref.create(_registration_feedback_record(data, now, record_uuid, feedback_id))
                     feedback_stored = True
+                except _AlreadyExists:
+                    feedback_stored = True  # an earlier attempt landed: a retry, or a lost acknowledgement
                 except Exception as exc:  # noqa: BLE001
-                    from .oauth.stores import is_backend_failure
+                    from .oauth.stores import _backend_failure, is_backend_failure
 
                     if not is_backend_failure(exc):
                         raise
+                    # The commit is AMBIGUOUS: a lost acknowledgement raises
+                    # exactly like a rejected write. The receipt reports UNKNOWN
+                    # — never a confirmed absence (T S165 A-2), and never what
+                    # the store now holds: a receipt that read the deterministic
+                    # document back would tell a submitter, during a write
+                    # outage, whether this mailbox already sent this exact text
+                    # (S165 lens). The document IS read back, for the log only,
+                    # so an operator can tell a lost acknowledgement from a
+                    # rejected write. The read's own exception is classified
+                    # on the node: ``is_backend_failure`` would inherit the
+                    # write's backend cause through ``__context__`` and hide a
+                    # programming error in the read.
+                    feedback_stored = None
+                    try:
+                        held = bool(feedback_ref.get().exists)
+                    except Exception as read_exc:  # noqa: BLE001
+                        if not _backend_failure(read_exc):
+                            logger.error(
+                                "Registration feedback write raised (error_type=%s) and the log-only "
+                                "confirming read raised a non-backend error (error_type=%s)",
+                                type(exc).__name__, type(read_exc).__name__,
+                            )
+                            # Raised without the outage as context: the outer
+                            # boundary classifies through the chain and would
+                            # otherwise turn a bug into a retryable 503.
+                            raise read_exc from None
+                        held = None
                     logger.warning(
-                        "Registration feedback not stored (error_type=%s); the account is unaffected",
+                        "Registration feedback write raised (error_type=%s); the store now holds the "
+                        "document: %s; the receipt reports unknown; the account is unaffected",
                         type(exc).__name__,
+                        {True: "yes", False: "no", None: "unknown"}[held],
                     )
         except Exception as exc:  # noqa: BLE001
             from .oauth.stores import is_backend_failure
@@ -555,7 +598,7 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
     return _uniform_ea_response(now, _mask_email(str(data.email)), feedback_stored)
 
 
-def _uniform_ea_response(now: str, email_masked: str, feedback_received: bool) -> "RegistrationResponse":
+def _uniform_ea_response(now: str, email_masked: str, feedback_received: Optional[bool]) -> "RegistrationResponse":
     """The ONE external contract an email-bearing EA registration returns —
     for a new address, an existing address, AND a reads-up/writes-down
     claim-store outage (T S158 Finding 3 / T S159 F-04). It never branches on
@@ -596,7 +639,21 @@ def _unsaved_ea_response(now: str, email_masked: str) -> "RegistrationResponse":
     )
 
 
-def _registration_feedback_record(data, now: str, record_uuid: Optional[str]) -> dict:
+def _feedback_document_id(normalized_email: str, content: str) -> str:
+    """The feedback document's id, deterministic per (mailbox, text) so that a
+    retried submission — at any later time — maps to the SAME document and
+    create-if-absent makes it idempotent (T S165 A-2; a per-day component
+    let a retry across midnight duplicate a lost-acknowledgement write). The
+    mailbox enters only as its owner key (a hash), the text only as a hash;
+    the id discloses neither."""
+    material = "|".join((
+        email_owner_key(normalized_email),
+        hashlib.sha256(content.encode("utf-8")).hexdigest(),
+    ))
+    return "fb_" + hashlib.sha256(material.encode("utf-8")).hexdigest()[:32]
+
+
+def _registration_feedback_record(data, now: str, record_uuid: Optional[str], feedback_id: Optional[str] = None) -> dict:
     """Feedback typed at registration: content from an UNVERIFIED caller.
 
     ``uuid`` (the authoritative subject field) is always None here; the
@@ -604,7 +661,7 @@ def _registration_feedback_record(data, now: str, record_uuid: Optional[str]) ->
     unverified link so mailbox proof never turns it into attribution
     (T S158 Finding 1)."""
     return {
-        "feedback_id": generate_feedback_id(),
+        "feedback_id": feedback_id or generate_feedback_id(),
         "submitted_at": now,
         "type": data.feedback_type or "general",
         "content": data.feedback,
@@ -1270,19 +1327,31 @@ async def submit_feedback(
     )
 
 
-def _scrub_subject_rows(db, uuid: str, ea_collection: str, light_collection: str) -> int:
-    """De-identify every account row that belongs to ``uuid`` in both lanes —
-    the row keyed by the identifier AND any row whose ``uuid`` field names it
-    (S164 Lens A: a row keyed differently from its ``uuid`` field was never
-    scrubbed, so an accepted erasure left its address in clear). Idempotent:
-    a row already marked ``deletion_requested`` that carries no address is
-    left alone, so the same call serves as the primary scrub before the
-    tombstone and as the hygiene re-scrub after it. Returns rows scrubbed."""
-    scrubbed = 0
-    for collection, extra in (
-        (ea_collection, {"name": None, "registration_feedback": None}),
-        (light_collection, {"display_name": None}),
-    ):
+def _lane_scrub_extra(collection_base: str) -> dict:
+    """The lane-specific PII fields the scrub nulls (resolved at call time: the
+    lane constants are defined later in this module)."""
+    if collection_base == COLLECTION_EA:
+        return {"name": None, "registration_feedback": None}
+    return {"display_name": None}
+
+
+FENCE_FENCED = "fenced"
+FENCE_ANCHORED_ELSEWHERE = "anchored_elsewhere"
+FENCE_ERASED = "erased"
+
+
+def _subject_rows(db, uuid: str, ea_collection: str, light_collection: str) -> list:
+    """Every account row that belongs to ``uuid`` in both lanes: the row keyed
+    by the identifier AND any row whose ``uuid`` field names it. This is the
+    ONE selector both the fence and the scrub use, so the precondition
+    quantifies over exactly the rows the destructive step can mutate (T S165
+    A-1: the fence covered canonical rows while the scrub also reached rows
+    found by field, and the difference was a claimless mailbox that lost its
+    only route before any anchor existed). Returns
+    ``(collection_base, collection, doc_id, reference, data)`` per existing
+    row; ``(collection, doc_id)`` identifies a row across the two passes."""
+    rows = []
+    for base, collection in ((COLLECTION_EA, ea_collection), (COLLECTION_REGISTRATIONS, light_collection)):
         refs = {uuid: db.collection(collection).document(uuid)}
         for snapshot in db.collection(collection).where("uuid", "==", uuid).get():
             doc_id = getattr(snapshot, "id", None) or uuid
@@ -1290,21 +1359,79 @@ def _scrub_subject_rows(db, uuid: str, ea_collection: str, light_collection: str
                 doc_id,
                 getattr(snapshot, "reference", None) or db.collection(collection).document(doc_id),
             )
-        for reference in refs.values():
+        for doc_id, reference in refs.items():
             snapshot = reference.get()
-            if not snapshot.exists:
-                continue
-            data = snapshot.to_dict() or {}
-            carries_address = "@" in str(data.get("email") or "")
-            if data.get("status") == "deletion_requested" and not carries_address:
-                continue
-            reference.update({
-                "status": "deletion_requested",
-                "deletion_requested_at": _now_iso(),
-                "email": "[deletion_requested]",
-                **extra,
+            if snapshot.exists:
+                rows.append((base, collection, doc_id, reference, snapshot.to_dict() or {}))
+    return rows
+
+
+def _fence_mailbox_for_erasure(
+    owners_collection: str, key: str, *, subject_uuid: str, collection_base: str, now: str,
+) -> str:
+    """Make sure an address is ANCHORED before the row carrying it is
+    de-identified (T S165 A-1). In one transaction: a missing claim is created
+    naming this subject (``fenced``); a claim that already names it is touched
+    (``fenced``; the same one-owners-write symmetry the lanes keep); a claim
+    naming ANOTHER subject is reported as ``anchored_elsewhere`` and left
+    untouched — that mailbox is its owner's (T S159 F-02: a re-pointed claim
+    belongs to its new owner), so it cannot look free after this row's
+    address is removed, which is the only property the fence exists to keep.
+    "A claim exists" is therefore never mistaken for "fenced to this subject":
+    the outcome says which. A fence that cannot be WRITTEN raises, and the
+    caller stops before anything is removed. This is the erasure's own write,
+    so it does not consult the SEAL — the seal exists to refuse OTHER writers,
+    and an erasure interrupted after its seal must still be able to fence
+    what it is about to scrub on retry — but it does read the subject
+    TOMBSTONE through the same transaction and writes nothing for a finished
+    erasure (``erased``): a duplicate opt-out whose rows were read before the
+    first one completed must not re-create a claim naming the tombstoned
+    subject after the first one's success (S165 lens)."""
+    from .oauth.stores import run_transaction, tombstone_ref
+
+    marks, marker_id = tombstone_ref("subject", subject_uuid)
+
+    def _txn(txn):
+        if txn.get_dict(marks, marker_id) is not None:
+            return FENCE_ERASED
+        current = txn.get_dict(owners_collection, key)
+        if current is None:
+            txn.set(owners_collection, key, {
+                "email_hash": key, "uuid": subject_uuid, "collection": collection_base,
+                "lane": "erasure_fence", "claimed_at": now, "verified": False,
             })
-            scrubbed += 1
+            return FENCE_FENCED
+        if current.get("uuid") == subject_uuid:
+            txn.update(owners_collection, key, {"email_hash": key})
+            return FENCE_FENCED
+        return FENCE_ANCHORED_ELSEWHERE
+
+    return str(run_transaction(_txn))
+
+
+def _scrub_subject_rows(db, uuid: str, ea_collection: str, light_collection: str, skip=frozenset()) -> int:
+    """De-identify every row ``_subject_rows`` selects — the same set the fence
+    covered (S164 Lens A; T S165 A-1) — except the ``(collection, doc_id)``
+    rows in ``skip``, which the primary pass leaves for the hygiene pass (an
+    address anchored to ANOTHER subject is de-identified only after this
+    subject's tombstone; S165 lens). Idempotent: a row already marked
+    ``deletion_requested`` that carries no address is left alone, so the same
+    call serves as the primary scrub before the tombstone and as the hygiene
+    re-scrub after it. Returns rows scrubbed."""
+    scrubbed = 0
+    for base, collection, doc_id, reference, data in _subject_rows(db, uuid, ea_collection, light_collection):
+        if (collection, doc_id) in skip:
+            continue
+        carries_address = "@" in str(data.get("email") or "")
+        if data.get("status") == "deletion_requested" and not carries_address:
+            continue
+        reference.update({
+            "status": "deletion_requested",
+            "deletion_requested_at": _now_iso(),
+            "email": "[deletion_requested]",
+            **_lane_scrub_extra(base),
+        })
+        scrubbed += 1
     return scrubbed
 
 
@@ -1337,7 +1464,7 @@ async def process_optout(uuid: str) -> OptOutResponse:
         # The erasure is ONE monotonic state machine, not a sequence of
         # individually patched operations (T S161 A-1/A-2, after CS round 7;
         # S164 Lens A F1–F3). Its order is:
-        #   FENCE → SEAL → scrub PII → TOMBSTONE → hygiene (release, sweep, re-scrub)
+        #   FENCE → SEAL → scrub PII → TOMBSTONE+RELEASE (one commit) → hygiene
         # Every step before the tombstone is idempotent and leaves the caller's
         # bearer alive, so a retry with the same credential finishes it. The
         # mailbox's ownership CLAIM stays in place until the tombstone is
@@ -1352,34 +1479,47 @@ async def process_optout(uuid: str) -> OptOutResponse:
         # account projection in either lane is STILL a subject: the caller was
         # authenticated as it, so the seal, the tombstone and the hygiene never
         # depend on a row being present or readable (T S161 F-4).
-        ea_ref = db.collection(ea_collection).document(uuid)
-        ea_doc = ea_ref.get()
-        light_ref = db.collection(light_collection).document(uuid)
-        light_doc = light_ref.get()
         from verifimind_mcp.oauth.stores import (
             is_backend_failure,
             sweep_subject_credentials,
+            tombstone_subject_releasing_claims,
             write_erasure_seal,
-            write_subject_tombstone,
         )
+        rows = _subject_rows(db, uuid, ea_collection, light_collection)
 
-        # 1. FENCE. Before any address is scrubbed, a claim naming THIS subject
-        #    must exist for it (S164 Lens A F3). The scrub removes the only
-        #    email→subject route a claimless record has; a later seal or
-        #    tombstone failure would then leave the mailbox looking free while
-        #    this subject's bearer is alive — T S161 A-1's fork, one step
-        #    earlier. Written inside the erasure-serialized transaction: an
-        #    address whose claim already names this subject is touched, one
-        #    owned by another subject is left alone (that mailbox is theirs),
-        #    and an already-sealed subject skips — its fence landed before its
-        #    seal, because this step precedes the seal.
-        for base, doc in ((COLLECTION_EA, ea_doc), (COLLECTION_REGISTRATIONS, light_doc)):
-            address = str((doc.to_dict() or {}).get("email") or "") if doc.exists else ""
-            if "@" in address:
-                _assert_claim_for_existing_subject(
-                    owners_collection, email_owner_key(normalize_email(address)),
-                    subject_uuid=uuid, collection_base=base, lane="erasure_fence", now=_now_iso(),
+        # 1. FENCE, over exactly the rows the scrub will reach (T S165 A-1:
+        #    the fence used to see only rows keyed by the identifier while the
+        #    scrub also reached rows found by ``uuid`` field, so a claimless
+        #    row of the second kind lost its only mailbox route before any
+        #    anchor existed). Every address on every row is bound to THIS
+        #    subject before the row is de-identified (created or touched).
+        #    An address already claimed by ANOTHER subject is left to that
+        #    owner (T S159 F-02) — and its row is NOT de-identified before this
+        #    subject's tombstone: that owner's anchor has its own lifecycle,
+        #    and once it finishes its own erasure the mailbox would look free
+        #    while this subject's bearer is still admissible (S165 lens, the
+        #    borrowed anchor). Such rows keep their route until the tombstone
+        #    and are de-identified by the hygiene pass after it. A fence that
+        #    cannot be written raises, and the operation stops here, before
+        #    the seal. A subject already tombstoned gets no new fence: the
+        #    erasure is finished and the retry is idempotent.
+        deferred = set()
+        for base, collection, doc_id, _reference, data in rows:
+            address = str(data.get("email") or "")
+            if "@" not in address:
+                continue
+            outcome = _fence_mailbox_for_erasure(
+                owners_collection, email_owner_key(normalize_email(address)),
+                subject_uuid=uuid, collection_base=base, now=_now_iso(),
+            )
+            if outcome == FENCE_ANCHORED_ELSEWHERE:
+                deferred.add((collection, doc_id))
+                logger.info(
+                    "Opt-out: an address on this subject's record is owned by another subject; "
+                    "that claim is left in place and this row is de-identified only after the tombstone"
                 )
+            elif outcome == FENCE_ERASED:
+                logger.info("Opt-out: the subject is already tombstoned; no fence is written (idempotent retry)")
         # 2. SEAL the subject (T S159 R6-01), BEFORE anything is de-identified
         #    (S164 Lens A F1/F2). Every claim writer and every heal of a claimed
         #    record reads it inside the transaction that writes, and no
@@ -1391,32 +1531,44 @@ async def process_optout(uuid: str) -> OptOutResponse:
         #    ceremony healed an ACTIVE account with the address for it.
         write_erasure_seal(uuid)
         # 3. De-identify every account row that belongs to this subject in
-        #    both lanes — by identifier and by ``uuid`` field — idempotently.
-        _scrub_subject_rows(db, uuid, ea_collection, light_collection)
-        # 4. TOMBSTONE — the authoritative revocation, written while the claim
-        #    still anchors the mailbox. Returning normally means it LANDED, so
-        #    no confirmation read is needed (T S159 R6-03). A failure here
-        #    raises: the commit is genuinely ambiguous, the receipt says only
-        #    that deletion could not be confirmed, and the private rights
-        #    channel named in that message is the continuation that does not
-        #    need the bearer. Because the claim is still present, the resolver
-        #    sees an erasure IN PROGRESS and refuses to hand the address to a
-        #    fresh subject (T S161 A-1).
-        write_subject_tombstone(uuid)
-        # 5. HYGIENE, after the point of no return. Release every claim that
-        #    names THIS subject — found by the claim's OWN uuid field, a durable
-        #    cleanup identity that survives the scrub, each delete conditional
-        #    so a re-pointed claim stays with its new owner (T S159 F-02/F-03)
-        #    — flip the ``revoked`` flags, then re-scrub: a heal of this
+        #    both lanes — by identifier and by ``uuid`` field — idempotently,
+        #    except the rows deferred above, which keep their route until the
+        #    tombstone and are de-identified by the hygiene re-scrub.
+        _scrub_subject_rows(db, uuid, ea_collection, light_collection, skip=deferred)
+        # 4. TOMBSTONE + RELEASE, one commit (T S165 A-3; T S161 open question 1).
+        #    The authoritative revocation and the release of every claim that
+        #    names THIS subject land together or not at all, so a successful
+        #    erasure entails that no claim naming the erased subject survives,
+        #    while a failed commit leaves the fence, the seal and the caller's
+        #    bearer exactly as they were — resumable. Returning normally means
+        #    it LANDED, so no confirmation read is needed (T S159 R6-03). A
+        #    failure raises: the commit is genuinely ambiguous (rejected, or
+        #    landed with a lost acknowledgement — in which case bearer AND
+        #    claims went together), the receipt says only that deletion could
+        #    not be confirmed, and the private rights channel is the
+        #    continuation that does not need the bearer. The claim keys are
+        #    found by the claim's OWN uuid field (a durable cleanup identity
+        #    that survives the scrub) and each delete is re-checked inside the
+        #    commit, so a re-pointed claim stays with its new owner (T S159
+        #    F-02). Writers that could add a claim after this snapshot read the
+        #    seal through their own transaction and refuse (T S159 R6-01).
+        claim_keys = []
+        for snapshot in db.collection(owners_collection).where("uuid", "==", uuid).get():
+            key = getattr(snapshot, "id", None) or (snapshot.to_dict() or {}).get("email_hash", "")
+            if key:
+                claim_keys.append(key)
+        tombstone_subject_releasing_claims(uuid, owners_collection, claim_keys)
+        # 5. HYGIENE, after the point of no return: sweep any claim that slipped
+        #    past the snapshot above (a concurrent duplicate opt-out's own
+        #    fence), flip the ``revoked`` flags, then re-scrub: a heal of this
         #    subject's claimed record that landed between the row reads above
         #    and the seal wrote an active row the first pass never saw (S164
         #    Lens A F1); the re-scrub de-identifies it, and the transactional
         #    heal refuses anything later. The tombstone already denies on every
-        #    validation path and a claim naming a tombstoned subject is
-        #    reclaimed by the next verified ceremony, so nothing here changes
-        #    the erasure's truth: ANY failure, backend or programming, is
-        #    logged and cannot negate completion (T S161 A-2, after R6-03).
-        #    The ≤60s validation cache bounds cross-instance propagation.
+        #    validation path, so nothing here changes the erasure's truth: ANY
+        #    failure, backend or programming, is logged and cannot negate
+        #    completion (T S161 A-2, after R6-03). The ≤60s validation cache
+        #    bounds cross-instance propagation.
         for step, action in (
             ("ownership-claim release", lambda: _release_claims_naming(db, owners_collection, uuid)),
             ("credential hygiene sweep", lambda: sweep_subject_credentials(uuid)),
@@ -1432,7 +1584,7 @@ async def process_optout(uuid: str) -> OptOutResponse:
                     "next verified ceremony",
                     step, type(exc).__name__, is_backend_failure(exc),
                 )
-        if ea_doc.exists or light_doc.exists:
+        if rows:
             logger.info("Opt-out processed for a stored account")
         else:
             # Internal only; the caller's receipt is identical either way.

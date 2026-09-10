@@ -68,8 +68,39 @@ S164  the author's own attacker lens, run before the push, then found the
 Every test whose comment begins with an exact SHA was demonstrated FAILING
 against that tree ("68daa5c:" for the round-5 repair, "84fd926:" for the
 round-6 one, "cedc24b:" for the corrective commit that followed it,
-"59424c5:" for the round-7 one). The fake is copied into the old tree with
-the test, so only the source differs.
+"59424c5:" for the round-7 one, "0b33ee9:" for the round-8 one). The fake
+is copied into the old tree with the test, so only the source differs — and
+a test that must fail the AUTHORITATIVE tombstone write patches whichever
+seam the tree under test has (``_tombstone_write_fails``), so it
+discriminates on behaviour at every head instead of on a missing symbol.
+
+CS round 8 (2026-09-10, T S165) then found that the S164 repair's own
+additions did not cover each other — closed by the round-9 repair here:
+
+R8-A1  the FENCE saw only the row keyed by the subject identifier while the
+       SCRUB (widened for the docid LOW) also reached rows found by ``uuid``
+       field, so a claimless row of that kind lost its only mailbox route
+       before any anchor existed and a tombstone failure forked the mailbox
+       while the old bearer was alive; and "a claim exists" was taken for
+       "this mailbox is fenced to the erasing subject" even when the claim
+       named another subject. Fence and scrub now share ONE selector, and
+       the fence reports which case it found: created or touched for this
+       subject, or anchored to another live owner (left alone, T S159 F-02);
+       a fence that cannot be written stops the erasure before the seal.
+R8-A2  a feedback write whose acknowledgement was lost was reported as
+       ``feedback_received: false`` while the text persisted, and a retry
+       could duplicate it. The document id is now deterministic per
+       (mailbox, text) with create-if-absent, so an identical resubmission
+       — whenever it arrives — is the same document; a raised write is
+       reported as unknown (``null``), never as confirmed absence, and the
+       receipt never reads the store back to resolve it (that would tell a
+       submitter, during an outage, whether this mailbox already sent this
+       text); the store is read back for the log only.
+R8-A3  a successful erasure could leave a claim naming the tombstoned
+       subject when its release failed after the tombstone — runtime-safe,
+       but contradicting the governing rule. Tombstone and release now land
+       in ONE commit: a release failure fails the tombstone with it and the
+       retry finishes both. The fake's commit is all-or-nothing to match.
 
 HOW THE OLD-HEAD FAILURES DIVIDE — stated exactly, because "N tests fail at
 the parent" is a weaker claim than it looks (S163 Lens B). Against `84fd926`
@@ -84,7 +115,18 @@ rewritten from the superseded ordering) failing at their intended first
 assertion. The other five are round-5/6-era outage controls that fail on ONE
 change counted five times — four through the shared outage-receipt helper
 and one at its own inline assertion — the corrected receipt wording (A-3 /
-F-6) in place of the parent's "no account was created". A symbol-absence failure is
+F-6) in place of the parent's "no account was created". Against `0b33ee9`, 12 of the 64 fail, ALL on a behavioural
+assertion and none by symbol absence: the atomic tombstone-plus-release
+commit (the release-failure control and the stale off-row claim), the
+uuid-field fence in both lanes, the borrowed anchor kept until the
+tombstone, and seven feedback receipts (the lost acknowledgement, the
+unconfirmable outcome, the raised write reported unknown in the S163 and
+S164 outage controls and in the oracle pin, the confirming-read programming
+error, the retry across midnight). Three round-9 pins pass at both heads (a
+duplicate opt-out of a finished erasure; a fence that cannot be written; the
+round-5 ABA control, re-armed at the commit), and the fake-atomicity pin
+discriminates the FAKE, not the source — it fails against the 0b33ee9 fake
+and passes with the repaired fake copied in, which is the old-head protocol. A symbol-absence failure is
 real discrimination but weak evidence: it proves an addition, not a
 behaviour. Tests labelled "pin:" pass at BOTH heads; a test that exercises a
 primitive absent at the parent is labelled by the head it discriminates
@@ -241,6 +283,16 @@ def _bearer_alive(token):
 
 def _tombstoned(subject):
     return stores._is_tombstoned(grant_id="", parent_grant_id="", subject_uuid=subject)
+
+
+def _tombstone_write_fails(exc):
+    """Fail the AUTHORITATIVE tombstone write at whichever seam the tree under
+    test has — the atomic tombstone-plus-release commit (round-9 repair) or the
+    plain tombstone write (older heads) — so a test discriminates on the
+    behaviour that follows the failure, never on a missing symbol."""
+    seam = ("tombstone_subject_releasing_claims"
+            if hasattr(stores, "tombstone_subject_releasing_claims") else "write_subject_tombstone")
+    return patch.object(stores, seam, side_effect=exc)
 
 
 def _writes_down(rdb, *names, exc=None):
@@ -591,8 +643,19 @@ class TestOwnerClaimReleaseIsABASafe:
                 "uuid": "the-new-owner", "collection": "ea_registrations", "verified": True,
             })
 
-        rdb._next_barrier = repoint_inside_the_commit_window  # fires at the release's commit
-        result = asyncio.run(registration.process_optout(subject))
+        # The barrier is armed AFTER the seal, so the next transaction is the
+        # one that releases the claim — the tombstone-plus-release commit since
+        # round 9, the release transaction before it. Armed at the start it
+        # fired in the FENCE transaction and this control stopped exercising
+        # the in-commit re-check (S165 Lens B, M7).
+        original_seal = stores.write_erasure_seal
+
+        def seal_then_arm(target):
+            original_seal(target)
+            rdb._next_barrier = repoint_inside_the_commit_window
+
+        with patch.object(stores, "write_erasure_seal", side_effect=seal_then_arm):
+            result = asyncio.run(registration.process_optout(subject))
         assert result.processed is True
         # Intended first assertion: the re-pointed claim survives for its owner.
         assert rdb.docs(OWNERS).get(key, {}).get("uuid") == "the-new-owner"
@@ -623,11 +686,13 @@ class TestOwnerClaimReleaseIsABASafe:
 # ── F-03 · opt-out is monotonic, resumable, and receipt-honest ──────────────
 
 class TestOptOutIsResumable:
-    """Erasure is ONE monotonic state machine (T S161 A-1/A-2):
-    scrub → seal → tombstone → hygiene. Every step before the tombstone is
-    idempotent and leaves the caller's bearer alive for a retry; the ownership
-    claim outlives the tombstone as the mailbox's fence; everything after the
-    tombstone is hygiene whose failure cannot negate an accepted erasure."""
+    """Erasure is ONE monotonic state machine (T S161 A-1/A-2; T S165 A-1/A-3):
+    fence → seal → scrub → tombstone-plus-release in one commit → hygiene.
+    Every step before the commit is idempotent and leaves the caller's bearer
+    alive for a retry; the ownership claim is the mailbox's fence and is
+    released in the same commit that makes the revocation authoritative;
+    everything after that commit is hygiene whose failure cannot negate an
+    accepted erasure."""
 
     def test_tombstone_failure_keeps_the_mailbox_fence(self, rdb):
         # 59424c5: the claim was released and the email scrubbed BEFORE the
@@ -638,8 +703,7 @@ class TestOptOutIsResumable:
         # failed tombstone, and a retry with the surviving bearer finishes.
         subject = _register_and_verify(rdb)
         token = _issue_pat_for(subject)
-        with patch.object(stores, "write_subject_tombstone",
-                          side_effect=StoreUnavailable("marker write down")):
+        with _tombstone_write_fails(StoreUnavailable("marker write down")):
             result = asyncio.run(registration.process_optout(subject))
         assert result.processed is False and not _tombstoned(subject)
         # Intended first assertion: the fence survived the failed tombstone.
@@ -653,35 +717,44 @@ class TestOptOutIsResumable:
         assert _tombstoned(subject) and not _bearer_alive(token)
         assert _owner_key(VICTIM_EMAIL) not in rdb.docs(OWNERS)
 
-    def test_release_failure_after_the_tombstone_is_accepted_erasure(self, rdb):
-        # 59424c5: the release ran BEFORE the tombstone, so a release failure
-        # returned processed=False with the bearer alive (the S162 F-03
-        # contract) — the very order that, one step later, produced the A-1
-        # fork. Release is now hygiene AFTER the tombstone: its failure cannot
-        # negate an erasure the tombstone already made authoritative, the
-        # bearer is dead because the erasure IS finished, and the stale claim
-        # is left for the reclaim path the resolver already has.
+    def test_a_claim_release_failure_fails_the_tombstone_commit_with_it(self, rdb):
+        # 0b33ee9: (T S165 A-3) the S164 version of this control blessed a
+        # claim-release failure AFTER the tombstone as hygiene debt — processed
+        # True with a claim still naming the tombstoned subject. Runtime-safe
+        # (the tombstone denies the bearer, the resolver reclaims the claim),
+        # but it contradicted the governing rule that no claim naming an
+        # erased subject survives a success. Tombstone and release now land in
+        # ONE commit: a release failure fails the tombstone with it, nothing
+        # lands, the fence and the bearer stay, and the retry finishes both.
         subject = _register_and_verify(rdb)
         token = _issue_pat_for(subject)
+        owners = rdb._collection_store(OWNERS)
+        armed = {"on": False}
+        real_gate = owners._write_gate
+        original_seal = stores.write_erasure_seal
 
-        def boom(_doc_id):
-            raise ServiceUnavailable("claim store down")
+        def gate():
+            if armed["on"]:
+                raise ServiceUnavailable("claim store down")
+            return real_gate()
 
-        rdb._collection_store(OWNERS)._remove = boom
-        result = asyncio.run(registration.process_optout(subject))
-        # Intended first assertion: the tombstone landed, so the receipt says so.
-        assert result.processed is True
+        def seal_then_arm(target):  # the owners store fails only AFTER the fence was written
+            original_seal(target)
+            armed["on"] = True
+
+        owners._write_gate = gate
+        with patch.object(stores, "write_erasure_seal", side_effect=seal_then_arm):
+            result = asyncio.run(registration.process_optout(subject))
+        # Intended first assertion: nothing landed — a failed release fails the tombstone.
+        assert result.processed is False and not _tombstoned(subject), (
+            "a claim-release failure left the erasure reported as, or made, authoritative"
+        )
+        assert rdb.docs(OWNERS)[_owner_key(VICTIM_EMAIL)]["uuid"] == subject  # the fence stands
+        assert _bearer_alive(token)                                           # the retry credential
+        armed["on"] = False
+        assert asyncio.run(registration.process_optout(subject)).processed is True
         assert _tombstoned(subject) and not _bearer_alive(token)
-        assert rdb.docs("early_adopters")[subject]["email"] == "[deletion_requested]"
-        # The claim outlived the failed hygiene step and still names the
-        # tombstoned subject: harmless, because every validation path denies
-        # that subject and the resolver reclaims exactly this claim.
-        assert rdb.docs(OWNERS)[_owner_key(VICTIM_EMAIL)]["uuid"] == subject
-        del rdb._collection_store(OWNERS)._remove
-        fresh = endpoints._resolve_or_create_subject(VICTIM_EMAIL)
-        assert fresh and fresh != subject
-        assert rdb.docs(OWNERS)[_owner_key(VICTIM_EMAIL)]["uuid"] == fresh
-        assert not _bearer_alive(token)
+        assert _owner_key(VICTIM_EMAIL) not in rdb.docs(OWNERS)               # released in the same commit
 
     def test_inherited_scrubbed_record_with_a_stale_claim_is_cleaned_by_uuid(self, rdb):
         # 68daa5c: the claim key was derived from the record's email, so a
@@ -811,8 +884,7 @@ class TestOptOutIsResumable:
         # receipt names the private rights channel, a continuation that does
         # not depend on the possibly revoked bearer.
         subject = _register_and_verify(rdb)
-        with patch.object(stores, "write_subject_tombstone",
-                          side_effect=StoreUnavailable("marker write down")):
+        with _tombstone_write_fails(StoreUnavailable("marker write down")):
             result = asyncio.run(registration.process_optout(subject))
         assert result.processed is False
         assert "No deletion action is confirmed" in result.message
@@ -919,8 +991,7 @@ class TestErasureSealsAgainstStaleWriters:
         # sealed subject.
         subject = _register_and_verify(rdb)
         token = _issue_pat_for(subject)
-        with patch.object(stores, "write_subject_tombstone",
-                          side_effect=StoreUnavailable("marker write down")):
+        with _tombstone_write_fails(StoreUnavailable("marker write down")):
             assert asyncio.run(registration.process_optout(subject)).processed is False
         assert registration._subject_revoked(subject) is True       # erasure BEGUN
         assert not _tombstoned(subject)                             # but NOT finished
@@ -1186,14 +1257,20 @@ class TestStorageOutageIsHonestAndUniform:
         assert self._post(http, EA_PATH, EXISTING, **feedback).status_code == 201
         stored_before = dict(rdb.docs("feedback"))  # the seeding post stored one
         _writes_down(rdb, "feedback")
+        # Different text than the seeding post: the feedback document id is
+        # deterministic per (mailbox, text, day) since round 9, so resubmitting
+        # the SAME text would truthfully read back as stored.
+        feedback = dict(feedback="The CS questions were sharper still.", feedback_type="general")
         exist = self._post(http, EA_PATH, EXISTING, **feedback)
         new = self._post(http, EA_PATH, BRAND_NEW, **feedback)
         # Intended first assertion: the registration succeeded, so say so.
         assert new.status_code == exist.status_code == 201
         _same_receipt(exist, new, drop=("email_masked",))
-        # Truthful about the part that failed, for BOTH addresses alike.
-        assert new.json()["feedback_received"] is False
-        assert exist.json()["feedback_received"] is False
+        # Truthful about the part that failed, for BOTH addresses alike: the
+        # write raised, so the outcome is UNKNOWN (round 9) — never a confirmed
+        # absence, and never read back into the receipt.
+        assert new.json()["feedback_received"] is None
+        assert exist.json()["feedback_received"] is None
         # Post-state: the account really is there, and no feedback was added.
         ((_, _uuid, record),) = _accounts(rdb, BRAND_NEW)
         assert record["email"] == BRAND_NEW
@@ -1343,8 +1420,7 @@ class TestErasureIsMonotonicAndReceiptsAreTruthful:
         })
         token = _issue_pat_for(subject)
         assert _accounts(rdb, VICTIM_EMAIL) == []
-        with patch.object(stores, "write_subject_tombstone",
-                          side_effect=StoreUnavailable("marker write down")):
+        with _tombstone_write_fails(StoreUnavailable("marker write down")):
             interrupted = asyncio.run(registration.process_optout(subject))
         assert not _tombstoned(subject)
 
@@ -1452,8 +1528,7 @@ class TestErasureIsMonotonicAndReceiptsAreTruthful:
         })
         token = _issue_pat_for(subject)
         assert _owner_key(VICTIM_EMAIL) not in rdb.docs(OWNERS)
-        with patch.object(stores, "write_subject_tombstone",
-                          side_effect=StoreUnavailable("marker write down")):
+        with _tombstone_write_fails(StoreUnavailable("marker write down")):
             assert asyncio.run(registration.process_optout(subject)).processed is False
         # Intended first assertion: the fence exists before the address is gone.
         claim = rdb.docs(OWNERS).get(_owner_key(VICTIM_EMAIL))
@@ -1497,8 +1572,7 @@ class TestErasureIsMonotonicAndReceiptsAreTruthful:
         # the purged mailbox and the resolver minted a fresh subject.
         subject = _register_and_verify(rdb)
         token = _issue_pat_for(subject)
-        with patch.object(stores, "write_subject_tombstone",
-                          side_effect=StoreUnavailable("marker write down")):
+        with _tombstone_write_fails(StoreUnavailable("marker write down")):
             assert asyncio.run(registration.process_optout(subject)).processed is False
         rdb._collection_store("early_adopters")._remove(subject)   # the promised purge
         assert endpoints._resolve_or_create_subject(VICTIM_EMAIL) is None
@@ -1544,14 +1618,18 @@ class TestErasureIsMonotonicAndReceiptsAreTruthful:
         # says so for a new and an existing address alike.
         before = dict(rdb.docs("feedback"))
         _writes_down(rdb, "feedback")
-        exist = self._post(http, EA_PATH, BRAND_NEW, feedback=text, feedback_type="general")
-        new = self._post(http, EA_PATH, "third-new@example.com", feedback=text, feedback_type="general")
+        # Different text than the successful post: the document id is
+        # deterministic per (mailbox, text, day) since round 9, so the SAME
+        # text would truthfully read back as stored.
+        later = "The CS questions were sharper still."
+        exist = self._post(http, EA_PATH, BRAND_NEW, feedback=later, feedback_type="general")
+        new = self._post(http, EA_PATH, "third-new@example.com", feedback=later, feedback_type="general")
         assert new.status_code == exist.status_code == 201
         _same_receipt(exist, new, drop=("email_masked",))
-        assert new.json()["feedback_received"] is False and exist.json()["feedback_received"] is False
+        assert new.json()["feedback_received"] is None and exist.json()["feedback_received"] is None  # raised ⇒ unknown (round 9)
         assert rdb.docs("feedback") == before
         ((_, _uuid, record),) = _accounts(rdb, "third-new@example.com")
-        assert record.get("registration_feedback") is None and text not in str(record)
+        assert record.get("registration_feedback") is None and later not in str(record)
 
     def test_a_client_construction_failure_is_a_failure_status_in_both_lanes(self, rdb, http):
         # 59424c5: when no Firestore client could be constructed both bodies
@@ -1652,3 +1730,313 @@ class TestErasureIsMonotonicAndReceiptsAreTruthful:
         # Intended first assertion: no claim was written for the erased identifier.
         assert _owner_key(BRAND_NEW) not in rdb.docs(OWNERS)
         assert _accounts(rdb, BRAND_NEW) == []
+
+
+# ── CS round 8 (T S165) · fence covers scrub; erasure commits atomically; feedback receipts confirm ─
+
+class TestFenceCoversScrubAndErasureCommitsAtomically:
+    """T S165 found that the S164 repair's own additions did not cover each
+    other: the fence quantified over fewer rows than the scrub, "a claim
+    exists" was mistaken for "fenced to this subject", a lost feedback
+    acknowledgement was reported as absence, and a success could leave a claim
+    naming the erased subject. Tests labelled ``0b33ee9:`` discriminate that
+    head; the pins pass at both heads; the harness pin discriminates the fake.
+    The S165 lenses added the borrowed-anchor deferral, the tombstone-aware
+    fence, the receipt-oracle closure and the in-commit ABA pin."""
+
+    _post = staticmethod(TestStorageOutageIsHonestAndUniform._post)
+
+    # ── A-1 · the precondition selector covers the destructive selector ─────
+
+    @pytest.mark.parametrize("collection", ["early_adopters", "ea_registrations"])
+    def test_a_row_found_by_uuid_field_is_fenced_before_it_is_scrubbed(self, rdb, collection):
+        # 0b33ee9: (T S165 A-1, HIGH) the fence read only the row keyed by the
+        # subject identifier while the scrub — widened for the docid LOW —
+        # also reached rows found by ``uuid`` field. A claimless row of that
+        # kind lost its only mailbox route before any anchor existed, and a
+        # tombstone failure let a verified ceremony mint a fresh subject while
+        # this subject's bearer was alive. Fence and scrub now share ONE
+        # selector, in both lanes.
+        subject = "018f6b2a-aaa1-7abc-8def-0123456789ab"
+        rdb.seed(collection, "legacy-doc-id-aaa1", {
+            "uuid": subject, "email": VICTIM_EMAIL, "status": "active",
+        })
+        token = _issue_pat_for(subject)
+        assert _owner_key(VICTIM_EMAIL) not in rdb.docs(OWNERS)
+        with _tombstone_write_fails(StoreUnavailable("marker write down")):
+            assert asyncio.run(registration.process_optout(subject)).processed is False
+        # Intended first assertion: the address was fenced to the erasing subject before it was scrubbed.
+        claim = rdb.docs(OWNERS).get(_owner_key(VICTIM_EMAIL))
+        assert claim is not None and claim["uuid"] == subject, (
+            "a row found by uuid field was scrubbed with no fence"
+        )
+        assert rdb.docs(collection)["legacy-doc-id-aaa1"]["email"] == "[deletion_requested]"
+        assert endpoints._resolve_or_create_subject(VICTIM_EMAIL) is None
+        assert _accounts(rdb, VICTIM_EMAIL) == [] and _bearer_alive(token)
+        assert asyncio.run(registration.process_optout(subject)).processed is True
+        assert _tombstoned(subject) and not _bearer_alive(token)
+        assert _owner_key(VICTIM_EMAIL) not in rdb.docs(OWNERS)
+
+    def test_an_address_owned_by_another_subject_keeps_its_route_until_the_tombstone(self, rdb):
+        # 0b33ee9: (S165 Lens A, the borrowed anchor) the fence must never
+        # mistake "a claim exists" for "fenced to the erasing subject" (T S165
+        # A-1's related weakness). An address whose claim names ANOTHER
+        # subject is left to that owner (T S159 F-02) — but that owner's anchor
+        # has its own lifecycle: once the owner finished its own erasure the
+        # mailbox had no claim, this subject's row had already been scrubbed,
+        # and the resolver minted a FRESH subject while this subject's bearer
+        # was still admissible. Such a row now keeps its address until this
+        # subject's tombstone and is de-identified by the hygiene pass after
+        # it; the other owner's claim is not written at all.
+        other = "018f6b2a-bbb2-7abc-8def-0123456789ab"
+        subject = "018f6b2a-bbb3-7abc-8def-0123456789ab"
+        key = _owner_key(VICTIM_EMAIL)
+        rdb.seed("early_adopters", other, {
+            "uuid": other, "email": VICTIM_EMAIL, "status": "active", "email_verified": True,
+        })
+        seeded = {"uuid": other, "collection": "early_adopters", "verified": True}
+        rdb.seed(OWNERS, key, dict(seeded))
+        rdb.seed("ea_registrations", subject, {"uuid": subject, "email": VICTIM_EMAIL, "status": "active"})
+        token = _issue_pat_for(subject)
+        other_token = _issue_pat_for(other)
+        writes = _count_owner_writes(rdb)
+        with _tombstone_write_fails(StoreUnavailable("marker write down")):
+            assert asyncio.run(registration.process_optout(subject)).processed is False
+        # Intended first assertion: the row keeps its address while the tombstone is pending.
+        assert rdb.docs("ea_registrations")[subject]["email"] == VICTIM_EMAIL, (
+            "an address anchored to another subject was scrubbed before this subject's tombstone"
+        )
+        assert rdb.docs(OWNERS)[key] == seeded and writes["n"] == 0            # the owner's claim: not even touched
+        assert endpoints._resolve_or_create_subject(VICTIM_EMAIL) == other      # the owner, not a fresh subject
+        # The owner finishes its own erasure: its claim goes; the mailbox must
+        # still not look free, because this subject's bearer is alive.
+        assert asyncio.run(registration.process_optout(other)).processed is True
+        assert _tombstoned(other) and not _bearer_alive(other_token) and key not in rdb.docs(OWNERS)
+        assert endpoints._resolve_or_create_subject(VICTIM_EMAIL) is None, (
+            "the borrowed anchor vanished and the mailbox was handed to a fresh subject"
+        )
+        assert _accounts(rdb, VICTIM_EMAIL) != [] and _bearer_alive(token)      # the route survived
+        assert asyncio.run(registration.process_optout(subject)).processed is True
+        assert _tombstoned(subject) and not _bearer_alive(token)
+        assert rdb.docs("ea_registrations")[subject]["email"] == "[deletion_requested]"  # hygiene scrubbed it
+
+    # ── A-2 · a raised feedback write is confirmed, never inferred ──────────
+
+    def test_a_lost_feedback_acknowledgement_is_not_denied_and_the_retry_confirms_it(self, rdb, http):
+        # 0b33ee9: (T S165 A-2) `feedback_received` became false whenever the
+        # write raised — but a commit whose acknowledgement was lost raises
+        # exactly like a rejected one, so the receipt denied text that
+        # persisted, and a retry, minting a fresh document id, could duplicate
+        # it. The document id is now deterministic per submission with
+        # create-if-absent, and a raised write is CONFIRMED by reading it back.
+        text = "Lost the acknowledgement, kept the text."
+        feedback = rdb._collection_store("feedback")
+        real_apply = feedback._apply_write
+        lose = {"on": True}
+
+        def apply_then_lose_ack(doc_id, data):
+            real_apply(doc_id, data)                      # the commit lands…
+            if lose["on"]:
+                raise ServiceUnavailable("acknowledgement lost")  # …and the client never hears
+
+        feedback._apply_write = apply_then_lose_ack
+        new = self._post(http, EA_PATH, BRAND_NEW, feedback=text, feedback_type="general")
+        assert new.status_code == 201
+        # Intended first assertion: the text persisted, and the receipt does not deny it.
+        assert new.json()["feedback_received"] is None, "a lost acknowledgement was reported as absence"
+        assert len([d for d in rdb.docs("feedback").values() if d.get("content") == text]) == 1
+        # The same submission again, once the store answers: idempotent — the
+        # earlier document is found, no duplicate, and the receipt is True.
+        lose["on"] = False
+        retry = self._post(http, EA_PATH, BRAND_NEW, feedback=text, feedback_type="general")
+        assert retry.status_code == 201 and retry.json()["feedback_received"] is True
+        assert len([d for d in rdb.docs("feedback").values() if d.get("content") == text]) == 1
+        feedback._apply_write = real_apply
+
+    def test_an_unconfirmable_feedback_commit_is_reported_unknown_not_absent(self, rdb, http):
+        # 0b33ee9: when the write raised AND the confirming read failed, the
+        # receipt still said false — an absence the mechanism could not prove.
+        # Unknown is now reported as unknown (null), never as confirmed absence.
+        _writes_down(rdb, "feedback")
+        restore = _reads_down(rdb, "feedback")
+        try:
+            response = self._post(http, EA_PATH, BRAND_NEW, feedback="Unconfirmable.", feedback_type="general")
+        finally:
+            restore()
+        assert response.status_code == 201
+        # Intended first assertion: unknown is not reported as absence.
+        assert response.json()["feedback_received"] is None
+
+    def test_a_raised_feedback_write_is_unknown_regardless_of_what_the_store_holds(self, rdb, http):
+        # 0b33ee9: (S165 Lens A) the round-9 draft confirmed a raised write by
+        # reading the deterministic document back INTO THE RECEIPT, so during a
+        # feedback write outage a submitter learned whether this mailbox had
+        # already sent this exact text (True) or not (False) — a guess-
+        # confirmation oracle. A raised write is now reported unknown for
+        # everyone; the store is read back for the log only.
+        text = "Guess me."
+        assert self._post(http, EA_PATH, EXISTING, feedback=text, feedback_type="general").status_code == 201
+        _writes_down(rdb, "feedback")
+        prior = self._post(http, EA_PATH, EXISTING, feedback=text, feedback_type="general")      # the store holds it
+        fresh = self._post(http, EA_PATH, BRAND_NEW, feedback=text, feedback_type="general")     # it does not
+        assert prior.status_code == fresh.status_code == 201
+        # Intended first assertion: the receipt does not branch on what the store holds.
+        assert prior.json()["feedback_received"] is None and fresh.json()["feedback_received"] is None
+        _same_receipt(prior, fresh, drop=("email_masked",))
+        assert len([d for d in rdb.docs("feedback").values() if d.get("content") == text]) == 1  # nothing new landed
+
+    def test_a_confirming_read_programming_error_still_surfaces(self, rdb, http):
+        # 0b33ee9: the log-only read after a raised feedback write classifies
+        # its own exception on the node: ``is_backend_failure`` walks
+        # ``__context__`` and would inherit the write's backend cause, turning
+        # a programming error in the read into a quiet "unknown" (S165 Lens
+        # A). A KeyError there must surface as the 500 a bug earns — not a 201.
+        feedback = rdb._collection_store("feedback")
+        _writes_down(rdb, "feedback")
+
+        class _BuggyRead(dict):
+            def get(self, key, default=None):
+                raise KeyError("a bug in the read, not an outage")
+
+        original = feedback._docs
+        feedback._docs = _BuggyRead(original)
+        try:
+            response = self._post(http, EA_PATH, BRAND_NEW, feedback="Bug.", feedback_type="general")
+        finally:
+            feedback._docs = original
+        # Intended first assertion: the bug surfaced instead of hiding behind the outage.
+        assert response.status_code == 500
+
+    def test_a_duplicate_opt_out_writes_no_fence_for_a_finished_erasure(self, rdb):
+        # pin (S165 Lens A): a fence that reads no marker lets a duplicate
+        # opt-out, whose rows were read before the first one finished,
+        # re-create a claim naming the TOMBSTONED subject after the first
+        # one's success. The duplicate's own commit would release it again —
+        # unless that commit fails, and then a claim naming an erased subject
+        # survives and absorbs later registrations as "owned" until a
+        # ceremony reclaims the mailbox. The fence now reads the subject
+        # tombstone through its own transaction and writes nothing for a
+        # finished erasure; the first erasure's success stands either way.
+        subject = _register_and_verify(rdb)
+        key = _owner_key(VICTIM_EMAIL)
+        fence_seam = ("_fence_mailbox_for_erasure" if hasattr(registration, "_fence_mailbox_for_erasure")
+                      else "_assert_claim_for_existing_subject")
+        commit_seam = ("tombstone_subject_releasing_claims"
+                       if hasattr(stores, "tombstone_subject_releasing_claims") else "write_subject_tombstone")
+        original_fence, original_commit = getattr(registration, fence_seam), getattr(stores, commit_seam)
+        calls = {"fence": 0, "commit": 0}
+
+        def first_erasure_completes_then_fence(*args, **kwargs):
+            if not calls["fence"]:
+                calls["fence"] = 1
+                assert _run_off_loop(registration.process_optout(subject)).processed is True
+            return original_fence(*args, **kwargs)
+
+        def the_duplicates_own_commit_fails(*args, **kwargs):
+            calls["commit"] += 1
+            if calls["commit"] > 1:
+                raise StoreUnavailable("marker write down")
+            return original_commit(*args, **kwargs)
+
+        with patch.object(registration, fence_seam, side_effect=first_erasure_completes_then_fence), \
+                patch.object(stores, commit_seam, side_effect=the_duplicates_own_commit_fails):
+            second = asyncio.run(registration.process_optout(subject))
+        assert calls == {"fence": 1, "commit": 2}, "the interleaving never happened; the test proved nothing"
+        assert _tombstoned(subject)                                              # the first erasure stands
+        assert second.processed is False                                         # the duplicate's own commit failed
+        # Intended first assertion: no claim naming the tombstoned subject survives.
+        claim = rdb.docs(OWNERS).get(key)
+        assert claim is None or claim.get("uuid") != subject, "a duplicate opt-out re-created a claim for a finished erasure"
+        assert asyncio.run(registration.process_optout(subject)).processed is True   # the retry, once the store answers
+
+    def test_a_fence_that_cannot_be_written_stops_before_the_seal(self, rdb):
+        # pin (S165 Lens B, M18/M32): fence-before-seal and fence-before-scrub
+        # were unpinned — the ordering held only by construction. An owners
+        # write outage now proves it: nothing is sealed, nothing is scrubbed,
+        # the bearer is alive, and the retry finishes.
+        subject = _register_and_verify(rdb)
+        token = _issue_pat_for(subject)
+        owners = rdb._collection_store(OWNERS)
+        real_gate = owners._write_gate
+        _writes_down(rdb, OWNERS)
+        assert asyncio.run(registration.process_optout(subject)).processed is False
+        # Intended first assertion: nothing was sealed or de-identified.
+        assert not registration._subject_revoked(subject)
+        assert rdb.docs("early_adopters")[subject]["email"] == VICTIM_EMAIL
+        assert not _tombstoned(subject) and _bearer_alive(token)
+        owners._write_gate = real_gate
+        assert asyncio.run(registration.process_optout(subject)).processed is True
+        assert _tombstoned(subject) and _owner_key(VICTIM_EMAIL) not in rdb.docs(OWNERS)
+
+    def test_a_stale_claim_on_no_current_row_is_released_by_the_commit(self, rdb):
+        # 0b33ee9: (S165 Lens B, M26) the commit released the claims found by
+        # the claims' OWN uuid field, not the addresses on the subject's rows;
+        # a claim naming this subject for an address no current row carries
+        # (the round-5 F-03 class: the row already scrubbed, the claim left
+        # behind) must still go in the same commit. With the hygiene release
+        # disabled, only the commit can release it.
+        subject = "018f6b2a-ccc4-7abc-8def-0123456789ab"
+        stale_key = _owner_key("stale-address@example.com")
+        rdb.seed("early_adopters", subject, {
+            "uuid": subject, "email": "[deletion_requested]", "status": "deletion_requested",
+        })
+        rdb.seed(OWNERS, stale_key, {"uuid": subject, "collection": "early_adopters", "verified": True})
+        with patch.object(registration, "_release_claims_naming", return_value=0):
+            assert asyncio.run(registration.process_optout(subject)).processed is True
+        # Intended first assertion: success entails no surviving claim naming the subject.
+        assert stale_key not in rdb.docs(OWNERS), "a stale claim naming the erased subject survived a success"
+        assert _tombstoned(subject)
+
+    def test_a_lost_acknowledgement_retry_across_midnight_is_still_idempotent(self, rdb, http):
+        # 0b33ee9: (S165 Lens A) the round-9 draft keyed the deterministic
+        # feedback id on the UTC day, so the retry of a lost-acknowledgement
+        # write that arrived after midnight was a NEW document — the duplicate
+        # A-2 forbids, one day late. The id now carries no time component.
+        from datetime import datetime, timedelta, timezone
+
+        text = "Late retry."
+        feedback = rdb._collection_store("feedback")
+        real_apply = feedback._apply_write
+        lose = {"on": True}
+
+        def apply_then_lose_ack(doc_id, data):
+            real_apply(doc_id, data)
+            if lose["on"]:
+                raise ServiceUnavailable("acknowledgement lost")
+
+        feedback._apply_write = apply_then_lose_ack
+        try:
+            first = self._post(http, EA_PATH, EXISTING, feedback=text, feedback_type="general")
+            assert first.status_code == 201 and first.json()["feedback_received"] is None
+            lose["on"] = False
+            tomorrow = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+            with patch.object(registration, "_now_iso", return_value=tomorrow):
+                retry = self._post(http, EA_PATH, EXISTING, feedback=text, feedback_type="general")
+        finally:
+            feedback._apply_write = real_apply
+        assert retry.status_code == 201 and retry.json()["feedback_received"] is True
+        # Intended first assertion: one document, not one per day.
+        assert len([d for d in rdb.docs("feedback").values() if d.get("content") == text]) == 1
+
+    # ── A-3 · the fake commits all-or-nothing, like the one Commit RPC ──────
+
+    def test_a_transaction_commit_is_all_or_nothing(self, rdb):
+        # harness pin (T S161 F-9 / T S165): the 0b33ee9 FAKE applied a
+        # transaction's writes one by one, so a later write's gate failure left
+        # earlier writes persisted — the half-landed state the real single
+        # Commit RPC cannot produce, and exactly what the tombstone-plus-release
+        # commit must never do. This discriminates the fake, not the source:
+        # it passes at both heads once the repaired oauth_fakes.py is copied in
+        # (the old-head protocol), and fails against the 0b33ee9 fake.
+        _writes_down(rdb, "b_store")
+
+        def _txn(txn):
+            txn.set("a_store", "a", {"v": 1})
+            txn.set("b_store", "b", {"v": 1})
+            return True
+
+        with pytest.raises(StoreUnavailable):
+            stores.run_transaction(_txn)
+        # Intended first assertion: the first write did not land without the second.
+        assert "a" not in rdb.docs("a_store")
+        assert "b" not in rdb.docs("b_store")

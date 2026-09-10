@@ -660,7 +660,12 @@ def write_subject_tombstone(subject_uuid: str) -> None:
     erasure landed without a confirmation read (T S159 R6-03: a second read can
     fail even though the write succeeded, and treating that as failure denied
     an erasure that had happened). A failure raises — the commit is then
-    genuinely ambiguous and the caller must say so."""
+    genuinely ambiguous and the caller must say so.
+
+    ``process_optout`` no longer calls this: it uses
+    ``tombstone_subject_releasing_claims`` so the tombstone and the release of
+    the subject's ownership claims land in one commit (T S165 A-3). This
+    primitive remains for callers that hold no claims."""
     if not subject_uuid:
         # _write_tombstone silently ignores an empty key, which would make a
         # normal return here a lie about a marker that was never written —
@@ -668,6 +673,40 @@ def write_subject_tombstone(subject_uuid: str) -> None:
         raise ValueError("refusing to tombstone an empty subject identifier")
     _write_tombstone("subject", subject_uuid)
     clear_caches()
+
+
+@_guarded("tombstone_subject_releasing_claims")
+def tombstone_subject_releasing_claims(subject_uuid: str, owners_collection: str, claim_keys) -> int:
+    """Commit the authoritative subject tombstone AND release every listed
+    ownership claim that still names the subject, in ONE transaction (T S165
+    A-3; T S161 open question 1). A successful erasure therefore entails that
+    no claim naming the erased subject survives it, and a failed commit leaves
+    the claims, the seal and the caller's bearer exactly as they were.
+
+    Every claim is re-read inside the transaction and deleted only if it still
+    names this subject (ABA-safe, T S159 F-02). All reads precede all writes.
+    Returning normally means the commit LANDED (no confirmation read, T S159
+    R6-03); a failure raises as ``StoreUnavailable`` through ``_guarded``.
+    Returns the number of claims released."""
+    if not subject_uuid:
+        raise ValueError("refusing to tombstone an empty subject identifier")
+    marks, marker_id = tombstone_ref("subject", subject_uuid)
+    keys = [k for k in claim_keys if k]
+
+    def _txn(txn):
+        owned = []
+        for key in keys:
+            current = txn.get_dict(owners_collection, key)
+            if current is not None and current.get("uuid") == subject_uuid:
+                owned.append(key)
+        for key in owned:
+            txn.delete(owners_collection, key)
+        txn.set(marks, marker_id, {"kind": "subject", "key": subject_uuid, "revoked_at": _now()})
+        return len(owned)
+
+    released = int(run_transaction(_txn))
+    clear_caches()
+    return released
 
 
 def subject_is_erased(subject_uuid: str) -> bool:
@@ -795,8 +834,10 @@ def revoke_all_for_subject(subject_uuid: str) -> int:
     """Tombstone the subject and sweep its credentials, in that order.
 
     Retained as one call for every caller that wants both halves and has no
-    resumability contract of its own; ``process_optout`` calls the two halves
-    separately so it can distinguish a committed tombstone from a failed one."""
+    resumability contract of its own. It does NOT release ownership claims:
+    ``process_optout`` uses ``tombstone_subject_releasing_claims`` instead, so
+    that the tombstone and the claim release land in one commit (T S165 A-3);
+    use this only for a subject that holds no mailbox claim."""
     _write_tombstone("subject", subject_uuid)
     return _sweep_subject_credentials(subject_uuid)
 
