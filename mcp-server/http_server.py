@@ -1677,6 +1677,7 @@ async def ea_optout_handler(request):
                     "to use the verified private rights channel."
                 ),
                 "deletion_scheduled_within": None,
+                "account_deidentification": None,
             },
             status_code=401,
         )

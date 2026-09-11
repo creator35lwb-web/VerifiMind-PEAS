@@ -259,6 +259,16 @@ class OptOutResponse(BaseModel):
     processed: bool
     message: str
     deletion_scheduled_within: Optional[str] = None
+    # Scope is in the name (S168 Lens A F4): the ACCOUNT rows that belonged
+    # to the subject, in both lanes. "complete" when every such row is
+    # confirmed de-identified; "pending" when revocation is final but a row
+    # deferred behind another subject's claim could not be confirmed
+    # de-identified (T S167 R9-03: a tombstone kills credentials, it does not
+    # remove persisted PII, and the receipt must say which truth it carries).
+    # Personal data outside the account rows — feedback keyed to the subject
+    # — is the "remaining personal data" the message targets for the purge;
+    # this field says nothing about it. None on receipts that confirm nothing.
+    account_deidentification: Optional[str] = None
 
 
 _OPTOUT_STORAGE_UNAVAILABLE_MESSAGE = (
@@ -1043,14 +1053,28 @@ def _adopt_verified(reference, data: dict, collection_base: str, now: str) -> Op
     """Bind mailbox proof to an existing record and neutralize everything an
     unverified caller could have chosen. Returns the subject UUID, or None
     when the record is not an active account."""
+    updates = _adoption_updates(data, collection_base, now)
+    if updates is None:
+        return None
+    if updates:
+        reference.update(updates)
+    return data.get("uuid", "")
+
+
+def _adoption_updates(data: dict, collection_base: str, now: str) -> Optional[dict]:
+    """The sanitizing update mailbox proof applies to an existing record, as a
+    dict — so a transactional adopter can apply it THROUGH its own transaction
+    (S168 Lens A F1/F2). None when the record is not adoptable (not an active
+    account, or no identifier field); an empty dict when it is already a
+    verified subject and there is nothing to sanitize."""
     if data.get("status", "active") != "active":
         return None
     uuid = data.get("uuid", "")
     if not uuid:
         return None
     if data.get("email_verified"):
-        return uuid  # already a verified subject; nothing to sanitize
-    reference.update({
+        return {}  # already a verified subject; nothing to sanitize
+    return {
         "email_verified": True,
         "email_verified_at": now,
         "verification_path": "oauth_ceremony_v2",
@@ -1083,8 +1107,59 @@ def _adopt_verified(reference, data: dict, collection_base: str, now: str) -> Op
             "adopted_at": now,
             "neutralized": list(_PREREGISTRATION_NEUTRALIZED) + ["registered_at"],
         },
-    })
-    return uuid
+    }
+
+
+CARRIER_ADOPTED = "adopted"
+CARRIER_LOST = "lost"
+CARRIER_SEALED = "sealed"
+CARRIER_UNADOPTABLE = "unadoptable"
+
+
+def _adopt_carrier_through_stale_claim(
+    owners_collection: str, key: str, *, expected_uuid: str, carrier_uuid: str,
+    carrier_collection: str, row_id: str, collection_base: str, now: str,
+) -> str:
+    """Adopt a subject whose account row still carries the mailbox, through
+    the stale claim that names an already-erased owner — in ONE transaction
+    (T S167 R9-01; S168 Lens A F1–F3).
+
+    Every other writer that binds state to an EXISTING subject reads that
+    subject's erasure markers through the transaction that writes
+    (``_assert_claim_for_existing_subject``, ``_heal_claimed_record``); this
+    one must too. A check made before the transaction is a snapshot: a seal
+    that landed between it and the commit let a ceremony adopt a subject
+    whose erasure had begun and rewrite consent onto its record. So, inside
+    the transaction: the claim must still name ``expected_uuid`` (else
+    ``lost`` — a concurrent writer won; re-read and adopt through it); the
+    carrier's seal and tombstone must both be absent (else ``sealed`` —
+    nothing written; the erasure finishes on retry); the carrier's row is
+    read HERE and must be adoptable at write time (else ``unadoptable`` —
+    nothing written, so the claim never points at a record the resolver
+    would refuse, and the mailbox is routable again once the row is). Only
+    then are the claim re-point (verified, since the ceremony proved the
+    mailbox) and the sanitizing adoption written together."""
+    from .oauth.stores import run_transaction, subject_is_sealed_or_revoked
+
+    def _txn(txn):
+        current = txn.get_dict(owners_collection, key)
+        if current is None or current.get("uuid") != expected_uuid:
+            return CARRIER_LOST
+        if subject_is_sealed_or_revoked(txn, carrier_uuid):
+            return CARRIER_SEALED
+        row = txn.get_dict(carrier_collection, row_id)
+        updates = None if row is None else _adoption_updates(row, collection_base, now)
+        if updates is None:
+            return CARRIER_UNADOPTABLE
+        txn.set(owners_collection, key, {
+            "email_hash": key, "uuid": carrier_uuid, "collection": collection_base,
+            "lane": "backfill", "claimed_at": now, "verified": True, "verified_at": now,
+        })
+        if updates:
+            txn.update(carrier_collection, row_id, updates)
+        return CARRIER_ADOPTED
+
+    return str(run_transaction(_txn))
 
 
 def _detach_unverified_feedback(db, feedback_collection: str, uuid: str) -> int:
@@ -1103,6 +1178,39 @@ def _detach_unverified_feedback(db, feedback_collection: str, uuid: str) -> int:
         })
         detached += 1
     return detached
+
+
+def _live_row_carrying(db, lanes: dict, normalized_email: str, *, except_uuid: str):
+    """The first account row in either lane that still carries the address
+    for a subject OTHER than ``except_uuid`` and is not tombstoned, as
+    ``(collection_base, snapshot, subject_uuid)``; None when no such row
+    exists. Used by the resolver before it reclaims a stale claim (T S167
+    R9-01). The predicate is NOT TOMBSTONED, deliberately wider than "live":
+    a sealed subject's row is returned so the caller refuses the mailbox
+    while that erasure finishes (its bearer may still be admissible); only a
+    tombstoned subject's row — the pending-de-identification end state — is
+    not a carrier, because its identifier is never revived. A row keyed by
+    the subject with no ``uuid`` field counts through its id (the S165 A-1
+    selector class) — it is a carrier the adopter then refuses, never a row
+    a fresh subject may be minted over. Returns
+    ``(collection_base, snapshot, subject_uuid, any_sealed)``."""
+    first = None
+    for base, collection in lanes.items():
+        for found in db.collection(collection).where("email", "==", normalized_email).get():
+            data = found.to_dict() or {}
+            row_uuid = data.get("uuid") or getattr(found, "id", "")
+            if not row_uuid or row_uuid == except_uuid or _subject_erasure_complete(row_uuid):
+                continue
+            if _subject_revoked(row_uuid):
+                # Any sealed candidate refuses the mailbox (S168 Lens A F5):
+                # the refusal is a property of the candidate SET, not of
+                # whichever row the lane order reached first. A snapshot —
+                # the chosen carrier's markers are re-read inside the
+                # adopting transaction, which is the authority.
+                return base, found, row_uuid, True
+            if first is None:
+                first = (base, found, row_uuid, False)
+    return first
 
 
 def resolve_verified_subject(email) -> Optional[str]:
@@ -1158,13 +1266,50 @@ def resolve_verified_subject(email) -> Optional[str]:
             if _subject_erasure_complete(owner_uuid):
                 # The owner's erasure FINISHED (subject tombstoned) but its
                 # claim was not released: a revoked identifier is never
-                # adopted, healed, or re-issued. Replace the stale claim with a
-                # FRESH subject in ONE transaction (T S159 F-02): a bare
-                # delete-then-recreate here could erase a replacement a
-                # concurrent resolver already installed, forking one mailbox
-                # into two verified subjects. A False return means the claim
-                # changed under us — re-read and adopt the concurrent winner
-                # instead of minting a rival.
+                # adopted, healed, or re-issued. Before replacing the stale
+                # claim with a FRESH subject, look for a row that still carries
+                # the address for a DIFFERENT, non-tombstoned subject (T S167
+                # R9-01): a legacy duplicate, or a subject whose erasure was
+                # interrupted behind this stale anchor. A fresh subject may
+                # never be minted while such a subject's credentials are
+                # admissible — that is the mailbox fork the fence exists to
+                # prevent. A sealed one fails closed (its erasure finishes on
+                # retry); a live one is adopted through the stale claim,
+                # re-pointed conditionally so a concurrent resolver conflicts
+                # instead of forking, and a lost race re-reads and adopts the
+                # winner (each pinned in the round-10 tests: sealed carrier
+                # refused, tombstoned carrier never revived, lost race
+                # adopts).
+                carrier = _live_row_carrying(db, lanes, normalized, except_uuid=owner_uuid)
+                if carrier is not None:
+                    base, found, carrier_uuid, any_sealed = carrier
+                    if any_sealed:
+                        logger.error(
+                            "Erasure is in progress for a subject whose record carries this mailbox; "
+                            "refusing to resolve a subject"
+                        )
+                        return None
+                    outcome = _adopt_carrier_through_stale_claim(
+                        owners_collection, key, expected_uuid=owner_uuid, carrier_uuid=carrier_uuid,
+                        carrier_collection=lanes[base], row_id=getattr(found, "id", None) or carrier_uuid,
+                        collection_base=base, now=now,
+                    )
+                    if outcome == CARRIER_ADOPTED:
+                        _detach_unverified_feedback(db, feedback_collection, carrier_uuid)
+                        return carrier_uuid
+                    if outcome == CARRIER_LOST:
+                        continue  # the claim changed under us — re-read and adopt the winner
+                    logger.error(
+                        "A record carrying this mailbox cannot be adopted (%s); refusing to resolve a subject",
+                        outcome,
+                    )
+                    return None
+                # Replace the stale claim with a FRESH subject in ONE
+                # transaction (T S159 F-02): a bare delete-then-recreate here
+                # could erase a replacement a concurrent resolver already
+                # installed, forking one mailbox into two verified subjects. A
+                # False return means the claim changed under us — re-read and
+                # adopt the concurrent winner instead of minting a rival.
                 fresh_uuid = generate_ea_uuid()
                 if _reclaim_tombstoned_owner(
                     owners_collection, key, expected_uuid=owner_uuid,
@@ -1378,8 +1523,20 @@ def _fence_mailbox_for_erasure(
     belongs to its new owner), so it cannot look free after this row's
     address is removed, which is the only property the fence exists to keep.
     "A claim exists" is therefore never mistaken for "fenced to this subject":
-    the outcome says which. A fence that cannot be WRITTEN raises, and the
-    caller stops before anything is removed. This is the erasure's own write,
+    the outcome says which. A claim naming another subject is an anchor only
+    while that owner's lifecycle keeps it non-reclaimable (T S167 R9-01): the
+    other owner's subject tombstone is read through the same transaction (the
+    seal is deliberately not: a sealed owner's claim is released by its own
+    commit), and a claim whose owner is already TOMBSTONED is stale by the
+    resolver's own rules —
+    the next verified ceremony would replace it with a fresh subject while
+    this subject's row still carries the address and its bearer is admissible
+    — so it is re-pointed to this subject as a durable fence (the resolver's
+    own read-then-set reclaim discipline, T S159 F-02) and reported
+    ``fenced``. A live or sealed-in-progress owner keeps its claim
+    (``anchored_elsewhere``); a sealed owner's own commit releases it, and this
+    subject's row keeps its route until then. A fence that cannot be WRITTEN
+    raises, and the caller stops before anything is removed. This is the erasure's own write,
     so it does not consult the SEAL — the seal exists to refuse OTHER writers,
     and an erasure interrupted after its seal must still be able to fence
     what it is about to scrub on retry — but it does read the subject
@@ -1403,6 +1560,28 @@ def _fence_mailbox_for_erasure(
             return FENCE_FENCED
         if current.get("uuid") == subject_uuid:
             txn.update(owners_collection, key, {"email_hash": key})
+            return FENCE_FENCED
+        other = str(current.get("uuid") or "")
+        if not other:
+            # A claim with no owner identifier has no lifecycle and anchors
+            # nothing (S168 Lens A F6): corrupt state, which the resolver
+            # refuses to route. Fenced to this subject, so the erasure's own
+            # commit releases it and the mailbox becomes routable again.
+            txn.set(owners_collection, key, {
+                "email_hash": key, "uuid": subject_uuid, "collection": collection_base,
+                "lane": "erasure_fence", "claimed_at": now, "verified": False,
+                "reclaimed_from_tombstoned": None,
+            })
+            return FENCE_FENCED
+        other_marks, other_marker = tombstone_ref("subject", other)
+        if txn.get_dict(other_marks, other_marker) is not None:
+            # Stale: its owner is tombstoned, so the resolver would reclaim it
+            # to a fresh subject. Make it THIS subject's fence instead.
+            txn.set(owners_collection, key, {
+                "email_hash": key, "uuid": subject_uuid, "collection": collection_base,
+                "lane": "erasure_fence", "claimed_at": now, "verified": False,
+                "reclaimed_from_tombstoned": other,
+            })
             return FENCE_FENCED
         return FENCE_ANCHORED_ELSEWHERE
 
@@ -1515,7 +1694,7 @@ async def process_optout(uuid: str) -> OptOutResponse:
             if outcome == FENCE_ANCHORED_ELSEWHERE:
                 deferred.add((collection, doc_id))
                 logger.info(
-                    "Opt-out: an address on this subject's record is owned by another subject; "
+                    "Opt-out: an address on this subject's record is owned by another live subject; "
                     "that claim is left in place and this row is de-identified only after the tombstone"
                 )
             elif outcome == FENCE_ERASED:
@@ -1530,6 +1709,16 @@ async def process_optout(uuid: str) -> OptOutResponse:
         #    the only sign that erasure was requested, and the next verified
         #    ceremony healed an ACTIVE account with the address for it.
         write_erasure_seal(uuid)
+        # Every address on every row of this subject AFTER the seal (no heal
+        # can add a row from here, so this set is a superset of what any
+        # concurrent duplicate erasure's fence can bind to this subject): its
+        # owner keys seed the terminal commit's deletion set (T S167 R9-02).
+        # Read before the scrub, which removes the addresses.
+        fence_keys = {
+            email_owner_key(normalize_email(str(data.get("email"))))
+            for _b, _c, _i, _r, data in _subject_rows(db, uuid, ea_collection, light_collection)
+            if "@" in str(data.get("email") or "")
+        }
         # 3. De-identify every account row that belongs to this subject in
         #    both lanes — by identifier and by ``uuid`` field — idempotently,
         #    except the rows deferred above, which keep their route until the
@@ -1550,14 +1739,18 @@ async def process_optout(uuid: str) -> OptOutResponse:
         #    found by the claim's OWN uuid field (a durable cleanup identity
         #    that survives the scrub) and each delete is re-checked inside the
         #    commit, so a re-pointed claim stays with its new owner (T S159
-        #    F-02). Writers that could add a claim after this snapshot read the
-        #    seal through their own transaction and refuse (T S159 R6-01).
-        claim_keys = []
-        for snapshot in db.collection(owners_collection).where("uuid", "==", uuid).get():
-            key = getattr(snapshot, "id", None) or (snapshot.to_dict() or {}).get("email_hash", "")
-            if key:
-                claim_keys.append(key)
-        tombstone_subject_releasing_claims(uuid, owners_collection, claim_keys)
+        #    F-02). Writers that could add a claim after the seal read it
+        #    through their own transaction and refuse (T S159 R6-01) — except
+        #    a concurrent duplicate erasure's own fence, which ignores the
+        #    seal so a retry can continue. So the commit is handed the owner
+        #    key of every address on this subject's post-seal rows (every key
+        #    such a fence can bind; each is read inside the transaction, so a
+        #    fence landing inside the commit window conflicts it) and finds
+        #    every other claim naming this subject — a stale one at a key no
+        #    row carries (the round-5 F-03 class), or a fence that landed
+        #    before its read — by its own transactional query (T S167 R9-02).
+        #    A query taken outside the transaction added nothing to that set.
+        tombstone_subject_releasing_claims(uuid, owners_collection, sorted(fence_keys))
         # 5. HYGIENE, after the point of no return: sweep any claim that slipped
         #    past the snapshot above (a concurrent duplicate opt-out's own
         #    fence), flip the ``revoked`` flags, then re-scrub: a heal of this
@@ -1584,6 +1777,29 @@ async def process_optout(uuid: str) -> OptOutResponse:
                     "next verified ceremony",
                     step, type(exc).__name__, is_backend_failure(exc),
                 )
+        # 6. RECEIPT TRUTH for deferred rows (T S167 R9-03): a row deferred
+        #    behind another subject's claim is de-identified only by the
+        #    hygiene re-scrub above, whose failure cannot negate the erasure.
+        #    The tombstone makes revocation final; it does not remove the
+        #    persisted address. So the receipt asserts completed
+        #    de-identification only when every deferred row is CONFIRMED
+        #    de-identified by a read after the re-scrub; otherwise it says so,
+        #    and names the continuation that needs no bearer — the private
+        #    rights channel, and the scheduled purge.
+        pending = False
+        if deferred:
+            try:
+                pending = any(
+                    (collection, doc_id) in deferred and "@" in str(data.get("email") or "")
+                    for _b, collection, doc_id, _r, data
+                    in _subject_rows(db, uuid, ea_collection, light_collection)
+                )
+            except Exception as exc:  # noqa: BLE001 — unknown is reported as pending
+                logger.error(
+                    "Opt-out: deferred-row de-identification could not be confirmed (error_type=%s)",
+                    type(exc).__name__,
+                )
+                pending = True
         if rows:
             logger.info("Opt-out processed for a stored account")
         else:
@@ -1598,6 +1814,25 @@ async def process_optout(uuid: str) -> OptOutResponse:
         )
         return build_optout_unavailable_response()
 
+    if pending:
+        return OptOutResponse(
+            processed=True,
+            message=(
+                "The opt-out request was processed: this account's credentials are "
+                "revoked and it cannot be used again. De-identification of one or "
+                "more stored records could NOT be confirmed yet; they are targeted "
+                "for de-identification and purge within 7 business days, and you can "
+                "confirm or escalate at any time by emailing alton@ysenseai.org "
+                "privately from your registered address — no sign-in is needed. A "
+                "legal obligation or documented security/legal hold may limit or "
+                "delay deletion. The 8 active validation and built-in-template tools "
+                "remain available without registration."
+            ),
+            deletion_scheduled_within=(
+                "target: 7 business days; legal/security retention may apply"
+            ),
+            account_deidentification="pending",
+        )
     return OptOutResponse(
         processed=True,
         message=(
@@ -1611,6 +1846,7 @@ async def process_optout(uuid: str) -> OptOutResponse:
         deletion_scheduled_within=(
             "target: 7 business days; legal/security retention may apply"
         ),
+        account_deidentification="complete",
     )
 
 

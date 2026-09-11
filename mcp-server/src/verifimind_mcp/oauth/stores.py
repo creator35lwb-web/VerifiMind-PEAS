@@ -194,6 +194,16 @@ class _RealTxn:
     def delete(self, collection: str, doc_id: str) -> None:
         self._t.delete(self._db.collection(collection).document(doc_id))
 
+    def where_ids(self, collection: str, field: str, value) -> list:
+        """Ids of the documents matching ``field == value``, read THROUGH the
+        transaction (T S167 R9-02: an atomic write over a set taken by a
+        query OUTSIDE the transaction is atomic over a stale set). Every
+        matched document enters the read set; a document created after this
+        read by a writer that itself read a marker this transaction writes
+        conflicts that writer, not this commit."""
+        snaps = self._db.collection(collection).where(field, "==", value).get(transaction=self._t)
+        return [snap.id for snap in snaps]
+
 
 @_guarded("transaction")
 def run_transaction(func: Callable[[Any], Any]) -> Any:
@@ -687,13 +697,32 @@ def tombstone_subject_releasing_claims(subject_uuid: str, owners_collection: str
     names this subject (ABA-safe, T S159 F-02). All reads precede all writes.
     Returning normally means the commit LANDED (no confirmation read, T S159
     R6-03); a failure raises as ``StoreUnavailable`` through ``_guarded``.
-    Returns the number of claims released."""
+    Returns the number of claims released.
+
+    The deletion set is CLOSED over every claim that can name the subject at
+    commit time (T S167 R9-02), by two mechanisms. The claims naming the
+    subject are queried again THROUGH this transaction, so a claim a
+    duplicate erasure's fence committed BEFORE this read is in the set. And
+    every seed key — the caller passes the owner key of every address on the
+    subject's post-seal rows, which is every key such a fence can bind — is
+    read here one by one, so a fence that lands AFTER this read and before
+    this commit changed a document in this transaction's read set and this
+    commit conflicts and retries, finding the claim. The fake models the
+    second with per-document versions that survive a delete; server-side
+    serializability under real concurrency remains an isolated-stage item
+    (F-9). A best-effort sweep after the commit cannot carry an instantaneous
+    postcondition; this transaction can. ``claim_keys`` is de-duplicated so
+    each claim is written at most once per commit."""
     if not subject_uuid:
         raise ValueError("refusing to tombstone an empty subject identifier")
     marks, marker_id = tombstone_ref("subject", subject_uuid)
-    keys = [k for k in claim_keys if k]
+    seed = list(dict.fromkeys(k for k in claim_keys if k))   # de-duplicated: one write per claim per commit
 
     def _txn(txn):
+        keys = list(seed)
+        for key in txn.where_ids(owners_collection, "uuid", subject_uuid):
+            if key not in keys:
+                keys.append(key)
         owned = []
         for key in keys:
             current = txn.get_dict(owners_collection, key)

@@ -428,6 +428,11 @@ class TestProcessOptout:
             def delete(self, coll, key):
                 self._db.data.get(coll, {}).pop(key, None)
 
+            def where_ids(self, coll, field, value):
+                # S167: the terminal commit re-queries the claims naming the
+                # subject through its own transaction (T S167 R9-02).
+                return [k for k, d in self._db.data.get(coll, {}).items() if d.get(field) == value]
+
             def _commit(self):
                 pass
 

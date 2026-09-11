@@ -137,6 +137,12 @@ class _Store:
 
     def __init__(self):
         self._docs: Dict[str, tuple] = {}
+        # Per-document version that SURVIVES a delete (S168 Lens B): the real
+        # server's optimistic check compares update times, so a document
+        # deleted and re-created after a transaction read it conflicts that
+        # transaction's commit. A counter kept in the document tuple reset to
+        # zero on delete and let a delete-then-recreate slip past a read.
+        self._versions: Dict[str, int] = {}
 
     def _snapshot(self, doc_id):
         entry = self._docs.get(doc_id)
@@ -150,8 +156,7 @@ class _Store:
         return dict(entry[0]) if entry else None
 
     def _version(self, doc_id):
-        entry = self._docs.get(doc_id)
-        return entry[1] if entry else 0
+        return self._versions.get(doc_id, 0)
 
     def _write_gate(self):
         """Every logical write passes here EXACTLY ONCE. Tests model a
@@ -164,9 +169,12 @@ class _Store:
     def _apply_write(self, doc_id, data):
         """Ungated store mutation, for callers that already passed the gate."""
         version = self._version(doc_id) + 1
+        self._versions[doc_id] = version
         self._docs[doc_id] = (dict(data), version)
 
     def _apply_remove(self, doc_id):
+        if doc_id in self._docs:
+            self._versions[doc_id] = self._version(doc_id) + 1   # a delete is a change a reader must see
         self._docs.pop(doc_id, None)
 
     def _write(self, doc_id, data):
@@ -208,6 +216,26 @@ class FakeTransaction:
 
     def delete(self, collection: str, doc_id: str) -> None:
         self._writes.append(("delete", collection, doc_id, None))
+
+    def where_ids(self, collection: str, field: str, value) -> list:
+        """A query evaluated THROUGH the transaction, like the real client's
+        ``Query.get(transaction=...)``: every matched document joins the read
+        set (a change to one of them before commit conflicts this
+        transaction). A document created after the read is NOT detected here
+        — the real server has no predicate locks either; closure against such
+        a writer comes from this transaction's read set including every key
+        that writer can touch (the caller's seed, read one by one), and from
+        that writer reading a document this transaction writes (T S167
+        R9-02)."""
+        if self._writes:
+            raise RuntimeError("read after write inside a transaction")
+        store = self._db._collection_store(collection)
+        ids = []
+        for doc_id, (data, _v) in list(store._docs.items()):
+            if data.get(field) == value:
+                self._reads[(collection, doc_id)] = store._version(doc_id)
+                ids.append(doc_id)
+        return ids
 
     def _commit(self):
         if self._barrier:
