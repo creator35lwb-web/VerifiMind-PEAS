@@ -1114,52 +1114,156 @@ CARRIER_ADOPTED = "adopted"
 CARRIER_LOST = "lost"
 CARRIER_SEALED = "sealed"
 CARRIER_UNADOPTABLE = "unadoptable"
+CARRIER_CONFLICT = "conflict"
+CARRIER_NONE = "none"
+
+
+def _already_proven(row: dict) -> bool:
+    """Does this row say the mailbox was ALREADY PROVEN for its subject?
+
+    Identity, not availability: the account's ``status`` is deliberately NOT
+    part of it. Account status does not kill credentials — only the subject
+    tombstone does — so a suspended or otherwise non-active row that once
+    proved this mailbox still makes its subject an existing verified identity
+    for it, with a bearer that may still validate. Gating this question on
+    status would let another subject be verified over such a subject whenever
+    it also held an adoptable row, which is exactly the fork R10-01 is about.
+
+    Whether a ROW can be the write target of an adoption is a DIFFERENT
+    question, answered by ``_adoption_updates``, which does require an active
+    account. One predicate per question, each stated (S169 Lens B: three
+    predicates that disagreed made the decision depend on which ran first).
+    A subject that is already proven but has no adoptable row therefore
+    refuses the mailbox instead of yielding it."""
+    return bool(row.get("uuid")) and bool(row.get("email_verified"))
 
 
 def _adopt_carrier_through_stale_claim(
-    owners_collection: str, key: str, *, expected_uuid: str, carrier_uuid: str,
-    carrier_collection: str, row_id: str, collection_base: str, now: str,
-) -> str:
+    owners_collection: str, key: str, *, expected_uuid: str, normalized_email: str,
+    lanes: dict, now: str,
+):
     """Adopt a subject whose account row still carries the mailbox, through
     the stale claim that names an already-erased owner — in ONE transaction
-    (T S167 R9-01; S168 Lens A F1–F3).
+    (T S167 R9-01; S168 Lens A F1–F3; T S168 R10-01; S169 Lens A F-A/F-B/F-C).
 
     Every other writer that binds state to an EXISTING subject reads that
     subject's erasure markers through the transaction that writes
     (``_assert_claim_for_existing_subject``, ``_heal_claimed_record``); this
-    one must too. A check made before the transaction is a snapshot: a seal
-    that landed between it and the commit let a ceremony adopt a subject
-    whose erasure had begun and rewrite consent onto its record. So, inside
-    the transaction: the claim must still name ``expected_uuid`` (else
-    ``lost`` — a concurrent writer won; re-read and adopt through it); the
-    carrier's seal and tombstone must both be absent (else ``sealed`` —
-    nothing written; the erasure finishes on retry); the carrier's row is
-    read HERE and must be adoptable at write time (else ``unadoptable`` —
-    nothing written, so the claim never points at a record the resolver
-    would refuse, and the mailbox is routable again once the row is). Only
-    then are the claim re-point (verified, since the ceremony proved the
-    mailbox) and the sanitizing adoption written together."""
-    from .oauth.stores import run_transaction, subject_is_sealed_or_revoked
+    one must too, and it must decide over the WHOLE carrier set, whose
+    MEMBERSHIP it must also read through the transaction: a set enumerated
+    before the transaction is a snapshot, and a candidate that appears,
+    seals, finishes its erasure, verifies or changes after that snapshot is
+    not bound by re-reading only the members the snapshot happened to hold.
+    So, inside the transaction:
+
+    - the claim must still name ``expected_uuid`` (else ``lost`` — a
+      concurrent writer won; the caller re-reads and adopts through it);
+    - the carrier set is enumerated HERE — every row in either lane carrying
+      the address (``where_ids`` through the transaction, every matched row
+      in the read set), grouped by DISTINCT subject identifier (one subject
+      with rows in both lanes is one candidate, never a conflict with
+      itself), the stale owner's own rows excluded;
+    - per subject, its tombstone and seal are read: a TOMBSTONED subject is
+      no longer a carrier and is ignored (its erasure finished; it is never
+      adopted); a SEALED one refuses (``sealed``, nothing written — its
+      erasure is in progress and its bearer may be admissible);
+    - a subject for which the mailbox was ALREADY PROVEN is adopted when
+      exactly one such subject exists (it is the identity this mailbox
+      belongs to); two of them refuse (``conflict``, nothing written) —
+      adopting one would leave the OTHER holding a proven row for the same
+      address, which is the fork this path exists to prevent; with none, the
+      first subject in lane order is adopted. That question is status-blind
+      on purpose (``_already_proven``): a suspended row that proved the
+      mailbox is still an identity even though its row is not an adoption
+      target. It is quantified over ROWS, not over credentials: a subject
+      whose rows were never proven is not treated as a conflicting identity
+      even if a bearer naming it still validates. Every in-repo path that
+      issues a bearer for an address writes the proven row first, so the row
+      is a faithful proxy there; the credential-state form of the same
+      question is disclosed and routed, not assumed;
+    - the SELECTED subject must have an ADOPTABLE row — an active account with
+      an identifier, ``_adoption_updates`` deciding at write time on the row
+      read here — else ``unadoptable`` with nothing written, and the rights
+      channel is the continuation. That refusal is NOT widened to every live
+      candidate: an unproven subject holds no credential for this address, so
+      denying the mailbox because its row is inactive would cost availability
+      on a state R10-01 never named;
+    - no carrier at all is ``none``: the caller mints a fresh subject.
+
+    Only then are the claim re-point (verified, since the ceremony proved
+    the mailbox) and the sanitizing adoption written together.
+
+    What remains outside this read set is a row that starts matching the
+    address AFTER the enumeration — created then, or UPDATED into it — since a
+    query has no predicate lock, here or on the real server. No in-repo writer
+    can do either while a claim exists: both registration lanes reach
+    ``_reassert_owner_claim``/``claim_email`` before writing a row, and
+    ``_heal_claimed_record`` writes only for the claim's OWN named owner,
+    whose tombstone it reads inside its own transaction (it does not read the
+    claim, so the general form of that argument would be false). An
+    out-of-band write of either shape is the predicate-lock limit already
+    routed as F-9. Returns ``(outcome, adopted_subject_or_None)``."""
+    from .oauth.stores import run_transaction, tombstone_ref
 
     def _txn(txn):
         current = txn.get_dict(owners_collection, key)
         if current is None or current.get("uuid") != expected_uuid:
-            return CARRIER_LOST
-        if subject_is_sealed_or_revoked(txn, carrier_uuid):
-            return CARRIER_SEALED
-        row = txn.get_dict(carrier_collection, row_id)
-        updates = None if row is None else _adoption_updates(row, collection_base, now)
-        if updates is None:
-            return CARRIER_UNADOPTABLE
+            return CARRIER_LOST, None
+        # membership, through the transaction, by distinct subject
+        by_subject = {}
+        for base, collection in lanes.items():
+            for row_id in txn.where_ids(collection, "email", normalized_email):
+                row = txn.get_dict(collection, row_id) or {}
+                subject = row.get("uuid") or row_id
+                if not subject or subject == expected_uuid:
+                    continue
+                by_subject.setdefault(subject, []).append((base, collection, row_id, row))
+        live = {}
+        for subject, rows in by_subject.items():
+            tomb_c, tomb_id = tombstone_ref("subject", subject)
+            seal_c, seal_id = tombstone_ref("erasure", subject)
+            if txn.get_dict(tomb_c, tomb_id) is not None:
+                continue                                    # erasure finished: no longer a carrier
+            if txn.get_dict(seal_c, seal_id) is not None:
+                return CARRIER_SEALED, None                 # erasure in progress: refuse
+            live[subject] = rows
+        if not live:
+            return CARRIER_NONE, None
+        # WHOSE mailbox this is, decided over the whole set: a subject with an
+        # already-proven row holds a credential for THIS address, so two of them refuse
+        # and one of them is the answer. With none, lane order decides.
+        proven = [s for s, rows in live.items() if any(_already_proven(r[3]) for r in rows)]
+        if len(proven) > 1:
+            return CARRIER_CONFLICT, None
+        chosen = proven[0] if proven else next(iter(live))
+        # The SELECTED subject must have a row this ceremony can adopt — decided on the
+        # rows read HERE, at write time, an already-proven row first since adopting
+        # through it rewrites nothing. This refusal is deliberately NOT widened to every
+        # live candidate (S169 lens): an UNPROVEN subject holds no credential for this
+        # address, so denying the mailbox because ITS row is inactive would cost
+        # availability on a state R10-01 never named, and 72a92ae did not deny it.
+        ordered = sorted(live[chosen], key=lambda r: 0 if _already_proven(r[3]) else 1)
+        plan = next((r for r in ordered if _adoption_updates(r[3], r[0], now) is not None), None)
+        if plan is None:
+            return CARRIER_UNADOPTABLE, None                # cannot adopt the answer: fail closed
         txn.set(owners_collection, key, {
-            "email_hash": key, "uuid": carrier_uuid, "collection": collection_base,
+            "email_hash": key, "uuid": chosen, "collection": plan[0],
             "lane": "backfill", "claimed_at": now, "verified": True, "verified_at": now,
         })
-        if updates:
-            txn.update(carrier_collection, row_id, updates)
-        return CARRIER_ADOPTED
+        # EVERY row of the adopted subject that carries this address is sanitized, not
+        # only the one the claim names (S169 lens): the proof belongs to the SUBJECT, so
+        # nothing an unverified caller chose on any of its rows may survive it — and a
+        # sibling row is what `/whoami` and the status endpoint serve for it. Each of
+        # these rows is already in this transaction's read set; one `_adoption_updates`
+        # refuses (inactive, or no identifier) is left alone rather than written blind.
+        for r_base, r_collection, r_row_id, r_row in ordered:
+            r_updates = _adoption_updates(r_row, r_base, now)
+            if r_updates:
+                txn.update(r_collection, r_row_id, r_updates)
+        return CARRIER_ADOPTED, chosen
 
-    return str(run_transaction(_txn))
+    outcome, subject = run_transaction(_txn)
+    return str(outcome), subject
 
 
 def _detach_unverified_feedback(db, feedback_collection: str, uuid: str) -> int:
@@ -1178,39 +1282,6 @@ def _detach_unverified_feedback(db, feedback_collection: str, uuid: str) -> int:
         })
         detached += 1
     return detached
-
-
-def _live_row_carrying(db, lanes: dict, normalized_email: str, *, except_uuid: str):
-    """The first account row in either lane that still carries the address
-    for a subject OTHER than ``except_uuid`` and is not tombstoned, as
-    ``(collection_base, snapshot, subject_uuid)``; None when no such row
-    exists. Used by the resolver before it reclaims a stale claim (T S167
-    R9-01). The predicate is NOT TOMBSTONED, deliberately wider than "live":
-    a sealed subject's row is returned so the caller refuses the mailbox
-    while that erasure finishes (its bearer may still be admissible); only a
-    tombstoned subject's row — the pending-de-identification end state — is
-    not a carrier, because its identifier is never revived. A row keyed by
-    the subject with no ``uuid`` field counts through its id (the S165 A-1
-    selector class) — it is a carrier the adopter then refuses, never a row
-    a fresh subject may be minted over. Returns
-    ``(collection_base, snapshot, subject_uuid, any_sealed)``."""
-    first = None
-    for base, collection in lanes.items():
-        for found in db.collection(collection).where("email", "==", normalized_email).get():
-            data = found.to_dict() or {}
-            row_uuid = data.get("uuid") or getattr(found, "id", "")
-            if not row_uuid or row_uuid == except_uuid or _subject_erasure_complete(row_uuid):
-                continue
-            if _subject_revoked(row_uuid):
-                # Any sealed candidate refuses the mailbox (S168 Lens A F5):
-                # the refusal is a property of the candidate SET, not of
-                # whichever row the lane order reached first. A snapshot —
-                # the chosen carrier's markers are re-read inside the
-                # adopting transaction, which is the authority.
-                return base, found, row_uuid, True
-            if first is None:
-                first = (base, found, row_uuid, False)
-    return first
 
 
 def resolve_verified_subject(email) -> Optional[str]:
@@ -1267,38 +1338,27 @@ def resolve_verified_subject(email) -> Optional[str]:
                 # The owner's erasure FINISHED (subject tombstoned) but its
                 # claim was not released: a revoked identifier is never
                 # adopted, healed, or re-issued. Before replacing the stale
-                # claim with a FRESH subject, look for a row that still carries
-                # the address for a DIFFERENT, non-tombstoned subject (T S167
-                # R9-01): a legacy duplicate, or a subject whose erasure was
-                # interrupted behind this stale anchor. A fresh subject may
-                # never be minted while such a subject's credentials are
-                # admissible — that is the mailbox fork the fence exists to
-                # prevent. A sealed one fails closed (its erasure finishes on
-                # retry); a live one is adopted through the stale claim,
-                # re-pointed conditionally so a concurrent resolver conflicts
-                # instead of forking, and a lost race re-reads and adopts the
-                # winner (each pinned in the round-10 tests: sealed carrier
-                # refused, tombstoned carrier never revived, lost race
-                # adopts).
-                carrier = _live_row_carrying(db, lanes, normalized, except_uuid=owner_uuid)
-                if carrier is not None:
-                    base, found, carrier_uuid, any_sealed = carrier
-                    if any_sealed:
-                        logger.error(
-                            "Erasure is in progress for a subject whose record carries this mailbox; "
-                            "refusing to resolve a subject"
-                        )
-                        return None
-                    outcome = _adopt_carrier_through_stale_claim(
-                        owners_collection, key, expected_uuid=owner_uuid, carrier_uuid=carrier_uuid,
-                        carrier_collection=lanes[base], row_id=getattr(found, "id", None) or carrier_uuid,
-                        collection_base=base, now=now,
-                    )
-                    if outcome == CARRIER_ADOPTED:
-                        _detach_unverified_feedback(db, feedback_collection, carrier_uuid)
-                        return carrier_uuid
-                    if outcome == CARRIER_LOST:
-                        continue  # the claim changed under us — re-read and adopt the winner
+                # claim with a FRESH subject, decide over every row that
+                # still carries the address for a DIFFERENT, non-tombstoned
+                # subject (T S167 R9-01; T S168 R10-01): a legacy duplicate,
+                # or a subject whose erasure was interrupted behind this
+                # stale anchor. A fresh subject may never be minted while
+                # such a subject's credentials are admissible — that is the
+                # mailbox fork the fence exists to prevent. The decision —
+                # membership, lifecycle, adoptability, selection — is made
+                # INSIDE the adopting transaction, so anything that changes
+                # after its reads conflicts the commit and the retry decides
+                # again; a lost race re-reads and adopts the winner.
+                outcome, carrier_uuid = _adopt_carrier_through_stale_claim(
+                    owners_collection, key, expected_uuid=owner_uuid,
+                    normalized_email=normalized, lanes=lanes, now=now,
+                )
+                if outcome == CARRIER_ADOPTED:
+                    _detach_unverified_feedback(db, feedback_collection, carrier_uuid)
+                    return carrier_uuid
+                if outcome == CARRIER_LOST:
+                    continue  # the claim changed under us — re-read and adopt the winner
+                if outcome != CARRIER_NONE:
                     logger.error(
                         "A record carrying this mailbox cannot be adopted (%s); refusing to resolve a subject",
                         outcome,
@@ -1533,7 +1593,19 @@ def _fence_mailbox_for_erasure(
     this subject's row still carries the address and its bearer is admissible
     — so it is re-pointed to this subject as a durable fence (the resolver's
     own read-then-set reclaim discipline, T S159 F-02) and reported
-    ``fenced``. A live or sealed-in-progress owner keeps its claim
+    ``fenced``. Every branch that writes a claim naming this subject also
+    records the key in the subject's FENCE INDEX inside the same transaction
+    (T S168 R10-02): the terminal commit reads that index FIRST, so a fence
+    written from a row snapshot the current rows no longer carry is in its
+    set, or conflicts it. What is load-bearing is the index document's
+    presence in that read set: once a fence inside the window conflicts the
+    commit, the retry finds the claim by its own query, so the recorded
+    ``keys`` are corroboration — measurably so, since only an isolated test
+    that silences that query can discriminate them. The terminal commit of a
+    COMPLETED erasure deletes
+    the index; an erasure abandoned between this fence and that commit leaves
+    it behind together with the fenced claim and the seal, for the retry to
+    clear. A live or sealed-in-progress owner keeps its claim
     (``anchored_elsewhere``); a sealed owner's own commit releases it, and this
     subject's row keeps its route until then. A fence that cannot be WRITTEN
     raises, and the caller stops before anything is removed. This is the erasure's own write,
@@ -1547,19 +1619,32 @@ def _fence_mailbox_for_erasure(
     from .oauth.stores import run_transaction, tombstone_ref
 
     marks, marker_id = tombstone_ref("subject", subject_uuid)
+    fence_marks, fence_id = tombstone_ref("fence", subject_uuid)
 
     def _txn(txn):
         if txn.get_dict(marks, marker_id) is not None:
             return FENCE_ERASED
         current = txn.get_dict(owners_collection, key)
+        # The subject's fence index (T S168 R10-02): every key a fence binds
+        # to this subject, recorded in the same transaction as the claim, so
+        # the terminal commit's read set covers a fence written from a row
+        # snapshot the current rows no longer carry. Read before any write.
+        index = txn.get_dict(fence_marks, fence_id) or {}
+        recorded = sorted(set(index.get("keys", []) or []) | {key})
+
+        def _record():
+            txn.set(fence_marks, fence_id, {"kind": "fence", "key": subject_uuid, "keys": recorded})
+
         if current is None:
             txn.set(owners_collection, key, {
                 "email_hash": key, "uuid": subject_uuid, "collection": collection_base,
                 "lane": "erasure_fence", "claimed_at": now, "verified": False,
             })
+            _record()
             return FENCE_FENCED
         if current.get("uuid") == subject_uuid:
             txn.update(owners_collection, key, {"email_hash": key})
+            _record()
             return FENCE_FENCED
         other = str(current.get("uuid") or "")
         if not other:
@@ -1572,6 +1657,7 @@ def _fence_mailbox_for_erasure(
                 "lane": "erasure_fence", "claimed_at": now, "verified": False,
                 "reclaimed_from_tombstoned": None,
             })
+            _record()
             return FENCE_FENCED
         other_marks, other_marker = tombstone_ref("subject", other)
         if txn.get_dict(other_marks, other_marker) is not None:
@@ -1582,6 +1668,7 @@ def _fence_mailbox_for_erasure(
                 "lane": "erasure_fence", "claimed_at": now, "verified": False,
                 "reclaimed_from_tombstoned": other,
             })
+            _record()
             return FENCE_FENCED
         return FENCE_ANCHORED_ELSEWHERE
 
@@ -1709,11 +1796,11 @@ async def process_optout(uuid: str) -> OptOutResponse:
         #    the only sign that erasure was requested, and the next verified
         #    ceremony healed an ACTIVE account with the address for it.
         write_erasure_seal(uuid)
-        # Every address on every row of this subject AFTER the seal (no heal
-        # can add a row from here, so this set is a superset of what any
-        # concurrent duplicate erasure's fence can bind to this subject): its
-        # owner keys seed the terminal commit's deletion set (T S167 R9-02).
-        # Read before the scrub, which removes the addresses.
+        # The owner key of every address on every row of this subject AFTER the
+        # seal. The fence index (below) is what CLOSES the terminal set; this
+        # seed is corroboration from current storage, kept because it costs one
+        # read per key and keeps closure over any claim writer that does not
+        # consult the seal. Read before the scrub, which removes the addresses.
         fence_keys = {
             email_owner_key(normalize_email(str(data.get("email"))))
             for _b, _c, _i, _r, data in _subject_rows(db, uuid, ea_collection, light_collection)
@@ -1742,14 +1829,17 @@ async def process_optout(uuid: str) -> OptOutResponse:
         #    F-02). Writers that could add a claim after the seal read it
         #    through their own transaction and refuse (T S159 R6-01) — except
         #    a concurrent duplicate erasure's own fence, which ignores the
-        #    seal so a retry can continue. So the commit is handed the owner
-        #    key of every address on this subject's post-seal rows (every key
-        #    such a fence can bind; each is read inside the transaction, so a
-        #    fence landing inside the commit window conflicts it) and finds
-        #    every other claim naming this subject — a stale one at a key no
-        #    row carries (the round-5 F-03 class), or a fence that landed
-        #    before its read — by its own transactional query (T S167 R9-02).
-        #    A query taken outside the transaction added nothing to that set.
+        #    seal so a retry can continue. The set is closed over that fence by
+        #    the subject's FENCE INDEX (T S168 R10-02), which every fence
+        #    writes in its own transaction and which this commit reads FIRST:
+        #    a key bound from a row snapshot an older request took BEFORE the
+        #    scrub is in no current read, but it is in the index. Two
+        #    corroborating mechanisms remain from round 9 (T S167 R9-02): the
+        #    commit's own transactional query, which finds every claim naming
+        #    this subject at read time — including a stale one at a key no row
+        #    carries, the round-5 F-03 class — and the seed above, the owner
+        #    key of every address on this subject's post-seal rows, each read
+        #    inside the transaction so a write to it conflicts the commit.
         tombstone_subject_releasing_claims(uuid, owners_collection, sorted(fence_keys))
         # 5. HYGIENE, after the point of no return: sweep any claim that slipped
         #    past the snapshot above (a concurrent duplicate opt-out's own

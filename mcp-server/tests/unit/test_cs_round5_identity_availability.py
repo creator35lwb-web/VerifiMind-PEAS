@@ -69,8 +69,11 @@ Every test whose comment begins with an exact SHA was demonstrated FAILING
 against that tree ("68daa5c:" for the round-5 repair, "84fd926:" for the
 round-6 one, "cedc24b:" for the corrective commit that followed it,
 "59424c5:" for the round-7 one, "0b33ee9:" for the round-8 one,
-"aab9995:" for the round-9 one). The fake
-is copied into the old tree with the test, so only the source differs — and
+"aab9995:" for the round-9 one, "72a92ae:" for the round-10 residual). For a
+PARAMETRIZED test the label is per-CASE: where only some parameters
+discriminate, the comment names which ones and that round's paragraph counts
+them, so a label on the function is never a claim about every case of it. The
+fake is copied into the old tree with the test, so only the source differs — and
 a test that must fail the AUTHORITATIVE tombstone write patches whichever
 seam the tree under test has (``_tombstone_write_fails``), so it
 discriminates on behaviour at every head instead of on a missing symbol.
@@ -164,11 +167,66 @@ lanes). Ten pins pass at both heads: the sealed owner's claim kept (both
 lanes); a tombstoned carrier never revived (both lanes); the stale owner's
 own row; the lost reclaim race; a deferred row whose hygiene succeeds (both
 lanes); the complete receipt and its scope; the fake's read-set test. Twenty
-per-finding mutants were re-run on this tree after both lenses (one per
+per-finding mutants were re-run at THAT head after both lenses (one per
 finding, sha256-verified restore): nineteen killed; the one survivor drops
 the identity exclusion of the stale owner's own row from the carrier scan,
 which is equivalent under that branch's precondition (the owner is
 tombstoned) and is kept as a statement of intent.
+Round 10 (2026-09-12, T S168) accepted the round-9 repairs R9-01, R9-02 and
+R9-03, and found two set-level SNAPSHOTS inside its own contract: the carrier
+scan bound only the SELECTED candidate in the adoption transaction, and the
+terminal set was built from current rows and a current query, so an older
+request's pre-scrub row snapshot could fence outside it. The round-10 residual
+closes both — the WHOLE carrier decision, membership included, moves inside the
+adopting transaction, and every fence records a per-subject index the terminal
+commit reads first. Against `72a92ae`, 13 of the 122 cases the file now holds
+fail (109 pass, 0 skip), ALL on a behavioural or state assertion and none by
+symbol absence: a seal on the NON-SELECTED carrier inside the adoption window
+(in the lane order where the parent selected the other row; the reverse order is
+a pin there, because the parent re-read the selected carrier anyway); two
+verified carriers refused (both orders); the verified carrier selected over an
+unverified first-lane row (the order the parent got wrong); the SELECTED
+candidate's erasure finishing inside the window, which the parent answers by
+refusing the whole request instead of deciding again; a carrier appearing
+between the parent's scan and its transaction; EVERY address-bearing row of the
+adopted subject sanitized while the claim names the already-proven row's lane;
+an older fence from a pre-scrub snapshot inside the terminal window (both
+lanes); that same fence through the stale-owner and the ownerless reclaim
+branches; a fence landing before the terminal read, whose index the parent never
+writes; and the terminal primitive releasing a claim from the index ALONE, with
+no caller seed and its own query silenced. Ten cases pass at both heads and say
+so: the two reverse lane orders; a non-selected candidate whose erasure FINISHES
+inside the window (ignored, not refused, with a witness that it did); one
+subject with rows in both lanes as ONE candidate rather than a conflict with
+itself; an unproven, unadoptable candidate that does NOT deny the mailbox to an
+adoptable one; a live subject whose own row cannot be adopted refusing rather
+than being out-ranked (both shapes, for different reasons — see the test); the
+adopted row sanitized and not merely claimed; a proven row counting as an
+identity whatever its account status; and a fence after the tombstone writing
+neither claim nor index. Three of those pins exist because a mutant, not the
+parent, discriminates them, and two because a lens found this repair's own
+FIRST CUT wrong: it quantified the conflict over ROWS (so one subject with rows
+in both lanes conflicted with itself) and it widened the adoptability refusal to
+every live candidate (so an unproven, inactive second row denied the mailbox
+permanently, which `72a92ae` does not).
+
+Twenty-eight per-finding mutants were run on this head after three adversarial
+passes (one per repair element, sha256-verified restore between each):
+twenty-six killed. The two survivors are equivalent under a stated precondition
+and are disclosed rather than papered over — emptying the caller's current-row
+SEED inside the terminal primitive changes nothing the index and the query do
+not already cover (it is kept deliberately, as closure over any future claim
+writer that does not consult the seal), and counting a row with NO identifier as
+already proven only moves the decision further closed, since such a subject has
+no adoptable row. What the lenses found and this head does NOT change is
+recorded in the S169 Hub record and routed to T: the three refusals reach the
+user as the same transient 503 page a real outage produces and never name the
+rights channel (`oauth/endpoints.py`, a surface this repair does not touch);
+the conflict question is quantified over proven ROWS rather than over credential
+state; a claim naming a subject whose row id differs from its uuid lets the next
+ceremony heal a duplicate row (identical at both heads); and the membership
+residual covers a row UPDATED into the address as well as one created, both
+routed with F-9.
 """
 
 import asyncio
@@ -187,7 +245,7 @@ from verifimind_mcp.oauth import authlib_server, core, endpoints, stores
 from verifimind_mcp.oauth.core import ACCESS, REFRESH
 from verifimind_mcp.oauth.stores import StoreUnavailable
 
-from .oauth_fakes import FakeFirestore
+from .oauth_fakes import FakeFirestore, FakeTransaction
 from .test_cs_round3_security import RecordingFirestore, _issue_pair, _refresh_grant
 from .test_cs_round4_identity import (
     REGISTRATION_NOW,
@@ -2708,3 +2766,462 @@ class TestAnchorsHaveLifecyclesAndCommitsCloseTheirSets:
         txn.delete(OWNERS, key)
         with pytest.raises(TransactionConflict):
             txn._commit()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CS round 10 (T S168) — a set-level decision binds every live participant:
+# every candidate of the carrier set, and every in-flight request that has
+# already read enough to write.
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestSetDecisionsBindEveryLiveParticipant:
+    """CS round 10 at `72a92ae` (T S168 R10-01/R10-02). R10-01: the carrier
+    set was scanned outside the adoption transaction and only the SELECTED
+    carrier's markers and row were read inside it, so a different candidate
+    could seal after the scan while the selected one was adopted — two
+    verified subjects on one mailbox and the sealed subject's bearer still
+    admissible. R10-02: the terminal commit's set was seeded from current
+    rows and a current query, so an older duplicate erasure holding a row
+    snapshot from before a scrub could fence the address inside the commit
+    window at a key the transaction never read; success returned with a
+    claim naming the tombstoned subject when hygiene was unavailable. Tests
+    labelled ``72a92ae:`` fail at that head on the named assertion; the
+    measured differential is in the module header."""
+
+    OTHER = "018f6b2a-bbb2-7abc-8def-0123456789ab"
+    SUBJECT = "018f6b2a-bbb3-7abc-8def-0123456789ab"
+    SECOND = "018f6b2a-c0c0-7abc-8def-0123456789ab"
+    ORDERS = (("early_adopters", "ea_registrations"), ("ea_registrations", "early_adopters"))
+
+    @staticmethod
+    def _row(rdb, lane, subject, *, verified):
+        rdb.seed(lane, subject, {
+            "uuid": subject, "email": VICTIM_EMAIL, "status": "active", "email_verified": verified,
+        })
+
+    @staticmethod
+    def _fence_index(rdb, subject):
+        """The subject's fence index as stored — resolved through the same
+        namespaced ``tombstone_ref`` the code uses, so an absent index is a
+        real absence and not a wrong collection name."""
+        collection, doc_id = stores.tombstone_ref("fence", subject)
+        return rdb.docs(collection).get(doc_id)
+
+    def _stale_claim(self, rdb):
+        key = _owner_key(VICTIM_EMAIL)
+        rdb.seed(OWNERS, key, {"uuid": self.OTHER, "collection": "early_adopters", "verified": True})
+        stores.write_subject_tombstone(self.OTHER)
+        return key
+
+    # ── R10-01 · the whole candidate set is bound at adoption ────────────────
+
+    @pytest.mark.parametrize("first_lane,second_lane", ORDERS)
+    def test_a_seal_on_a_non_selected_carrier_inside_the_adoption_window_refuses(self, rdb, first_lane, second_lane):
+        # 72a92ae (in the order where the parent selected the OTHER row —
+        # lane order is fixed, so the reverse parameter is a pin: there the
+        # sealed candidate IS the selected one and the parent re-read it):
+        # (T S168 R10-01, HIGH) two live unverified carriers; the first in
+        # lane order is selected. The other candidate's erasure seal lands
+        # after the scan and before the adoption commit. The
+        # transaction now reads every candidate's markers and row, so the
+        # commit conflicts, the retry sees the seal, and nothing is written:
+        # no second verified subject, the sealed subject's bearer alive.
+        key = self._stale_claim(rdb)
+        self._row(rdb, first_lane, self.SUBJECT, verified=False)      # selected (first lane)
+        self._row(rdb, second_lane, self.SECOND, verified=False)      # the non-selected candidate
+        token = _issue_pat_for(self.SECOND)
+        writes = _count_owner_writes(rdb)
+        rdb._next_barrier = lambda: stores.write_erasure_seal(self.SECOND)   # fires at the adoption commit
+        # Intended first assertion: refused — no candidate adopted while another sealed.
+        assert endpoints._resolve_or_create_subject(VICTIM_EMAIL) is None, "a carrier was adopted after another candidate sealed"
+        assert rdb.docs(OWNERS)[key]["uuid"] == self.OTHER and writes["n"] == 0
+        assert rdb.docs(first_lane)[self.SUBJECT]["email_verified"] is False          # nothing rewritten
+        assert registration._subject_revoked(self.SECOND) and _bearer_alive(token)
+
+    @pytest.mark.parametrize("first_lane,second_lane", ORDERS)
+    def test_two_verified_carriers_refuse_the_mailbox_without_writes(self, rdb, first_lane, second_lane):
+        # 72a92ae: (T S168 R10-01, the conflicting-identity clause) two live
+        # VERIFIED carriers for one mailbox — adopting either would leave the
+        # other verified with an admissible bearer. The transaction refuses
+        # with nothing written; both bearers stay as they were.
+        key = self._stale_claim(rdb)
+        self._row(rdb, first_lane, self.SUBJECT, verified=True)
+        self._row(rdb, second_lane, self.SECOND, verified=True)
+        tokens = (_issue_pat_for(self.SUBJECT), _issue_pat_for(self.SECOND))
+        writes = _count_owner_writes(rdb)
+        assert endpoints._resolve_or_create_subject(VICTIM_EMAIL) is None, "one of two verified carriers was adopted over the other"
+        assert rdb.docs(OWNERS)[key]["uuid"] == self.OTHER and writes["n"] == 0
+        assert all(_bearer_alive(t) for t in tokens)
+
+    @pytest.mark.parametrize("first_lane,second_lane", ORDERS)
+    def test_the_verified_carrier_is_selected_whatever_the_lane_order(self, rdb, first_lane, second_lane):
+        # 72a92ae (in the order where the verified row sits in the second
+        # lane; the reverse parameter is a pin — the parent's first-lane
+        # rule picked it anyway): (T S168 R10-01, selection) one verified and
+        # one unverified carrier: the verified one — the identity the mailbox
+        # was already proven for — is adopted whatever lane it sits in; the
+        # unverified row is not rewritten and the claim names the verified
+        # subject.
+        key = self._stale_claim(rdb)
+        self._row(rdb, first_lane, self.SUBJECT, verified=False)
+        self._row(rdb, second_lane, self.SECOND, verified=True)
+        assert endpoints._resolve_or_create_subject(VICTIM_EMAIL) == self.SECOND, "the unverified first-lane row out-ranked the verified carrier"
+        assert rdb.docs(OWNERS)[key]["uuid"] == self.SECOND and rdb.docs(OWNERS)[key]["verified"] is True
+        assert rdb.docs(first_lane)[self.SUBJECT]["email_verified"] is False and "consent" not in rdb.docs(first_lane)[self.SUBJECT]
+
+    def test_a_candidate_whose_erasure_finishes_inside_the_window_is_ignored_not_refused(self, rdb):
+        # pin (Lens B M6/MX3: the production shape — seal, THEN tombstone):
+        # a non-selected candidate whose erasure FINISHES inside the window
+        # is no longer a carrier; the retry adopts the remaining live
+        # candidate instead of refusing the mailbox forever on its seal.
+        key = self._stale_claim(rdb)
+        self._row(rdb, "early_adopters", self.SUBJECT, verified=False)
+        self._row(rdb, "ea_registrations", self.SECOND, verified=False)
+
+        def the_other_candidates_erasure_finishes():
+            stores.write_erasure_seal(self.SECOND)
+            stores.write_subject_tombstone(self.SECOND)
+
+        rdb._next_barrier = the_other_candidates_erasure_finishes
+        assert endpoints._resolve_or_create_subject(VICTIM_EMAIL) == self.SUBJECT, "a finished erasure on another candidate refused the mailbox"
+        # without this witness the test passes with its interleaving DELETED: two live
+        # candidates also resolve to SUBJECT by lane order (a lens found exactly that)
+        assert _tombstoned(self.SECOND), "the other candidate's erasure never finished; the test proved nothing"
+        assert rdb.docs(OWNERS)[key]["uuid"] == self.SUBJECT
+
+    def test_the_selected_candidate_whose_erasure_finishes_inside_the_window_is_never_adopted(self, rdb):
+        # 72a92ae: (Lens B M7; Lens A F-D) the SELECTED candidate's erasure
+        # finishes (seal, then tombstone) inside the window. The retry
+        # decides the set again inside the transaction: the tombstoned
+        # candidate is gone, the remaining live one is adopted — never the
+        # tombstoned identifier, never a refusal of the whole request.
+        key = self._stale_claim(rdb)
+        self._row(rdb, "early_adopters", self.SUBJECT, verified=False)     # selected (first lane)
+        self._row(rdb, "ea_registrations", self.SECOND, verified=False)
+
+        def the_selected_candidates_erasure_finishes():
+            stores.write_erasure_seal(self.SUBJECT)
+            stores.write_subject_tombstone(self.SUBJECT)
+
+        rdb._next_barrier = the_selected_candidates_erasure_finishes
+        assert endpoints._resolve_or_create_subject(VICTIM_EMAIL) == self.SECOND, "a tombstoned selected candidate refused the request or was adopted"
+        assert rdb.docs(OWNERS)[key]["uuid"] == self.SECOND
+
+    def test_one_subject_with_rows_in_both_lanes_is_one_candidate_not_a_conflict(self, rdb):
+        # pin (Lens A F-B): a subject holding a verified row in BOTH lanes is
+        # ONE candidate, never a conflict with itself. It passes at 72a92ae,
+        # which decided over a single selected row and so could not conflict
+        # with itself; the FIRST CUT of this repair introduced that bug by
+        # quantifying the conflict rule over ROWS, and the adversarial lens
+        # caught it before this commit. The set is quantified over DISTINCT
+        # subject identifiers: the subject is adopted, the claim names it.
+        key = self._stale_claim(rdb)
+        self._row(rdb, "early_adopters", self.SUBJECT, verified=True)
+        self._row(rdb, "ea_registrations", self.SUBJECT, verified=True)
+        assert endpoints._resolve_or_create_subject(VICTIM_EMAIL) == self.SUBJECT, "a subject conflicted against its own second-lane row"
+        assert rdb.docs(OWNERS)[key]["uuid"] == self.SUBJECT and rdb.docs(OWNERS)[key]["verified"] is True
+
+    def test_an_unproven_unadoptable_candidate_does_not_deny_the_mailbox(self, rdb):
+        # pin at 72a92ae, and a repair of THIS repair's first cut. A second live
+        # candidate whose row never proved the mailbox and cannot be adopted
+        # (suspended) holds no credential for this address, so it must not deny
+        # the mailbox to the candidate that can be adopted. The first cut judged
+        # adoptability over EVERY live candidate and refused here — permanently,
+        # since nothing in the state changes — which is an availability loss on
+        # a state R10-01 never named. A lens found it before this commit.
+        key = self._stale_claim(rdb)
+        self._row(rdb, "early_adopters", self.SUBJECT, verified=False)
+        rdb.seed("ea_registrations", self.SECOND, {
+            "uuid": self.SECOND, "email": VICTIM_EMAIL, "status": "suspended", "email_verified": False,
+        })
+        assert endpoints._resolve_or_create_subject(VICTIM_EMAIL) == self.SUBJECT, "an unproven, unadoptable candidate denied the mailbox"
+        assert rdb.docs(OWNERS)[key]["uuid"] == self.SUBJECT and rdb.docs(OWNERS)[key]["verified"] is True
+        assert rdb.docs("ea_registrations")[self.SECOND]["email_verified"] is False     # left alone
+
+    @pytest.mark.parametrize("shape", ("inactive_verified", "uuid_less_verified"))
+    def test_a_live_subject_with_an_unadoptable_row_refuses_not_out_ranked(self, rdb, shape):
+        # pin (Lens A F-C, Lens B M4a/M5b — the accepted fail-closed cost,
+        # stated per shape). `inactive_verified`: the suspended row PROVED this
+        # mailbox, so its subject is the identity the mailbox belongs to and no
+        # other carrier may be verified over it — but the row is not an
+        # adoption target, so the mailbox refuses with nothing written and the
+        # rights channel is the continuation. `uuid_less_verified`: nothing
+        # proved the mailbox (no identifier, so `_already_proven` is false), and
+        # lane order selects it — the round-9 rule that a carrier row is never
+        # out-ranked by minting a fresh subject. Both refuse; the reasons
+        # differ, and only the first is about credentials.
+        key = self._stale_claim(rdb)
+        if shape == "inactive_verified":
+            rdb.seed("early_adopters", self.SUBJECT, {"uuid": self.SUBJECT, "email": VICTIM_EMAIL, "status": "suspended", "email_verified": True})
+        else:
+            rdb.seed("early_adopters", self.SUBJECT, {"email": VICTIM_EMAIL, "status": "active", "email_verified": True})
+        self._row(rdb, "ea_registrations", self.SECOND, verified=False)
+        writes = _count_owner_writes(rdb)
+        assert endpoints._resolve_or_create_subject(VICTIM_EMAIL) is None, "a live carrier was verified over a subject whose row cannot be adopted"
+        assert rdb.docs(OWNERS)[key]["uuid"] == self.OTHER and writes["n"] == 0
+
+    def test_membership_is_decided_inside_the_transaction_not_from_a_scan(self, rdb):
+        # 72a92ae: (Lens A F-A) a carrier row that appears after the parent's
+        # pre-transaction scan and before the adopting transaction was not a
+        # member of the set that transaction decided over: the parent adopted
+        # the row it had scanned while a VERIFIED, SEALED second carrier
+        # existed in the same lane — two verified subjects for one mailbox and
+        # the sealed one's bearer still admissible. Membership is enumerated
+        # inside the transaction now, so the second carrier is bound and the
+        # mailbox refuses with nothing written. (A row created after the
+        # transaction's OWN read, by a writer that reads nothing this
+        # transaction writes, is the predicate-lock limit disclosed as F-9;
+        # every in-repo writer reads the claim first.)
+        key = self._stale_claim(rdb)
+        self._row(rdb, "early_adopters", self.SUBJECT, verified=False)
+        token = _issue_pat_for(self.SECOND)
+        real = stores.run_transaction
+        state = {"n": 0}
+
+        def a_verified_sealed_carrier_appears_first(func):
+            if state["n"] == 0:                            # the adopting transaction is the first
+                state["n"] = 1
+                self._row(rdb, "early_adopters", self.SECOND, verified=True)
+                stores.write_erasure_seal(self.SECOND)     # a plain marker write, not a transaction
+            return real(func)
+
+        writes = _count_owner_writes(rdb)
+        with patch.object(stores, "run_transaction", side_effect=a_verified_sealed_carrier_appears_first):
+            resolved = endpoints._resolve_or_create_subject(VICTIM_EMAIL)
+        assert state["n"] == 1, "no transaction ran; the second carrier never appeared"
+        assert resolved is None, "a member that appeared before the adopting transaction was not bound"
+        assert rdb.docs(OWNERS)[key]["uuid"] == self.OTHER and writes["n"] == 0
+        assert rdb.docs("early_adopters")[self.SUBJECT]["email_verified"] is False and _bearer_alive(token)
+
+
+    def test_the_adopted_row_is_sanitized_not_only_the_claim_repointed(self, rdb):
+        # pin (mutant M10 survived without it): adoption is a claim re-point
+        # AND a sanitizing write, in one transaction. Everything an unverified
+        # caller chose on the carrier row is neutralised, the ceremony's own
+        # consent provenance is stamped, the cohort privilege returns to the
+        # lane default, and the earlier registration moment is kept as
+        # provenance rather than presented as the verified actor's.
+        key = self._stale_claim(rdb)
+        rdb.seed("early_adopters", self.SUBJECT, {
+            "uuid": self.SUBJECT, "email": VICTIM_EMAIL, "status": "active", "email_verified": False,
+            "display_name": "chosen by an unverified caller", "name": "also chosen",
+            "registration_feedback": "unverified prose", "feedback_type": "praise",
+            "tier": "pioneer", "pilot_source": "invite-code", "updates_consent": True,
+            "registered_at": "2026-01-01T00:00:00+00:00",
+        })
+        assert endpoints._resolve_or_create_subject(VICTIM_EMAIL) == self.SUBJECT
+        assert rdb.docs(OWNERS)[key]["uuid"] == self.SUBJECT and rdb.docs(OWNERS)[key]["verified"] is True
+        row = rdb.docs("early_adopters")[self.SUBJECT]
+        assert row["email_verified"] is True and row["verification_path"] == "oauth_ceremony_v2", "the row was claimed but never sanitized"
+        assert row["display_name"] is None and row["name"] is None
+        assert row["registration_feedback"] is None and row["feedback_type"] is None
+        assert row["tier"] == "early_adopter" and row["pilot_source"] is None
+        assert row["consent"] is True and row["updates_consent"] is False
+        assert row["tc_accepted"] is True and row["privacy_acknowledged"] is True
+        assert row["preregistration"]["created_at"] == "2026-01-01T00:00:00+00:00"
+        assert "registered_at" in row["preregistration"]["neutralized"]
+
+    def test_adoption_sanitizes_every_address_bearing_row_of_the_adopted_subject(self, rdb):
+        # 72a92ae for the claim's lane, and a repair of THIS repair's first cut
+        # for the sibling row. A lens found that preferring the already-proven
+        # row as the write target left the subject's OTHER row exactly as an
+        # unverified caller wrote it — and that row is what `/whoami` and the
+        # status endpoint serve for the now-verified subject. The proof belongs
+        # to the SUBJECT: every row of it carrying this address is sanitized in
+        # the same transaction, while the claim still names the lane of the
+        # already-proven row (which is what the parent gets wrong here: its
+        # fixed first-lane rule names the other one).
+        key = self._stale_claim(rdb)
+        self._row(rdb, "ea_registrations", self.SUBJECT, verified=True)
+        rdb.seed("early_adopters", self.SUBJECT, {
+            "uuid": self.SUBJECT, "email": VICTIM_EMAIL, "status": "active", "email_verified": False,
+            "display_name": "chosen before the proof", "tier": "pioneer",
+            "updates_consent": True, "registered_at": "2026-01-01T00:00:00+00:00",
+        })
+        assert endpoints._resolve_or_create_subject(VICTIM_EMAIL) == self.SUBJECT
+        assert rdb.docs(OWNERS)[key]["uuid"] == self.SUBJECT
+        assert rdb.docs(OWNERS)[key]["collection"] == "ea_registrations", "the claim names a lane other than the already-proven row's"
+        sibling = rdb.docs("early_adopters")[self.SUBJECT]
+        assert sibling["email_verified"] is True, "a sibling row of the adopted subject kept its pre-proof state"
+        assert sibling["display_name"] is None and sibling["tier"] == "early_adopter"
+        assert sibling["updates_consent"] is False and sibling["consent"] is True
+        assert sibling["preregistration"]["created_at"] == "2026-01-01T00:00:00+00:00"
+
+    def test_a_proven_row_is_an_identity_whatever_its_account_status(self, rdb):
+        # pin, discriminated by mutant M11, not by the parent: "already
+        # proven" is an IDENTITY question and account status is not part of
+        # it — a suspended row that proved this mailbox leaves its subject
+        # holding credentials only the tombstone kills. Here SUBJECT has a
+        # suspended PROVEN row and an active unverified one (so it does have
+        # an adoptable row), and SECOND has an active proven row. Two proven
+        # subjects for one mailbox: refuse with nothing written. 72a92ae also
+        # refuses, for an unrelated reason — its fixed first-lane rule
+        # selected the suspended row and could not adopt it — so this is a
+        # pin there; what it discriminates is the predicate, and the mutant
+        # that gates it on status again is killed by this test.
+        key = self._stale_claim(rdb)
+        rdb.seed("early_adopters", self.SUBJECT, {
+            "uuid": self.SUBJECT, "email": VICTIM_EMAIL, "status": "suspended", "email_verified": True,
+        })
+        rdb.seed("ea_registrations", self.SUBJECT, {
+            "uuid": self.SUBJECT, "email": VICTIM_EMAIL, "status": "active", "email_verified": False,
+        })
+        self._row(rdb, "ea_registrations", self.SECOND, verified=True)
+        tokens = (_issue_pat_for(self.SUBJECT), _issue_pat_for(self.SECOND))
+        writes = _count_owner_writes(rdb)
+        assert endpoints._resolve_or_create_subject(VICTIM_EMAIL) is None, "a proven subject was out-ranked because one of its rows was suspended"
+        assert rdb.docs(OWNERS)[key]["uuid"] == self.OTHER and writes["n"] == 0
+        assert rdb.docs("ea_registrations")[self.SUBJECT]["email_verified"] is False
+        assert all(_bearer_alive(x) for x in tokens)
+
+    # ── R10-02 · an older request-local fence is bound to the terminal commit ─
+
+    @pytest.mark.parametrize("lane", ("early_adopters", "ea_registrations"))
+    def test_an_older_fence_from_a_pre_scrub_snapshot_conflicts_the_terminal_commit(self, rdb, lane):
+        # 72a92ae: (T S168 R10-02) the resumable state — seal present, row
+        # already scrubbed, no claim, no tombstone — gives the retry an empty
+        # seed and an empty query. An older duplicate request still holds
+        # the pre-scrub address and fences it inside the commit window. The
+        # fence now records its key in the subject's fence index in its own
+        # transaction; the terminal commit read that index first, so the
+        # commit conflicts, retries, and releases the claim — even with the
+        # hygiene sweep unavailable. Nothing naming the subject survives.
+        key = _owner_key(VICTIM_EMAIL)
+        rdb.seed(lane, self.SUBJECT, {"uuid": self.SUBJECT, "email": "[deletion_requested]", "status": "deletion_requested"})
+        stores.write_erasure_seal(self.SUBJECT)
+        token = _issue_pat_for(self.SUBJECT)
+        state = {"fired": 0, "armed": False}
+
+        def the_older_request_fences_from_its_snapshot():
+            if state["fired"]:
+                return
+            state["fired"] += 1
+            outcome = registration._fence_mailbox_for_erasure(
+                OWNERS, key, subject_uuid=self.SUBJECT, collection_base=lane, now=REGISTRATION_NOW,
+            )
+            assert outcome == registration.FENCE_FENCED and rdb.docs(OWNERS)[key]["uuid"] == self.SUBJECT
+
+        original_seal = stores.write_erasure_seal
+
+        def seal_then_arm(target):
+            original_seal(target)
+            if target == self.SUBJECT and not state["armed"]:
+                state["armed"] = True
+                rdb._next_barrier = the_older_request_fences_from_its_snapshot   # the next transaction is the terminal commit
+
+        with patch.object(stores, "write_erasure_seal", side_effect=seal_then_arm), \
+                patch.object(registration, "_release_claims_naming", side_effect=StoreUnavailable("owners sweep down")):
+            result = asyncio.run(registration.process_optout(self.SUBJECT))
+        assert state["fired"] == 1, "the older fence never landed; the test proved nothing"
+        assert result.processed is True and _tombstoned(self.SUBJECT) and not _bearer_alive(token)
+        # Intended first assertion: success entails no surviving claim naming the erased subject.
+        claim = rdb.docs(OWNERS).get(key)
+        assert claim is None or claim.get("uuid") != self.SUBJECT, "an older fence from a pre-scrub snapshot survived a success"
+        assert self._fence_index(rdb, self.SUBJECT) is None                                  # the index is gone with the commit
+
+    @pytest.mark.parametrize("branch", ("stale_owner", "ownerless"))
+    def test_an_older_fence_through_the_reclaim_branches_is_bound_too(self, rdb, branch):
+        # 72a92ae: (Lens B M9c/M9d) the older request's fence can also land
+        # through the STALE-OWNER branch (the claim at the terminal read
+        # names an already-tombstoned other owner) or the OWNERLESS branch
+        # (the claim has no owner identifier): at read time neither claim
+        # names this subject, so the query does not hold them and only the
+        # fence index binds them. Each branch records the index; success
+        # leaves nothing naming the subject.
+        key = _owner_key(VICTIM_EMAIL)
+        rdb.seed("early_adopters", self.SUBJECT, {"uuid": self.SUBJECT, "email": "[deletion_requested]", "status": "deletion_requested"})
+        if branch == "stale_owner":
+            rdb.seed(OWNERS, key, {"uuid": self.OTHER, "collection": "early_adopters", "verified": True})
+            stores.write_subject_tombstone(self.OTHER)
+        else:
+            rdb.seed(OWNERS, key, {"uuid": "", "collection": "early_adopters", "verified": True})
+        stores.write_erasure_seal(self.SUBJECT)
+        token = _issue_pat_for(self.SUBJECT)
+        state = {"fired": 0, "armed": False}
+
+        def the_older_request_fences_from_its_snapshot():
+            if state["fired"]:
+                return
+            state["fired"] += 1
+            outcome = registration._fence_mailbox_for_erasure(
+                OWNERS, key, subject_uuid=self.SUBJECT, collection_base="early_adopters", now=REGISTRATION_NOW,
+            )
+            assert outcome == registration.FENCE_FENCED and rdb.docs(OWNERS)[key]["uuid"] == self.SUBJECT
+
+        original_seal = stores.write_erasure_seal
+
+        def seal_then_arm(target):
+            original_seal(target)
+            if target == self.SUBJECT and not state["armed"]:
+                state["armed"] = True
+                rdb._next_barrier = the_older_request_fences_from_its_snapshot
+
+        with patch.object(stores, "write_erasure_seal", side_effect=seal_then_arm), \
+                patch.object(registration, "_release_claims_naming", side_effect=StoreUnavailable("owners sweep down")):
+            result = asyncio.run(registration.process_optout(self.SUBJECT))
+        assert state["fired"] == 1 and result.processed is True and _tombstoned(self.SUBJECT) and not _bearer_alive(token)
+        claim = rdb.docs(OWNERS).get(key)
+        assert claim is None or claim.get("uuid") != self.SUBJECT, f"an older fence through the {branch} branch survived a success"
+        assert self._fence_index(rdb, self.SUBJECT) is None
+
+    def test_a_fence_landing_before_the_terminal_read_is_in_the_index_and_released(self, rdb):
+        # 72a92ae: the same older fence landing BEFORE the terminal
+        # transaction's read is released by the commit at BOTH heads (the
+        # transactional query finds it), but only this head records the keys
+        # in the subject's index — and a single pre-scrub snapshot can carry
+        # more than one address, so the index accumulates both. The parent
+        # writes no index, which is the assertion that fails there.
+        key = _owner_key(VICTIM_EMAIL)
+        rdb.seed("early_adopters", self.SUBJECT, {"uuid": self.SUBJECT, "email": "[deletion_requested]", "status": "deletion_requested"})
+        stores.write_erasure_seal(self.SUBJECT)
+        assert registration._fence_mailbox_for_erasure(
+            OWNERS, key, subject_uuid=self.SUBJECT, collection_base="early_adopters", now=REGISTRATION_NOW,
+        ) == registration.FENCE_FENCED
+        second_key = _owner_key("second-address@example.com")             # a second address from the same snapshot
+        assert registration._fence_mailbox_for_erasure(
+            OWNERS, second_key, subject_uuid=self.SUBJECT, collection_base="ea_registrations", now=REGISTRATION_NOW,
+        ) == registration.FENCE_FENCED
+        index = self._fence_index(rdb, self.SUBJECT)
+        assert index is not None and index["keys"] == sorted({key, second_key}), "the fence recorded no index entry"   # both keys, accumulated
+        with patch.object(registration, "_release_claims_naming", side_effect=StoreUnavailable("owners sweep down")):
+            assert asyncio.run(registration.process_optout(self.SUBJECT)).processed is True
+        assert _tombstoned(self.SUBJECT) and key not in rdb.docs(OWNERS) and second_key not in rdb.docs(OWNERS)
+        assert self._fence_index(rdb, self.SUBJECT) is None
+
+    def test_the_terminal_primitive_releases_a_claim_from_the_index_alone(self, rdb):
+        # 72a92ae, isolated primitive. End to end the index's recorded KEYS are
+        # invisible: whenever they hold a key, the caller's current-row seed or
+        # the commit's own transactional query holds the same one, so deleting
+        # the keys — or the record written by the fence branch that merely
+        # TOUCHES an already-own claim — leaves the whole suite green (two
+        # lenses measured exactly that). With NO seed and the owners query
+        # silenced, the index keys are the only remaining path, which is what
+        # keeps them from being deleted silently. What this does NOT claim is
+        # that the keys close the set: the index DOCUMENT's presence in the
+        # read set does that, and the docstrings now say so.
+        key = _owner_key(VICTIM_EMAIL)
+        rdb.seed(OWNERS, key, {"uuid": self.SUBJECT, "collection": "early_adopters", "verified": True})
+        assert registration._fence_mailbox_for_erasure(          # the own-claim touch branch
+            OWNERS, key, subject_uuid=self.SUBJECT, collection_base="early_adopters", now=REGISTRATION_NOW,
+        ) == registration.FENCE_FENCED
+        real_where_ids = FakeTransaction.where_ids
+
+        def without_the_owner_query(self, collection, field, value):
+            return [] if collection == OWNERS else real_where_ids(self, collection, field, value)
+
+        with patch.object(FakeTransaction, "where_ids", without_the_owner_query):
+            assert stores.tombstone_subject_releasing_claims(self.SUBJECT, OWNERS, []) == 1, "no seed and no query: the index keys released nothing"
+        assert key not in rdb.docs(OWNERS)
+        assert _tombstoned(self.SUBJECT) and self._fence_index(rdb, self.SUBJECT) is None
+
+    def test_a_fence_after_the_tombstone_writes_neither_claim_nor_index(self, rdb):
+        # pin: a fence that runs after the terminal commit reads the
+        # tombstone and writes nothing — no claim, no index entry.
+        key = _owner_key(VICTIM_EMAIL)
+        subject = _register_and_verify(rdb)
+        assert asyncio.run(registration.process_optout(subject)).processed is True
+        writes = _count_owner_writes(rdb)
+        assert registration._fence_mailbox_for_erasure(
+            OWNERS, key, subject_uuid=subject, collection_base="early_adopters", now=REGISTRATION_NOW,
+        ) == registration.FENCE_ERASED
+        assert writes["n"] == 0 and key not in rdb.docs(OWNERS) and self._fence_index(rdb, subject) is None

@@ -699,27 +699,69 @@ def tombstone_subject_releasing_claims(subject_uuid: str, owners_collection: str
     R6-03); a failure raises as ``StoreUnavailable`` through ``_guarded``.
     Returns the number of claims released.
 
-    The deletion set is CLOSED over every claim that can name the subject at
-    commit time (T S167 R9-02), by two mechanisms. The claims naming the
-    subject are queried again THROUGH this transaction, so a claim a
-    duplicate erasure's fence committed BEFORE this read is in the set. And
-    every seed key — the caller passes the owner key of every address on the
-    subject's post-seal rows, which is every key such a fence can bind — is
-    read here one by one, so a fence that lands AFTER this read and before
-    this commit changed a document in this transaction's read set and this
-    commit conflicts and retries, finding the claim. The fake models the
-    second with per-document versions that survive a delete; server-side
-    serializability under real concurrency remains an isolated-stage item
-    (F-9). A best-effort sweep after the commit cannot carry an instantaneous
+    The deletion set is closed over every claim that can name the subject at
+    commit time by THREE mechanisms, and only the third covers a writer
+    holding a row snapshot this transaction cannot read. Round 9 (T S167
+    R9-02) added the first two. The claims naming the subject are queried
+    again THROUGH this transaction, so a claim a duplicate erasure's fence
+    committed BEFORE this read is in the set. And every seed key the caller
+    passes is read here one by one, so a fence that lands AFTER this read and
+    before this commit changed a document in this transaction's read set, and
+    this commit conflicts and retries, finding the claim. That seed is the
+    owner key of every address on the subject's post-seal rows; round 9 took
+    it to be every key such a fence can bind, and T S168 R10-02 refuted that
+    — an older request holding a PRE-SCRUB snapshot can fence an address no
+    current row carries, at a key no read of current storage predicts. The
+    third mechanism below is what closes it. The fake models conflict with
+    per-document versions that survive a delete; server-side serializability
+    under real concurrency remains an isolated-stage item (F-9). A
+    best-effort sweep after the commit cannot carry an instantaneous
     postcondition; this transaction can. ``claim_keys`` is de-duplicated so
+    each claim is written at most once per commit.
+
+    The subject's FENCE INDEX (T S168 R10-02) closes the set over writers no
+    read of current storage can predict: a duplicate erasure request that
+    read the subject's rows before a scrub still holds their addresses and
+    can fence one of them to the subject after this transaction's read — a
+    key the query (current claims) does not contain at read time. Every
+    fence that writes a claim naming the subject therefore also records the
+    key in ``fence_<subject>`` inside its own transaction, and this
+    transaction reads that index FIRST, so it is in the read set. A fence
+    that landed before the read is found by the query (the index is
+    corroboration there); a fence that lands inside the window changed the
+    index document this transaction read, so this commit conflicts, retries,
+    and finds the claim. Read that carefully: what closes the set is the
+    index document's PRESENCE in this transaction's read set. Its recorded
+    ``keys`` are unioned into the deletion set as well, but after the
+    conflict-and-retry the query above has the same claim — so the keys, like
+    the seed, are corroboration, and only a test that silences the query can
+    discriminate them at all. The index is the one document in this collection
+    that is NOT permanent: this commit deletes it. An erasure abandoned
+    between its fence and its tombstone therefore leaves the index behind,
+    exactly as it leaves the fenced claim and the seal behind — resumable
+    residue that the retry's terminal commit clears, not a transient
+    document. Nothing else reads or deletes it, and deleting it
+    opportunistically would reopen R10-02. A fence that runs after the
+    tombstone reads the tombstone and writes nothing. The
+    caller's ``claim_keys`` is a corroborating seed of keys the caller
+    already holds — for the erasure, the owner key of every address on the
+    subject's post-seal rows — read here one by one, so a write to one of them
+    also conflicts this commit. It is redundant with the index for the only
+    writer that can add a claim naming a sealed subject, and kept as closure
+    over any future writer that does not consult the seal. De-duplicated, so
     each claim is written at most once per commit."""
     if not subject_uuid:
         raise ValueError("refusing to tombstone an empty subject identifier")
     marks, marker_id = tombstone_ref("subject", subject_uuid)
+    fence_marks, fence_id = tombstone_ref("fence", subject_uuid)
     seed = list(dict.fromkeys(k for k in claim_keys if k))   # de-duplicated: one write per claim per commit
 
     def _txn(txn):
+        index = txn.get_dict(fence_marks, fence_id)          # every fence's key, read before anything else
         keys = list(seed)
+        for key in (index or {}).get("keys", []) or []:
+            if key and key not in keys:
+                keys.append(key)
         for key in txn.where_ids(owners_collection, "uuid", subject_uuid):
             if key not in keys:
                 keys.append(key)
@@ -731,6 +773,8 @@ def tombstone_subject_releasing_claims(subject_uuid: str, owners_collection: str
         for key in owned:
             txn.delete(owners_collection, key)
         txn.set(marks, marker_id, {"kind": "subject", "key": subject_uuid, "revoked_at": _now()})
+        if index is not None:
+            txn.delete(fence_marks, fence_id)
         return len(owned)
 
     released = int(run_transaction(_txn))
