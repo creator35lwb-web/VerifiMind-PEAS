@@ -4,107 +4,130 @@
 
 | Version | Supported | Notes |
 |---------|-----------|-------|
-| v0.5.x  | ✅ Active | Current release — full security support |
-| v0.4.x  | ⚠️ Critical fixes only | Security patches only, no new features |
-| < v0.4  | ❌ End of life | No longer supported — please upgrade |
+| v0.5.x  | ✅ Maintained | Current release line; security fixes are prioritized |
+| v0.4.x  | ⚠️ Limited | Critical fixes considered case by case |
+| < v0.4  | ❌ Not maintained | Please upgrade before requesting a fix |
 
 ## Reporting a Vulnerability
 
-We take security seriously. If you discover a vulnerability in VerifiMind-PEAS, please report it responsibly through one of the following channels:
+Please report suspected vulnerabilities privately. Do not open a public issue,
+pull request, discussion, or social-media thread containing vulnerability
+details before a mitigation is available.
 
-### Preferred: GitHub Security Advisories
+### Private reporting channel
 
-Use [GitHub Security Advisories](https://github.com/creator35lwb-web/VerifiMind-PEAS/security/advisories/new) to report vulnerabilities privately. This allows us to collaborate on a fix before public disclosure.
+Email **alton@ysenseai.org** with the subject `VerifiMind security report`.
 
-### Alternative: Email
+If GitHub displays a **Report a vulnerability** button on this repository's
+Security tab, that private GitHub form is also supported. The presence of that
+button—not a link in this document—is the authority for whether GitHub Private
+Vulnerability Reporting is currently enabled.
 
-**Contact:** alton@ysenseai.org
+Please include, when possible:
 
-### What to Include
+- A description of the issue and its potential impact
+- The affected version, commit, endpoint, or component
+- Minimal reproduction steps or a proof of concept
+- Suggested mitigations
+- Your preferred contact details and disclosure expectations
 
-- Description of the vulnerability and its potential impact
-- Steps to reproduce the issue
-- Affected version(s)
-- Any suggested mitigations or fixes
-- Your contact information for follow-up
+Please do not:
 
-### What NOT to Do
+- Access, modify, retain, or disclose data that is not yours
+- Degrade the service or exceed the minimum testing needed to demonstrate the issue
+- Publish credentials, live exploit instructions, private infrastructure
+  evidence, or unresolved vulnerability details
 
-- **Do not** open a public GitHub issue for security vulnerabilities
-- **Do not** share vulnerability details publicly before they are fixed
-- **Do not** exploit the vulnerability beyond what is necessary to demonstrate it
+## Response Targets
 
-## Response Timeline
+These are good-faith operational targets, not contractual service-level
+agreements. Complex reports may require more time.
 
-| Stage | Timeline |
-|-------|----------|
-| Acknowledgment | Within **48 hours** of report |
-| Initial assessment | Within **7 days** |
-| Critical severity fix | Within **14 days** |
-| High severity fix | Within **30 days** |
-| Medium/Low severity fix | Within **90 days** |
+| Stage | Target |
+|-------|--------|
+| Acknowledgment | Within 48 hours |
+| Initial assessment | Within 7 days |
+| Critical-severity mitigation | Within 14 days |
+| High-severity mitigation | Within 30 days |
+| Medium/low-severity mitigation | Within 90 days |
 
-## Coordinated Disclosure Policy
+## Coordinated Disclosure
 
-We follow a **90-day coordinated disclosure** window. After reporting a vulnerability:
+We normally work within a 90-day coordinated-disclosure window, adjusted for
+active exploitation, impact, fix complexity, and reporter needs. We will aim to
+agree on disclosure timing, credit reporters who want attribution, and publish
+an advisory after affected users can protect themselves.
 
-1. We will acknowledge receipt within 48 hours
-2. We will assess severity and develop a fix
-3. We will coordinate with you on disclosure timing
-4. After the fix is released, you are free to publish your findings
-5. If 90 days pass without a fix, you may disclose at your discretion
+Source design, post-fix regression tests, and non-sensitive lessons can be
+public. Before mitigation, exploit mechanics, live targets, credentials, IAM
+details, raw logs, and staging receipts belong in the private reporting channel.
+A public draft pull request is public disclosure; marking it "draft" does not
+make its contents private.
 
-We credit all reporters in our security advisories unless anonymity is requested.
+## Security Practices and Their Boundaries
 
-## Security Practices
+### Secrets and infrastructure
 
-### Infrastructure Security
+- Credentials should be stored in an appropriate secret manager or protected
+  environment, not in source, workflow output, issue text, or pull-request text.
+- Non-secret identifiers such as public service URLs and release revisions may
+  be public. Credentials, sensitive IAM topology, raw operational evidence, and
+  incident details remain private until disclosure is safe.
+- The private/public repository split supports provenance and review. It is not
+  by itself a security boundary and does not make a public branch or pull
+  request private.
 
-- All API keys and credentials are managed through environment variables — never committed to code
-- GCP infrastructure details (project numbers, instance configurations) are kept in private documentation only
-- The **Dual-Repo Protocol** separates internal development artifacts (private `verifimind-genesis-mcp`) from public code
-- Cloud Run is configured with instance caps and rate limiting to prevent EDoS (Economic Denial of Sustainability) attacks
+### Source and dependency checks
 
-### Code Security
+- **Bandit** performs Python static analysis.
+- **pip-audit** checks Python dependencies against public vulnerability data.
+- **CodeQL** performs semantic analysis.
+- GitHub secret scanning, push protection, and Dependabot provide additional
+  repository-level signals when enabled in repository settings.
 
-- **Bandit** (SAST) — Static Application Security Testing for Python code
-- **Safety** (SCA) — Software Composition Analysis for dependency vulnerabilities
-- **CodeQL** — Semantic code analysis via GitHub Actions
-- Automated security scans run on every push, pull request, and weekly schedule
-- All GitHub Actions are pinned to commit SHAs to prevent supply chain attacks
+The security workflow runs on pushes to `main`, pull requests targeting `main`,
+and a weekly schedule. A scanner invocation must return success itself; artifact
+upload and summary steps do not convert a scanner failure into a pass.
 
-### Access Control
+All third-party and GitHub-authored Actions referenced by the current workflow
+files are pinned to full commit SHAs. Repository settings—not this document—are
+authoritative for whether SHA pinning or a particular status check is enforced.
 
-- Branch protection rules enforce pull request reviews before merging
-- Dependabot monitors dependencies for known vulnerabilities
-- GitHub secret scanning and push protection are enabled
+### Reviews and required checks
 
-### Operational Security
+`CODEOWNERS` requests review; it does not prove that an independent approval
+occurred. Likewise, a green CI check is not necessarily a required check.
+GitHub's live ruleset and branch settings are the authority for merge
+enforcement. Security-sensitive changes are expected to carry documented human
+review before deployment even when the repository cannot technically require an
+independent reviewer.
 
-- Regular security audits conducted by the FLYWHEEL TEAM multi-agent validation protocol
-- Security findings are tracked and resolved through the MACP (Multi-Agent Collaboration Protocol)
-- All security-related changes require review before deployment
+### Operational review
 
-## Security Scanning Tools
+The FLYWHEEL TEAM validation process may be used to review security-sensitive
+changes. Multi-agent agreement is supporting evidence, not a substitute for
+bounded authorization, reproducible tests, human release authority, or private
+incident handling.
 
-The following tools are used in our CI/CD pipeline:
+## Security Check Frequency
 
-| Tool | Purpose | Frequency |
-|------|---------|-----------|
-| Bandit | Python SAST | Every push/PR + weekly |
-| Safety | Dependency vulnerability check | Every push/PR + weekly |
-| CodeQL | Semantic code analysis | Every push/PR + weekly |
-| Dependabot | Automated dependency updates | Weekly |
-| GitHub Secret Scanning | Detect leaked credentials | Continuous |
+| Check | Purpose | Repository workflow frequency |
+|-------|---------|-------------------------------|
+| Bandit | Python SAST | Every push to `main`, every PR to `main`, weekly |
+| pip-audit | Python dependency audit | Every push to `main`, every PR to `main`, weekly |
+| CodeQL | Semantic analysis | Every push to `main`, every PR to `main`, weekly |
+| Dependabot | Dependency update and advisory signal | As configured in GitHub |
+| GitHub secret scanning | Credential detection | Continuous when enabled |
 
-## Known Vulnerabilities
+## Published Advisories
 
-No known unpatched vulnerabilities at this time. See [Security Advisories](https://github.com/creator35lwb-web/VerifiMind-PEAS/security/advisories) for historical disclosures.
+We do not use this file to assert that no unresolved vulnerability exists.
+Resolved and coordinated disclosures appear in
+[GitHub Security Advisories](https://github.com/creator35lwb-web/VerifiMind-PEAS/security/advisories).
+Please send unresolved findings through a private reporting channel.
 
 ## Acknowledgments
 
-Security scanning powered by the FLYWHEEL TEAM multi-agent validation protocol.
-
-- **Architecture & Security Strategy:** Manus AI (CTO) — Team YSenseAI
-- **Implementation & Code Security:** Claude Code (RNA) — Team YSenseAI
-- **Project Lead:** Alton Lee Wei Bin
+Security review is supported by the YSenseAI FLYWHEEL TEAM validation process.
+Final publication, deployment, and disclosure authority remains with the human
+project maintainer.
