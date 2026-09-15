@@ -2,13 +2,20 @@ from __future__ import annotations
 
 import sys
 import unittest
+from contextlib import redirect_stderr
+from io import StringIO
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from verify_python_dependency_audit import validate_report  # noqa: E402
+from verify_python_dependency_audit import (  # noqa: E402
+    EXPECTED_REPORT_NAME,
+    REPORT_PATH,
+    main,
+    validate_report,
+)
 
 
 class PythonDependencyAuditContractTests(unittest.TestCase):
@@ -67,6 +74,15 @@ class PythonDependencyAuditContractTests(unittest.TestCase):
         }
         failures = validate_report(report, 2)
         self.assertTrue(any("unexpectedly" in item for item in failures))
+
+    def test_report_path_is_fixed_to_repository_root(self) -> None:
+        self.assertTrue(REPORT_PATH.is_absolute())
+        self.assertEqual(REPORT_PATH, ROOT / EXPECTED_REPORT_NAME)
+
+    def test_cli_rejects_former_positional_report_argument(self) -> None:
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit) as ctx:
+            main([EXPECTED_REPORT_NAME, "--audit-exit-code", "0"])
+        self.assertEqual(ctx.exception.code, 2)
 
 
 if __name__ == "__main__":

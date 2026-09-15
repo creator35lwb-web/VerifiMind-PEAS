@@ -2,14 +2,21 @@ from __future__ import annotations
 
 import sys
 import unittest
+from contextlib import redirect_stderr
 from copy import deepcopy
+from io import StringIO
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from verify_python_sast_report import validate_report  # noqa: E402
+from verify_python_sast_report import (  # noqa: E402
+    EXPECTED_REPORT_NAME,
+    REPORT_PATH,
+    main,
+    validate_report,
+)
 
 
 def clean_report() -> dict:
@@ -68,6 +75,15 @@ class PythonSASTReportContractTests(unittest.TestCase):
     def test_non_object_report_fails(self) -> None:
         failures = validate_report([], 0)
         self.assertIn("report root must be a JSON object", failures)
+
+    def test_report_path_is_fixed_to_repository_root(self) -> None:
+        self.assertTrue(REPORT_PATH.is_absolute())
+        self.assertEqual(REPORT_PATH, ROOT / EXPECTED_REPORT_NAME)
+
+    def test_cli_rejects_former_positional_report_argument(self) -> None:
+        with redirect_stderr(StringIO()), self.assertRaises(SystemExit) as ctx:
+            main([EXPECTED_REPORT_NAME, "--scan-exit-code", "0"])
+        self.assertEqual(ctx.exception.code, 2)
 
 
 if __name__ == "__main__":

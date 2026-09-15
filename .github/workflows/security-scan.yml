@@ -41,14 +41,13 @@ jobs:
         run: |
           echo "Running Bandit SAST analysis on mcp-server/src/ and http_server.py..."
           cd mcp-server
+          rm -f ../bandit-report.json
           set +e
           bandit -r src/ http_server.py -ll -ii --skip B101 -f json -o ../bandit-report.json
           scan_status=$?
           set -e
           cd ..
-          python scripts/verify_python_sast_report.py \
-            bandit-report.json \
-            --scan-exit-code "$scan_status"
+          python scripts/verify_python_sast_report.py --scan-exit-code "$scan_status"
 
       - name: Upload Bandit report
         if: always()
@@ -91,6 +90,7 @@ jobs:
 
       - name: Audit deployment dependencies
         run: |
+          rm -f pip-audit-report.json
           set +e
           python -m pip_audit \
             --strict \
@@ -100,9 +100,7 @@ jobs:
             mcp-server
           audit_status=$?
           set -e
-          python scripts/verify_python_dependency_audit.py \
-            pip-audit-report.json \
-            --audit-exit-code "$audit_status"
+          python scripts/verify_python_dependency_audit.py --audit-exit-code "$audit_status"
 
       - name: Upload dependency audit report
         if: always()
