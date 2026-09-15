@@ -381,7 +381,10 @@ def test_all_six_remote_byok_catalogs_pass_the_currency_gate():
         "gemini", "openai", "anthropic", "groq", "cerebras", "mistral",
     }
     assert MODEL_CURRENCY_MAX_AGE_DAYS == 90
-    assert provider_catalog_currency_issues(as_of=date(2026, 8, 7)) == {}
+    # Green-fixture day: on/after the newest catalog verification date
+    # (groq 2026-08-29, this PR) and inside every provider's 90-day window
+    # (earliest pin: openai 2026-06-22 -> stale from 2026-09-21).
+    assert provider_catalog_currency_issues(as_of=date(2026, 8, 29)) == {}
 
     stale = provider_catalog_currency_issues(as_of=date(2027, 1, 1))
     assert set(stale) == set(REMOTE_BYOK_PROVIDER_IDS)
