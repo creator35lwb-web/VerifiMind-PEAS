@@ -977,6 +977,50 @@ document.getElementById('copy-btn').addEventListener('click', async function() {
 
 # ── Opt-out page ──────────────────────────────────────────────────────────────
 
+# Served while the legacy UUID containment holds (``security_containment``). The
+# registration form above is retained, not served: restoring it is the same
+# reviewed change that restores authenticated account trust, and its consent and
+# XSS contracts stay pinned in tests/test_registration_ui.py for that change.
+_REGISTER_CONTAINED_BODY = """
+<div class="card" id="registration-status">
+  <h1 class="card-title">Registration is temporarily unavailable</h1>
+  <p class="card-subtitle">
+    Registration and UUID-linked account features are temporarily unavailable
+    during security maintenance.
+  </p>
+
+  <div class="benefits-strip">
+    <div class="benefit-item">
+      <span class="benefit-icon">&#x2705;</span>
+      <strong>8 active tools</strong>
+      <div class="benefit-label">Available now</div>
+    </div>
+    <div class="benefit-item">
+      <span class="benefit-icon">&#x1F9EA;</span>
+      <strong>5 contained</strong>
+      <div class="benefit-label">Security maintenance</div>
+    </div>
+  </div>
+
+  <p>
+    You do not need an account to use VerifiMind. Every active tool stays free to
+    use from any MCP client at the standard anonymous rate limit &mdash; the setup
+    steps are on the <a href="/">server home page</a>.
+  </p>
+  <p class="text-sm muted">
+    Already registered, and need access to, correction of, or deletion of your
+    data? See <a href="/optout">Opt Out &amp; Data Deletion</a> for the private
+    request channel. Our <a href="/terms">Terms &amp; Conditions</a> and
+    <a href="/privacy">Privacy Policy</a> continue to apply.
+  </p>
+  <p class="text-sm muted">
+    If you registered before, your UUID (identifier) is not a password or access
+    key, and registration was never a time-limited access entitlement.
+  </p>
+</div>
+"""
+
+
 _OPTOUT_BODY = """
 <div class="card">
   <h1 class="card-title">Opt Out &amp; Data Deletion</h1>
@@ -1146,23 +1190,83 @@ document.getElementById('optout-form').addEventListener('submit', async function
 """
 
 
+# Served while the legacy UUID containment holds. The self-service form above is
+# retained, not served (see _REGISTER_CONTAINED_BODY). The private request channel
+# matches the containment's maintenance response and the Privacy Policy; the
+# qualified deletion timeline is carried over verbatim.
+_OPTOUT_CONTAINED_BODY = """
+<div class="card" id="optout-status">
+  <h1 class="card-title">Opt Out &amp; Data Deletion</h1>
+  <p class="card-subtitle">
+    Request permanent deletion of your Early Adopter data.
+    This is your GDPR / PDPA right to erasure.
+  </p>
+
+  <div class="deletion-info">
+    <h3>What gets deleted</h3>
+    <ul class="deletion-list">
+      <li>Your email address</li>
+      <li>Your name (if provided)</li>
+      <li>Your registration feedback</li>
+      <li>Your consent records</li>
+      <li>Your EA tier and benefits status</li>
+    </ul>
+    <p class="deletion-note">
+      Deletion is processed within <strong>7 business days</strong> per our
+      <a href="/privacy" target="_blank" rel="noopener">Privacy Policy v1.0</a>.
+      Your UUID is retained in pseudonymised form for audit log integrity only
+      &mdash; no personal data is attached after deletion.
+    </p>
+  </div>
+
+  <div class="alert alert-error" role="status">
+    Self-service deletion is temporarily unavailable during security maintenance.
+  </div>
+
+  <p id="private-request-channel">
+    For an access, correction, or deletion request, email
+    <a href="mailto:alton@ysenseai.org">alton@ysenseai.org</a>
+    (fallback: <a href="mailto:creator35lwb@gmail.com">creator35lwb@gmail.com</a>)
+    and include your UUID plus enough private information to verify the request.
+    Do not post an identifier in a public issue or comment.
+  </p>
+
+  <p class="consent-note">
+    Your EA benefits will be cancelled and principal account PII de-identified
+    when the request is accepted. Remaining personal data is targeted for purge
+    within 7 business days; a legal obligation or documented security/legal hold
+    may limit or delay deletion as described in the Privacy Policy.
+  </p>
+</div>
+
+<div class="card" style="padding: 1rem 1.5rem;">
+  <p class="text-sm muted">
+    <a href="/privacy" style="color: var(--accent)">Privacy Policy</a>
+    &nbsp;&middot;&nbsp;
+    <a href="https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions"
+       target="_blank" rel="noopener" style="color: var(--muted)">Get help on GitHub</a>
+  </p>
+</div>
+"""
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def get_register_page() -> str:
-    """Return the full HTML for GET /register."""
+    """Return the full HTML for GET /register — a truthful notice while the legacy
+    UUID containment holds; the registration form is retained, not served."""
     return _shell(
-        title="Early Adopter Registration",
-        body=_REGISTER_BODY,
-        script=_REGISTER_SCRIPT,
+        title="Registration Temporarily Unavailable",
+        body=_REGISTER_CONTAINED_BODY,
     )
 
 
 def get_optout_page() -> str:
-    """Return the full HTML for GET /optout."""
+    """Return the full HTML for GET /optout — the private request channel while the
+    legacy UUID containment holds; the self-service form is retained, not served."""
     return _shell(
         title="Opt Out & Data Deletion",
-        body=_OPTOUT_BODY,
-        script=_OPTOUT_SCRIPT,
+        body=_OPTOUT_CONTAINED_BODY,
     )
 
 

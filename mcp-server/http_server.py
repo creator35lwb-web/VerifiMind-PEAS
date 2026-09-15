@@ -535,43 +535,20 @@ Connect using an MCP client such as Claude Desktop, Claude Code, or Cursor.</p>
 </p>
 </div>
 
-<div class="card-scholar">
-<h3>Scholar Tier &mdash; Higher Rate Limits</h3>
-<p>Free to register. Scholars get <strong>30 req/60s</strong> vs anonymous 10 req/60s.
-<a href="/register">Register here &rarr;</a></p>
-
-<p><strong>Claude Code (Scholar)</strong> &mdash; after you receive your UUID:</p>
-<div class="code-wrap">
-<pre id="cc-scholar">VERIFIMIND_UUID=your-uuid-here claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/ --header "X-VerifiMind-UUID:${VERIFIMIND_UUID}"</pre>
-<button class="copy-btn" onclick="copyCode('cc-scholar', this)">Copy</button>
-</div>
-
-<p><strong>Claude Desktop (Scholar)</strong>:</p>
-<div class="code-wrap">
-<pre id="cd-scholar">{
-  "mcpServers": {
-    "verifimind": {
-      "command": "npx",
-      "args": [
-        "-y", "mcp-remote",
-        "https://verifimind.ysenseai.org/mcp/",
-        "--header", "X-VerifiMind-UUID:${VERIFIMIND_UUID}"
-      ],
-      "env": { "VERIFIMIND_UUID": "your-uuid-here" }
-    }
-  }
-}</pre>
-<button class="copy-btn" onclick="copyCode('cd-scholar', this)">Copy</button>
-</div>
-<p class="note">Replace <code>your-uuid-here</code> with the UUID from your
-<a href="/register">Scholar registration</a>.
-Verify your UUID: <a href="/mcp/test?key=your-uuid-here"><code>/mcp/test?key=&lt;uuid&gt;</code></a></p>
+<div class="card-scholar" id="account-status">
+<h3>Accounts &mdash; Temporarily Unavailable</h3>
+<p>Registration and UUID-linked account features are temporarily unavailable
+during security maintenance. Every active tool stays free to use with the
+Quick Start setup above, with no account and no UUID.</p>
+<p class="note">A UUID header in an existing MCP configuration has no effect
+while maintenance is in progress. For an access, correction, or deletion
+request about data you registered, see
+<a href="/optout">Opt Out &amp; Data Deletion</a>.</p>
 </div>
 
 <h3>Links</h3>
 <ul>
   <li><a href="https://verifimind.io">Landing Page</a></li>
-  <li><a href="/register">Register for Scholar Tier (free)</a></li>
   <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS">GitHub Repository</a></li>
   <li><a href=HEALTH_PATH>Health Check</a></li>
   <li><a href=MCP_CONFIG_PATH>Full MCP Configuration (JSON)</a></li>

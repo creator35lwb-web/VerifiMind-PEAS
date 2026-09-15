@@ -83,29 +83,6 @@ class TestRegisterPage:
         html = client.get("/register").text
         assert "<!DOCTYPE html>" in html
 
-    def test_get_register_has_form_element(self, client):
-        html = client.get("/register").text
-        assert "<form" in html
-
-    def test_get_register_has_email_input(self, client):
-        html = client.get("/register").text
-        assert 'type="email"' in html or "type='email'" in html
-
-    def test_get_register_has_tc_checkbox(self, client):
-        """Z-Protocol: T&C consent checkbox must be present."""
-        html = client.get("/register").text
-        assert "tc_accepted" in html
-
-    def test_get_register_has_privacy_checkbox(self, client):
-        """Z-Protocol: Privacy Policy consent checkbox must be present."""
-        html = client.get("/register").text
-        assert "privacy_acknowledged" in html
-
-    def test_get_register_has_updates_consent_field(self, client):
-        """Optional marketing consent (not pre-checked)."""
-        html = client.get("/register").text
-        assert "updates_consent" in html
-
     def test_get_register_links_to_terms(self, client):
         html = client.get("/register").text
         assert "/terms" in html
@@ -113,17 +90,6 @@ class TestRegisterPage:
     def test_get_register_links_to_privacy(self, client):
         html = client.get("/register").text
         assert "/privacy" in html
-
-    def test_get_register_has_submit_button(self, client):
-        html = client.get("/register").text
-        assert 'type="submit"' in html or "submit" in html.lower()
-
-    def test_get_register_no_innerHTML_assignment(self, client):
-        """XSS safety: user-controlled data must not be written via innerHTML."""
-        html = client.get("/register").text
-        # innerHTML is only used for static success/error HTML fragments (safe)
-        # Verify user data (uuid, email_masked) uses textContent
-        assert "uuid_display.textContent" in html or "textContent" in html
 
     def test_get_register_has_charset_utf8(self, client):
         html = client.get("/register").text
@@ -139,11 +105,6 @@ class TestRegisterPage:
         assert "cdn.jsdelivr.net" not in html
         assert "cdnjs.cloudflare.com" not in html
         assert "unpkg.com" not in html
-
-    def test_get_register_references_early_adopters_register_api(self, client):
-        """Form must POST to the correct API endpoint."""
-        html = client.get("/register").text
-        assert "/early-adopters/register" in html
 
     def test_get_register_has_verifimind_branding(self, client):
         html = client.get("/register").text
@@ -174,30 +135,6 @@ class TestOptOutPage:
     def test_get_optout_has_doctype(self, client):
         html = client.get("/optout").text
         assert "<!DOCTYPE html>" in html
-
-    def test_get_optout_has_form_element(self, client):
-        html = client.get("/optout").text
-        assert "<form" in html
-
-    def test_get_optout_has_uuid_input(self, client):
-        """User must enter their UUID to delete their record."""
-        html = client.get("/optout").text
-        assert "uuid" in html.lower()
-
-    def test_get_optout_has_confirmation_checkbox(self, client):
-        """Z-Protocol: right to erasure must require explicit confirmation."""
-        html = client.get("/optout").text
-        assert "confirm" in html.lower()
-
-    def test_get_optout_references_optout_api(self, client):
-        """Form must call the correct API endpoint."""
-        html = client.get("/optout").text
-        assert "early-adopters/optout" in html
-
-    def test_get_optout_no_innerHTML_for_user_data(self, client):
-        """XSS safety: UUID is user-controlled — must use textContent."""
-        html = client.get("/optout").text
-        assert "textContent" in html
 
     def test_get_optout_mentions_7_business_days(self, client):
         """Z-Protocol compliance: deletion timeline must be disclosed."""
@@ -232,7 +169,101 @@ class TestOptOutPage:
         # Must not redirect to login or return 401/403
         assert resp.status_code == 200
 
-    def test_get_optout_encode_uri_component_present(self, client):
+# ─────────────────────────────────────────────
+# Retained forms — not served while the legacy UUID containment holds
+# ─────────────────────────────────────────────
+#
+# GET /register and GET /optout currently serve truthful notices (their served-copy truth
+# contracts live in tests/unit/test_legacy_uuid_served_copy_truth.py). The forms are
+# retained, not served, for the reviewed change that restores authenticated account
+# trust, so their consent-capture and XSS contracts stay pinned here, unweakened.
+#
+# These read the template body and script directly rather than a shell-rendered page:
+# the shared shell's CSS contains `type="email"`, `confirm` and `uuid`, so three of these
+# assertions used to pass on ANY page rendered through it.
+
+
+def _retained_register_markup():
+    from verifimind_mcp.pages import _REGISTER_BODY, _REGISTER_SCRIPT
+    return _REGISTER_BODY + _REGISTER_SCRIPT
+
+
+def _retained_optout_markup():
+    from verifimind_mcp.pages import _OPTOUT_BODY, _OPTOUT_SCRIPT
+    return _OPTOUT_BODY + _OPTOUT_SCRIPT
+
+
+class TestRetainedRegisterForm:
+    """The retained registration form (Z-Protocol v1.1 consent capture, XSS-safe patterns)."""
+
+    def test_retained_register_form_has_form_element(self):
+        html = _retained_register_markup()
+        assert "<form" in html
+
+    def test_retained_register_form_has_email_input(self):
+        html = _retained_register_markup()
+        assert 'type="email"' in html or "type='email'" in html
+
+    def test_retained_register_form_has_tc_checkbox(self):
+        """Z-Protocol: T&C consent checkbox must be present."""
+        html = _retained_register_markup()
+        assert "tc_accepted" in html
+
+    def test_retained_register_form_has_privacy_checkbox(self):
+        """Z-Protocol: Privacy Policy consent checkbox must be present."""
+        html = _retained_register_markup()
+        assert "privacy_acknowledged" in html
+
+    def test_retained_register_form_has_updates_consent_field(self):
+        """Optional marketing consent (not pre-checked)."""
+        html = _retained_register_markup()
+        assert "updates_consent" in html
+
+    def test_retained_register_form_has_submit_button(self):
+        html = _retained_register_markup()
+        assert 'type="submit"' in html or "submit" in html.lower()
+
+    def test_retained_register_form_no_innerHTML_assignment(self):
+        """XSS safety: user-controlled data must not be written via innerHTML."""
+        html = _retained_register_markup()
+        # innerHTML is only used for static success/error HTML fragments (safe)
+        # Verify user data (uuid, email_masked) uses textContent
+        assert "uuid_display.textContent" in html or "textContent" in html
+
+    def test_retained_register_form_references_early_adopters_register_api(self):
+        """Form must POST to the correct API endpoint."""
+        html = _retained_register_markup()
+        assert "/early-adopters/register" in html
+
+
+class TestRetainedOptOutForm:
+    """The retained self-service opt-out form (explicit confirmation, XSS-safe patterns)."""
+
+    def test_retained_optout_form_has_form_element(self):
+        html = _retained_optout_markup()
+        assert "<form" in html
+
+    def test_retained_optout_form_has_uuid_input(self):
+        """User must enter their UUID to delete their record."""
+        html = _retained_optout_markup()
+        assert "uuid" in html.lower()
+
+    def test_retained_optout_form_has_confirmation_checkbox(self):
+        """Z-Protocol: right to erasure must require explicit confirmation."""
+        html = _retained_optout_markup()
+        assert "confirm" in html.lower()
+
+    def test_retained_optout_form_references_optout_api(self):
+        """Form must call the correct API endpoint."""
+        html = _retained_optout_markup()
+        assert "early-adopters/optout" in html
+
+    def test_retained_optout_form_no_innerHTML_for_user_data(self):
+        """XSS safety: UUID is user-controlled — must use textContent."""
+        html = _retained_optout_markup()
+        assert "textContent" in html
+
+    def test_retained_optout_form_encode_uri_component_present(self):
         """XSS safety: UUID used in fetch URL must be URI-encoded."""
-        html = client.get("/optout").text
+        html = _retained_optout_markup()
         assert "encodeURIComponent" in html
