@@ -1,6 +1,10 @@
 """
 P1-B: Fire-and-forget Firestore persistence for Scholar Trinity history.
 
+Emergency containment (2026-09-15): writes from caller-supplied UUID tool
+arguments are disabled until authenticated subject binding replaces the legacy
+identifier-only trust model. Existing record helpers remain for compatibility.
+
 Writes validation metadata to:
   trinity_history/{uuid}/validations/{validation_id}
 
@@ -17,6 +21,7 @@ import logging
 from datetime import datetime, timezone
 
 from verifimind_mcp.utils.uuid_tracer import is_valid_uuid
+from verifimind_mcp.security_containment import TRUST_UNAUTHENTICATED_UUID_INPUT
 
 logger = logging.getLogger(__name__)
 
@@ -114,12 +119,15 @@ def read_trinity_history(uuid: str, limit: int = 50) -> list[dict]:
 
 def persist_trinity_result(uuid: str | None, tool: str, raw_result: dict) -> None:
     """
-    Fire-and-forget: schedule Firestore write for Scholar validation history.
+    Compatibility sink for Scholar history; contained before any record build.
 
-    - Skips silently if uuid is invalid or result is an error response.
-    - Non-blocking: schedules as asyncio task, does not await.
-    - Firestore failures are caught and logged — never raise to caller.
+    When authenticated UUID trust is restored by a reviewed code change, valid
+    successful results use the historical non-blocking Firestore path below.
     """
+    # Preserve the public tool schema while refusing caller-controlled history
+    # attribution until the UUID is bound to an authenticated subject.
+    if not TRUST_UNAUTHENTICATED_UUID_INPUT:
+        return
     if not is_valid_uuid(uuid):
         return
     if raw_result.get("status") == "error":

@@ -1,13 +1,14 @@
 """
 Tests for v0.5.15 Scholar Incentives — P1-A and P1-C
 
-P1-A: Optional user_uuid tracer on all 10 Scholar tools
+P1-A: Optional user_uuid schema compatibility on all 10 Scholar tools; tracer
+      output is contained until UUID ownership is authenticated
 P1-C: Registration response enhanced with mcp_config, test_url, dashboard_url, checkout_url
 
 Security coverage:
   - UUID format validation (malicious strings silently ignored)
   - Log injection prevention (only valid UUIDs reach stdout)
-  - No UUID stored — tracer is fire-and-forget emit only
+  - No UUID attributed or stored during containment
   - Anonymous access unchanged (user_uuid=None works identically)
 """
 
@@ -53,7 +54,7 @@ class TestUUIDTracer(unittest.TestCase):
         from verifimind_mcp.utils.uuid_tracer import is_valid_uuid
         assert is_valid_uuid("uuid\ntool=evil tier=pioneer") is False
 
-    def test_emit_tracer_valid_uuid_writes_stdout(self):
+    def test_emit_tracer_valid_uuid_is_silent_during_containment(self):
         from verifimind_mcp.utils.uuid_tracer import emit_tracer
         captured = io.StringIO()
         sys.stdout = captured
@@ -61,11 +62,7 @@ class TestUUIDTracer(unittest.TestCase):
             emit_tracer("019d40d6-9e84-7738-9c0c-fa85b2930600", "consult_agent_x")
         finally:
             sys.stdout = sys.__stdout__
-        output = captured.getvalue()
-        assert "TRACER_UUID:" in output
-        assert "consult_agent_x" in output
-        assert "tier=scholar" in output
-        assert "019d40d6-9e84-7738-9c0c-fa85b2930600" in output
+        assert captured.getvalue() == ""
 
     def test_emit_tracer_invalid_uuid_silent(self):
         from verifimind_mcp.utils.uuid_tracer import emit_tracer

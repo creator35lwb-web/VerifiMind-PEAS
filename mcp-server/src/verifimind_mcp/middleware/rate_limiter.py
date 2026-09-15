@@ -1,6 +1,12 @@
 """
 Rate Limiting Middleware for VerifiMind MCP Server.
 
+Emergency containment (2026-09-15): caller-supplied UUID headers are not
+authenticated ownership evidence. All requests therefore use the anonymous IP
+bucket and emit only the anonymous tier until subject-bound authentication is
+deployed. Historical tier helpers remain for compatibility and offline tests,
+but the live middleware does not call them.
+
 v0.5.19 - UUID Tier-Aware Rate Limiting (P0-A)
 
 Tiers (per 60s window):
@@ -24,6 +30,8 @@ from typing import Dict, Tuple, Optional
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+
+from verifimind_mcp.security_containment import TRUST_UNAUTHENTICATED_UUID_INPUT
 
 logger = logging.getLogger(__name__)
 
@@ -241,7 +249,7 @@ def get_client_ip(request: Request) -> str:
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """UUID tier-aware rate limiting. Anonymous→IP, Scholar/Pioneer→UUID."""
+    """IP rate limiting while unauthenticated UUID tiering is contained."""
 
     async def dispatch(self, request: Request, call_next):
         if request.url.path in EXEMPT_PATHS:
@@ -251,16 +259,20 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         client_ip = get_client_ip(request)
 
-        # Resolve tier from X-VerifiMind-UUID header.
-        # Track WHY a request is anonymous (uuid_status) so the 429 body can tell a
-        # misconfigured Scholar (header present but invalid) apart from a true
-        # anonymous caller (no header) — tier-audit findings T1/T2/T5, v0.5.37.
-        uuid_header = request.headers.get("x-verifimind-uuid", "").strip()
+        # A UUID is an identifier, not authentication. The hard-coded shared
+        # containment flag stays false until an OAuth subject-binding change is
+        # reviewed and deployed. While false, do not even read the UUID header:
+        # no Firestore lookup, UUID bucket, validity oracle, or tier disclosure.
+        uuid_header = ""
         tier = "anonymous"
         active_limit = TIER_LIMITS["anonymous"]
-        uuid_status = "absent"  # absent | invalid | valid
+        uuid_status = "disabled"
 
-        if uuid_header:
+        if TRUST_UNAUTHENTICATED_UUID_INPUT:
+            uuid_header = request.headers.get("x-verifimind-uuid", "").strip()
+            uuid_status = "absent"  # absent | invalid | valid
+
+        if TRUST_UNAUTHENTICATED_UUID_INPUT and uuid_header:
             uuid_status = "invalid"  # present until proven valid
             try:
                 from verifimind_mcp.utils.uuid_tracer import is_valid_uuid
@@ -288,7 +300,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             # Branch the CTA so a misconfigured Scholar (UUID present but invalid) gets a
             # RECOVERY hint, while a true anonymous caller gets the acquisition pitch —
             # tier-audit findings T4/T5, v0.5.37.
-            upgrade_hint, from_the_builder = _build_rate_limit_cta(tier, uuid_status)
+            if TRUST_UNAUTHENTICATED_UUID_INPUT:
+                upgrade_hint, from_the_builder = _build_rate_limit_cta(tier, uuid_status)
+            else:
+                upgrade_hint, from_the_builder = None, None
             return JSONResponse(
                 status_code=429,
                 content={
