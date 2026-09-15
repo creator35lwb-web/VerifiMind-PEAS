@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security Vulnerability
-    url: https://github.com/creator35lwb-web/VerifiMind-PEAS/security/advisories/new
-    about: Please report security vulnerabilities through GitHub Security Advisories, NOT through public issues.
+    url: https://github.com/creator35lwb-web/VerifiMind-PEAS/security/policy
+    about: Review the private reporting instructions. Do NOT disclose vulnerabilities in a public issue.
   - name: General Questions
     url: https://github.com/creator35lwb-web/VerifiMind-PEAS/discussions
     about: Ask questions and discuss ideas in GitHub Discussions.
