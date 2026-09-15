@@ -189,11 +189,79 @@ class TestStructuredLogging:
         tool_not_found_logs = [r for r in caplog.records if "[TOOL_NOT_FOUND]" in r.message]
         assert tool_not_found_logs, "Expected [TOOL_NOT_FOUND] log entry"
         log_msg = tool_not_found_logs[0].message
-        assert "phantom_tool" in log_msg, "Tool name must appear in log"
+        assert "tool=unrecognized" in log_msg
+        assert "phantom_tool" not in log_msg
 
     @pytest.mark.asyncio
-    async def test_tool_not_found_log_includes_uuid_when_present(self, caplog):
-        """tools/call with user_uuid in args → UUID appears in log."""
+    async def test_known_tool_name_keeps_bounded_label(self, caplog):
+        """A known name may retain its fixed, allowlisted telemetry label."""
+        import http_server
+        body = json.dumps({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {"name": "consult_agent_x", "arguments": {}},
+        }).encode()
+        req = self._make_request(method="POST", path="/wrong", body=body)
+
+        with caplog.at_level(logging.WARNING, logger="http_server"):
+            await http_server.http_exception_handler(req, self._make_exc(404))
+
+        logs = [r.message for r in caplog.records if "[TOOL_NOT_FOUND]" in r.message]
+        assert len(logs) == 1
+        assert "tool=consult_agent_x" in logs[0]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "candidate,forbidden",
+        [
+            ("019d40d6-test-uuid-0000-000000000001", "019d40d6-test-uuid"),
+            ("line-one\nline-two", "line-two"),
+            ({"nested": "caller-controlled"}, "caller-controlled"),
+            (42, "42"),
+        ],
+    )
+    async def test_unrecognized_tool_labels_never_reach_logs(
+        self, caplog, candidate, forbidden
+    ):
+        import http_server
+        body = json.dumps({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {"name": candidate, "arguments": {}},
+        }).encode()
+        req = self._make_request(method="POST", path="/wrong", body=body)
+
+        with caplog.at_level(logging.WARNING, logger="http_server"):
+            await http_server.http_exception_handler(req, self._make_exc(404))
+
+        logs = [r.message for r in caplog.records if "[TOOL_NOT_FOUND]" in r.message]
+        assert len(logs) == 1
+        assert "tool=unrecognized" in logs[0]
+        assert forbidden not in logs[0]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("payload", [[], 17, "scalar", None])
+    async def test_non_object_json_is_normalized_without_error(self, caplog, payload):
+        import http_server
+        req = self._make_request(
+            method="POST",
+            path="/wrong",
+            body=json.dumps(payload).encode(),
+        )
+
+        with caplog.at_level(logging.WARNING, logger="http_server"):
+            response = await http_server.http_exception_handler(
+                req, self._make_exc(404)
+            )
+
+        assert response.status_code == 404
+        assert any("[HTTP_404]" in r.message for r in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_tool_not_found_log_does_not_trust_uuid_attribution(self, caplog):
+        """A caller-supplied user_uuid must not become log attribution."""
         import http_server
         body = json.dumps({
             "jsonrpc": "2.0",
@@ -213,7 +281,9 @@ class TestStructuredLogging:
 
         log_msgs = [r.message for r in caplog.records if "[TOOL_NOT_FOUND]" in r.message]
         assert log_msgs, "Expected [TOOL_NOT_FOUND] log"
-        assert "019d40d6-test-uuid" in log_msgs[0], "UUID must appear in log"
+        assert "uuid=anonymous" in log_msgs[0]
+        assert "019d40d6-test-uuid" not in log_msgs[0]
+        assert "tool=unrecognized" in log_msgs[0]
 
     @pytest.mark.asyncio
     async def test_no_body_404_logs_http_404(self, caplog):

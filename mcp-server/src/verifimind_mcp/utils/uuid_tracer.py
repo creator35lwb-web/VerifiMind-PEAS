@@ -1,8 +1,9 @@
 """
-UUID Tracer — v0.5.15 Scholar Incentives
+UUID Tracer — v0.5.15 Scholar Incentives (contained)
 
-Validates Scholar UUIDs and emits structured TRACER lines to stdout for
-AY analytics pipeline (Cloud Run stdout → jsonPayload → BigQuery).
+The compatibility entry point and format validator remain available, but
+caller-supplied UUID attribution is disabled during the legacy identity
+incident. A UUID is not authenticated ownership evidence.
 
 Security: UUID is validated before logging. Invalid format is silently
 ignored — no error raised, no log entry, no response change.
@@ -15,6 +16,8 @@ Extended here for Scholar tools:
 
 import re
 import logging
+
+from verifimind_mcp.security_containment import TRUST_UNAUTHENTICATED_UUID_INPUT
 
 logger = logging.getLogger(__name__)
 
@@ -32,16 +35,22 @@ def is_valid_uuid(value: str) -> bool:
 
 
 def emit_tracer(uuid: str, tool: str) -> None:
-    """Emit structured TRACER line if uuid is a valid UUID format.
+    """Compatibility tracer, fail-closed until UUID ownership is authenticated.
 
     Called from Scholar tool handlers when user_uuid is provided.
-    Silently returns without logging if uuid fails format validation.
-    Does NOT verify that the UUID is registered — only format-checks.
+    During containment this always returns without logging. The historical
+    implementation below additionally validates format, but format validity is
+    never treated as proof that the caller controls that UUID.
 
     Args:
         uuid: The user_uuid value from the tool call parameter.
         tool: The MCP tool name (e.g. "consult_agent_x").
     """
+    # A caller-supplied UUID is not authenticated account ownership. Retain the
+    # argument for MCP schema compatibility but do not attribute logs until the
+    # OAuth subject-binding replacement is active.
+    if not TRUST_UNAUTHENTICATED_UUID_INPUT:
+        return
     if not is_valid_uuid(uuid):
         return
     safe_uuid = uuid.strip()
