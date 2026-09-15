@@ -46,6 +46,12 @@ email-validator>=2.0.0
 # v0.5.12 Polar Integration: Standard Webhooks signature verification
 standardwebhooks>=1.0.0
 
+# OAuth 2.1 authorization core (D-ALTON-2026-09-01-AUTHLIB) — must match
+# pyproject.toml EXACTLY. joserfc>=1.7.3 carries the issuer-validation fix.
+Authlib==1.8.0
+joserfc==1.7.5
+cryptography==46.0.1
+
 # ---------------------------------------------------------------------------
 # TEST-ONLY EXTRAS — the ONLY permitted difference from pyproject.toml.
 # Anything added below is never installed into the production image.

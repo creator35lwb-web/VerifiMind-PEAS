@@ -9,6 +9,7 @@ Two registration paths:
 Storage: Google Cloud Firestore (free tier, GCP project)
 UUID format: UUIDv7-compatible (timestamp-ordered per AI Council recommendation)
 """
+import hashlib
 import logging
 import os
 from datetime import datetime, timezone
@@ -18,6 +19,13 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from .utils.uuid_helper import generate_ea_uuid, generate_feedback_id
 from .policies import PRIVACY_POLICY_VERSION, TERMS_VERSION
+from .oauth.config import EnvironmentMisconfigured, current_environment
+
+try:  # google-api-core ships with the Firestore client; keep the module importable without it
+    from google.api_core.exceptions import AlreadyExists as _AlreadyExists
+except Exception:  # noqa: BLE001 — pragma: no cover (client library absent)
+    class _AlreadyExists(Exception):  # type: ignore[no-redef]
+        """Stand-in when google-api-core is unavailable; never raised by a real client."""
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +48,58 @@ PILOT_INVITE_CODE = os.environ.get("PILOT_INVITE_CODE", "")
 # Firestore collection names
 COLLECTION_EA = "early_adopters"
 COLLECTION_FEEDBACK = "feedback"
+# One canonical owner per email across BOTH registration lanes (T S158
+# Finding 1): a hash-keyed claim document created atomically with
+# ``DocumentReference.create()`` — exactly one caller can ever create it.
+COLLECTION_EMAIL_OWNERS = "email_owners"
+
+# The ONE external contract every email-bearing registration returns, whether
+# the address is new or already registered (T S158 Finding 3): no message,
+# flag, tier, URL, or availability text may depend on account existence.
+_UNIFORM_EMAIL_MESSAGE = (
+    "Thanks — your interest is recorded. Finish sign-in through your "
+    "MCP client's Connect flow, which verifies your email and issues "
+    "your credentials. Account details are never disclosed here. "
+    f"{CURRENT_AVAILABILITY_NOTICE}"
+)
+
+# The ONE honest receipt an email-bearing registration returns when storage
+# fails mid-request (T S159 F-04): identical for a new and an existing address
+# — both perform the same class of write, so both fail alike — and it never
+# claims persistence that did not occur (F-RES-1, v0.5.50). Rendered by the
+# handlers as a retryable 503.
+#
+# It makes NO absence claim (T S161 A-3 / F-6): a write RPC that raises is an
+# AMBIGUOUS outcome — a commit whose acknowledgement was lost raises exactly
+# like a rejected one — so "no account was created" was stronger than the
+# evidence. "Could not be confirmed" is what is actually known, it is the same
+# for a new and an existing address, and the retry guidance is true either
+# way: the atomic ownership claim means resubmitting can never create a second
+# account for one address.
+_UNSAVED_EMAIL_MESSAGE = (
+    "Registration storage is temporarily unavailable, so this request could "
+    "not be confirmed as saved. Please try again in a few minutes; "
+    "resubmitting the same address is safe and never creates a second account."
+)
+
+
+class RegistrationStoreUnavailable(Exception):
+    """A registration lane hit a storage backend failure mid-request. Carries
+    the lane's uniform not-saved receipt; the HTTP handler renders it as one
+    retryable 503 (``Retry-After``, ``no-store``) for new and existing
+    addresses alike — never a generic 500 (an existence oracle) and never a
+    success screen (a persistence lie)."""
+
+    def __init__(self, receipt):
+        super().__init__("registration storage unavailable")
+        self.receipt = receipt
+
+# Feedback attribution grades (T S158 Finding 2): the ``uuid`` field carries a
+# subject ONLY when it was derived from a validated bearer credential.
+ATTRIBUTION_VERIFIED_BEARER = "verified_bearer"
+ATTRIBUTION_ANONYMOUS = "anonymous"
+ATTRIBUTION_REGISTRATION_UNVERIFIED = "registration_unverified"
+ATTRIBUTION_DETACHED = "detached_on_verification"
 
 
 # ─────────────────────────────────────────────
@@ -129,8 +189,17 @@ class RegistrationResponse(BaseModel):
     message: str
     benefit_summary: str = ""
     opt_out_url: str
-    feedback_received: bool
-    persisted: bool = True  # v0.5.50 (F-RES-1): False when storage was down and the record was NOT saved
+    # True = the submitted text is confirmed persisted; False = confirmed NOT
+    # persisted (nothing was attempted); None = unknown: the write raised. A
+    # raised write is an ambiguous commit — a lost acknowledgement raises
+    # exactly like a rejected write — and the receipt never reads the store
+    # back to resolve it, because that answer would tell a submitter whether
+    # this mailbox already sent this exact text (T S165 A-2; S165 lens).
+    feedback_received: Optional[bool]
+    # v0.5.50 (F-RES-1): True only when persistence was CONFIRMED. False means
+    # not confirmed — storage was down, or a write raised (an ambiguous commit,
+    # T S161 A-3) — and is never itself a proof of absence.
+    persisted: bool = True
 
 
 class FeedbackRequest(BaseModel):
@@ -140,7 +209,14 @@ class FeedbackRequest(BaseModel):
         "general",
         description="feedback | issue | recommendation | general"
     )
-    uuid: Optional[str] = Field(None, description="Your EA UUID if registered (optional)")
+    uuid: Optional[str] = Field(
+        None,
+        description=(
+            "Your EA UUID if registered (optional). Stored only as an UNVERIFIED "
+            "claim; attribution is derived from a Bearer credential, never from "
+            "this field."
+        ),
+    )
     email: Optional[EmailStr] = Field(
         None,
         description="Your email if you'd like a follow-up (optional)"
@@ -183,6 +259,16 @@ class OptOutResponse(BaseModel):
     processed: bool
     message: str
     deletion_scheduled_within: Optional[str] = None
+    # Scope is in the name (S168 Lens A F4): the ACCOUNT rows that belonged
+    # to the subject, in both lanes. "complete" when every such row is
+    # confirmed de-identified; "pending" when revocation is final but a row
+    # deferred behind another subject's claim could not be confirmed
+    # de-identified (T S167 R9-03: a tombstone kills credentials, it does not
+    # remove persisted PII, and the receipt must say which truth it carries).
+    # Personal data outside the account rows — feedback keyed to the subject
+    # — is the "remaining personal data" the message targets for the purge;
+    # this field says nothing about it. None on receipts that confirm nothing.
+    account_deidentification: Optional[str] = None
 
 
 _OPTOUT_STORAGE_UNAVAILABLE_MESSAGE = (
@@ -287,7 +373,7 @@ def _now_iso() -> str:
 def _count_tier_slots(db, tier: str) -> int:
     """Count registered slots for a given tier. Returns 0 if Firestore unavailable."""
     try:
-        docs = db.collection(COLLECTION_EA).where("tier", "==", tier).where("status", "==", "active").count().get()
+        docs = db.collection(account_collection(COLLECTION_EA)).where("tier", "==", tier).where("status", "==", "active").count().get()
         return int(docs[0][0].value)
     except Exception as e:
         logger.warning(f"Slot count query failed for tier={tier}: {e}")
@@ -301,11 +387,19 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
     - Pilot (50-slot feedback cohort): valid invite_code matching PILOT_INVITE_CODE
     - Early Adopter (100-slot feedback cohort): everyone else
 
-    Idempotent: same email → returns existing UUID (no duplicate records).
+    One canonical owner per email across BOTH lanes (T S158 Finding 1); one
+    external response for new AND existing addresses (T S158 Finding 3).
     Slot cap: returns 410 Gone (raises ValueError with code) if tier is full.
     """
+    # Environment identity resolves BEFORE the client or any I/O: a
+    # misdeclared staging service stops here (T S157 Finding 3).
+    lanes = _lane_collections()
+    ea_collection = lanes[COLLECTION_EA]
+    feedback_collection = account_collection(COLLECTION_FEEDBACK)
+    owners_collection = account_collection(COLLECTION_EMAIL_OWNERS)
     db = _get_firestore()
     now = _now_iso()
+    normalized = normalize_email(data.email)
 
     # ── Determine tier ──────────────────────────────────────────────────────────
     is_pilot = (
@@ -324,66 +418,161 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
             logger.info(f"Slot cap reached for tier={tier}: {current_slots}/{max_slots}")
             raise SlotCapReachedError(tier, max_slots)
 
-        # ── Duplicate email check ───────────────────────────────────────────────
-        existing = db.collection(COLLECTION_EA).where("email", "==", str(data.email)).limit(1).get()
-        if existing:
-            doc = existing[0].to_dict()
-            existing_tier = doc.get("tier", "early_adopter")
-            existing_label = "Pilot Member" if existing_tier == "pilot" else "Early Adopter"
-            logger.info(f"Duplicate registration for masked email {_mask_email(str(data.email))} — returning existing UUID")
-            return RegistrationResponse(
-                uuid=doc["uuid"],
-                email_masked=_mask_email(str(data.email)),
-                tier=existing_tier,
-                tier_label=existing_label,
-                registered_at=doc["registered_at"],
-                tc_version=doc.get("tc_version", TERMS_VERSION),
-                privacy_version=doc.get("privacy_version", PRIVACY_POLICY_VERSION),
-                message=(
-                    f"You're already registered as {existing_label}. "
-                    "Your UUID and cohort membership are unchanged."
-                ),
-                benefit_summary=_build_benefit_summary(existing_tier, existing_label),
-                opt_out_url=f"/early-adopters/optout/{doc['uuid']}",
-                feedback_received=False,
-            )
+        # ── Canonical email ownership (T S158 Finding 1) ────────────────────────
+        # An email is owned by a legacy record in EITHER lane's collection, or
+        # by the atomic claim document created here; two callers racing for
+        # the same address can never both win the claim. Whoever did not win
+        # gets exactly the same receipt as the winner (T P0-2: never disclose
+        # an existing UUID or its opt-out URL from a bare email lookup —
+        # recovery goes through the verified-mailbox OAuth ceremony).
+        feedback_stored = False
+        try:
+            new_uuid = generate_ea_uuid()
+            legacy = _legacy_owner(db, lanes, normalized)
+            if legacy is not None:
+                # Existing address: perform the SAME class of write a new
+                # address performs (T S159 F-04), so a storage outage cannot
+                # tell the two apart — see _reassert_owner_claim.
+                _reassert_owner_claim(
+                    owners_collection, normalized,
+                    legacy_base=legacy[0], legacy_uuid=legacy[1], now=now,
+                )
+                owned = True
+            else:
+                owned = not claim_email(
+                    db, owners_collection, normalized, uuid=new_uuid,
+                    collection_base=COLLECTION_EA, lane="early_adopters_v1", now=now,
+                )
+            if owned:
+                logger.info(
+                    "Duplicate registration for masked email %s — disclosure withheld",
+                    _mask_email(str(data.email)),
+                )
+                record_uuid = None
+            else:
+                record = {
+                    "uuid": new_uuid,
+                    "email": normalized,  # canonical form; never logged
+                    "name": data.name,
+                    "registered_at": now,
+                    "tier": tier,
+                    "tc_accepted": True,
+                    "tc_version": TERMS_VERSION,
+                    "tc_accepted_at": now,
+                    "privacy_acknowledged": True,
+                    "privacy_version": PRIVACY_POLICY_VERSION,
+                    "privacy_acknowledged_at": now,
+                    "updates_consent": data.updates_consent,
+                    # The submitted feedback TEXT is deliberately not copied
+                    # here: it lives only in the feedback document below, so
+                    # ``feedback_received`` can describe whether the text
+                    # persists ANYWHERE — one truthful answer for a new and an
+                    # existing address alike (T S161 A-3 / F-2). A copy in the
+                    # account made "feedback_received: false" false for a new
+                    # address whenever the document write failed.
+                    "feedback_type": data.feedback_type or ("new_user" if not data.feedback else "general"),
+                    "status": "active",
+                }
+                # The mailbox is NOT proven on this path, so the record is
+                # marked unverified and its identifier is never returned. The
+                # OAuth ceremony upgrades it once the mailbox is actually
+                # proven — and neutralizes every caller-chosen field above at
+                # that moment (resolve_verified_subject).
+                record["email_verified"] = False
+                if is_pilot:
+                    record["pilot_source"] = "system_notice_invite"
+                if _create_account_record(db, ea_collection, new_uuid, record):
+                    logger.info(f"New {tier} cohort record created (identifier withheld)")
+                    record_uuid = new_uuid
+                else:
+                    record_uuid = None
 
-        # ── New registration ────────────────────────────────────────────────────
-        new_uuid = generate_ea_uuid()
-        record = {
-            "uuid": new_uuid,
-            "email": str(data.email),  # stored securely in Firestore, never logged
-            "name": data.name,
-            "registered_at": now,
-            "tier": tier,
-            "tc_accepted": True,
-            "tc_version": TERMS_VERSION,
-            "tc_accepted_at": now,
-            "privacy_acknowledged": True,
-            "privacy_version": PRIVACY_POLICY_VERSION,
-            "privacy_acknowledged_at": now,
-            "updates_consent": data.updates_consent,
-            "registration_feedback": data.feedback,
-            "feedback_type": data.feedback_type or ("new_user" if not data.feedback else "general"),
-            "status": "active",
-        }
-        if is_pilot:
-            record["pilot_source"] = "system_notice_invite"
-        db.collection(COLLECTION_EA).document(new_uuid).set(record)
-        logger.info(f"New {tier} registered: UUID={new_uuid}")
+            # ── Feedback: stored as explicitly UNVERIFIED registration content ─
+            # Recorded for new and existing addresses alike so the receipt below
+            # is truthful for both; it never carries an authoritative subject
+            # (T S158 Findings 1/2). Environment-namespaced like the account it
+            # accompanies (T S157 Finding 2).
+            #
+            # AUXILIARY, and therefore NON-FATAL (T S159 R6-02). It is the last
+            # write in the lane, so folding its failure into the storage-outage
+            # receipt made that receipt claim no account existed while the
+            # account, carrying the address, was already committed. The
+            # feedback document is not the registration: losing it costs the
+            # feedback, not the account. It is also the ONLY place the
+            # submitted text is stored (T S161 F-2), so "not stored" below
+            # means the text persists nowhere — for a new AND an existing
+            # address alike, which is what keeps the receipt non-enumerating.
+            if data.feedback:
+                # The document id is DETERMINISTIC per (mailbox, text) and the
+                # write is create-if-absent, so a retry of the same submission
+                # — whenever it arrives — is idempotent: a commit whose
+                # acknowledgement was lost cannot be duplicated by the retry
+                # (T S165 A-2; the S165 lens showed a per-day id duplicated a
+                # retry across midnight).
+                feedback_id = _feedback_document_id(normalized, data.feedback)
+                feedback_ref = db.collection(feedback_collection).document(feedback_id)
+                try:
+                    feedback_ref.create(_registration_feedback_record(data, now, record_uuid, feedback_id))
+                    feedback_stored = True
+                except _AlreadyExists:
+                    feedback_stored = True  # an earlier attempt landed: a retry, or a lost acknowledgement
+                except Exception as exc:  # noqa: BLE001
+                    from .oauth.stores import _backend_failure, is_backend_failure
 
-        # ── Store feedback separately ───────────────────────────────────────────
-        if data.feedback:
-            feedback_record = {
-                "feedback_id": generate_feedback_id(),
-                "submitted_at": now,
-                "type": data.feedback_type or "general",
-                "content": data.feedback,
-                "uuid": new_uuid,
-                "email": None,  # never store email in feedback collection
-                "connection_context": "registration",
-            }
-            db.collection(COLLECTION_FEEDBACK).add(feedback_record)
+                    if not is_backend_failure(exc):
+                        raise
+                    # The commit is AMBIGUOUS: a lost acknowledgement raises
+                    # exactly like a rejected write. The receipt reports UNKNOWN
+                    # — never a confirmed absence (T S165 A-2), and never what
+                    # the store now holds: a receipt that read the deterministic
+                    # document back would tell a submitter, during a write
+                    # outage, whether this mailbox already sent this exact text
+                    # (S165 lens). The document IS read back, for the log only,
+                    # so an operator can tell a lost acknowledgement from a
+                    # rejected write. The read's own exception is classified
+                    # on the node: ``is_backend_failure`` would inherit the
+                    # write's backend cause through ``__context__`` and hide a
+                    # programming error in the read.
+                    feedback_stored = None
+                    try:
+                        held = bool(feedback_ref.get().exists)
+                    except Exception as read_exc:  # noqa: BLE001
+                        if not _backend_failure(read_exc):
+                            logger.error(
+                                "Registration feedback write raised (error_type=%s) and the log-only "
+                                "confirming read raised a non-backend error (error_type=%s)",
+                                type(exc).__name__, type(read_exc).__name__,
+                            )
+                            # Raised without the outage as context: the outer
+                            # boundary classifies through the chain and would
+                            # otherwise turn a bug into a retryable 503.
+                            raise read_exc from None
+                        held = None
+                    logger.warning(
+                        "Registration feedback write raised (error_type=%s); the store now holds the "
+                        "document: %s; the receipt reports unknown; the account is unaffected",
+                        type(exc).__name__,
+                        {True: "yes", False: "no", None: "unknown"}[held],
+                    )
+        except Exception as exc:  # noqa: BLE001
+            from .oauth.stores import is_backend_failure
+
+            if is_backend_failure(exc):
+                # Storage outage mid-request (T S159 F-04). Every email-bearing
+                # submission performs one owners-collection write (new: create;
+                # existing: backfill or re-assert), so an outage fails a new and
+                # an existing address identically. The receipt is the lane's
+                # HONEST not-saved contract (F-RES-1: never a success screen for
+                # an unsaved registration), rendered by the handler as one
+                # retryable 503 — a persistent quota or permission failure is
+                # loud, never a silent success.
+                logger.warning(
+                    "EA registration storage unavailable (error_type=%s)", type(exc).__name__,
+                )
+                raise RegistrationStoreUnavailable(
+                    _unsaved_ea_response(now, _mask_email(str(data.email)))
+                ) from exc
+            raise
 
     else:
         # F-RES-1 (v0.5.50): Firestore unavailable — the registration CANNOT be
@@ -407,34 +596,879 @@ async def register_early_adopter(data: EarlyAdopterRegistration) -> Registration
             feedback_received=False,
         )
 
+    # UNIFORM response (T P0-2 + adversarial B-3/B-6; byte-equal for new AND
+    # existing addresses per T S158 Finding 3, and for a partial write outage
+    # per T S159 F-04): this endpoint is not an account-existence oracle, and
+    # it never hands out a subject identifier the mailbox owner has not proven.
+    # The identifier is delivered only through the verified Connect ceremony.
+    # ``feedback_received`` reports whether the submitted text persists
+    # ANYWHERE (T S161 A-3): the feedback document is the only place it is
+    # written, so this is exactly "was that document stored" — and it is False
+    # for a new AND an existing address alike when that write fails.
+    return _uniform_ea_response(now, _mask_email(str(data.email)), feedback_stored)
+
+
+def _uniform_ea_response(now: str, email_masked: str, feedback_received: Optional[bool]) -> "RegistrationResponse":
+    """The ONE external contract an email-bearing EA registration returns —
+    for a new address, an existing address, AND a reads-up/writes-down
+    claim-store outage (T S158 Finding 3 / T S159 F-04). It never branches on
+    account existence and never discloses a subject identifier."""
     return RegistrationResponse(
-        uuid=new_uuid,
-        email_masked=_mask_email(str(data.email)),
-        tier=tier,
-        tier_label=tier_label,
+        uuid="",
+        email_masked=email_masked,
+        tier="",
+        tier_label="",
         registered_at=now,
         tc_version=TERMS_VERSION,
         privacy_version=PRIVACY_POLICY_VERSION,
-        message=(
-            f"Welcome to the VerifiMind-PEAS {tier_label} program! "
-            "Your UUID is your identifier — save it. It is not an "
-            "authentication credential and does not authorize access to "
-            "another user's data. "
-            f"{CURRENT_AVAILABILITY_NOTICE}"
-        ),
-        benefit_summary=_build_benefit_summary(tier, tier_label),
-        opt_out_url=f"/early-adopters/optout/{new_uuid}",
-        feedback_received=bool(data.feedback),
+        message=_UNIFORM_EMAIL_MESSAGE,
+        benefit_summary="",
+        opt_out_url="",
+        feedback_received=feedback_received,
     )
+
+
+def _unsaved_ea_response(now: str, email_masked: str) -> "RegistrationResponse":
+    """The honest not-saved receipt for a mid-request storage outage — the
+    same bytes for a new and an existing address (T S159 F-04), no phantom
+    identifier, ``persisted`` False, and ``feedback_received`` False because
+    nothing was stored (F-RES-1)."""
+    return RegistrationResponse(
+        uuid="",
+        email_masked=email_masked,
+        tier="",
+        tier_label="",
+        registered_at=now,
+        tc_version=TERMS_VERSION,
+        privacy_version=PRIVACY_POLICY_VERSION,
+        persisted=False,
+        message=_UNSAVED_EMAIL_MESSAGE,
+        benefit_summary="",
+        opt_out_url="",
+        feedback_received=False,
+    )
+
+
+def _feedback_document_id(normalized_email: str, content: str) -> str:
+    """The feedback document's id, deterministic per (mailbox, text) so that a
+    retried submission — at any later time — maps to the SAME document and
+    create-if-absent makes it idempotent (T S165 A-2; a per-day component
+    let a retry across midnight duplicate a lost-acknowledgement write). The
+    mailbox enters only as its owner key (a hash), the text only as a hash;
+    the id discloses neither."""
+    material = "|".join((
+        email_owner_key(normalized_email),
+        hashlib.sha256(content.encode("utf-8")).hexdigest(),
+    ))
+    return "fb_" + hashlib.sha256(material.encode("utf-8")).hexdigest()[:32]
+
+
+def _registration_feedback_record(data, now: str, record_uuid: Optional[str], feedback_id: Optional[str] = None) -> dict:
+    """Feedback typed at registration: content from an UNVERIFIED caller.
+
+    ``uuid`` (the authoritative subject field) is always None here; the
+    generated registration identifier, if any, is kept only as an explicitly
+    unverified link so mailbox proof never turns it into attribution
+    (T S158 Finding 1)."""
+    return {
+        "feedback_id": feedback_id or generate_feedback_id(),
+        "submitted_at": now,
+        "type": data.feedback_type or "general",
+        "content": data.feedback,
+        "uuid": None,
+        "attribution": ATTRIBUTION_REGISTRATION_UNVERIFIED,
+        "registration_uuid_unverified": record_uuid,
+        "email": None,  # never store email in feedback collection
+        "connection_context": "registration",
+    }
+
+
+def account_collection(base: str) -> str:
+    """Environment-namespaced name for a USER-DATA collection — accounts
+    (``early_adopters`` / ``ea_registrations``), ``feedback``, and
+    ``trinity_history`` all resolve through this one seam.
+
+    Production and local development keep the bare historical names; a
+    declared staging environment is prefixed, so it can never read, create,
+    or tombstone a production record. ``EnvironmentMisconfigured``
+    PROPAGATES: a staging service whose identity cannot be resolved stops
+    here, before any read or write — it must never fall back to the
+    production name (CS round 3 / T S157 Finding 3: the previous broad
+    ``except`` returned exactly that). Every caller resolves its collection
+    before it opens the client.
+    """
+    return current_environment().account_collection(base)
+
+
+def normalize_email(value) -> str:
+    """Canonical email form used for EVERY store and lookup.
+
+    Pydantic's EmailStr lowercases only the domain, so `Bob@x.com` and
+    `bob@x.com` previously produced two accounts and defeated both dedup
+    checks — and made a verified-mailbox sign-in fork a second subject.
+    """
+    return str(value or "").strip().lower()
+
+
+# ── Canonical email ownership across both registration lanes (T S158) ───────
+
+def email_owner_key(email) -> str:
+    """Deterministic claim-document id for an email: SHA-256 of the canonical
+    form. The account record already stores the address in clear, so the hash
+    is an index key, not a secret; it keeps the raw address out of document
+    paths and logs."""
+    return hashlib.sha256(normalize_email(email).encode("utf-8")).hexdigest()
+
+
+def _lane_collections() -> dict:
+    """Both registration lanes' account collections, environment-resolved
+    BEFORE any client is opened (T S157 Finding 3)."""
+    return {
+        COLLECTION_EA: account_collection(COLLECTION_EA),
+        COLLECTION_REGISTRATIONS: account_collection(COLLECTION_REGISTRATIONS),
+    }
+
+
+def _legacy_owner(db, lanes: dict, normalized_email: str):
+    """The account record that already owns the address in EITHER lane, as
+    ``(collection_base, uuid)`` — or None when no record carries it. A read
+    only; the write that must accompany it lives in ``_reassert_owner_claim``."""
+    for base, collection in lanes.items():
+        found = db.collection(collection).where("email", "==", normalized_email).limit(1).get()
+        if found:
+            data = found[0].to_dict() or {}
+            return base, str(data.get("uuid") or getattr(found[0], "id", "") or "")
+    return None
+
+
+def _email_already_owned(db, lanes: dict, normalized_email: str) -> bool:
+    """A legacy (pre-claim) record in EITHER lane already owns the address."""
+    return _legacy_owner(db, lanes, normalized_email) is not None
+
+
+CLAIM_CREATED = "created"
+CLAIM_PRESENT = "present"
+CLAIM_SEALED = "sealed"
+
+
+def _assert_claim_for_existing_subject(
+    owners_collection: str, key: str, *,
+    subject_uuid: str, collection_base: str, lane: str, now: str,
+) -> str:
+    """Create or re-assert an ownership claim for an EXISTING subject, reading
+    that subject's erasure markers THROUGH the transaction that writes it
+    (T S159 R6-01).
+
+    Before this, the marker check and the claim write were separate operations,
+    so a caller that had already read a live legacy subject could create its
+    claim AFTER erasure swept the claims and returned success — leaving a claim
+    naming an erased subject. Reading the seal and the tombstone inside the
+    transaction puts them in its read set, which serializes the two: a
+    concurrent seal either conflicts this commit (the retry sees it and
+    refuses) or waits for it (the server's read locks: this commit lands first
+    and erasure's own sweep, which runs after the seal, removes what it wrote).
+
+    Returns ``created`` (this call wrote the claim), ``present`` (a claim was
+    already there — touched when it names this subject, left alone when it
+    names another), or ``sealed`` (erasure has begun; nothing written).
+    A brand-new subject never needs this: ``claim_email``'s atomic create is
+    enough, because an identifier no one has seen cannot already be erased."""
+    from .oauth.stores import run_transaction, subject_is_sealed_or_revoked
+
+    def _txn(txn):
+        if subject_is_sealed_or_revoked(txn, subject_uuid):
+            return CLAIM_SEALED
+        current = txn.get_dict(owners_collection, key)
+        if current is not None:
+            # Touch whatever claim is present: ``email_hash`` is derived from
+            # the document id, so it is identical for every owner of this
+            # address and stores nothing new — but it keeps the existing-address
+            # path performing one owners write, which is what makes a storage
+            # outage fail a new and an existing address alike (T S159 F-04).
+            txn.update(owners_collection, key, {"email_hash": key})
+            return CLAIM_PRESENT
+        txn.set(owners_collection, key, {
+            "email_hash": key, "uuid": subject_uuid, "collection": collection_base,
+            "lane": lane, "claimed_at": now, "verified": False,
+        })
+        return CLAIM_CREATED
+
+    return str(run_transaction(_txn))
+
+
+def _reassert_owner_claim(
+    owners_collection: str, normalized_email: str, *,
+    legacy_base: str, legacy_uuid: str, now: str,
+) -> str:
+    """The existing-address path's ONE owners-collection write (T S159 F-04).
+
+    A new address creates its claim; an existing address used to perform no
+    write at all, so under a reads-up/writes-down outage the new address failed
+    (500) while the existing one succeeded — an existence oracle. Now every
+    email-bearing submission performs the same class of write: a record whose
+    claim is missing (a legacy, pre-claim account) gets its claim backfilled —
+    the verified resolver's own rule, applied one step earlier — and a record
+    whose claim exists gets an invariant field re-asserted. The write happens
+    inside the erasure-serialized transaction above (T S159 R6-01)."""
+    if not legacy_uuid:
+        return CLAIM_SEALED
+    return _assert_claim_for_existing_subject(
+        owners_collection, email_owner_key(normalized_email),
+        subject_uuid=legacy_uuid, collection_base=legacy_base,
+        lane="backfill", now=now,
+    )
+
+
+def claim_email(
+    db, owners_collection: str, normalized_email: str, *,
+    uuid: str, collection_base: str, lane: str, now: str,
+) -> bool:
+    """Atomically claim canonical ownership of an email for ``uuid``.
+
+    ``DocumentReference.create()`` succeeds for exactly ONE caller per
+    document id and raises ``AlreadyExists`` for everyone else, so two
+    concurrent registrations (in the same lane or across lanes) can never
+    both create an account for one address. Returns True when this call
+    won the claim, False when the address is already owned.
+
+    Before the create, the FRESH identifier's erasure markers are read — the
+    same authorization-state read an existing address performs inside its
+    claim transaction (``_assert_claim_for_existing_subject``). A failure of
+    the revocation-marker store therefore fails a new and an existing
+    address alike, instead of letting only the new one succeed and turning a
+    selective outage into an email-existence oracle (T S161 A-4 / F-8). For
+    a fresh identifier the markers are always absent; the read's value is
+    crossing the same failure boundary. Should one ever be present, the
+    identifier is refused rather than re-issued — a subject under erasure is
+    never claimed for (fail closed)."""
+    from .oauth.stores import subject_is_erased
+
+    if subject_is_erased(uuid):
+        logger.error("Refusing to claim an address for an identifier that is already under erasure")
+        return False
+    key = email_owner_key(normalized_email)
+    try:
+        db.collection(owners_collection).document(key).create({
+            "email_hash": key,
+            "uuid": uuid,
+            "collection": collection_base,
+            "lane": lane,
+            "claimed_at": now,
+            "verified": False,
+        })
+    except _AlreadyExists:
+        return False
+    return True
+
+
+def _create_account_record(db, collection: str, uuid: str, record: dict) -> bool:
+    """Write a NEW account record with create-if-absent semantics.
+
+    A plain ``set()`` could overwrite a record the verified ceremony healed
+    under the same identifier between this lane's claim and its write —
+    replacing verified state with the unverified preregistration. With
+    ``create()`` the later writer loses and the verified record stands.
+    Returns False when the record already existed (nothing overwritten)."""
+    try:
+        db.collection(collection).document(uuid).create(record)
+    except _AlreadyExists:
+        logger.info("Account record already existed at write time — left untouched")
+        return False
+    return True
+
+
+def _heal_claimed_record(collection: str, subject_uuid: str, record: dict) -> str:
+    """Write the account record an existing claim promised, reading the claimed
+    subject's erasure markers THROUGH the transaction that writes it (S164
+    Lens A F1).
+
+    The heal used to be a bare ``create()`` after a non-transactional marker
+    check. An erasure of the claimed subject that sealed between that check
+    and the create then completed against rows that did not yet exist, and the
+    create landed afterwards: an ACTIVE record carrying the address for a
+    tombstoned subject, which no lane or resolver could ever route again.
+    Reading both markers here puts them in the write's read set, so a seal
+    that lands after the check conflicts (or precedes) this commit and the
+    heal refuses. Returns ``created``, ``present`` (a concurrent writer landed
+    first — adopt through it) or ``sealed`` (erasure has begun; nothing
+    written; fail closed)."""
+    from .oauth.stores import run_transaction, subject_is_sealed_or_revoked
+
+    def _txn(txn):
+        if subject_is_sealed_or_revoked(txn, subject_uuid):
+            return CLAIM_SEALED
+        if txn.get_dict(collection, subject_uuid) is not None:
+            return CLAIM_PRESENT
+        txn.set(collection, subject_uuid, dict(record))
+        return CLAIM_CREATED
+
+    return str(run_transaction(_txn))
+
+
+def _release_owner_claim(owners_collection: str, key: str, *, expected_uuid: str) -> bool:
+    """Delete an email-owner claim IFF it still names ``expected_uuid``.
+
+    ABA-safe (T S159 F-02): a bare ``delete()`` erases whatever claim is
+    present — including a replacement a concurrent re-registration installed
+    for a DIFFERENT subject. Reading and deleting inside one transaction makes
+    a competing writer conflict (or, under the server's read locks, wait), and
+    the identity check leaves a re-pointed claim for its new owner. An
+    already-absent claim, or one now owned by someone else, counts as released
+    for THIS subject — nothing of ours remains. A backend failure propagates as
+    ``StoreUnavailable`` through ``run_transaction`` so the caller fails closed
+    and retryable, never a false success. The transaction runs on the process
+    client (``run_transaction`` resolves it), the same client every caller
+    here holds — there is deliberately no ``db`` parameter to suggest otherwise."""
+    from .oauth.stores import run_transaction
+
+    def _txn(txn):
+        current = txn.get_dict(owners_collection, key)
+        if current is None or current.get("uuid") != expected_uuid:
+            return True
+        txn.delete(owners_collection, key)
+        return True
+
+    return bool(run_transaction(_txn))
+
+
+def _release_claims_naming(db, owners_collection: str, uuid: str) -> int:
+    """Release EVERY email-owner claim that names ``uuid`` — the subject's own
+    durable cleanup identity (T S159 F-03). The lookup is the claim's ``uuid``
+    field, never the account record's email, so it still works after PII has
+    been scrubbed, and it also cleans a claim left behind by an interrupted
+    pre-repair opt-out (claim present, email already ``[deletion_requested]``).
+    Each delete is conditional (ABA-safe) because a claim could be re-pointed
+    between the query and the delete. Returns the number released; a failure
+    propagates. ``process_optout`` runs this AFTER the authoritative subject
+    tombstone and treats a failure as hygiene debt, never as a failed erasure
+    (T S161 A-1): a claim that names a tombstoned subject is reclaimed by the
+    next verified ceremony, and the tombstone already denies its bearer."""
+    released = 0
+    for snapshot in db.collection(owners_collection).where("uuid", "==", uuid).get():
+        key = getattr(snapshot, "id", None) or (snapshot.to_dict() or {}).get("email_hash", "")
+        if key and _release_owner_claim(owners_collection, key, expected_uuid=uuid):
+            released += 1
+    return released
+
+
+def _reclaim_tombstoned_owner(
+    owners_collection: str, key: str, *,
+    expected_uuid: str, fresh_uuid: str, collection_base: str, lane: str, now: str,
+) -> bool:
+    """Atomically replace a claim that names a tombstoned subject with a fresh
+    one (T S159 F-02).
+
+    Returns True when THIS call installed ``fresh_uuid``; False when the claim
+    changed under us — a concurrent resolver already released or re-pointed it,
+    so the caller re-reads and adopts the winner instead of forking a second
+    verified subject for one mailbox. The read-and-set happen in ONE
+    transaction, so an unconditional delete can never erase a replacement
+    claim; a competing writer conflicts (fake) or waits (server read locks).
+    The fresh claim is minted ``verified: False`` exactly as ``claim_email``
+    mints it; only the account write that follows marks it verified."""
+    from .oauth.stores import run_transaction
+
+    def _txn(txn):
+        current = txn.get_dict(owners_collection, key)
+        if current is None or current.get("uuid") != expected_uuid:
+            return False
+        txn.set(owners_collection, key, {
+            "email_hash": key, "uuid": fresh_uuid, "collection": collection_base,
+            "lane": lane, "claimed_at": now, "verified": False,
+        })
+        return True
+
+    return bool(run_transaction(_txn))
+
+
+def _subject_revoked(uuid: str) -> bool:
+    """True once erasure has BEGUN for the subject — its erasure seal or its
+    revocation tombstone is present (T S159 R6-01). A subject under erasure
+    must never be adopted, healed, or newly claimed, and the seal makes that
+    refusal start at the moment erasure commits to it rather than at the
+    tombstone. Between the two the caller's bearer is still alive, so an
+    interrupted erasure is finished by a retry — and its ownership claim is
+    still present, so nothing can hand the mailbox to a new identity while
+    that bearer is admissible (T S161 A-1).
+
+    This predicate answers "may I bind new state to this subject?" — the
+    answer is no from the seal onward. It must NOT be used to decide that the
+    address is free for a fresh subject: that is ``_subject_erasure_complete``.
+
+    Non-transactional: a caller that also WRITES a claim naming this subject
+    must use ``_assert_claim_for_existing_subject`` instead, which re-reads
+    both markers inside the transaction that performs the write."""
+    from .oauth.stores import subject_is_erased
+
+    return bool(uuid) and subject_is_erased(uuid)
+
+
+def _subject_erasure_complete(uuid: str) -> bool:
+    """True only once the subject's REVOCATION TOMBSTONE has landed — the
+    marker every credential path consults, and therefore the point at which
+    the erasure is finished and its mailbox may be re-issued to a fresh
+    subject (S163, after the S163 lens).
+
+    The distinction is load-bearing. Between the seal and the tombstone an
+    erasure is IN PROGRESS: its caller still holds a live bearer and is
+    expected to retry, so the address must NOT be handed to a new identity —
+    doing so mints a second account carrying the same address in clear and
+    strands the original subject untombstoned, with its credentials alive and
+    unreachable from the owner route. Reclaiming belongs to a FINISHED
+    erasure; an unfinished one fails closed and waits for the retry. That is
+    only decidable because the claim outlives the tombstone (T S161 A-1): the
+    resolver reads the claim, finds the subject, and asks this question."""
+    from .oauth.stores import _is_tombstoned
+
+    return bool(uuid) and _is_tombstoned(grant_id="", parent_grant_id="", subject_uuid=uuid)
+
+
+def _lane_default_tier(collection_base: str) -> str:
+    return "early_adopter" if collection_base == COLLECTION_EA else "ea"
+
+
+def _verified_record(uuid: str, normalized_email: str, now: str, tier: str = "ea") -> dict:
+    return {
+        "uuid": uuid, "email": normalized_email, "display_name": None, "tier": tier,
+        "registered_at": now, "consent": True, "consent_ts": now,
+        "consent_source": "oauth_ceremony_v2",
+        "privacy_version": PRIVACY_POLICY_VERSION, "tc_version": TERMS_VERSION,
+        "updates_consent": False,
+        "status": "active", "registration_path": "oauth_ceremony_v2",
+        "email_verified": True, "email_verified_at": now,
+        "verification_path": "oauth_ceremony_v2",
+    }
+
+
+# Every field an unverified caller could have chosen on a preregistration.
+# Mailbox proof is a STATE-TRANSITION SANITIZER, not retroactive authorship
+# (T S158 Finding 1): none of these may become the verified subject's state.
+_PREREGISTRATION_NEUTRALIZED = (
+    "name", "display_name", "registration_feedback", "feedback_type",
+    "updates_consent", "tier", "pilot_source",
+)
+
+
+def _adopt_verified(reference, data: dict, collection_base: str, now: str) -> Optional[str]:
+    """Bind mailbox proof to an existing record and neutralize everything an
+    unverified caller could have chosen. Returns the subject UUID, or None
+    when the record is not an active account."""
+    updates = _adoption_updates(data, collection_base, now)
+    if updates is None:
+        return None
+    if updates:
+        reference.update(updates)
+    return data.get("uuid", "")
+
+
+def _adoption_updates(data: dict, collection_base: str, now: str) -> Optional[dict]:
+    """The sanitizing update mailbox proof applies to an existing record, as a
+    dict — so a transactional adopter can apply it THROUGH its own transaction
+    (S168 Lens A F1/F2). None when the record is not adoptable (not an active
+    account, or no identifier field); an empty dict when it is already a
+    verified subject and there is nothing to sanitize."""
+    if data.get("status", "active") != "active":
+        return None
+    uuid = data.get("uuid", "")
+    if not uuid:
+        return None
+    if data.get("email_verified"):
+        return {}  # already a verified subject; nothing to sanitize
+    return {
+        "email_verified": True,
+        "email_verified_at": now,
+        "verification_path": "oauth_ceremony_v2",
+        # Profile and content chosen before proof: gone.
+        "display_name": None,
+        "name": None,
+        "registration_feedback": None,
+        "feedback_type": None,
+        # Consent provenance: the verified actor's OWN ceremony supplies
+        # Terms/Privacy acceptance now; marketing consent defaults OFF until
+        # that actor explicitly opts in (T S158 contract 2).
+        "tc_accepted": True,
+        "tc_version": TERMS_VERSION,
+        "tc_accepted_at": now,
+        "privacy_acknowledged": True,
+        "privacy_version": PRIVACY_POLICY_VERSION,
+        "privacy_acknowledged_at": now,
+        "consent": True,
+        "consent_ts": now,
+        "consent_source": "oauth_ceremony_v2",
+        "updates_consent": False,
+        # Cohort privilege chosen before proof: back to the lane default.
+        "tier": _lane_default_tier(collection_base),
+        "pilot_source": None,
+        # The account's registration moment is the verified actor's, not the
+        # unverified caller's; the earlier timestamp is kept as provenance.
+        "registered_at": now,
+        "preregistration": {
+            "created_at": data.get("registered_at"),
+            "adopted_at": now,
+            "neutralized": list(_PREREGISTRATION_NEUTRALIZED) + ["registered_at"],
+        },
+    }
+
+
+CARRIER_ADOPTED = "adopted"
+CARRIER_LOST = "lost"
+CARRIER_SEALED = "sealed"
+CARRIER_UNADOPTABLE = "unadoptable"
+CARRIER_CONFLICT = "conflict"
+CARRIER_NONE = "none"
+
+
+def _already_proven(row: dict) -> bool:
+    """Does this row say the mailbox was ALREADY PROVEN for its subject?
+
+    Identity, not availability: the account's ``status`` is deliberately NOT
+    part of it. Account status does not kill credentials — only the subject
+    tombstone does — so a suspended or otherwise non-active row that once
+    proved this mailbox still makes its subject an existing verified identity
+    for it, with a bearer that may still validate. Gating this question on
+    status would let another subject be verified over such a subject whenever
+    it also held an adoptable row, which is exactly the fork R10-01 is about.
+
+    Whether a ROW can be the write target of an adoption is a DIFFERENT
+    question, answered by ``_adoption_updates``, which does require an active
+    account. One predicate per question, each stated (S169 Lens B: three
+    predicates that disagreed made the decision depend on which ran first).
+    A subject that is already proven but has no adoptable row therefore
+    refuses the mailbox instead of yielding it."""
+    return bool(row.get("uuid")) and bool(row.get("email_verified"))
+
+
+def _adopt_carrier_through_stale_claim(
+    owners_collection: str, key: str, *, expected_uuid: str, normalized_email: str,
+    lanes: dict, now: str,
+):
+    """Adopt a subject whose account row still carries the mailbox, through
+    the stale claim that names an already-erased owner — in ONE transaction
+    (T S167 R9-01; S168 Lens A F1–F3; T S168 R10-01; S169 Lens A F-A/F-B/F-C).
+
+    Every other writer that binds state to an EXISTING subject reads that
+    subject's erasure markers through the transaction that writes
+    (``_assert_claim_for_existing_subject``, ``_heal_claimed_record``); this
+    one must too, and it must decide over the WHOLE carrier set, whose
+    MEMBERSHIP it must also read through the transaction: a set enumerated
+    before the transaction is a snapshot, and a candidate that appears,
+    seals, finishes its erasure, verifies or changes after that snapshot is
+    not bound by re-reading only the members the snapshot happened to hold.
+    So, inside the transaction:
+
+    - the claim must still name ``expected_uuid`` (else ``lost`` — a
+      concurrent writer won; the caller re-reads and adopts through it);
+    - the carrier set is enumerated HERE — every row in either lane carrying
+      the address (``where_ids`` through the transaction, every matched row
+      in the read set), grouped by DISTINCT subject identifier (one subject
+      with rows in both lanes is one candidate, never a conflict with
+      itself), the stale owner's own rows excluded;
+    - per subject, its tombstone and seal are read: a TOMBSTONED subject is
+      no longer a carrier and is ignored (its erasure finished; it is never
+      adopted); a SEALED one refuses (``sealed``, nothing written — its
+      erasure is in progress and its bearer may be admissible);
+    - a subject for which the mailbox was ALREADY PROVEN is adopted when
+      exactly one such subject exists (it is the identity this mailbox
+      belongs to); two of them refuse (``conflict``, nothing written) —
+      adopting one would leave the OTHER holding a proven row for the same
+      address, which is the fork this path exists to prevent; with none, the
+      first subject in lane order is adopted. That question is status-blind
+      on purpose (``_already_proven``): a suspended row that proved the
+      mailbox is still an identity even though its row is not an adoption
+      target. It is quantified over ROWS, not over credentials: a subject
+      whose rows were never proven is not treated as a conflicting identity
+      even if a bearer naming it still validates. Every in-repo path that
+      issues a bearer for an address writes the proven row first, so the row
+      is a faithful proxy there; the credential-state form of the same
+      question is disclosed and routed, not assumed;
+    - the SELECTED subject must have an ADOPTABLE row — an active account with
+      an identifier, ``_adoption_updates`` deciding at write time on the row
+      read here — else ``unadoptable`` with nothing written, and the rights
+      channel is the continuation. That refusal is NOT widened to every live
+      candidate: an unproven subject holds no credential for this address, so
+      denying the mailbox because its row is inactive would cost availability
+      on a state R10-01 never named;
+    - no carrier at all is ``none``: the caller mints a fresh subject.
+
+    Only then are the claim re-point (verified, since the ceremony proved
+    the mailbox) and the sanitizing adoption written together.
+
+    What remains outside this read set is a row that starts matching the
+    address AFTER the enumeration — created then, or UPDATED into it — since a
+    query has no predicate lock, here or on the real server. No in-repo writer
+    can do either while a claim exists: both registration lanes reach
+    ``_reassert_owner_claim``/``claim_email`` before writing a row, and
+    ``_heal_claimed_record`` writes only for the claim's OWN named owner,
+    whose tombstone it reads inside its own transaction (it does not read the
+    claim, so the general form of that argument would be false). An
+    out-of-band write of either shape is the predicate-lock limit already
+    routed as F-9. Returns ``(outcome, adopted_subject_or_None)``."""
+    from .oauth.stores import run_transaction, tombstone_ref
+
+    def _txn(txn):
+        current = txn.get_dict(owners_collection, key)
+        if current is None or current.get("uuid") != expected_uuid:
+            return CARRIER_LOST, None
+        # membership, through the transaction, by distinct subject
+        by_subject = {}
+        for base, collection in lanes.items():
+            for row_id in txn.where_ids(collection, "email", normalized_email):
+                row = txn.get_dict(collection, row_id) or {}
+                subject = row.get("uuid") or row_id
+                if not subject or subject == expected_uuid:
+                    continue
+                by_subject.setdefault(subject, []).append((base, collection, row_id, row))
+        live = {}
+        for subject, rows in by_subject.items():
+            tomb_c, tomb_id = tombstone_ref("subject", subject)
+            seal_c, seal_id = tombstone_ref("erasure", subject)
+            if txn.get_dict(tomb_c, tomb_id) is not None:
+                continue                                    # erasure finished: no longer a carrier
+            if txn.get_dict(seal_c, seal_id) is not None:
+                return CARRIER_SEALED, None                 # erasure in progress: refuse
+            live[subject] = rows
+        if not live:
+            return CARRIER_NONE, None
+        # WHOSE mailbox this is, decided over the whole set: a subject with an
+        # already-proven row holds a credential for THIS address, so two of them refuse
+        # and one of them is the answer. With none, lane order decides.
+        proven = [s for s, rows in live.items() if any(_already_proven(r[3]) for r in rows)]
+        if len(proven) > 1:
+            return CARRIER_CONFLICT, None
+        chosen = proven[0] if proven else next(iter(live))
+        # The SELECTED subject must have a row this ceremony can adopt — decided on the
+        # rows read HERE, at write time, an already-proven row first since adopting
+        # through it rewrites nothing. This refusal is deliberately NOT widened to every
+        # live candidate (S169 lens): an UNPROVEN subject holds no credential for this
+        # address, so denying the mailbox because ITS row is inactive would cost
+        # availability on a state R10-01 never named, and 72a92ae did not deny it.
+        ordered = sorted(live[chosen], key=lambda r: 0 if _already_proven(r[3]) else 1)
+        plan = next((r for r in ordered if _adoption_updates(r[3], r[0], now) is not None), None)
+        if plan is None:
+            return CARRIER_UNADOPTABLE, None                # cannot adopt the answer: fail closed
+        txn.set(owners_collection, key, {
+            "email_hash": key, "uuid": chosen, "collection": plan[0],
+            "lane": "backfill", "claimed_at": now, "verified": True, "verified_at": now,
+        })
+        # EVERY row of the adopted subject that carries this address is sanitized, not
+        # only the one the claim names (S169 lens): the proof belongs to the SUBJECT, so
+        # nothing an unverified caller chose on any of its rows may survive it — and a
+        # sibling row is what `/whoami` and the status endpoint serve for it. Each of
+        # these rows is already in this transaction's read set; one `_adoption_updates`
+        # refuses (inactive, or no identifier) is left alone rather than written blind.
+        for r_base, r_collection, r_row_id, r_row in ordered:
+            r_updates = _adoption_updates(r_row, r_base, now)
+            if r_updates:
+                txn.update(r_collection, r_row_id, r_updates)
+        return CARRIER_ADOPTED, chosen
+
+    outcome, subject = run_transaction(_txn)
+    return str(outcome), subject
+
+
+def _detach_unverified_feedback(db, feedback_collection: str, uuid: str) -> int:
+    """Feedback linked to ``uuid`` before mailbox proof was written by an
+    unverified caller: it stays, but loses the authoritative subject field
+    (legacy records written before attribution grades existed)."""
+    detached = 0
+    for snapshot in db.collection(feedback_collection).where("uuid", "==", uuid).get():
+        record = snapshot.to_dict() or {}
+        if record.get("attribution") == ATTRIBUTION_VERIFIED_BEARER:
+            continue
+        snapshot.reference.update({
+            "uuid": None,
+            "claimed_uuid_unverified": uuid,
+            "attribution": ATTRIBUTION_DETACHED,
+        })
+        detached += 1
+    return detached
+
+
+def resolve_verified_subject(email) -> Optional[str]:
+    """Verified-mailbox subject resolution. Only reachable AFTER the mailbox
+    proof (T P0-2/P0-10).
+
+    One mailbox proof binds ONE deterministic subject across both
+    registration lanes and races (T S158 contract 1): the claim document is
+    the canonical owner; a legacy record without a claim is backfilled into
+    one; a brand-new address gets its claim BEFORE its record; a claim whose
+    record write failed is healed under the claimed identifier. Every
+    adoption passes through ``_adopt_verified`` so nothing an unverified
+    caller chose survives the proof. Returns None when the store is
+    unavailable or the owning record is not an active account.
+    """
+    # Environment identity resolves BEFORE the client (T S157 Finding 3;
+    # closes the ordering seam the round-4 review noted).
+    owners_collection = account_collection(COLLECTION_EMAIL_OWNERS)
+    feedback_collection = account_collection(COLLECTION_FEEDBACK)
+    lanes = _lane_collections()
+    db = _get_firestore()
+    if db is None:
+        return None
+    normalized = normalize_email(email)
+    key = email_owner_key(normalized)
+    now = _now_iso()
+    claim_ref = db.collection(owners_collection).document(key)
+
+    for _attempt in range(3):  # a lost race or a released stale claim is resolved by re-reading
+        claim = claim_ref.get()
+        if claim.exists:
+            claimed = claim.to_dict() or {}
+            base = claimed.get("collection")
+            owner_uuid = claimed.get("uuid", "")
+            if base not in lanes or not owner_uuid:
+                # A claim that names no lane or no identifier is corrupt state:
+                # fail closed rather than guess a collection (never fall open).
+                logger.error("Email-owner claim is malformed; refusing to resolve a subject")
+                return None
+            if not _subject_erasure_complete(owner_uuid) and _subject_revoked(owner_uuid):
+                # Erasure has BEGUN for this subject but has not finished: its
+                # seal is committed, its tombstone is not. The caller who asked
+                # for it still holds a live bearer and is expected to retry, so
+                # the address is not free (S163, after the S163 lens). Handing
+                # it to a fresh subject here would mint a second account
+                # carrying the same address in clear and strand the original —
+                # untombstoned, credentials alive, unreachable from the owner
+                # route. Fail closed and let the erasure finish.
+                logger.error(
+                    "Erasure is in progress for this mailbox's owner; refusing to resolve a subject"
+                )
+                return None
+            if _subject_erasure_complete(owner_uuid):
+                # The owner's erasure FINISHED (subject tombstoned) but its
+                # claim was not released: a revoked identifier is never
+                # adopted, healed, or re-issued. Before replacing the stale
+                # claim with a FRESH subject, decide over every row that
+                # still carries the address for a DIFFERENT, non-tombstoned
+                # subject (T S167 R9-01; T S168 R10-01): a legacy duplicate,
+                # or a subject whose erasure was interrupted behind this
+                # stale anchor. A fresh subject may never be minted while
+                # such a subject's credentials are admissible — that is the
+                # mailbox fork the fence exists to prevent. The decision —
+                # membership, lifecycle, adoptability, selection — is made
+                # INSIDE the adopting transaction, so anything that changes
+                # after its reads conflicts the commit and the retry decides
+                # again; a lost race re-reads and adopts the winner.
+                outcome, carrier_uuid = _adopt_carrier_through_stale_claim(
+                    owners_collection, key, expected_uuid=owner_uuid,
+                    normalized_email=normalized, lanes=lanes, now=now,
+                )
+                if outcome == CARRIER_ADOPTED:
+                    _detach_unverified_feedback(db, feedback_collection, carrier_uuid)
+                    return carrier_uuid
+                if outcome == CARRIER_LOST:
+                    continue  # the claim changed under us — re-read and adopt the winner
+                if outcome != CARRIER_NONE:
+                    logger.error(
+                        "A record carrying this mailbox cannot be adopted (%s); refusing to resolve a subject",
+                        outcome,
+                    )
+                    return None
+                # Replace the stale claim with a FRESH subject in ONE
+                # transaction (T S159 F-02): a bare delete-then-recreate here
+                # could erase a replacement a concurrent resolver already
+                # installed, forking one mailbox into two verified subjects. A
+                # False return means the claim changed under us — re-read and
+                # adopt the concurrent winner instead of minting a rival.
+                fresh_uuid = generate_ea_uuid()
+                if _reclaim_tombstoned_owner(
+                    owners_collection, key, expected_uuid=owner_uuid,
+                    fresh_uuid=fresh_uuid, collection_base=COLLECTION_REGISTRATIONS,
+                    lane="oauth_ceremony_v2", now=now,
+                ):
+                    if not _create_account_record(
+                        db, lanes[COLLECTION_REGISTRATIONS], fresh_uuid,
+                        _verified_record(fresh_uuid, normalized, now),
+                    ):
+                        continue  # a concurrent writer healed it — re-read and adopt
+                    claim_ref.update({"verified": True, "verified_at": now})
+                    return fresh_uuid
+                continue
+            reference = db.collection(lanes[base]).document(owner_uuid)
+            snapshot = reference.get()
+            if snapshot.exists:
+                subject = _adopt_verified(reference, snapshot.to_dict() or {}, base, now)
+            else:
+                # The claim won but its record write never landed: heal under
+                # the claimed identifier so the address keeps ONE owner. A
+                # concurrent writer that lands first wins; re-read and adopt
+                # through it. The write reads the subject's erasure markers
+                # through its own transaction (S164 Lens A F1): a heal that
+                # races the subject's erasure must lose, or it leaves an active
+                # record carrying the address for a tombstoned subject.
+                healed = _verified_record(owner_uuid, normalized, now, tier=_lane_default_tier(base))
+                outcome = _heal_claimed_record(lanes[base], owner_uuid, healed)
+                if outcome == CLAIM_SEALED:
+                    logger.error(
+                        "Claimed record cannot be healed: its subject is under erasure; refusing to resolve a subject"
+                    )
+                    return None
+                if outcome == CLAIM_PRESENT:
+                    continue
+                subject = owner_uuid
+            if subject is not None:
+                _detach_unverified_feedback(db, feedback_collection, subject)
+                claim_ref.update({"verified": True, "verified_at": now})
+            return subject
+
+        # No claim: a legacy record (written before claims existed) in either
+        # lane owns the address — backfill its claim, then adopt through it.
+        for base, collection in lanes.items():
+            found = db.collection(collection).where("email", "==", normalized).limit(1).get()
+            if found:
+                data = found[0].to_dict() or {}
+                legacy_uuid = data.get("uuid") or getattr(found[0], "id", "")
+                if not legacy_uuid or _subject_revoked(legacy_uuid):
+                    # No usable identifier, or a revoked identity still
+                    # carrying the address (an interrupted opt-out): fail
+                    # closed — creating a second account would fork the
+                    # mailbox; this needs the rights channel, not a guess.
+                    logger.error("Legacy account record cannot be adopted; refusing to resolve a subject")
+                    return None
+                # The claim for an EXISTING subject is written inside the
+                # erasure-serialized transaction (T S159 R6-01): a concurrent
+                # opt-out can no longer be out-raced between the tombstone
+                # check above and this write.
+                outcome = _assert_claim_for_existing_subject(
+                    owners_collection, key, subject_uuid=legacy_uuid,
+                    collection_base=base, lane="backfill", now=now,
+                )
+                if outcome == CLAIM_SEALED:
+                    logger.error(
+                        "Legacy account record is under erasure; refusing to resolve a subject"
+                    )
+                    return None
+                if outcome == CLAIM_CREATED:
+                    subject = _adopt_verified(found[0].reference, data, base, now)
+                    if subject is not None:
+                        _detach_unverified_feedback(db, feedback_collection, subject)
+                        claim_ref.update({"verified": True, "verified_at": now})
+                    return subject
+                break  # lost the race to a concurrent claimant: re-read the claim
+
+        else:
+            # Nothing anywhere: claim FIRST (atomic), then write the verified
+            # record; a lost race re-reads and adopts the winner's subject.
+            new_uuid = generate_ea_uuid()
+            if claim_email(db, owners_collection, normalized, uuid=new_uuid,
+                           collection_base=COLLECTION_REGISTRATIONS,
+                           lane="oauth_ceremony_v2", now=now):
+                if not _create_account_record(db, lanes[COLLECTION_REGISTRATIONS], new_uuid,
+                                              _verified_record(new_uuid, normalized, now)):
+                    continue
+                claim_ref.update({"verified": True, "verified_at": now})
+                return new_uuid
+    return None
 
 
 async def get_ea_status(uuid: str) -> Optional[EAStatusResponse]:
     """Return EA status for a given UUID. Returns None if not found."""
+    collection = account_collection(COLLECTION_EA)  # resolves BEFORE any read
     db = _get_firestore()
     if db is None:
         return None
 
-    doc = db.collection(COLLECTION_EA).document(uuid).get()
+    doc = db.collection(collection).document(uuid).get()
     if not doc.exists:
         return None
 
@@ -448,24 +1482,40 @@ async def get_ea_status(uuid: str) -> Optional[EAStatusResponse]:
     )
 
 
-async def submit_feedback(data: FeedbackRequest) -> FeedbackResponse:
-    """Submit feedback, issue, or recommendation (registered or anonymous)."""
+async def submit_feedback(
+    data: FeedbackRequest, verified_subject: Optional[str] = None,
+) -> FeedbackResponse:
+    """Submit feedback, issue, or recommendation (registered or anonymous).
+
+    Attribution (T S158 Finding 2): the authoritative ``uuid`` field carries a
+    subject ONLY when the caller supplied ``verified_subject`` — derived from
+    a validated Bearer credential, never from the request body. A body
+    ``uuid`` is a public, non-secret identifier anyone can type; it is kept
+    only as ``claimed_uuid_unverified``. Anonymous feedback stays admitted."""
+    # Environment identity resolves BEFORE the client or any write: staging
+    # feedback lands in staging's collection and a misdeclared staging service
+    # writes nothing (T S157 Findings 2/3). Production keeps the bare name and
+    # its anonymous-feedback semantics exactly as they were.
+    collection = account_collection(COLLECTION_FEEDBACK)
     db = _get_firestore()
     now = _now_iso()
     feedback_id = generate_feedback_id()
 
+    claimed = data.uuid if data.uuid and data.uuid != verified_subject else None
     record = {
         "feedback_id": feedback_id,
         "submitted_at": now,
         "type": data.feedback_type,
         "content": data.content,
-        "uuid": data.uuid,
+        "uuid": verified_subject,
+        "attribution": ATTRIBUTION_VERIFIED_BEARER if verified_subject else ATTRIBUTION_ANONYMOUS,
+        "claimed_uuid_unverified": claimed,
         "email": None,  # never store email in feedback collection
         "connection_context": data.connection_context,
     }
 
     if db is not None:
-        db.collection(COLLECTION_FEEDBACK).document(feedback_id).set(record)
+        db.collection(collection).document(feedback_id).set(record)
         logger.info(f"Feedback received: id={feedback_id}, type={data.feedback_type}")
     else:
         logger.warning(f"Firestore unavailable — feedback {feedback_id} not persisted")
@@ -482,8 +1532,191 @@ async def submit_feedback(data: FeedbackRequest) -> FeedbackResponse:
     )
 
 
+def _lane_scrub_extra(collection_base: str) -> dict:
+    """The lane-specific PII fields the scrub nulls (resolved at call time: the
+    lane constants are defined later in this module)."""
+    if collection_base == COLLECTION_EA:
+        return {"name": None, "registration_feedback": None}
+    return {"display_name": None}
+
+
+FENCE_FENCED = "fenced"
+FENCE_ANCHORED_ELSEWHERE = "anchored_elsewhere"
+FENCE_ERASED = "erased"
+
+
+def _subject_rows(db, uuid: str, ea_collection: str, light_collection: str) -> list:
+    """Every account row that belongs to ``uuid`` in both lanes: the row keyed
+    by the identifier AND any row whose ``uuid`` field names it. This is the
+    ONE selector both the fence and the scrub use, so the precondition
+    quantifies over exactly the rows the destructive step can mutate (T S165
+    A-1: the fence covered canonical rows while the scrub also reached rows
+    found by field, and the difference was a claimless mailbox that lost its
+    only route before any anchor existed). Returns
+    ``(collection_base, collection, doc_id, reference, data)`` per existing
+    row; ``(collection, doc_id)`` identifies a row across the two passes."""
+    rows = []
+    for base, collection in ((COLLECTION_EA, ea_collection), (COLLECTION_REGISTRATIONS, light_collection)):
+        refs = {uuid: db.collection(collection).document(uuid)}
+        for snapshot in db.collection(collection).where("uuid", "==", uuid).get():
+            doc_id = getattr(snapshot, "id", None) or uuid
+            refs.setdefault(
+                doc_id,
+                getattr(snapshot, "reference", None) or db.collection(collection).document(doc_id),
+            )
+        for doc_id, reference in refs.items():
+            snapshot = reference.get()
+            if snapshot.exists:
+                rows.append((base, collection, doc_id, reference, snapshot.to_dict() or {}))
+    return rows
+
+
+def _fence_mailbox_for_erasure(
+    owners_collection: str, key: str, *, subject_uuid: str, collection_base: str, now: str,
+) -> str:
+    """Make sure an address is ANCHORED before the row carrying it is
+    de-identified (T S165 A-1). In one transaction: a missing claim is created
+    naming this subject (``fenced``); a claim that already names it is touched
+    (``fenced``; the same one-owners-write symmetry the lanes keep); a claim
+    naming ANOTHER subject is reported as ``anchored_elsewhere`` and left
+    untouched — that mailbox is its owner's (T S159 F-02: a re-pointed claim
+    belongs to its new owner), so it cannot look free after this row's
+    address is removed, which is the only property the fence exists to keep.
+    "A claim exists" is therefore never mistaken for "fenced to this subject":
+    the outcome says which. A claim naming another subject is an anchor only
+    while that owner's lifecycle keeps it non-reclaimable (T S167 R9-01): the
+    other owner's subject tombstone is read through the same transaction (the
+    seal is deliberately not: a sealed owner's claim is released by its own
+    commit), and a claim whose owner is already TOMBSTONED is stale by the
+    resolver's own rules —
+    the next verified ceremony would replace it with a fresh subject while
+    this subject's row still carries the address and its bearer is admissible
+    — so it is re-pointed to this subject as a durable fence (the resolver's
+    own read-then-set reclaim discipline, T S159 F-02) and reported
+    ``fenced``. Every branch that writes a claim naming this subject also
+    records the key in the subject's FENCE INDEX inside the same transaction
+    (T S168 R10-02): the terminal commit reads that index FIRST, so a fence
+    written from a row snapshot the current rows no longer carry is in its
+    set, or conflicts it. What is load-bearing is the index document's
+    presence in that read set: once a fence inside the window conflicts the
+    commit, the retry finds the claim by its own query, so the recorded
+    ``keys`` are corroboration — measurably so, since only an isolated test
+    that silences that query can discriminate them. The terminal commit of a
+    COMPLETED erasure deletes
+    the index; an erasure abandoned between this fence and that commit leaves
+    it behind together with the fenced claim and the seal, for the retry to
+    clear. A live or sealed-in-progress owner keeps its claim
+    (``anchored_elsewhere``); a sealed owner's own commit releases it, and this
+    subject's row keeps its route until then. A fence that cannot be WRITTEN
+    raises, and the caller stops before anything is removed. This is the erasure's own write,
+    so it does not consult the SEAL — the seal exists to refuse OTHER writers,
+    and an erasure interrupted after its seal must still be able to fence
+    what it is about to scrub on retry — but it does read the subject
+    TOMBSTONE through the same transaction and writes nothing for a finished
+    erasure (``erased``): a duplicate opt-out whose rows were read before the
+    first one completed must not re-create a claim naming the tombstoned
+    subject after the first one's success (S165 lens)."""
+    from .oauth.stores import run_transaction, tombstone_ref
+
+    marks, marker_id = tombstone_ref("subject", subject_uuid)
+    fence_marks, fence_id = tombstone_ref("fence", subject_uuid)
+
+    def _txn(txn):
+        if txn.get_dict(marks, marker_id) is not None:
+            return FENCE_ERASED
+        current = txn.get_dict(owners_collection, key)
+        # The subject's fence index (T S168 R10-02): every key a fence binds
+        # to this subject, recorded in the same transaction as the claim, so
+        # the terminal commit's read set covers a fence written from a row
+        # snapshot the current rows no longer carry. Read before any write.
+        index = txn.get_dict(fence_marks, fence_id) or {}
+        recorded = sorted(set(index.get("keys", []) or []) | {key})
+
+        def _record():
+            txn.set(fence_marks, fence_id, {"kind": "fence", "key": subject_uuid, "keys": recorded})
+
+        if current is None:
+            txn.set(owners_collection, key, {
+                "email_hash": key, "uuid": subject_uuid, "collection": collection_base,
+                "lane": "erasure_fence", "claimed_at": now, "verified": False,
+            })
+            _record()
+            return FENCE_FENCED
+        if current.get("uuid") == subject_uuid:
+            txn.update(owners_collection, key, {"email_hash": key})
+            _record()
+            return FENCE_FENCED
+        other = str(current.get("uuid") or "")
+        if not other:
+            # A claim with no owner identifier has no lifecycle and anchors
+            # nothing (S168 Lens A F6): corrupt state, which the resolver
+            # refuses to route. Fenced to this subject, so the erasure's own
+            # commit releases it and the mailbox becomes routable again.
+            txn.set(owners_collection, key, {
+                "email_hash": key, "uuid": subject_uuid, "collection": collection_base,
+                "lane": "erasure_fence", "claimed_at": now, "verified": False,
+                "reclaimed_from_tombstoned": None,
+            })
+            _record()
+            return FENCE_FENCED
+        other_marks, other_marker = tombstone_ref("subject", other)
+        if txn.get_dict(other_marks, other_marker) is not None:
+            # Stale: its owner is tombstoned, so the resolver would reclaim it
+            # to a fresh subject. Make it THIS subject's fence instead.
+            txn.set(owners_collection, key, {
+                "email_hash": key, "uuid": subject_uuid, "collection": collection_base,
+                "lane": "erasure_fence", "claimed_at": now, "verified": False,
+                "reclaimed_from_tombstoned": other,
+            })
+            _record()
+            return FENCE_FENCED
+        return FENCE_ANCHORED_ELSEWHERE
+
+    return str(run_transaction(_txn))
+
+
+def _scrub_subject_rows(db, uuid: str, ea_collection: str, light_collection: str, skip=frozenset()) -> int:
+    """De-identify every row ``_subject_rows`` selects — the same set the fence
+    covered (S164 Lens A; T S165 A-1) — except the ``(collection, doc_id)``
+    rows in ``skip``, which the primary pass leaves for the hygiene pass (an
+    address anchored to ANOTHER subject is de-identified only after this
+    subject's tombstone; S165 lens). Idempotent: a row already marked
+    ``deletion_requested`` that carries no address is left alone, so the same
+    call serves as the primary scrub before the tombstone and as the hygiene
+    re-scrub after it. Returns rows scrubbed."""
+    scrubbed = 0
+    for base, collection, doc_id, reference, data in _subject_rows(db, uuid, ea_collection, light_collection):
+        if (collection, doc_id) in skip:
+            continue
+        carries_address = "@" in str(data.get("email") or "")
+        if data.get("status") == "deletion_requested" and not carries_address:
+            continue
+        reference.update({
+            "status": "deletion_requested",
+            "deletion_requested_at": _now_iso(),
+            "email": "[deletion_requested]",
+            **_lane_scrub_extra(base),
+        })
+        scrubbed += 1
+    return scrubbed
+
+
 async def process_optout(uuid: str) -> OptOutResponse:
     """De-identify account PII and mark remaining data for bounded deletion."""
+    # Environment identity resolves BEFORE the client or any read/write; an
+    # unresolvable staging identity is reported as unavailable — never as a
+    # success receipt, never against production's stores (T S157 Finding 3).
+    try:
+        ea_collection = account_collection(COLLECTION_EA)
+        light_collection = account_collection(COLLECTION_REGISTRATIONS)
+        owners_collection = account_collection(COLLECTION_EMAIL_OWNERS)
+    except EnvironmentMisconfigured as exc:
+        logger.error(
+            "Opt-out refused: environment identity unresolved (error_type=%s)",
+            type(exc).__name__,
+        )
+        return build_optout_unavailable_response()
+
     db = _get_firestore()
 
     if db is None:
@@ -491,21 +1724,177 @@ async def process_optout(uuid: str) -> OptOutResponse:
         return build_optout_unavailable_response()
 
     try:
-        doc_ref = db.collection(COLLECTION_EA).document(uuid)
-        doc = doc_ref.get()
-        if doc.exists:
-            doc_ref.update({
-                "status": "deletion_requested",
-                "deletion_requested_at": _now_iso(),
-                # Immediately nullify PII fields
-                "email": "[deletion_requested]",
-                "name": None,
-                "registration_feedback": None,
-            })
+        # UNION revocation (T S152 P0 #2): a rights request must revoke the
+        # identity in EVERY registration store and kill every live credential.
+        #
+        # The erasure is ONE monotonic state machine, not a sequence of
+        # individually patched operations (T S161 A-1/A-2, after CS round 7;
+        # S164 Lens A F1–F3). Its order is:
+        #   FENCE → SEAL → scrub PII → TOMBSTONE+RELEASE (one commit) → hygiene
+        # Every step before the tombstone is idempotent and leaves the caller's
+        # bearer alive, so a retry with the same credential finishes it. The
+        # mailbox's ownership CLAIM stays in place until the tombstone is
+        # authoritative: it is the anchor every identity-creation path finds
+        # first (the scrub removes the account email, and the seal is keyed by
+        # a subject nothing can reach once the claim is gone), so while it
+        # stands no path can mint a fresh subject for the address while the
+        # former bearer is still admissible — the fork round 7 reproduced when
+        # the claim was released before the tombstone. Everything after the
+        # tombstone is hygiene: it may fail, and its failure can never turn an
+        # accepted erasure back into an unprocessed one. A subject with no
+        # account projection in either lane is STILL a subject: the caller was
+        # authenticated as it, so the seal, the tombstone and the hygiene never
+        # depend on a row being present or readable (T S161 F-4).
+        from verifimind_mcp.oauth.stores import (
+            is_backend_failure,
+            sweep_subject_credentials,
+            tombstone_subject_releasing_claims,
+            write_erasure_seal,
+        )
+        rows = _subject_rows(db, uuid, ea_collection, light_collection)
+
+        # 1. FENCE, over exactly the rows the scrub will reach (T S165 A-1:
+        #    the fence used to see only rows keyed by the identifier while the
+        #    scrub also reached rows found by ``uuid`` field, so a claimless
+        #    row of the second kind lost its only mailbox route before any
+        #    anchor existed). Every address on every row is bound to THIS
+        #    subject before the row is de-identified (created or touched).
+        #    An address already claimed by ANOTHER subject is left to that
+        #    owner (T S159 F-02) — and its row is NOT de-identified before this
+        #    subject's tombstone: that owner's anchor has its own lifecycle,
+        #    and once it finishes its own erasure the mailbox would look free
+        #    while this subject's bearer is still admissible (S165 lens, the
+        #    borrowed anchor). Such rows keep their route until the tombstone
+        #    and are de-identified by the hygiene pass after it. A fence that
+        #    cannot be written raises, and the operation stops here, before
+        #    the seal. A subject already tombstoned gets no new fence: the
+        #    erasure is finished and the retry is idempotent.
+        deferred = set()
+        for base, collection, doc_id, _reference, data in rows:
+            address = str(data.get("email") or "")
+            if "@" not in address:
+                continue
+            outcome = _fence_mailbox_for_erasure(
+                owners_collection, email_owner_key(normalize_email(address)),
+                subject_uuid=uuid, collection_base=base, now=_now_iso(),
+            )
+            if outcome == FENCE_ANCHORED_ELSEWHERE:
+                deferred.add((collection, doc_id))
+                logger.info(
+                    "Opt-out: an address on this subject's record is owned by another live subject; "
+                    "that claim is left in place and this row is de-identified only after the tombstone"
+                )
+            elif outcome == FENCE_ERASED:
+                logger.info("Opt-out: the subject is already tombstoned; no fence is written (idempotent retry)")
+        # 2. SEAL the subject (T S159 R6-01), BEFORE anything is de-identified
+        #    (S164 Lens A F1/F2). Every claim writer and every heal of a claimed
+        #    record reads it inside the transaction that writes, and no
+        #    credential validation path reads it, so from here nothing can
+        #    bind new state to this subject while the caller's own bearer stays
+        #    alive for a retry. Scrubbing first left a de-identified, unsealed
+        #    subject behind a seal failure: the promised purge would then erase
+        #    the only sign that erasure was requested, and the next verified
+        #    ceremony healed an ACTIVE account with the address for it.
+        write_erasure_seal(uuid)
+        # The owner key of every address on every row of this subject AFTER the
+        # seal. The fence index (below) is what CLOSES the terminal set; this
+        # seed is corroboration from current storage, kept because it costs one
+        # read per key and keeps closure over any claim writer that does not
+        # consult the seal. Read before the scrub, which removes the addresses.
+        fence_keys = {
+            email_owner_key(normalize_email(str(data.get("email"))))
+            for _b, _c, _i, _r, data in _subject_rows(db, uuid, ea_collection, light_collection)
+            if "@" in str(data.get("email") or "")
+        }
+        # 3. De-identify every account row that belongs to this subject in
+        #    both lanes — by identifier and by ``uuid`` field — idempotently,
+        #    except the rows deferred above, which keep their route until the
+        #    tombstone and are de-identified by the hygiene re-scrub.
+        _scrub_subject_rows(db, uuid, ea_collection, light_collection, skip=deferred)
+        # 4. TOMBSTONE + RELEASE, one commit (T S165 A-3; T S161 open question 1).
+        #    The authoritative revocation and the release of every claim that
+        #    names THIS subject land together or not at all, so a successful
+        #    erasure entails that no claim naming the erased subject survives,
+        #    while a failed commit leaves the fence, the seal and the caller's
+        #    bearer exactly as they were — resumable. Returning normally means
+        #    it LANDED, so no confirmation read is needed (T S159 R6-03). A
+        #    failure raises: the commit is genuinely ambiguous (rejected, or
+        #    landed with a lost acknowledgement — in which case bearer AND
+        #    claims went together), the receipt says only that deletion could
+        #    not be confirmed, and the private rights channel is the
+        #    continuation that does not need the bearer. The claim keys are
+        #    found by the claim's OWN uuid field (a durable cleanup identity
+        #    that survives the scrub) and each delete is re-checked inside the
+        #    commit, so a re-pointed claim stays with its new owner (T S159
+        #    F-02). Writers that could add a claim after the seal read it
+        #    through their own transaction and refuse (T S159 R6-01) — except
+        #    a concurrent duplicate erasure's own fence, which ignores the
+        #    seal so a retry can continue. The set is closed over that fence by
+        #    the subject's FENCE INDEX (T S168 R10-02), which every fence
+        #    writes in its own transaction and which this commit reads FIRST:
+        #    a key bound from a row snapshot an older request took BEFORE the
+        #    scrub is in no current read, but it is in the index. Two
+        #    corroborating mechanisms remain from round 9 (T S167 R9-02): the
+        #    commit's own transactional query, which finds every claim naming
+        #    this subject at read time — including a stale one at a key no row
+        #    carries, the round-5 F-03 class — and the seed above, the owner
+        #    key of every address on this subject's post-seal rows, each read
+        #    inside the transaction so a write to it conflicts the commit.
+        tombstone_subject_releasing_claims(uuid, owners_collection, sorted(fence_keys))
+        # 5. HYGIENE, after the point of no return: sweep any claim that slipped
+        #    past the snapshot above (a concurrent duplicate opt-out's own
+        #    fence), flip the ``revoked`` flags, then re-scrub: a heal of this
+        #    subject's claimed record that landed between the row reads above
+        #    and the seal wrote an active row the first pass never saw (S164
+        #    Lens A F1); the re-scrub de-identifies it, and the transactional
+        #    heal refuses anything later. The tombstone already denies on every
+        #    validation path, so nothing here changes the erasure's truth: ANY
+        #    failure, backend or programming, is logged and cannot negate
+        #    completion (T S161 A-2, after R6-03). The ≤60s validation cache
+        #    bounds cross-instance propagation.
+        for step, action in (
+            ("ownership-claim release", lambda: _release_claims_naming(db, owners_collection, uuid)),
+            ("credential hygiene sweep", lambda: sweep_subject_credentials(uuid)),
+            ("post-tombstone PII re-scrub", lambda: _scrub_subject_rows(db, uuid, ea_collection, light_collection)),
+        ):
+            try:
+                action()
+            except Exception as exc:  # noqa: BLE001 — the tombstone is authoritative
+                logger.error(
+                    "Opt-out: subject tombstone committed but the %s did not finish "
+                    "(error_type=%s, backend_failure=%s); every validation path already "
+                    "denies on the tombstone and any remaining claim is reclaimed by the "
+                    "next verified ceremony",
+                    step, type(exc).__name__, is_backend_failure(exc),
+                )
+        # 6. RECEIPT TRUTH for deferred rows (T S167 R9-03): a row deferred
+        #    behind another subject's claim is de-identified only by the
+        #    hygiene re-scrub above, whose failure cannot negate the erasure.
+        #    The tombstone makes revocation final; it does not remove the
+        #    persisted address. So the receipt asserts completed
+        #    de-identification only when every deferred row is CONFIRMED
+        #    de-identified by a read after the re-scrub; otherwise it says so,
+        #    and names the continuation that needs no bearer — the private
+        #    rights channel, and the scheduled purge.
+        pending = False
+        if deferred:
+            try:
+                pending = any(
+                    (collection, doc_id) in deferred and "@" in str(data.get("email") or "")
+                    for _b, collection, doc_id, _r, data
+                    in _subject_rows(db, uuid, ea_collection, light_collection)
+                )
+            except Exception as exc:  # noqa: BLE001 — unknown is reported as pending
+                logger.error(
+                    "Opt-out: deferred-row de-identification could not be confirmed (error_type=%s)",
+                    type(exc).__name__,
+                )
+                pending = True
+        if rows:
             logger.info("Opt-out processed for a stored account")
         else:
-            # Do not reveal whether a caller-supplied UUID belongs to an account.
-            logger.info("Opt-out request did not match a stored account")
+            # Internal only; the caller's receipt is identical either way.
+            logger.info("Opt-out processed for a subject with no stored account")
     except Exception as exc:
         # This is a rights-request path: never convert a failed read/write into a
         # success receipt, and never expose the UUID or backend error text.
@@ -515,6 +1904,25 @@ async def process_optout(uuid: str) -> OptOutResponse:
         )
         return build_optout_unavailable_response()
 
+    if pending:
+        return OptOutResponse(
+            processed=True,
+            message=(
+                "The opt-out request was processed: this account's credentials are "
+                "revoked and it cannot be used again. De-identification of one or "
+                "more stored records could NOT be confirmed yet; they are targeted "
+                "for de-identification and purge within 7 business days, and you can "
+                "confirm or escalate at any time by emailing alton@ysenseai.org "
+                "privately from your registered address — no sign-in is needed. A "
+                "legal obligation or documented security/legal hold may limit or "
+                "delay deletion. The 8 active validation and built-in-template tools "
+                "remain available without registration."
+            ),
+            deletion_scheduled_within=(
+                "target: 7 business days; legal/security retention may apply"
+            ),
+            account_deidentification="pending",
+        )
     return OptOutResponse(
         processed=True,
         message=(
@@ -528,6 +1936,7 @@ async def process_optout(uuid: str) -> OptOutResponse:
         deletion_scheduled_within=(
             "target: 7 business days; legal/security retention may apply"
         ),
+        account_deidentification="complete",
     )
 
 
@@ -608,6 +2017,12 @@ class UserRegistrationResponse(BaseModel):
     uuid: str
     tier: str = "ea"
     registered_at: str
+    # Honest-degradation flag (F-RES-1 parity with the EA path): True only when
+    # persistence was CONFIRMED. False means not confirmed — storage was
+    # unavailable, or a write raised (an ambiguous commit, T S161 A-3) — so the
+    # UUID cannot be relied on to verify anywhere. Never a success receipt, and
+    # never itself a proof of absence.
+    persisted: bool = True
     # Deprecated compatibility fields. No paid service or timed entitlement is
     # currently offered, so these serialize as null.
     expires_at: Optional[str] = None
@@ -633,46 +2048,63 @@ async def register_user(data: UserRegistrationRequest) -> UserRegistrationRespon
     - Anonymous Scholar users are NOT required to register (zero friction)
     - legacy checkout response fields remain null while no paid service exists
 
-    Idempotent by UUID — each call generates a new UUID (email-based
-    dedup is best-effort only, not enforced for privacy-first anonymous path).
+    An email-bearing registration has ONE canonical owner across both lanes
+    (T S158 Finding 1) and ONE external response whether the address is new
+    or already registered (T S158 Finding 3). The anonymous (email-absent)
+    path is unchanged: the UUID is that user's only handle.
     """
+    # Environment identity resolves BEFORE the client or any I/O: a
+    # misdeclared staging service stops here (T S157 Finding 3).
+    lanes = _lane_collections()
+    collection = lanes[COLLECTION_REGISTRATIONS]
+    owners_collection = account_collection(COLLECTION_EMAIL_OWNERS)
     db = _get_firestore()
     now = _now_iso()
     new_uuid = generate_ea_uuid()
-    # Best-effort email dedup (only when email provided and Firestore available)
     if data.email and db is not None:
-        existing = (
-            db.collection(COLLECTION_REGISTRATIONS)
-            .where("email", "==", str(data.email))
-            .limit(1)
-            .get()
-        )
-        if existing:
-            doc = existing[0].to_dict()
+        normalized = normalize_email(data.email)
+        try:
+            legacy = _legacy_owner(db, lanes, normalized)
+            if legacy is not None:
+                # Existing address: the SAME class of write a new address
+                # performs (T S159 F-04) — see _reassert_owner_claim.
+                _reassert_owner_claim(
+                    owners_collection, normalized,
+                    legacy_base=legacy[0], legacy_uuid=legacy[1], now=now,
+                )
+                owned = True
+            else:
+                owned = not claim_email(
+                    db, owners_collection, normalized, uuid=new_uuid,
+                    collection_base=COLLECTION_REGISTRATIONS, lane="lightweight_v0513", now=now,
+                )
+        except Exception as exc:  # noqa: BLE001
+            from .oauth.stores import is_backend_failure
+
+            if is_backend_failure(exc):
+                # Storage outage mid-request (T S159 F-04): both a new and an
+                # existing address fail here identically, and the receipt is the
+                # lane's honest not-saved contract rendered as a retryable 503.
+                logger.warning(
+                    "Lightweight registration storage unavailable (error_type=%s)", type(exc).__name__,
+                )
+                raise RegistrationStoreUnavailable(_unsaved_lightweight_response(now)) from exc
+            raise
+        if owned:
+            # T P0-2: do not disclose an existing UUID from an email lookup —
+            # and (T S158 Finding 3) say nothing that a new address would
+            # not also be told.
             logger.info(
-                "Lightweight register: duplicate email %s — returning existing UUID",
+                "Lightweight register: duplicate email %s — disclosure withheld",
                 _mask_email(str(data.email)),
             )
-            extras = _build_registration_extras(doc["uuid"])
-            return UserRegistrationResponse(
-                uuid=doc["uuid"],
-                tier=doc.get("tier", "ea"),
-                registered_at=doc["registered_at"],
-                message=(
-                    "You're already registered. Save your UUID — it is your "
-                    f"persistent identifier. {CURRENT_AVAILABILITY_NOTICE}"
-                ),
-                opt_out_url=f"/early-adopters/optout/{doc['uuid']}",
-                privacy_version=PRIVACY_POLICY_VERSION,
-                tc_version=TERMS_VERSION,
-                **extras,
-            )
+            return _uniform_lightweight_response(now)
 
     # Store in Firestore (when available)
     if db is not None:
         record = {
             "uuid": new_uuid,
-            "email": str(data.email) if data.email else None,
+            "email": normalize_email(data.email) if data.email else None,
             "display_name": data.display_name,
             "tier": "ea",
             "registered_at": now,
@@ -682,26 +2114,103 @@ async def register_user(data: UserRegistrationRequest) -> UserRegistrationRespon
             "tc_version": TERMS_VERSION,
             "status": "active",
             "registration_path": "lightweight_v0513",
+            # Mailbox NOT proven on this path; the identifier is withheld and
+            # the OAuth ceremony upgrades the record once it is proven.
+            "email_verified": False,
         }
-        db.collection(COLLECTION_REGISTRATIONS).document(new_uuid).set(record)
-        logger.info("Lightweight registration: UUID=%s", new_uuid)
+        try:
+            if _create_account_record(db, collection, new_uuid, record):
+                logger.info("Lightweight cohort record created (identifier withheld)")
+        except Exception as exc:  # noqa: BLE001
+            from .oauth.stores import is_backend_failure
+
+            # An email-bearing record-write outage must stay uniform with the
+            # existing-address receipt (T S159 F-04). The anonymous path has no
+            # address to probe, so its write failure keeps the existing honest
+            # not-saved behaviour (re-raised to the handler).
+            if is_backend_failure(exc) and data.email is not None:
+                logger.warning(
+                    "Lightweight record storage unavailable (error_type=%s)", type(exc).__name__,
+                )
+                raise RegistrationStoreUnavailable(_unsaved_lightweight_response(now)) from exc
+            raise
     else:
         logger.warning("Firestore unavailable — lightweight registration UUID=%s not persisted", new_uuid)
+        # F-RES-1 parity: never show a success screen for a registration
+        # that was not saved — this UUID does not exist server-side and can
+        # never verify at /whoami or any registration check.
+        return UserRegistrationResponse(
+            uuid=new_uuid,
+            tier="ea",
+            registered_at=now,
+            persisted=False,
+            message=(
+                "Registration storage is temporarily unavailable — your "
+                "registration was NOT saved. No data was stored and this UUID "
+                "is not registered. Please try again in a few minutes."
+            ),
+            opt_out_url="/register",
+            privacy_version=PRIVACY_POLICY_VERSION,
+            tc_version=TERMS_VERSION,
+            **_build_registration_extras(new_uuid),
+        )
 
-    extras = _build_registration_extras(new_uuid)
+    # CS Finding 2: the anonymous (email-absent) path has NO email to probe and
+    # NO victim to hijack, so withholding the UUID there orphans a legitimate
+    # maximum-privacy user at birth — they have no email and thus no way to
+    # recover the identifier through the verified ceremony. Branch on email:
+    #   - email ABSENT  → return the UUID (it is the anonymous user's only
+    #     handle; no oracle/hijack surface exists without an email).
+    #   - email PRESENT → withhold, uniform with the duplicate-email branch, so
+    #     the endpoint is neither an existence oracle nor a way to plant the
+    #     identifier a victim's future verified sign-in would adopt.
+    if data.email is None:
+        return UserRegistrationResponse(
+            uuid=new_uuid,
+            tier="ea",
+            registered_at=now,
+            message=(
+                "Registration successful. Your UUID is your identity — save it; "
+                "there is no email on this account to recover it with. "
+                f"{CURRENT_AVAILABILITY_NOTICE}"
+            ),
+            opt_out_url=f"/early-adopters/optout/{new_uuid}",
+            privacy_version=PRIVACY_POLICY_VERSION,
+            tc_version=TERMS_VERSION,
+            **_build_registration_extras(new_uuid),
+        )
 
+    return _uniform_lightweight_response(now)
+
+
+def _uniform_lightweight_response(now: str) -> UserRegistrationResponse:
+    """The ONE receipt an email-bearing lightweight registration returns,
+    whether the address is new or already registered (T S158 Finding 3)."""
     return UserRegistrationResponse(
-        uuid=new_uuid,
-        tier="ea",
+        uuid="",
+        tier="",
         registered_at=now,
-        message=(
-            "Registration successful! Your UUID is your persistent identifier — save it. "
-            "Copy the mcp_config below into your Claude Desktop or Cursor config. "
-            "Use test_url to verify your connection, dashboard_url to track your usage. "
-            f"{CURRENT_AVAILABILITY_NOTICE}"
-        ),
-        opt_out_url=f"/early-adopters/optout/{new_uuid}",
+        persisted=True,
+        message=_UNIFORM_EMAIL_MESSAGE,
+        opt_out_url="",
         privacy_version=PRIVACY_POLICY_VERSION,
         tc_version=TERMS_VERSION,
-        **extras,
+        **_build_registration_extras(""),
+    )
+
+
+def _unsaved_lightweight_response(now: str) -> UserRegistrationResponse:
+    """The honest not-saved receipt for a mid-request storage outage on the
+    lightweight lane — the same bytes for a new and an existing address
+    (T S159 F-04), no phantom identifier, ``persisted`` False (F-RES-1)."""
+    return UserRegistrationResponse(
+        uuid="",
+        tier="",
+        registered_at=now,
+        persisted=False,
+        message=_UNSAVED_EMAIL_MESSAGE,
+        opt_out_url="",
+        privacy_version=PRIVACY_POLICY_VERSION,
+        tc_version=TERMS_VERSION,
+        **_build_registration_extras(""),
     )

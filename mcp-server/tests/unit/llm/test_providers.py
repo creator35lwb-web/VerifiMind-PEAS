@@ -87,6 +87,14 @@ class TestProviderConfiguration:
         assert 'llama-3.1-8b-instant' not in info['models'], "Deprecated llama-3.1 still listed"
         assert 'openai/gpt-oss-120b' in info['models']
         assert 'qwen/qwen3.6-27b' in info['models']
+        assert 'qwen/qwen3.8-27b' in info['models']
+
+    def test_groq_qwen38_is_tpm_clamped(self):
+        """qwen3.8-27b must sit in the 8k-TPM admission set (conservative:
+        same family/size/tier as the live-proven qwen3.6-27b; an unclamped
+        8k model repeats the v0.5.49 413 class for BYOK callers)."""
+        from verifimind_mcp.llm.provider import GROQ_8K_TPM_MODELS
+        assert 'qwen/qwen3.8-27b' in GROQ_8K_TPM_MODELS
 
     def test_list_providers_returns_all(self):
         """Test list_providers returns all configured providers."""
