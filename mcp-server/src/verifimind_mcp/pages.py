@@ -1212,10 +1212,10 @@ _OPTOUT_CONTAINED_BODY = """
       <li>Your EA tier and benefits status</li>
     </ul>
     <p class="deletion-note">
-      Deletion is processed within <strong>7 business days</strong> per our
-      <a href="/privacy" target="_blank" rel="noopener">Privacy Policy v1.0</a>.
-      Your UUID is retained in pseudonymised form for audit log integrity only
-      &mdash; no personal data is attached after deletion.
+      Pseudonymous UUID-validation records are included in the scope of an
+      account deletion request, subject to a lawful or documented
+      security/legal hold. See our
+      <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a>.
     </p>
   </div>
 

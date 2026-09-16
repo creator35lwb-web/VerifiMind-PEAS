@@ -164,7 +164,38 @@ def test_optout_request_channel_matches_the_maintenance_response_and_the_privacy
     assert "deleted" not in lowered
 
 
-# ── Trinity history description ───────────────────────────────────────────────
+# ── Opt-out deletion truth ──────────────────────────────────────────────────
+
+def test_optout_deletion_copy_matches_the_canonical_policy(client):
+    page = _markup(_served_html(client, "/optout"))
+    note = re.search(r'<p class="deletion-note">(.*?)</p>', page, flags=re.S)
+    assert note, "the opt-out page has no deletion-scope note"
+    note_markup = note.group(1)
+    note_text = _text(note_markup)
+    page_text = _text(page)
+    policy_text = " ".join(PRIVACY_POLICY.split())
+
+    for stale_claim in (
+        "Privacy Policy v1.0",
+        "Deletion is processed within",
+        "Your UUID is retained",
+    ):
+        assert stale_claim not in page_text
+
+    canonical_scope = (
+        "Pseudonymous UUID-validation records are included in the scope of an "
+        "account deletion request"
+    )
+    assert canonical_scope in note_text
+    assert canonical_scope in policy_text
+    assert "lawful or documented security/legal hold" in note_text
+    assert 'href="/privacy"' in note_markup
+    assert ">Privacy Policy</a>" in note_markup
+    assert "targeted for purge within 7 business days" in page_text
+    assert "may limit or delay deletion" in page_text
+
+
+# ── Trinity history description ──────────────────────────────────────────────
 
 def _served_tools():
     from verifimind_mcp import server
