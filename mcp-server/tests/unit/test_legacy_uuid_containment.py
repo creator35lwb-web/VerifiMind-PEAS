@@ -94,13 +94,34 @@ def _route(path: str, method: str) -> Route:
     return matches[0]
 
 
-class RequestTrap:
-    """Any attempted request inspection makes the containment test fail."""
+class RequestAccessProbe:
+    """Records every attempted request-attribute access; it never raises.
 
-    def __getattribute__(self, name):
-        if name.startswith("__"):
-            return object.__getattribute__(self, name)
-        raise AssertionError(f"containment handler inspected request.{name}")
+    A contained handler must answer without inspecting the request, so each test
+    asserts the record is empty afterwards. Any attribute the probe does not define
+    is recorded and answered with None.
+    """
+
+    def __init__(self):
+        self.accessed = []
+
+    def __getattr__(self, name):
+        self.accessed.append(name)
+        return None
+
+
+@pytest.mark.asyncio
+async def test_request_access_probe_records_an_inspecting_handler():
+    """Known-positive: an inert probe is not evidence, so prove this one fires."""
+
+    async def inspecting_handler(request):
+        return request.path_params
+
+    probe = RequestAccessProbe()
+    result = await inspecting_handler(probe)
+
+    assert result is None
+    assert probe.accessed == ["path_params"]
 
 
 @pytest.mark.parametrize("method,path", CONTAINED_ROUTES)
@@ -113,8 +134,10 @@ def test_every_legacy_route_is_bound_only_to_containment(method, path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("method,path", CONTAINED_ROUTES)
 async def test_every_route_returns_one_request_blind_non_reflecting_503(method, path):
-    response = await _route(path, method).endpoint(RequestTrap())
+    probe = RequestAccessProbe()
+    response = await _route(path, method).endpoint(probe)
 
+    assert probe.accessed == [], f"containment handler inspected request: {probe.accessed}"
     assert response.status_code == 503
     assert response.headers["cache-control"] == "no-store"
     assert response.headers["retry-after"] == "3600"
@@ -142,10 +165,12 @@ async def test_containment_calls_no_registration_history_tier_or_deletion_backen
             )
 
         # Kept below as an explicit loop rather than a client request: the
-        # RequestTrap proves that malformed bodies, headers, path values and
-        # query values are never parsed before denial.
+        # request probe proves that malformed bodies, headers, path values and
+        # query values are never parsed before denial, by recording no access.
         for method, path in CONTAINED_ROUTES:
-            response = await _route(path, method).endpoint(RequestTrap())
+            probe = RequestAccessProbe()
+            response = await _route(path, method).endpoint(probe)
+            assert probe.accessed == [], (method, path, probe.accessed)
             assert response.status_code == 503
 
 

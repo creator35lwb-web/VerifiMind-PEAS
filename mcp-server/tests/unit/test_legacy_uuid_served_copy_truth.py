@@ -52,13 +52,32 @@ def _served_html(client, path):
     return response.text
 
 
+# HTML tag names are case-insensitive across ASCII letters only, and a name ends at ASCII
+# whitespace, "/" or ">". Python's case-insensitive matching is broader: without re.ASCII it
+# also folds long s and dotless i into the a-z range, so "<ſtyle>" would read as a style
+# element and this oracle would strip content it must keep. Both halves are therefore bound:
+# ASCII-only folding, and an explicit terminator after every opening and closing tag name, so
+# a longer name such as "</styleſ>" is not read as a close. It is a test oracle over pages
+# this server renders, not a sanitizer.
+_TAG_END = r"(?=[\t\n\f\r />])"
+_STYLE_ELEMENT = re.compile(
+    r"<style" + _TAG_END + r"[^>]*>.*?</style" + _TAG_END + r"[^>]*>",
+    flags=re.IGNORECASE | re.ASCII | re.DOTALL,
+)
+_SCRIPT_ELEMENT = re.compile(
+    r"<script" + _TAG_END + r"[^>]*>(.*?)</script" + _TAG_END + r"[^>]*>",
+    flags=re.IGNORECASE | re.ASCII | re.DOTALL,
+)
+
+
 def _markup(html):
     """The page without its inline stylesheet, so CSS selectors cannot satisfy a check."""
-    return re.sub(r"<style>.*?</style>", "", html, flags=re.S)
+    return _STYLE_ELEMENT.sub("", html)
 
 
 def _scripts(html):
-    return [s.strip() for s in re.findall(r"<script[^>]*>(.*?)</script>", html, flags=re.S)]
+    """The body of every script element, whatever the element name's letter case."""
+    return [s.strip() for s in _SCRIPT_ELEMENT.findall(html)]
 
 
 def _text(fragment):
@@ -69,6 +88,68 @@ def _text(fragment):
 def _maintenance_response():
     response = asyncio.run(http_server.legacy_identity_maintenance_handler(None))
     return json.loads(response.body)
+
+
+# ── the oracle itself: mixed-case element names ───────────────────────────────
+
+def test_markup_oracle_removes_mixed_case_style_elements():
+    # known-positive: a lowercase-only pattern leaves this stylesheet, and its
+    # selector text, in the "markup" every element check reads
+    fixture = '<StYlE media="screen">input[type="email"] { color: red }</sTyLe >\n<p>kept</p>'
+    stripped = _markup(fixture)
+    assert 'type="email"' not in stripped
+    assert "<p>kept</p>" in stripped
+
+
+def test_script_oracle_detects_mixed_case_script_elements():
+    # known-positive: a lowercase-only pattern reports no script at all here
+    fixture = '<p>page</p>\n<ScRiPt type="module">sendBeacon()</sCrIpT\n >'
+    assert _scripts(fixture) == ["sendBeacon()"]
+
+
+# Characters Python folds into a-z unless re.ASCII is set. HTML does not: a tag name is
+# ASCII case-insensitive, so these are ordinary unknown elements, not style or script.
+_LONG_S = "\u017f"
+_DOTLESS_I = "\u0131"
+
+
+def test_markup_oracle_keeps_unicode_confusable_style_names():
+    # the counterexample from T's review: the previous pattern removed the nested form
+    fixture = f"<{_LONG_S}tyle><form>active</form></{_LONG_S}tyle>"
+    assert _markup(fixture) == fixture
+
+
+def test_script_oracle_ignores_unicode_confusable_script_names():
+    for fixture in (
+        f"<scr{_DOTLESS_I}pt>beacon()</scr{_DOTLESS_I}pt>",
+        f"<{_LONG_S}cript>beacon()</{_LONG_S}cript>",
+    ):
+        assert _scripts(fixture) == []
+        assert _markup(fixture) == fixture
+
+
+def test_oracles_ignore_longer_element_names():
+    for fixture in (
+        f'<style{_LONG_S}>input[type="email"]{{}}</style{_LONG_S}>',
+        '<styles>input[type="email"]{}</styles>',
+    ):
+        assert _markup(fixture) == fixture
+    for fixture in (
+        f"<script{_LONG_S}>beacon()</script{_LONG_S}>",
+        "<scriptx>beacon()</scriptx>",
+    ):
+        assert _scripts(fixture) == []
+
+
+def test_markup_oracle_removes_through_a_longer_closing_name():
+    # "</style?>" is not a close, so removal must continue to the real one
+    fixture = f"<style>a</style{_LONG_S}>b</style><p>kept</p>"
+    assert _markup(fixture) == "<p>kept</p>"
+
+
+def test_script_oracle_reads_through_a_longer_closing_name():
+    fixture = f"<script>a</script{_LONG_S}>b</script>"
+    assert _scripts(fixture) == [f"a</script{_LONG_S}>b"]
 
 
 # ── the coupling ──────────────────────────────────────────────────────────────
