@@ -52,13 +52,20 @@ def _served_html(client, path):
     return response.text
 
 
+# HTML element names are case-insensitive, so this test oracle matches them that way.
+# It is a test oracle over pages this server renders, not a sanitizer.
+_STYLE_ELEMENT = re.compile(r"<style\b[^>]*>.*?</style[^>]*>", flags=re.IGNORECASE | re.DOTALL)
+_SCRIPT_ELEMENT = re.compile(r"<script\b[^>]*>(.*?)</script[^>]*>", flags=re.IGNORECASE | re.DOTALL)
+
+
 def _markup(html):
     """The page without its inline stylesheet, so CSS selectors cannot satisfy a check."""
-    return re.sub(r"<style>.*?</style>", "", html, flags=re.S)
+    return _STYLE_ELEMENT.sub("", html)
 
 
 def _scripts(html):
-    return [s.strip() for s in re.findall(r"<script[^>]*>(.*?)</script>", html, flags=re.S)]
+    """The body of every script element, whatever the element name's letter case."""
+    return [s.strip() for s in _SCRIPT_ELEMENT.findall(html)]
 
 
 def _text(fragment):
@@ -69,6 +76,23 @@ def _text(fragment):
 def _maintenance_response():
     response = asyncio.run(http_server.legacy_identity_maintenance_handler(None))
     return json.loads(response.body)
+
+
+# ── the oracle itself: mixed-case element names ───────────────────────────────
+
+def test_markup_oracle_removes_mixed_case_style_elements():
+    # known-positive: a lowercase-only pattern leaves this stylesheet, and its
+    # selector text, in the "markup" every element check reads
+    fixture = '<StYlE media="screen">input[type="email"] { color: red }</sTyLe >\n<p>kept</p>'
+    stripped = _markup(fixture)
+    assert 'type="email"' not in stripped
+    assert "<p>kept</p>" in stripped
+
+
+def test_script_oracle_detects_mixed_case_script_elements():
+    # known-positive: a lowercase-only pattern reports no script at all here
+    fixture = '<p>page</p>\n<ScRiPt type="module">sendBeacon()</sCrIpT\n >'
+    assert _scripts(fixture) == ["sendBeacon()"]
 
 
 # ── the coupling ──────────────────────────────────────────────────────────────
