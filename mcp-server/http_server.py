@@ -82,6 +82,8 @@ from verifimind_mcp.policies.privacy_policy import PRIVACY_POLICY_EFFECTIVE_DATE
 from verifimind_mcp.policies.terms import TERMS_EFFECTIVE_DATE
 from verifimind_mcp.pages import get_register_page, get_optout_page, get_privacy_page, get_terms_page, get_research_page, get_library_page, get_dashboard_page, get_paradox_page, get_cowork_page, get_evaluation_roadmap_page
 from verifimind_mcp.utils.trinity_history import read_trinity_history
+from verifimind_mcp.security_containment import LEGACY_UUID_INCIDENT_REFERENCE
+from verifimind_mcp.middleware.tool_invocation import INSTRUMENTED_TOOL_NAMES
 from verifimind_mcp.llm.provider import PROVIDER_CONFIGS, PROVIDER_DEFAULT_GEMINI_MODEL
 from verifimind_mcp.availability import (
     COORDINATION_MAINTENANCE_PREFIX,
@@ -563,43 +565,20 @@ Connect using an MCP client such as Claude Desktop, Claude Code, or Cursor.</p>
 </p>
 </div>
 
-<div class="card-scholar">
-<h3>Scholar Tier &mdash; Higher Rate Limits</h3>
-<p>Free to register. Scholars get <strong>30 req/60s</strong> vs anonymous 10 req/60s.
-<a href="/register">Register here &rarr;</a></p>
-
-<p><strong>Claude Code (Scholar)</strong> &mdash; after you receive your UUID:</p>
-<div class="code-wrap">
-<pre id="cc-scholar">VERIFIMIND_UUID=your-uuid-here claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysenseai.org/mcp/ --header "X-VerifiMind-UUID:${VERIFIMIND_UUID}"</pre>
-<button class="copy-btn" onclick="copyCode('cc-scholar', this)">Copy</button>
-</div>
-
-<p><strong>Claude Desktop (Scholar)</strong>:</p>
-<div class="code-wrap">
-<pre id="cd-scholar">{
-  "mcpServers": {
-    "verifimind": {
-      "command": "npx",
-      "args": [
-        "-y", "mcp-remote",
-        "https://verifimind.ysenseai.org/mcp/",
-        "--header", "X-VerifiMind-UUID:${VERIFIMIND_UUID}"
-      ],
-      "env": { "VERIFIMIND_UUID": "your-uuid-here" }
-    }
-  }
-}</pre>
-<button class="copy-btn" onclick="copyCode('cd-scholar', this)">Copy</button>
-</div>
-<p class="note">Replace <code>your-uuid-here</code> with the UUID from your
-<a href="/register">Scholar registration</a>.
-Verify your UUID: <a href="/mcp/test?key=your-uuid-here"><code>/mcp/test?key=&lt;uuid&gt;</code></a></p>
+<div class="card-scholar" id="account-status">
+<h3>Accounts &mdash; Temporarily Unavailable</h3>
+<p>Registration and UUID-linked account features are temporarily unavailable
+during security maintenance. Every active tool stays free to use with the
+Quick Start setup above, with no account and no UUID.</p>
+<p class="note">A UUID header in an existing MCP configuration has no effect
+while maintenance is in progress. For an access, correction, or deletion
+request about data you registered, see
+<a href="/optout">Opt Out &amp; Data Deletion</a>.</p>
 </div>
 
 <h3>Links</h3>
 <ul>
   <li><a href="https://verifimind.io">Landing Page</a></li>
-  <li><a href="/register">Register for Scholar Tier (free)</a></li>
   <li><a href="https://github.com/creator35lwb-web/VerifiMind-PEAS">GitHub Repository</a></li>
   <li><a href=HEALTH_PATH>Health Check</a></li>
   <li><a href=MCP_CONFIG_PATH>Full MCP Configuration (JSON)</a></li>
@@ -1235,12 +1214,14 @@ async def smithery_server_card_handler(request):
     })
 
 
-async def _extract_tool_call_metadata(request) -> tuple[str | None, str | None]:
-    """Parse MCP JSON-RPC POST body to extract (tool_name, user_uuid).
+async def _extract_tool_call_metadata(request) -> tuple[str | None, None]:
+    """Parse an MCP JSON-RPC POST body without trusting UUID attribution.
 
     Returns (None, None) if not a POST, body is empty, body is invalid JSON,
     or method is not 'tools/call'. Never raises — callers can rely on the
-    no-side-effects contract for structured logging in the 404 path.
+    no-side-effects contract for structured logging in the 404 path. The
+    second tuple member is retained for compatibility but is always ``None``:
+    a caller-supplied UUID is not authenticated ownership evidence.
     """
     if request.method != "POST":
         return None, None
@@ -1253,12 +1234,20 @@ async def _extract_tool_call_metadata(request) -> tuple[str | None, str | None]:
     except (ValueError, UnicodeDecodeError):
         # JSON parse / decode failures are expected on probe traffic — no log noise.
         return None, None
+    if not isinstance(payload, dict):
+        return None, None
     if payload.get("method") != "tools/call":
         return None, None
-    params = payload.get("params", {}) or {}
-    tool_name = params.get("name")
-    user_uuid = (params.get("arguments", {}) or {}).get("user_uuid")
-    return tool_name, user_uuid
+    params = payload.get("params")
+    if not isinstance(params, dict):
+        return "unrecognized", None
+    candidate = params.get("name")
+    tool_name = (
+        candidate
+        if isinstance(candidate, str) and candidate in INSTRUMENTED_TOOL_NAMES
+        else "unrecognized"
+    )
+    return tool_name, None
 
 
 def _client_ip_from_request(request) -> str:
@@ -1354,6 +1343,38 @@ async def environment_misconfigured_handler(request, exc):
 # Z-Protocol v1.1 compliant — consent-first, data minimization, opt-out
 # ─────────────────────────────────────────────────────────────────────────────
 
+async def legacy_identity_maintenance_handler(_request):
+    """Fail closed while legacy UUID operations lack authenticated ownership.
+
+    This handler deliberately does not inspect the request. Every request that
+    reaches it receives the same non-reflecting response, so the route performs
+    no account lookup, write, deletion, tier check, or existence disclosure.
+    Core MCP validation tools are unaffected.
+    """
+    return JSONResponse(
+        {
+            "error": "account_service_temporarily_unavailable",
+            "message": (
+                "Account and UUID-linked operations are temporarily unavailable "
+                "during security maintenance. No account data was read or changed."
+            ),
+            "privacy_request": (
+                "For an urgent access, correction, or deletion request, email "
+                "alton@ysenseai.org (fallback: creator35lwb@gmail.com) and include "
+                "your UUID plus enough private information to verify the request. "
+                "Do not post an identifier in a public issue or comment."
+            ),
+            "retryable": True,
+            "incident": LEGACY_UUID_INCIDENT_REFERENCE,
+        },
+        status_code=503,
+        headers={
+            "Cache-Control": "no-store",
+            "Retry-After": "3600",
+        },
+    )
+
+
 def _registration_dark_response():
     """CS Finding 1: while issuance is dark, the account-creating registration
     endpoints must perform ZERO Firestore writes — the P0-7 contract is that a
@@ -1374,7 +1395,6 @@ def _registration_dark_response():
             "and issues your credentials."
         ),
     }, status_code=503, headers={"Retry-After": "3600"})
-
 
 async def ea_register_handler(request):
     """POST /early-adopters/register — EA or Pilot registration with T&C + Privacy consent."""
@@ -2189,12 +2209,12 @@ app = Starlette(
         Route(MCP_CONFIG_PATH, mcp_config_handler),
         Route("/.well-known/mcp/server-card.json", smithery_server_card_handler),
         # v0.5.6 Gateway: EA registration + feedback + policy
-        Route("/whoami", whoami_handler, methods=["GET"]),
-        Route("/early-adopters/register", ea_register_handler, methods=["POST"]),
-        Route("/early-adopters/status/{uuid}", ea_status_handler, methods=["GET"]),
-        Route("/early-adopters/dashboard/{uuid}", ea_dashboard_handler, methods=["GET"]),
-        Route("/early-adopters/feedback", ea_feedback_handler, methods=["POST"]),
-        Route("/early-adopters/optout/{uuid}", ea_optout_handler, methods=["POST"]),
+        Route("/whoami", legacy_identity_maintenance_handler, methods=["GET"]),
+        Route("/early-adopters/register", legacy_identity_maintenance_handler, methods=["POST"]),
+        Route("/early-adopters/status/{uuid}", legacy_identity_maintenance_handler, methods=["GET"]),
+        Route("/early-adopters/dashboard/{uuid}", legacy_identity_maintenance_handler, methods=["GET"]),
+        Route("/early-adopters/feedback", legacy_identity_maintenance_handler, methods=["POST"]),
+        Route("/early-adopters/optout/{uuid}", legacy_identity_maintenance_handler, methods=["POST"]),
         Route("/privacy", privacy_handler, methods=["GET"]),
         Route("/terms", terms_handler, methods=["GET"]),
         Route("/changelog", changelog_handler, methods=["GET"]),
@@ -2205,7 +2225,7 @@ app = Starlette(
         Route("/research/index.json", research_index_handler, methods=["GET"]),
         Route("/library", library_handler, methods=["GET"]),
         Route("/library/index.json", library_index_handler, methods=["GET"]),
-        Route("/mcp/test", mcp_test_handler, methods=["GET"]),
+        Route("/mcp/test", legacy_identity_maintenance_handler, methods=["GET"]),
         # Design v2: OAuth 2.1 authorization spine (dark until the
         # registration gate is enabled; endpoints are harmless while dark).
         Route("/.well-known/oauth-protected-resource",
@@ -2220,7 +2240,7 @@ app = Starlette(
         Route("/oauth/pat", oauth_pat_handler, methods=["POST"]),
         # v0.5.6 UI: human-readable registration and opt-out pages
         Route("/register", register_page_handler, methods=["GET"]),
-        Route("/register", register_handler, methods=["POST"]),
+        Route("/register", legacy_identity_maintenance_handler, methods=["POST"]),
         Route("/optout", optout_page_handler, methods=["GET"]),
         # v0.5.12 Polar: subscription lifecycle webhook
         Route("/api/webhooks/polar", polar_webhook_handler, methods=["POST"]),

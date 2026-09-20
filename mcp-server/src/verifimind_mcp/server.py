@@ -1197,8 +1197,8 @@ def _create_mcp_instance():
                 most the 20 newest opt-in results, evicts oldest entries on every
                 read/write, and clears when the instance is replaced. It has no fixed
                 time-retention guarantee. Leave False for private or sensitive concepts.
-                If user_uuid is supplied separately, pseudonymous validation metadata
-                may still be written to UUID-keyed Firestore history (see Privacy v2.6).
+                During security maintenance a separately supplied user_uuid has no
+                effect: no UUID-keyed validation history is written for it.
             detail: Reasoning verbosity (v0.5.44) — "standard" (default) returns the
                 auditable `reasoning` block (per-step reasoning, ethics scoring breakdown
                 + framework citations, Socratic questions, threat assessment) alongside

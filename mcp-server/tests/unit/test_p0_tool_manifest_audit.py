@@ -19,6 +19,7 @@ Acceptance criteria from FLYWHEEL TEAM handoff (2026-04-28):
 import inspect
 import json
 import logging
+import re
 
 import pytest
 
@@ -142,6 +143,40 @@ class TestServerHandlerRegistry:
 # 4. http_exception_handler — structured logging
 # ---------------------------------------------------------------------------
 
+# A rendered [TOOL_NOT_FOUND] line is a structured record. The oracle compares its
+# FIELDS and never searches the whole rendered line for a raw caller token: the
+# server-generated timestamp and the request path are free text whose digits can
+# coincide with a numeric label. (Hosted CI, 2026-09-17: the line
+# "... tool=unrecognized ... ts=2026-09-17T15:20:47.692742+00:00 ..." failed a bare
+# "42" check although the handler behaved correctly.)
+_TOOL_NOT_FOUND_LINE = re.compile(
+    r"\[TOOL_NOT_FOUND\] tool=(?P<tool>\S+) uuid=(?P<uuid>\S+) ip=(?P<ip>\S+)"
+    r" ts=(?P<ts>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:[+-]\d{2}:\d{2}|Z))"
+    r" path=(?P<path>\S+)"
+)
+_OBSERVED_HOSTED_LINE = (
+    "[TOOL_NOT_FOUND] tool=unrecognized uuid=anonymous ip=1.2.3.4 "
+    "ts=2026-09-17T15:20:47.692742+00:00 path=/wrong"
+)
+
+
+def _tool_not_found_fields(message):
+    """The fields of one [TOOL_NOT_FOUND] line; any other shape fails the test."""
+    match = _TOOL_NOT_FOUND_LINE.fullmatch(message)
+    assert match, f"[TOOL_NOT_FOUND] line is not the structured shape: {message!r}"
+    return match.groupdict()
+
+
+def _assert_unrecognized_tool_record(message, *, path, ip="1.2.3.4"):
+    """A caller-controlled label may reach the log only as the fixed value."""
+    fields = _tool_not_found_fields(message)
+    assert fields["tool"] == "unrecognized", fields
+    assert fields["uuid"] == "anonymous", fields
+    assert fields["ip"] == ip, fields
+    assert fields["path"] == path, fields
+    return fields
+
+
 class TestStructuredLogging:
     """http_exception_handler must emit [TOOL_NOT_FOUND] for MCP tool-call 404s."""
 
@@ -189,11 +224,151 @@ class TestStructuredLogging:
         tool_not_found_logs = [r for r in caplog.records if "[TOOL_NOT_FOUND]" in r.message]
         assert tool_not_found_logs, "Expected [TOOL_NOT_FOUND] log entry"
         log_msg = tool_not_found_logs[0].message
-        assert "phantom_tool" in log_msg, "Tool name must appear in log"
+        assert "tool=unrecognized" in log_msg
+        assert "phantom_tool" not in log_msg
 
     @pytest.mark.asyncio
-    async def test_tool_not_found_log_includes_uuid_when_present(self, caplog):
-        """tools/call with user_uuid in args → UUID appears in log."""
+    async def test_known_tool_name_keeps_bounded_label(self, caplog):
+        """A known name may retain its fixed, allowlisted telemetry label."""
+        import http_server
+        body = json.dumps({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {"name": "consult_agent_x", "arguments": {}},
+        }).encode()
+        req = self._make_request(method="POST", path="/wrong", body=body)
+
+        with caplog.at_level(logging.WARNING, logger="http_server"):
+            await http_server.http_exception_handler(req, self._make_exc(404))
+
+        logs = [r.message for r in caplog.records if "[TOOL_NOT_FOUND]" in r.message]
+        assert len(logs) == 1
+        assert "tool=consult_agent_x" in logs[0]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "candidate,forbidden",
+        [
+            ("019d40d6-test-uuid-0000-000000000001", "019d40d6-test-uuid"),
+            ("line-one\nline-two", "line-two"),
+            ({"nested": "caller-controlled"}, "caller-controlled"),
+            (42, "42"),
+        ],
+    )
+    async def test_unrecognized_tool_labels_never_reach_logs(
+        self, caplog, candidate, forbidden
+    ):
+        import http_server
+        body = json.dumps({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {"name": candidate, "arguments": {}},
+        }).encode()
+        req = self._make_request(method="POST", path="/wrong", body=body)
+
+        with caplog.at_level(logging.WARNING, logger="http_server"):
+            await http_server.http_exception_handler(req, self._make_exc(404))
+
+        logs = [r.message for r in caplog.records if "[TOOL_NOT_FOUND]" in r.message]
+        assert len(logs) == 1
+        fields = _assert_unrecognized_tool_record(logs[0], path="/wrong")
+        # The label-bearing fields are the ones a caller influences through the
+        # JSON body; the full-line shape match already rejects any extra text.
+        assert forbidden not in fields["tool"]
+        assert forbidden not in fields["uuid"]
+
+    def test_oracle_detects_a_real_numeric_tool_field(self):
+        """Known-positive: a label that really reached the tool field is caught."""
+        leaked = _OBSERVED_HOSTED_LINE.replace("tool=unrecognized", "tool=42")
+        assert _tool_not_found_fields(leaked)["tool"] == "42"
+        with pytest.raises(AssertionError):
+            _assert_unrecognized_tool_record(leaked, path="/wrong")
+
+    @pytest.mark.parametrize(
+        "leaked",
+        [
+            _OBSERVED_HOSTED_LINE + " line-two",
+            _OBSERVED_HOSTED_LINE + "\nline-two",
+            _OBSERVED_HOSTED_LINE.replace("uuid=anonymous", "uuid=019d40d6-test-uuid"),
+        ],
+        ids=["appended-text", "second-line", "untrusted-uuid"],
+    )
+    def test_oracle_detects_caller_text_outside_the_fixed_fields(self, leaked):
+        """Known-positive: appended text, a second line or a trusted-looking uuid fail."""
+        with pytest.raises(AssertionError):
+            _assert_unrecognized_tool_record(leaked, path="/wrong")
+
+    @pytest.mark.parametrize(
+        "line,path",
+        [
+            (_OBSERVED_HOSTED_LINE, "/wrong"),
+            (
+                "[TOOL_NOT_FOUND] tool=unrecognized uuid=anonymous ip=1.2.3.4 "
+                "ts=2026-09-17T15:42:42.424242+00:00 path=/wrong",
+                "/wrong",
+            ),
+            (
+                "[TOOL_NOT_FOUND] tool=unrecognized uuid=anonymous ip=1.2.3.4 "
+                "ts=2026-09-17T15:42:42+00:00 path=/v42/wrong-42",
+                "/v42/wrong-42",
+            ),
+        ],
+        ids=["observed-hosted-line", "timestamp-42", "path-42-whole-second-timestamp"],
+    )
+    def test_oracle_cannot_fail_on_42_in_timestamp_or_path(self, line, path):
+        """Known-negative: server-generated text containing 42 cannot fail the contract."""
+        assert "42" in line
+        fields = _assert_unrecognized_tool_record(line, path=path)
+        assert "42" not in fields["tool"]
+
+    @pytest.mark.asyncio
+    async def test_unrelated_log_text_and_path_containing_42_cannot_fail(self, caplog):
+        """Known-negative through the real handler: a numeric label, a path and an
+        unrelated log message all containing 42."""
+        import http_server
+        body = json.dumps({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {"name": 42, "arguments": {}},
+        }).encode()
+        req = self._make_request(method="POST", path="/v42/wrong-42", body=body)
+
+        with caplog.at_level(logging.WARNING, logger="http_server"):
+            logging.getLogger("http_server").warning("unrelated message 42")
+            await http_server.http_exception_handler(req, self._make_exc(404))
+
+        logs = [r.message for r in caplog.records if "[TOOL_NOT_FOUND]" in r.message]
+        assert len(logs) == 1
+        fields = _assert_unrecognized_tool_record(logs[0], path="/v42/wrong-42")
+        assert "42" not in fields["tool"]
+        assert any(
+            "42" in r.message for r in caplog.records if "[TOOL_NOT_FOUND]" not in r.message
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("payload", [[], 17, "scalar", None])
+    async def test_non_object_json_is_normalized_without_error(self, caplog, payload):
+        import http_server
+        req = self._make_request(
+            method="POST",
+            path="/wrong",
+            body=json.dumps(payload).encode(),
+        )
+
+        with caplog.at_level(logging.WARNING, logger="http_server"):
+            response = await http_server.http_exception_handler(
+                req, self._make_exc(404)
+            )
+
+        assert response.status_code == 404
+        assert any("[HTTP_404]" in r.message for r in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_tool_not_found_log_does_not_trust_uuid_attribution(self, caplog):
+        """A caller-supplied user_uuid must not become log attribution."""
         import http_server
         body = json.dumps({
             "jsonrpc": "2.0",
@@ -213,7 +388,9 @@ class TestStructuredLogging:
 
         log_msgs = [r.message for r in caplog.records if "[TOOL_NOT_FOUND]" in r.message]
         assert log_msgs, "Expected [TOOL_NOT_FOUND] log"
-        assert "019d40d6-test-uuid" in log_msgs[0], "UUID must appear in log"
+        assert "uuid=anonymous" in log_msgs[0]
+        assert "019d40d6-test-uuid" not in log_msgs[0]
+        assert "tool=unrecognized" in log_msgs[0]
 
     @pytest.mark.asyncio
     async def test_no_body_404_logs_http_404(self, caplog):
