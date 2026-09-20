@@ -318,7 +318,13 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "api_key_env": "OPENAI_API_KEY",
         "base_url": "https://api.openai.com/v1",
         "free_tier": False,
-        "models_verified_at": "2026-06-22",
+        # Catalog presence re-verified live 2026-09-20 (UTC): all five ids are listed by
+        # GET /v1/models on a real key. This is a LISTING check - it re-establishes that
+        # the ids exist and none is retired. It does NOT re-exercise the gpt-5.x request
+        # contract noted in OpenAIProvider.generate, last verified 2026-06-22. The stamp is
+        # the UTC date of the check: a local date ahead of UTC reads as
+        # verification_date_in_future on UTC runners.
+        "models_verified_at": "2026-09-20",
     },
     "anthropic": {
         "name": "Anthropic Claude",
