@@ -258,3 +258,25 @@ class TestTheProbeItselfCanFail:
         [row] = _run([{"method": "GET", "path": "/health"}], gate=False)
         assert row["status"] == 200, row
         assert not row["contained"], "the /health route must not answer with the containment body"
+
+
+class TestTheRecorderCanSeeACredentialLookup:
+    """Known-positive for every `backend_calls == []` assertion in this module.
+
+    Every other recorded case expects the recorder to record NOTHING, and an empty list is also
+    what a blind recorder returns - one that patches a seam the code no longer calls. This case
+    drives a request that must reach the credential store, so those zero-call assertions are
+    backed by a recorder shown to work. It also pins the boundary's teeth: a well-formed bearer
+    one trailing slash away from the exempt pair is still looked up.
+    """
+
+    def test_a_well_formed_bearer_on_a_near_miss_path_is_looked_up(self):
+        [row] = _run([{"method": "GET", "path": "/mcp/test/",
+                       "headers": {"Authorization": f"Bearer {WELL_FORMED_ACCESS}"}}],
+                     gate=True, record_io=True, store_down=True)
+        assert row["status"] == 503, row
+        assert not row["contained"], ("the token-store outage answer, not the maintenance one", row)
+        assert row["retry_after"] == "120", row
+        assert row["www_authenticate"], row
+        assert "stores._read" in row["backend_calls"], row
+        assert not row["reflects_bearer"], row
