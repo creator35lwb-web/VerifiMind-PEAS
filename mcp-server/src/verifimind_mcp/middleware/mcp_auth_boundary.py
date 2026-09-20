@@ -8,8 +8,9 @@ clients can discover the authorization server and start the flow.
 
 Modes (`AUTH_BOUNDARY_MODE`):
 - ``connection`` (default) — every non-OPTIONS/HEAD /mcp request requires a
-  valid Bearer token. Spec-safe for all clients; web pages, health, and
-  /.well-known discovery remain anonymous elsewhere.
+  valid Bearer token except an exact maintenance-contained pair. Spec-safe for
+  all clients; web pages, health, and /.well-known discovery remain anonymous
+  elsewhere.
 - ``execution`` — anonymous initialize/tools/list; only ``tools/call`` of
   the four gated tools requires Bearer. The request body is buffered
   (bounded) and replayed, never consumed. The dark client matrix decides
@@ -33,6 +34,9 @@ from verifimind_mcp.middleware.registration_gate import (
 
 _PRM_URL = "https://verifimind.ysenseai.org/.well-known/oauth-protected-resource"
 _MAX_PEEK_BODY = 1024 * 1024  # execution-mode inspection cap
+# This exemption is safe only while the exact route is maintenance-bound.
+# test_containment_gate_activation.py checks both sides of that binding.
+MAINTENANCE_CONTAINED_PAIRS = frozenset({("GET", "/mcp/test")})
 
 
 def boundary_mode() -> str:
@@ -88,6 +92,8 @@ class McpAuthBoundary:
             return await self.app(scope, receive, send)
         method = scope.get("method", "GET").upper()
         if method in ("OPTIONS", "HEAD"):
+            return await self.app(scope, receive, send)
+        if (method, path) in MAINTENANCE_CONTAINED_PAIRS:
             return await self.app(scope, receive, send)
 
         replay_receive = receive

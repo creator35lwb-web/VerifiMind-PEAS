@@ -1,39 +1,13 @@
-"""Plane 1 of T S176's re-expression contract: containment across gate activation.
+"""Containment stays request-blind when the registration gate is activated.
 
-`test_legacy_uuid_containment.py` already pins the eight contained pairs under the current
-**gate-dark** configuration. This module adds the two things that file does not cover:
-
-1.  **Gate activation.** `McpAuthBoundary` matches `/mcp/*` when `REGISTRATION_GATE_ENABLED`
-    is true, so it can answer before `legacy_identity_maintenance_handler` ever runs. Measured:
-    exactly **one of the eight** pairs changes — `GET /mcp/test` returns `401 invalid_token`
-    with a `WWW-Authenticate` challenge instead of the request-blind maintenance `503`. The
-    other seven are unaffected because they are not under `/mcp/`.
-
-    The preempted answer is **not** request-blind. A bearer that is not bearer-valid is refused
-    before any lookup, but a **well-formed** access or personal token is looked up in the
-    credential store, so at gate activation a route meant to be uniformly maintenance-contained
-    becomes a live authentication endpoint whose answer varies by token kind. An earlier
-    revision of this module asserted "no backend I/O" from three bearer variants that were all
-    malformed - one equivalence class - and so never exercised the path a well-formed credential
-    takes. That claim was wider than its evidence; both classes are now pinned separately.
-
-    These tests **record that measurement**; they do not endorse it. Per T S176 the preemption
-    is a **production-code residual** for separate authority to decide, and pinning it here is
-    what makes a future silent change visible. If T rules that request-blind containment must
-    hold across gate activation, the fix belongs in production code and these expectations
-    change with it.
-
-    **Limit, stated rather than glossed.** The well-formed cases run with the store forced
-    unavailable, so what they pin is "the lookup is attempted, and an outage is answered with
-    the token-store outage contract rather than the maintenance contract". What a **live** store
-    answers for a well-formed unknown token is not measured here and is not claimed.
-
-2.  **Request-shape variation.** The containment answer must not depend on an `Authorization`
-    header or a malformed body, in either gate state.
-
-Every gate-on case runs in a **subprocess**. Enabling the gate requires re-importing
-`http_server` with different environment, and doing that in-process would leave the reloaded
-modules cached for every later test in the session.
+The previous gate-on behaviour challenged anonymous GET /mcp/test and looked up
+well-formed bearers before returning maintenance 503. Those tests recorded a
+residual, not an endorsed contract. The bounded repair now makes all eight
+maintenance-contained pairs answer 503 regardless of bearer or boundary mode.
+The exact exemption must remain bound to the maintenance route; both directions
+of that relationship are tested below so lifting containment cannot silently
+leave a live route unauthenticated. Gate-on cases run in subprocesses to avoid
+leaking re-imported http_server state into later tests.
 """
 import json
 import os
@@ -56,9 +30,6 @@ CONTAINED_PAIRS = (
     ("GET", "/mcp/test"),
     ("POST", "/register"),
 )
-
-# The single pair the auth boundary preempts when the gate is enabled.
-PREEMPTED_PAIR = ("GET", "/mcp/test")
 
 # Well-formed by GRAMMAR only (`<kind-prefix>.<token-id>.<secret>`): never minted, never stored.
 WELL_FORMED_ACCESS = "vmat.unknown-token-id.not-a-real-secret-value"
@@ -176,77 +147,104 @@ class TestGateDarkContainmentIsRequestShapeBlind:
             assert not row["reflects_uuid"], row
 
 
-class TestGateActivationPreemptsExactlyOnePair:
-    """RECORDED RESIDUAL, not an endorsement — see the module docstring.
+class TestGateOnContainmentIsRequestBlind:
+    """The old eight preemption pins are replaced with the repaired contract."""
 
-    T S176 rules whether request-blind containment must survive gate activation. Until then
-    these tests pin the measured behaviour - including that the preempted route consults the
-    credential store for a well-formed bearer - so it cannot change unnoticed.
-    """
+    @pytest.mark.parametrize("mode", ["connection", "execution"])
+    def test_all_eight_pairs_remain_contained(self, mode):
+        rows = _run(_requests_for_all_pairs(), gate=True, mode=mode)
+        assert len(rows) == len(CONTAINED_PAIRS) == 8
+        for row in rows:
+            assert row["status"] == 503, row
+            assert row["contained"], row
+            assert row["retry_after"] == "3600", row
+            assert not row["www_authenticate"], row
+            assert not row["reflects_uuid"], row
 
-    def test_seven_of_eight_pairs_are_unaffected_by_gate_activation(self):
-        rows = _run(_requests_for_all_pairs(), gate=True)
-        unaffected = [r for r in rows if (r["method"], r["path"]) != PREEMPTED_PAIR]
-        assert len(unaffected) == 7, rows
-        for row in unaffected:
+    @pytest.mark.parametrize("mode", ["connection", "execution"])
+    @pytest.mark.parametrize("headers,label", [
+        (None, "no bearer"),
+        ({"Authorization": "Bearer nope"}, "malformed bearer"),
+        ({"Authorization": f"Bearer {UUID}"}, "uuid-shaped bearer"),
+        ({"Authorization": f"Bearer {WELL_FORMED_REFRESH}"}, "well-formed refresh"),
+        ({"Authorization": f"Bearer {WELL_FORMED_ACCESS}"}, "well-formed access"),
+        ({"Authorization": f"Bearer {WELL_FORMED_PAT}"}, "well-formed personal"),
+        ({"Authorization": "Basic Zm9vOmJhcg=="}, "non-bearer scheme"),
+    ])
+    def test_mcp_test_never_challenges_or_reads_credentials(self, mode, headers, label):
+        [row] = _run([{"method": "GET", "path": "/mcp/test", "headers": headers}],
+                     gate=True, mode=mode, record_io=True, store_down=True)
+        assert row["status"] == 503, (mode, label, row)
+        assert row["contained"], (mode, label, row)
+        assert row["retry_after"] == "3600", (mode, label, row)
+        assert not row["www_authenticate"], (mode, label, row)
+        assert row["backend_calls"] == [], (mode, label, row)
+        assert not row["reflects_bearer"], (mode, label, row)
+        assert not row["reflects_uuid"], (mode, label, row)
+
+    @pytest.mark.parametrize("mode", ["connection", "execution"])
+    def test_malformed_body_does_not_change_containment(self, mode):
+        for row in _run(_requests_for_all_pairs(raw_body="{not json at all"),
+                        gate=True, mode=mode):
             assert row["status"] == 503, row
             assert row["contained"], row
             assert row["retry_after"] == "3600", row
 
-    def test_mcp_test_is_preempted_by_the_auth_boundary(self):
-        [row] = _run([{"method": "GET", "path": "/mcp/test"}], gate=True)
-        assert row["status"] == 401, row
-        assert not row["contained"], row
-        assert row["www_authenticate"], "a preempting boundary must still challenge explicitly"
 
-    def test_preemption_holds_in_execution_mode_too(self):
-        [row] = _run([{"method": "GET", "path": "/mcp/test"}], gate=True, mode="execution")
-        assert row["status"] == 401, row
-        assert not row["contained"], row
+class TestTheGateStaysShutForEverythingElse:
+    """The exemption matches one exact (method, path) pair, not a prefix."""
 
-    @pytest.mark.parametrize("headers,label", [
-        (None, "no bearer"),
-        ({"Authorization": "Bearer nope"}, "invalid bearer"),
-        ({"Authorization": f"Bearer {UUID}"}, "bearer naming a uuid"),
-        ({"Authorization": f"Bearer {WELL_FORMED_REFRESH}"}, "well-formed refresh token"),
+    @pytest.mark.parametrize("method,path", [
+        ("POST", "/mcp"),
+        ("POST", "/mcp/"),
+        ("GET", "/mcp"),
+        ("POST", "/mcp/test"),
+        ("GET", "/mcp/test/"),
+        ("GET", "/mcp/test/x"),
+        ("GET", "/mcp/testing"),
+        ("GET", "/mcp/Test"),
+        ("GET", "/mcp/test;x=1"),
+        ("GET", "/mcp//test"),
     ])
-    def test_a_bearer_that_is_not_bearer_valid_is_refused_before_any_lookup(self, headers, label):
-        """ONE equivalence class, whatever the parametrize list looks like.
+    def test_near_misses_still_meet_the_connection_auth_boundary(self, method, path):
+        [row] = _run([{"method": method, "path": path}], gate=True)
+        assert row["status"] == 401, (method, path, row)
+        assert row["www_authenticate"], (method, path, row)
+        assert not row["contained"], (method, path, row)
 
-        The first three fail the wire-format parse; the fourth parses, but a refresh token is
-        not an accepted bearer kind. All four are rejected before any store is consulted. This
-        says nothing about a well-formed access or personal token - that path is pinned in
-        `test_a_well_formed_bearer_is_looked_up_in_the_credential_store` below.
-        """
-        [row] = _run([{"method": "GET", "path": "/mcp/test", "headers": headers}],
-                     gate=True, record_io=True, store_down=True)
-        assert row["status"] == 401, (label, row)
-        assert row["backend_calls"] == [], (label, row)
-        assert not row["reflects_uuid"], (label, row)
-        assert not row["reflects_bearer"], (label, row)
+    def test_percent_encoded_spelling_agrees_with_the_router(self):
+        # Both the ASGI boundary and router receive the decoded path.
+        [row] = _run([{"method": "GET", "path": "/mcp/%74est"}], gate=True)
+        assert row["status"] == 503 and row["contained"], row
 
-    @pytest.mark.parametrize("token,label", [
-        (WELL_FORMED_ACCESS, "well-formed access token"),
-        (WELL_FORMED_PAT, "well-formed personal token"),
-    ])
-    def test_a_well_formed_bearer_is_looked_up_in_the_credential_store(self, token, label):
-        """The class the earlier revision never exercised - and the reason the residual is not
-        "contract-shape only".
 
-        A well-formed unknown bearer reaches the credential store. With the store unavailable
-        the answer is the token-store OUTAGE contract, not the maintenance contract: a route
-        intended to be request-blind now distinguishes token kinds and reports store health.
-        RECORDED, not endorsed; see the module docstring for the limit on this measurement.
-        """
-        [row] = _run([{"method": "GET", "path": "/mcp/test",
-                       "headers": {"Authorization": f"Bearer {token}"}}],
-                     gate=True, record_io=True, store_down=True)
-        assert row["status"] == 503, (label, row)
-        assert not row["contained"], (label, "an outage answer must not be mistaken for containment", row)
-        assert row["retry_after"] != "3600", (label, "this is not the maintenance Retry-After", row)
-        assert "stores._read" in row["backend_calls"], (label, row)
-        assert "stores._db" in row["backend_calls"], (label, row)
-        assert not row["reflects_bearer"], (label, row)
+class TestTheExemptionIsBoundToTheRouteTable:
+    """Lifting containment must fail tests until the exemption is removed."""
+
+    def test_every_exempt_pair_is_maintenance_bound(self):
+        import http_server
+        from verifimind_mcp.middleware.mcp_auth_boundary import MAINTENANCE_CONTAINED_PAIRS
+
+        assert MAINTENANCE_CONTAINED_PAIRS, "an empty exemption cannot pass vacuously"
+        for method, path in MAINTENANCE_CONTAINED_PAIRS:
+            bound = [route for route in http_server.app.routes
+                     if getattr(route, "path", None) == path
+                     and method in (getattr(route, "methods", None) or ())]
+            assert len(bound) == 1, (method, path, bound)
+            assert bound[0].endpoint is http_server.legacy_identity_maintenance_handler
+
+    def test_every_maintenance_bound_mcp_pair_is_exempt(self):
+        import http_server
+        from verifimind_mcp.middleware.mcp_auth_boundary import MAINTENANCE_CONTAINED_PAIRS
+
+        under_mcp = {
+            (method, route.path)
+            for route in http_server.app.routes
+            if getattr(route, "endpoint", None) is http_server.legacy_identity_maintenance_handler
+            and (route.path == "/mcp" or route.path.startswith("/mcp/"))
+            for method in (route.methods or ()) if method not in ("HEAD", "OPTIONS")
+        }
+        assert under_mcp == set(MAINTENANCE_CONTAINED_PAIRS), (under_mcp, MAINTENANCE_CONTAINED_PAIRS)
 
 
 class TestTheProbeItselfCanFail:
