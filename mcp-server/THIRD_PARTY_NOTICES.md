@@ -16,7 +16,7 @@ legal-certification claim.
 
 | Step | Evidence |
 |---|---|
-| Pins | `Authlib==1.8.0`, `joserfc==1.7.5`, `cryptography==46.0.1` in `pyproject.toml` (the deployment dependency authority) and `requirements.txt`; parity is enforced locally by `tests/unit/test_dependency_manifest_parity.py` and inside the built production image by the `Production Image Dependency Parity` CI job. |
+| Pins | `Authlib==1.8.0`, `joserfc==1.7.5`, `cryptography==50.0.1` in `pyproject.toml` (the deployment dependency authority) and `requirements.txt`; parity is enforced locally by `tests/unit/test_dependency_manifest_parity.py` and inside the built production image by the `Production Image Dependency Parity` CI job. |
 | Artifacts | Every wheel and sdist listed below was downloaded from PyPI and its SHA-256 verified equal to the digest PyPI publishes for that file. |
 | License files | Every license file inside every listed artifact was extracted and verified byte-identical to the copy pip installs at `<dist>.dist-info/licenses/`. The blocks below are those exact bytes. `tests/unit/test_third_party_notices.py` re-verifies each block byte-for-byte against the installed pinned distribution in CI. |
 | Publisher provenance | PyPI attestation bundles (PEP 740) were retrieved from `https://pypi.org/integrity/<name>/<version>/<file>/provenance` for the artifacts named in each section; each bundle names the GitHub Trusted Publisher repository and workflow recorded there. |
@@ -141,27 +141,30 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 <!-- END-LICENSE-FILE -->
 
-## cryptography 46.0.1 — Apache-2.0 OR BSD-3-Clause
+## cryptography 50.0.1 — Apache-2.0 OR BSD-3-Clause
 
 Cryptographic backend used by Authlib and joserfc.
 
 - Source: https://github.com/pyca/cryptography ·
   Documentation: https://cryptography.io/
-- PyPI: https://pypi.org/project/cryptography/46.0.1/ — the sdist and both
-  wheels below carry a PyPI attestation bundle (Trusted Publisher: GitHub
-  `pyca/cryptography`, workflow `pypi-publish.yml`)
+- PyPI: https://pypi.org/project/cryptography/50.0.1/ — the sdist and the
+  three wheels below each carry a PyPI attestation bundle (Trusted Publisher:
+  GitHub `pyca/cryptography`, workflow `pypi-publish.yml`), re-verified for this
+  version rather than carried over
 - Package METADATA: `License-Expression: Apache-2.0 OR BSD-3-Clause` ·
   `License-File: LICENSE`, `LICENSE.APACHE`, `LICENSE.BSD` ·
   `Author-email` name: The Python Cryptographic Authority and individual
   contributors
-- Release artifacts (PyPI, uploaded 2025-09-17):
-  - `cryptography-46.0.1.tar.gz` — SHA-256
-    `ed570874e88f213437f5cf758f9ef26cbfc3f336d889b1e592ee11283bb8d1c7`
-  - `cryptography-46.0.1-cp311-abi3-manylinux_2_28_x86_64.whl` — SHA-256
-    `f7a24ea78de345cfa7f6a8d3bde8b242c7fac27f2bd78fa23474ca38dfaeeab9`
-  - `cryptography-46.0.1-cp311-abi3-manylinux_2_34_x86_64.whl` — SHA-256
-    `449ef2b321bec7d97ef2c944173275ebdab78f3abdd005400cc409e27cd159ab`
-- License files (each identical across the sdist, both wheels, and the
+- Release artifacts (PyPI, uploaded 2026-08-25):
+  - `cryptography-50.0.1.tar.gz` — SHA-256
+    `5dd9bda1c12b4162f6ff568eeb5e0ff956c28d14406e875cfe8a63a2d414ff20`
+  - `cryptography-50.0.1-cp311-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl` — SHA-256
+    `ff838d62ec1bfce4f9ba7fa16f4a7b554cd8d0c299e6be37502161a660c84eef`
+  - `cryptography-50.0.1-cp311-abi3-manylinux_2_28_x86_64.whl` — SHA-256
+    `51593d180cf6d179bde5c5d065bed81386b1f381656ae7d042b7ffc87a9895ad`
+  - `cryptography-50.0.1-cp311-abi3-manylinux_2_34_x86_64.whl` — SHA-256
+    `51afcfceb15597cf2635068e4ac9a56b2abde622edde17f37d85fd7b5306497a`
+- License files (each identical across the sdist, all three wheels, and the
   installed distribution):
   - `LICENSE` — 197 bytes — SHA-256 `3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb`
   - `LICENSE.BSD` — 1532 bytes — SHA-256 `602c4c7482de6479dd2e9793cda275e5e63d773dacd1eca689232ab7008fb4fb`
@@ -173,7 +176,7 @@ terms apply.
 
 ### `LICENSE` — verbatim
 
-<!-- LICENSE-FILE: cryptography-46.0.1.dist-info/licenses/LICENSE sha256=3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb -->
+<!-- LICENSE-FILE: cryptography-50.0.1.dist-info/licenses/LICENSE sha256=3e0c7c091a948b82533ba98fd7cbb40432d6f1a9acbf85f5922d2f99a93ae6bb -->
 ```text
 This software is made available under the terms of *either* of the licenses
 found in LICENSE.APACHE or LICENSE.BSD. Contributions to cryptography are made
@@ -183,7 +186,7 @@ under the terms of *both* these licenses.
 
 ### `LICENSE.BSD` — verbatim
 
-<!-- LICENSE-FILE: cryptography-46.0.1.dist-info/licenses/LICENSE.BSD sha256=602c4c7482de6479dd2e9793cda275e5e63d773dacd1eca689232ab7008fb4fb -->
+<!-- LICENSE-FILE: cryptography-50.0.1.dist-info/licenses/LICENSE.BSD sha256=602c4c7482de6479dd2e9793cda275e5e63d773dacd1eca689232ab7008fb4fb -->
 ```text
 Copyright (c) Individual contributors.
 All rights reserved.
@@ -217,7 +220,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ### `LICENSE.APACHE` — verbatim
 
-<!-- LICENSE-FILE: cryptography-46.0.1.dist-info/licenses/LICENSE.APACHE sha256=aac73b3148f6d1d7111dbca32099f68d26c644c6813ae1e4f05f6579aa2663fe -->
+<!-- LICENSE-FILE: cryptography-50.0.1.dist-info/licenses/LICENSE.APACHE sha256=aac73b3148f6d1d7111dbca32099f68d26c644c6813ae1e4f05f6579aa2663fe -->
 ```text
 
                                  Apache License

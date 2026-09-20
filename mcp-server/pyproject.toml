@@ -45,7 +45,7 @@ dependencies = [
     # THIRD_PARTY_NOTICES.md.
     "Authlib==1.8.0",
     "joserfc==1.7.5",
-    "cryptography==46.0.1"
+    "cryptography==50.0.1"
 ]
 
 [tool.hatch.build.targets.wheel]

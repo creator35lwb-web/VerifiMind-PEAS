@@ -18,7 +18,7 @@ import pytest
 NOTICES = pathlib.Path(__file__).resolve().parents[2] / "THIRD_PARTY_NOTICES.md"
 
 # Mirrors the OAuth pins in pyproject.toml / requirements.txt.
-PINS = {"Authlib": "1.8.0", "joserfc": "1.7.5", "cryptography": "46.0.1"}
+PINS = {"Authlib": "1.8.0", "joserfc": "1.7.5", "cryptography": "50.0.1"}
 LICENSE_FILES = {
     "Authlib": {"LICENSE"},
     "joserfc": {"LICENSE"},

@@ -50,7 +50,7 @@ standardwebhooks>=1.0.0
 # pyproject.toml EXACTLY. joserfc>=1.7.3 carries the issuer-validation fix.
 Authlib==1.8.0
 joserfc==1.7.5
-cryptography==46.0.1
+cryptography==50.0.1
 
 # ---------------------------------------------------------------------------
 # TEST-ONLY EXTRAS — the ONLY permitted difference from pyproject.toml.
