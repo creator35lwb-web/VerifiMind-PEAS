@@ -740,11 +740,28 @@ def rdb():
 
 @pytest.fixture()
 def http(monkeypatch):
-    import http_server
-    from starlette.testclient import TestClient
+    """The DORMANT handlers, not the public routes (T S176 plane 2).
 
+    These cases assert what the registration/feedback/lookup handlers do under a misdeclared
+    staging environment. Legacy-UUID containment re-points the public routes to
+    `legacy_identity_maintenance_handler`, so a request through `http_server.app` now measures
+    containment instead of the behaviour under test — the assertions below would be testing the
+    wrong thing while still failing for a real-looking reason.
+
+    The harness reaches the same handlers with production's exception mapping preserved, so
+    every assertion in this file is unchanged: `_refused()` still requires the
+    `service_misconfigured` 503 that `environment_misconfigured_handler` renders when
+    `register_handler` re-raises `EnvironmentMisconfigured`.
+
+    A pass here is evidence about the handler, NOT a claim that these endpoints are publicly
+    reachable. The current-route truth is pinned in `test_legacy_uuid_containment.py` and
+    `test_containment_gate_activation.py`; neither truth overwrites the other.
+    """
+    from .dormant_handler_harness import assert_harness_is_not_the_production_app, dormant_client
+
+    assert_harness_is_not_the_production_app()
     monkeypatch.setattr(rate_limiter, "_rate_limit_store", rate_limiter.RateLimitStore())
-    with TestClient(http_server.app) as client:
+    with dormant_client() as client:
         yield client
 
 

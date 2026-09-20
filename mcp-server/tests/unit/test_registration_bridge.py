@@ -158,9 +158,30 @@ class TestHttpSurfaces:
 
     @pytest.fixture
     def client(self, monkeypatch):
-        import http_server
-        from starlette.testclient import TestClient
+        """The DORMANT handlers, not the public routes (T S176 plane 2).
+
+        These cases exercise POST /register and GET /whoami. Legacy-UUID containment re-points
+        both to `legacy_identity_maintenance_handler`, so a request through `http_server.app`
+        now measures containment instead of the registration behaviour under test — the
+        assertions below would be checking the wrong surface while failing for a real-looking
+        reason (503 where 200/422 is expected, Retry-After 3600 where 60 is expected).
+
+        The harness reaches the same handlers with production's exception mapping preserved, so
+        every assertion in this class is unchanged.
+
+        A pass here is evidence about the handler, NOT a claim that /register or /whoami is
+        publicly reachable. The current-route truth is pinned in
+        `test_legacy_uuid_containment.py` and `test_containment_gate_activation.py`; neither
+        truth overwrites the other.
+        """
         from verifimind_mcp.middleware import rate_limiter
+
+        from .dormant_handler_harness import (
+            assert_harness_is_not_the_production_app,
+            dormant_client,
+        )
+
+        assert_harness_is_not_the_production_app()
         # Fresh rate-limit store per test: /register POSTs are deliberately
         # rate-limited now (minting bound), and batch accumulation from
         # other suites must not manufacture a 429 here.
@@ -171,7 +192,7 @@ class TestHttpSurfaces:
         # the dark-registration guard (CS Finding 1) is covered separately in
         # test_cs_review_findings.py.
         monkeypatch.setenv("OAUTH_ISSUANCE_ENABLED", "true")
-        with TestClient(http_server.app) as tc:
+        with dormant_client() as tc:
             yield tc
 
     def test_post_register_completes_end_to_end(self, client):

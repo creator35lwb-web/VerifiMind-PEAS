@@ -306,11 +306,14 @@ def rdb(monkeypatch):
 def http(monkeypatch):
     """Renders a server exception as the HTTP 500 production would send, so a
     status assertion — not a re-raised exception — is what fails (Lens B)."""
-    import http_server
-    from starlette.testclient import TestClient
+    from .dormant_handler_harness import (
+        assert_harness_is_not_the_production_app,
+        dormant_client,
+    )
 
+    assert_harness_is_not_the_production_app()
     monkeypatch.setattr(rate_limiter, "_rate_limit_store", rate_limiter.RateLimitStore())
-    with TestClient(http_server.app, raise_server_exceptions=False) as client:
+    with dormant_client(raise_server_exceptions=False) as client:
         yield client
 
 
