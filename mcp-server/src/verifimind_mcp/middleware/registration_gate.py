@@ -30,7 +30,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastmcp.server.middleware import Middleware
-from fastmcp.tools.tool import ToolResult
+from fastmcp.tools import ToolResult
 
 from verifimind_mcp.oauth.subjects import derive_subject
 

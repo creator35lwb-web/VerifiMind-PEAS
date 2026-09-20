@@ -109,7 +109,23 @@ mcp_server = create_http_server()
 
 # Get ASGI app from FastMCP - use path='/' so the route is at root of mounted app
 # When mounted at /mcp, requests to /mcp will go to / in the app
-mcp_app = mcp_server.http_app(path='/', transport='streamable-http')
+#
+# Mounted STATELESS. With the sessionful default, an `initialize` on one Cloud Run
+# instance mints a session id that a follow-up request landing on a different instance
+# cannot resolve: measured as four HTTP 404s (tools/list, resources/list, resources/read,
+# tools/call) across two independently mounted apps, and the likely cause of the
+# same-shape `POST /mcp` 404s in production telemetry (T S173). With stateless_http=True
+# the same probe returns four 200s, because each request carries its own context.
+#
+# Scope of this flag, measured rather than assumed:
+#   - the legacy leg (<=2025-11-25) NEEDS it to survive an instance switch;
+#   - the 2026-07-28 era is sessionless either way and is unaffected by it;
+#   - no server-initiated session feature is used anywhere in this codebase - no
+#     elicitation, sampling, notifications, roots or progress - so the flag costs no
+#     capability that is actually in use. The one session-dependent path,
+#     `ctx.session_config` in config_helper, already yields None over HTTP and carries a
+#     separate disposition; per-call BYOK arguments are unaffected.
+mcp_app = mcp_server.http_app(path='/', transport='streamable-http', stateless_http=True)
 
 # Server version
 SERVER_VERSION = "0.5.62"
