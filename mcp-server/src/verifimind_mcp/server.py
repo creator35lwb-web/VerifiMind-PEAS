@@ -43,6 +43,10 @@ from verifimind_mcp.utils.provider_failures import (
 )
 from verifimind_mcp.llm.failover import FailoverExhaustedError, FailoverTerminalError
 from verifimind_mcp.availability import system_notice_is_compatible
+from verifimind_mcp.middleware.registration_gate import (
+    VERIFIED_SUBJECT_HMAC,
+    RegistrationGate,
+)
 from verifimind_mcp.middleware.tool_invocation import ToolInvocationTelemetry
 
 # Initialize logger for security events
@@ -50,7 +54,7 @@ logger = logging.getLogger(__name__)
 
 # v0.4.3 — System Notice: broadcast messages to all MCP users via env var
 _RAW_SYSTEM_NOTICE = os.environ.get("SYSTEM_NOTICE", "")
-SERVER_VERSION = "0.5.62"
+SERVER_VERSION = "0.5.63"
 
 # Agent role names + master prompt filename — single source of truth.
 # (SonarCloud P2 batch-2: extracted in v0.5.39 from 13 dup-literal occurrences
@@ -685,6 +689,11 @@ def _create_mcp_instance():
     # v0.5.62: one name-only event at the outer tools/call boundary. Register
     # first so future internal retries or handler middleware cannot multiply it.
     app.add_middleware(ToolInvocationTelemetry())
+    # Registration-auth gate — DARK unless REGISTRATION_GATE_ENABLED. Added
+    # after telemetry so a denied dispatch still emits tool_invoked (the
+    # dispatch-attempt layer keeps its meaning); denials never reach handlers,
+    # so gated-and-denied Trinity calls emit no lifecycle events.
+    app.add_middleware(RegistrationGate())
 
     # ===== RESOURCES =====
 
@@ -1237,6 +1246,13 @@ def _create_mcp_instance():
         session = SessionContext(concept_name=concept_name)
         _run_session_id = session.session_id
         _completion_emitted = False
+        # HMAC-pseudonymous authenticated subject from the gate (contextvar
+        # read never raises; None when the gate is dark). Raw UUIDs never
+        # enter lifecycle telemetry (T P0 #6); emit_trinity_run_event skips
+        # None fields, so ungated runs are byte-identical to v0.5.62. Never
+        # sourced from the user_uuid argument — caller-asserted strings are
+        # not attribution.
+        _subject = VERIFIED_SUBJECT_HMAC.get()
 
         def _emit_completion_once(**fields):
             # F-331-T1: the final outcome must not be pre-claimed — whichever
@@ -1248,6 +1264,7 @@ def _create_mcp_instance():
             emit_trinity_run_event(
                 event="trinity_run_completed",
                 session_id=_run_session_id,
+                subject=_subject,
                 **fields,
             )
 
@@ -1255,6 +1272,7 @@ def _create_mcp_instance():
             event="trinity_run_started",
             session_id=session.session_id,
             byok_requested=_byok_requested,
+            subject=_subject,
         )
         try:
             # ---- fallible prelude, now inside the lifecycle guard ----------

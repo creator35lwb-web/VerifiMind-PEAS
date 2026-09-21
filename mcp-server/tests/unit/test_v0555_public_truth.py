@@ -80,8 +80,8 @@ def test_version_and_tool_availability_are_exact_across_discovery_surfaces():
     config = _json_response(http_server.mcp_config_handler)
     setup = _json_response(http_server.setup_handler)
 
-    assert http_server.SERVER_VERSION == "0.5.62"
-    assert health["version"] == "0.5.62"
+    assert http_server.SERVER_VERSION == "0.5.63"
+    assert health["version"] == "0.5.63"
     assert health["tool_availability"] == expected
     assert (
         config["mcpServers"]["verifimind-genesis"]["tool_availability"]
@@ -94,8 +94,8 @@ def test_registry_manifest_has_same_current_availability_truth():
     manifest_path = Path(__file__).resolve().parents[3] / "server.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
-    assert manifest["version"] == "3.39.0"
-    assert "v0.5.62" in manifest["description"]
+    assert manifest["version"] == "3.40.0"
+    assert "v0.5.63" in manifest["description"]
     assert "8 active tools" in manifest["description"]
     assert len(manifest["description"]) <= 100
     tools = manifest["_meta"][
@@ -145,8 +145,8 @@ def test_html_and_json_policy_surfaces_share_versions_and_current_truth():
     privacy_json = _json_response(http_server.privacy_handler, "application/json")
     terms_json = _json_response(http_server.terms_handler, "application/json")
 
-    assert PRIVACY_POLICY_VERSION == privacy_json["version"] == "2.5"
-    assert TERMS_VERSION == terms_json["version"] == "2.4"
+    assert PRIVACY_POLICY_VERSION == privacy_json["version"] == "2.6"
+    assert TERMS_VERSION == terms_json["version"] == "2.5"
     assert privacy_json["content"] == PRIVACY_POLICY
     assert terms_json["content"] == TERMS_AND_CONDITIONS
 
@@ -198,8 +198,8 @@ def test_effective_dates_and_immediate_revision_classification_converge():
     privacy_json = _json_response(http_server.privacy_handler, "application/json")
     terms_json = _json_response(http_server.terms_handler, "application/json")
 
-    assert PRIVACY_POLICY_EFFECTIVE_DATE == "2026-08-06"
-    assert TERMS_EFFECTIVE_DATE == "2026-08-06"
+    assert PRIVACY_POLICY_EFFECTIVE_DATE == "2026-09-22"
+    assert TERMS_EFFECTIVE_DATE == "2026-09-22"
     assert privacy_json["effective_date"] == PRIVACY_POLICY_EFFECTIVE_DATE
     assert terms_json["effective_date"] == TERMS_EFFECTIVE_DATE
     for surface in (PRIVACY_POLICY, TERMS_AND_CONDITIONS):
