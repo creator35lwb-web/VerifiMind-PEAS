@@ -380,6 +380,56 @@ class TestPolicyNotice:
                 date.fromisoformat(published) + timedelta(days=14)
             )
 
+    def test_the_notice_sentence_more_than_14_days_is_true(self):
+        # The test above enforces the PROMISE (at least 14 days). Both policies also state, as a
+        # fact about this notice, that it comes "more than 14 days" before the gate. A gate set
+        # at exactly +14 would keep the promise and make that sentence false.
+        from verifimind_mcp.policies.activation_notice import (
+            REGISTRATION_GATE_EFFECTIVE_DATE,
+        )
+        from verifimind_mcp.policies.privacy_policy import (
+            PRIVACY_POLICY,
+            PRIVACY_POLICY_EFFECTIVE_DATE,
+        )
+        from verifimind_mcp.policies.terms import (
+            TERMS_AND_CONDITIONS,
+            TERMS_EFFECTIVE_DATE,
+        )
+
+        assert "more than 14 days" in " ".join(PRIVACY_POLICY.split())
+        assert "more than 14 days" in " ".join(TERMS_AND_CONDITIONS.split())
+        gate_day = date.fromisoformat(REGISTRATION_GATE_EFFECTIVE_DATE)
+        for published in (TERMS_EFFECTIVE_DATE, PRIVACY_POLICY_EFFECTIVE_DATE):
+            assert gate_day > date.fromisoformat(published) + timedelta(days=14)
+
+    def test_both_policies_state_their_own_publication_date(self):
+        # The ISO constants feed the JSON carriers; the sentences people read are written out
+        # by hand, in two languages. Bind them, so a release-identity edit cannot move one and
+        # leave another behind.
+        from verifimind_mcp.policies.activation_notice import _human_en, _human_ms
+        from verifimind_mcp.policies.privacy_policy import (
+            PRIVACY_POLICY,
+            PRIVACY_POLICY_EFFECTIVE_DATE,
+        )
+        from verifimind_mcp.policies.terms import (
+            TERMS_AND_CONDITIONS,
+            TERMS_EFFECTIVE_DATE,
+        )
+
+        assert PRIVACY_POLICY_EFFECTIVE_DATE == TERMS_EFFECTIVE_DATE
+        assert (
+            f"Published and effective: {_human_en(PRIVACY_POLICY_EFFECTIVE_DATE)} "
+            in PRIVACY_POLICY
+        )
+        assert (
+            f"Published and effective: {_human_en(TERMS_EFFECTIVE_DATE)} "
+            in TERMS_AND_CONDITIONS
+        )
+        assert (
+            f"Diterbitkan dan berkuat kuasa pada {_human_ms(PRIVACY_POLICY_EFFECTIVE_DATE)}"
+            in PRIVACY_POLICY
+        )
+
     def test_both_policies_carry_the_activation_date(self):
         from verifimind_mcp.policies.activation_notice import (
             REGISTRATION_GATE_EFFECTIVE_HUMAN_EN,

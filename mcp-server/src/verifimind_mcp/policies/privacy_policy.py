@@ -6,11 +6,11 @@ from verifimind_mcp.policies.activation_notice import (
 )
 
 PRIVACY_POLICY_VERSION = "2.6"
-PRIVACY_POLICY_EFFECTIVE_DATE = "2026-09-02"
+PRIVACY_POLICY_EFFECTIVE_DATE = "2026-09-22"
 
 PRIVACY_POLICY = f"""
 VerifiMind-PEAS — Privacy Policy and Personal Data Protection Notice v2.6
-Published and effective: September 2, 2026 (previous: v2.5, August 6, 2026)
+Published and effective: September 22, 2026 (previous: v2.5, August 6, 2026)
 
 1. WHO WE ARE
 The hosted service at verifimind.ysenseai.org is operated by Alton Lee Wei Bin
@@ -199,7 +199,7 @@ they take effect. The current notice is always available at
 verifimind.ysenseai.org/privacy.
 
 12. NOTIS PERLINDUNGAN DATA PERIBADI — BAHASA MALAYSIA
-Versi 2.6 — Diterbitkan dan berkuat kuasa pada 2 September 2026
+Versi 2.6 — Diterbitkan dan berkuat kuasa pada 22 September 2026
 
 SIAPA KAMI
 Perkhidmatan di verifimind.ysenseai.org dikendalikan oleh Alton Lee Wei Bin

@@ -19,6 +19,54 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.63 - Authentication Foundation (September 22, 2026)
+
+**RELEASE CANDIDATE — PR #346 remains open and draft. This version has not
+been merged or deployed; v0.5.62 remains the live production release.** A
+bounded post-deploy truth conversion will replace this status only after an
+authorized merge, deployment, and smoke-test receipt.
+
+This candidate adds a native OAuth 2.1 authorization layer for the hosted MCP
+service and publishes the policy texts that announce it. **Nothing is activated
+by this version:** credential issuance and MCP enforcement sit behind two
+independent gates, both default-off, and every tool that is anonymous today
+stays anonymous.
+
+- **OAuth 2.1 authorization server (Authlib), dark by default** —
+  authorization-code and refresh-token grants, S256-only PKCE, standards-bound
+  discovery metadata, opaque credentials stored as hashes, issuer, audience,
+  resource and scope validation, and a transactional credential lifecycle with
+  revocation. Identity is an email address verified with a one-time code; there
+  is no third-party identity provider.
+- **HTTP authorization boundary for `/mcp`, dark by default** — when enabled,
+  an unauthenticated protected request is answered with `401` and the RFC 9728
+  resource-metadata pointer, so OAuth-capable MCP clients can discover the
+  authorization server. A token-store outage answers `503`, never an open gate.
+- **Legacy-UUID containment retained in full** — the eight legacy identity
+  routes keep answering the request-blind maintenance `503`. With the gate
+  enabled `GET /mcp/test` stays request-blind too: the boundary passes through
+  that one exact pair, and tests bind the exemption to the maintenance route in
+  both directions.
+- **MCP transport** — the mount runs stateless HTTP, so a request no longer
+  depends on reaching the instance that created its session, and `ToolResult`
+  is imported from FastMCP's public surface.
+- **Privacy Policy v2.6 and Terms v2.5, published September 22, 2026** —
+  advance notice that from **October 20, 2026** the four execution tools
+  (`consult_agent_x`, `consult_agent_z`, `consult_agent_cs`,
+  `run_full_trinity`) will require a free registered account. Until that date
+  the eight active tools remain available anonymously. The notice is given
+  28 days ahead; the Privacy notice is mirrored in Bahasa Malaysia.
+- **Dependencies** — `Authlib`, `joserfc` and `cryptography 50.0.1` are pinned
+  in both manifests, with third-party licence texts and artifact-bound
+  verification tests.
+- **MCP Registry manifest** `3.40.0`.
+
+No hosted-provider routing, retry or failover policy, provider catalogue or
+tool-availability change is included. Turning enforcement on is a separate,
+later release decision and is not part of this version.
+
+---
+
 ## v0.5.62 - Observability Truth (August 21, 2026)
 
 **DEPLOYED.** Production deployment is bound to merge commit

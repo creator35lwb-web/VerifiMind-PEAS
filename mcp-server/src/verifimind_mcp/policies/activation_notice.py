@@ -12,9 +12,10 @@ the Terms v2.4 advance-notice promise, machine-checked.
 
 from datetime import date
 
-# Proposed at draft time; finalized at release identity. Must be >= the
-# policy publication date + 14 days (test-enforced).
-REGISTRATION_GATE_EFFECTIVE_DATE = "2026-09-30"
+# Finalized at the v0.5.63 release identity. Must be >= the policy publication
+# date + 14 days, and MORE than 14 days for the notice sentence in both
+# policies to be true (both test-enforced).
+REGISTRATION_GATE_EFFECTIVE_DATE = "2026-10-20"
 
 _MONTHS = (
     "January", "February", "March", "April", "May", "June", "July",

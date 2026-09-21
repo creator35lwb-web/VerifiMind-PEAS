@@ -5,11 +5,11 @@ from verifimind_mcp.policies.activation_notice import (
 )
 
 TERMS_VERSION = "2.5"
-TERMS_EFFECTIVE_DATE = "2026-09-02"
+TERMS_EFFECTIVE_DATE = "2026-09-22"
 
 TERMS_AND_CONDITIONS = f"""
 VerifiMind-PEAS — Terms & Conditions v2.5
-Published and effective: September 2, 2026 (previous: v2.4, August 6, 2026)
+Published and effective: September 22, 2026 (previous: v2.4, August 6, 2026)
 
 1. SERVICE DESCRIPTION
 VerifiMind-PEAS is an open-source multi-model AI validation framework. Eight
