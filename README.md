@@ -7,7 +7,7 @@
 
   Three specialized agents — Innovation, Ethics, Security — review your concept before you build it. Multi-vendor (Gemini · Claude · GPT · Groq · Cerebras · Mistral · Ollama). Free, open-source, MCP-native.
 
-  [![Version](https://img.shields.io/badge/version-v0.5.62-blue.svg)](CHANGELOG.md)
+  [![Version](https://img.shields.io/badge/version-v0.5.63-blue.svg)](CHANGELOG.md)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Status](https://img.shields.io/badge/status-Operational-success.svg)](SERVER_STATUS.md)
   [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Listed-purple)](https://registry.modelcontextprotocol.io/?q=verifimind)
@@ -53,7 +53,7 @@ claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysense
 }
 ```
 
-After [registering](https://verifimind.ysenseai.org/register), add `--header "X-VerifiMind-UUID:${VERIFIMIND_UUID}"` to opt into the personal usage dashboard at `/early-adopters/dashboard/{uuid}`. Registration is optional.
+**Accounts:** registration and UUID-linked account features (including the personal usage dashboard) are temporarily unavailable during security maintenance. You do not need an account today — every active tool works anonymously at the standard rate limit. **Advance notice:** under the published [Terms](https://verifimind.ysenseai.org/terms) and [Privacy Policy](https://verifimind.ysenseai.org/privacy), from **October 20, 2026** the four execution tools (`consult_agent_x`, `consult_agent_z`, `consult_agent_cs`, `run_full_trinity`) will require a free registered account. Tool discovery and the template-read tools stay open without registration, and the tools remain free.
 
 ---
 
@@ -132,6 +132,8 @@ Ratified by L (CEO) + Alton (Human Orchestrator) + T (CTO) on May 9, 2026. Activ
 | Scholar | UUID (free registration) | 30 req/60s |
 | EA / PILOT | UUID + email | 100 req/60s |
 
+While account features are in maintenance, every caller is served at the anonymous limit.
+
 ---
 
 ## Methodology overview
@@ -176,14 +178,15 @@ Our contribution: **productization quality**, **MCP integration path**, **multi-
 
 ## Status & Metrics
 
-- **Server:** `v0.5.62` — [verifimind.ysenseai.org](https://verifimind.ysenseai.org) · [/health](https://verifimind.ysenseai.org/health)
+- **Server:** `v0.5.63` — [verifimind.ysenseai.org](https://verifimind.ysenseai.org) · [/health](https://verifimind.ysenseai.org/health)
 - **Landing Page:** [verifimind.io](https://verifimind.io)
-- **Release:** merge [`b434979e`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/b434979ea68da0a2326ad3f62dac30888b93dfcd) · Cloud Build `e3ca9551-0292-4b02-9cbf-0cc2b92daa3e` · revision `verifimind-mcp-server-00496-g7s` · post-deploy Trinity **X/Z/CS = real/real/real**
+- **Release:** merge [`07b422f1`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/07b422f103cb7227bdddafe1994742de38eb233d) · Cloud Build `6b1216e9-94dc-45ef-8f3a-788b3d02dda4` · revision `verifimind-mcp-server-00508-dj8` · post-deploy Trinity **not clean**: run 1 X/Z/CS = real/fallback/real, run 2 X/Z/CS = real/real/truncated — both failed closed (capped at REVISE, human review required); see [SERVER_STATUS.md](SERVER_STATUS.md)
+- **Authentication (v0.5.63):** a native OAuth 2.1 authorization server is deployed **dark** — credential issuance and MCP enforcement are both off, so every tool that was anonymous stays anonymous
 - **Tools:** 13 defined / 8 active / 5 temporarily unavailable (all remain free)
 - **Providers:** 6 remote BYOK catalogues (Gemini · Anthropic · OpenAI · Groq · Cerebras · Mistral) plus caller-managed local Ollama
 - **Hosted routing:** X = Gemini `gemini-3.5-flash-lite`; Z/CS = Groq `openai/gpt-oss-120b`
 - **Runtime provider failover:** disabled (`runtime_failover_enabled: false`)
-- **MCP Registry package:** `3.39.0`
+- **MCP Registry package:** `3.39.0` until the v0.5.63 GitHub Release publishes `3.40.0`
 
 For live release history, see [`/changelog`](https://verifimind.ysenseai.org/changelog). We deliberately do not display unaudited "total users" numbers because bot, scanner, and development traffic can distort them. Exact deployment provenance and the full dated operational snapshot are documented in [SERVER_STATUS.md](SERVER_STATUS.md).
 
@@ -346,4 +349,4 @@ External Model Council review (Claude Opus 4.7 + GPT-5.5 + Gemini 3.1 Pro, May 9
 
 ---
 
-**Last Updated:** August 23, 2026 · **Version:** v0.5.62 · **MCP Registry:** 3.39.0 · **MACP:** v2.5 "Loop Engineering" ([DOI](https://doi.org/10.5281/zenodo.21345820))
+**Last Updated:** September 22, 2026 · **Version:** v0.5.63 · **MCP Registry:** 3.39.0 (3.40.0 with the v0.5.63 Release) · **MACP:** v2.5 "Loop Engineering" ([DOI](https://doi.org/10.5281/zenodo.21345820))

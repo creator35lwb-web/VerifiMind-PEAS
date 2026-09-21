@@ -21,12 +21,37 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ## v0.5.63 - Authentication Foundation (September 22, 2026)
 
-**RELEASE CANDIDATE — PR #346 remains open and draft. This version has not
-been merged or deployed; v0.5.62 remains the live production release.** A
-bounded post-deploy truth conversion will replace this status only after an
-authorized merge, deployment, and smoke-test receipt.
+**DEPLOYED, DARK.** Production deployment is bound to merge commit
+`07b422f103cb7227bdddafe1994742de38eb233d` (PR #346), whose parents are the
+public base `4e357fecf98bab5e83e77ac0746b2197ad88bd45` and the merged head
+`8cd78bbc951903bee58ac4b7597405b5df9e210a`. The merge tree is identical to the
+tree exercised locally and by every hosted check. The merge landed at
+2026-09-21 16:24 UTC, which is 00:24 on September 22 in Malaysia, the
+operator's timezone and the date the policies carry. Cloud Build
+`6b1216e9-94dc-45ef-8f3a-788b3d02dda4` ran from the exact merge source;
+revision `verifimind-mcp-server-00508-dj8` serves 100% of traffic with an
+unchanged configuration and **no gate variable set**, so both gates sit at
+their default: off.
 
-This candidate adds a native OAuth 2.1 authorization layer for the hosted MCP
+Post-deploy read-back: `/health` 0.5.63; Privacy v2.6 and Terms v2.5 served
+dated September 22, 2026 in English and Bahasa Malaysia; all eight legacy
+identity routes still answer the maintenance `503`; the OAuth endpoints answer
+`503` while dark; anonymous MCP `initialize` answers `200` with no challenge
+and no session header. A real MCP client connected on its first call across
+the deploy.
+
+**Post-deploy Trinity smoke: not clean.** Two anonymous runs, neither fully
+complete. Run 1 returned X real, CS real and Z on fallback, with four
+structured fields missing from Z's answer. Run 2 returned X and Z real and CS
+truncated at its 3,652-token effective completion reservation. In both, the
+quality gate failed closed, the recommendation was capped at REVISE, aggregate
+confidence was withheld and human review was required; nothing was silently
+mocked. This is the standing hosted Z/CS limitation recorded in
+[`SERVER_STATUS.md`](SERVER_STATUS.md). The same failure classes were observed
+on the two previous revisions, and this version does not change the agent
+prompts, provider calls, token budgets or response parsing.
+
+This release adds a native OAuth 2.1 authorization layer for the hosted MCP
 service and publishes the policy texts that announce it. **Nothing is activated
 by this version:** credential issuance and MCP enforcement sit behind two
 independent gates, both default-off, and every tool that is anonymous today
@@ -37,7 +62,8 @@ stays anonymous.
   discovery metadata, opaque credentials stored as hashes, issuer, audience,
   resource and scope validation, and a transactional credential lifecycle with
   revocation. Identity is an email address verified with a one-time code; there
-  is no third-party identity provider.
+  is no third-party identity provider. The two discovery documents are served
+  while the endpoints they name answer `503`.
 - **HTTP authorization boundary for `/mcp`, dark by default** — when enabled,
   an unauthenticated protected request is answered with `401` and the RFC 9728
   resource-metadata pointer, so OAuth-capable MCP clients can discover the
@@ -56,14 +82,28 @@ stays anonymous.
   `run_full_trinity`) will require a free registered account. Until that date
   the eight active tools remain available anonymously. The notice is given
   28 days ahead; the Privacy notice is mirrored in Bahasa Malaysia.
+- **Groq BYOK catalogue** — `qwen/qwen3.8-27b` added as a fast option and
+  placed, conservatively, in the 8k-TPM admission set; Groq catalogue
+  verification date 2026-08-29. The hosted default is unchanged, and the new
+  id is used only if a caller selects it. *An earlier wording of this entry
+  said no provider-catalogue change was included. That was wrong: this change
+  had been part of the branch since August, and the sentence was checked
+  against the final commit's diff instead of the release's.*
 - **Dependencies** — `Authlib`, `joserfc` and `cryptography 50.0.1` are pinned
   in both manifests, with third-party licence texts and artifact-bound
   verification tests.
-- **MCP Registry manifest** `3.40.0`.
+- **MCP Registry manifest** `3.40.0`, published with the v0.5.63 GitHub
+  Release. Until that Release exists the live Registry package remains `3.39.0`.
+- **Review** — a scoped source-security review passed at head
+  `d5942cc8ab14844d7bf8e61f3f9d50d24b9964f5` in two independent sessions on
+  two platforms, each with stated limits. The final commit `8cd78bb` changed
+  only version, policy-date and changelog identity and their tests (22 files)
+  and was not separately re-reviewed before the human merge. No isolated
+  staging run preceded this deployment.
 
-No hosted-provider routing, retry or failover policy, provider catalogue or
-tool-availability change is included. Turning enforcement on is a separate,
-later release decision and is not part of this version.
+No hosted-provider routing, retry or failover policy, or tool-availability
+change is included; hosted defaults are unchanged. Turning enforcement on is a
+separate, later release decision and is not part of this version.
 
 ---
 
