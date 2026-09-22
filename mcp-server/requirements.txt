@@ -19,7 +19,7 @@ fastmcp==3.4.7
 starlette==1.6.0
 
 # Data Validation
-pydantic==2.13.4
+pydantic==2.13.5
 
 # HTTP Client
 httpx==0.28.1
