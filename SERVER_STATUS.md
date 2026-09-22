@@ -1,10 +1,11 @@
 # VerifiMind-PEAS Server Status
 
-**Last updated:** September 22, 2026
+**Last updated:** September 23, 2026
 
 **Evidence cutoff:** v0.5.63 deployment verified September 21, 2026, 16:27–16:40 UTC
-(September 22, 00:27–00:40 in Malaysia, the operator's timezone). Serving revision,
-traffic and `/health` re-read at 17:19 UTC the same day.
+(September 22, 00:27–00:40 in Malaysia, the operator's timezone). Dependency
+maintenance revision `00509-m7g` verified September 22, 2026, 18:06–18:15 UTC
+(see the deployments table).
 
 **Status authority:** this dated operational snapshot; release history lives in
 [`CHANGELOG.md`](CHANGELOG.md) and [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases).
@@ -18,8 +19,8 @@ traffic and `/health` re-read at 17:19 UTC the same day.
 | Merged head | `8cd78bbc951903bee58ac4b7597405b5df9e210a` |
 | Merge base | `4e357fecf98bab5e83e77ac0746b2197ad88bd45` |
 | Cloud Build | `6b1216e9-94dc-45ef-8f3a-788b3d02dda4` — **SUCCESS**, started 6s post-merge, source bound to the merge SHA |
-| Serving revision | **`verifimind-mcp-server-00508-dj8`** at 100% traffic; image digest equals the build's |
-| Previous revision | `verifimind-mcp-server-00507-bzj` (v0.5.62 at `4e357fec`), retained |
+| Serving revision | **`verifimind-mcp-server-00509-m7g`** at 100% traffic (dependency maintenance, uvicorn 0.53.0; release revision `verifimind-mcp-server-00508-dj8` superseded — see the deployments table); image digest equals its build's |
+| Previous revision | `verifimind-mcp-server-00508-dj8` (the v0.5.63 release revision), retained |
 | MCP Registry package | **3.39.0** live, API-verified September 21, 2026. Manifest `3.40.0` is in source and publishes with the v0.5.63 GitHub Release, which has not been created yet |
 | Tool inventory | **13 defined / 8 active / 5 temporarily unavailable** |
 | MCP transport | Streamable HTTP, **stateless** (no session header); protocol `2025-11-25` |
@@ -82,10 +83,13 @@ traffic and `/health` re-read at 17:19 UTC the same day.
 | 2026-09-17 | `00506-7n8` | [PR #355](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/355) → `32881961` | Test-only change; maintenance behaviour re-verified at runtime |
 | 2026-09-20 | `00507-bzj` | [PR #356](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/356) → `4e357fec` | OpenAI BYOK catalogue re-verified live; verification date advanced under the 90-day currency contract |
 | 2026-09-21 | `00508-dj8` | [PR #346](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/346) → `07b422f1` | **v0.5.63** — authentication foundation, dark |
+| 2026-09-22 | `00509-m7g` | [PR #357](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/357) → `a8e8f541` | uvicorn `0.52.4 → 0.53.0` (both manifests); Cloud Build `c4ff91e5-7d69-4b85-a158-b08a0f4ae6d5`; the image's installed pin confirmed in the build log; v0.5.63 unchanged. Read-back: `/health` 0.5.63, all eight legacy account routes still answer the maintenance `503`, both OAuth discovery documents `200`, all five OAuth endpoints `503` (dark), anonymous MCP `initialize` `200` with no session header, policies unchanged. No Trinity smoke was run for this server-framework change |
 
 Each build ran from the exact `main` commit shown; `00504-c8d` was a
 configuration-only revision on the existing image. The application version
-stayed at 0.5.62 until `00508-dj8`.
+stayed at 0.5.62 until `00508-dj8` and is 0.5.63 from `00508-dj8` on. PR #348
+(`codeql-action` pins, `.github/` only) merged the same day and correctly
+caused no build.
 
 ## Availability
 
