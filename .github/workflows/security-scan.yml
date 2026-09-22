@@ -35,7 +35,12 @@ jobs:
         run: python scripts/verify_security_ci_contract.py
 
       - name: Install Bandit
-        run: python -m pip install --disable-pip-version-check 'bandit[toml]==1.9.4'
+        # --only-binary :all: refuses source distributions, so no setup.py can run
+        # during the install (SonarCloud githubactions:S8541). Every package in
+        # this pinned tree ships a wheel for the runner's Python. Block scalar
+        # because ':all:' is not a valid plain YAML scalar.
+        run: |
+          python -m pip install --disable-pip-version-check --only-binary :all: 'bandit[toml]==1.9.4'
 
       - name: Run Bandit security scan
         run: |
@@ -86,7 +91,9 @@ jobs:
           python-version: '3.12'
 
       - name: Install pip-audit
-        run: python -m pip install --disable-pip-version-check 'pip-audit==2.10.1'
+        # --only-binary :all: for the same reason as the Bandit install above.
+        run: |
+          python -m pip install --disable-pip-version-check --only-binary :all: 'pip-audit==2.10.1'
 
       - name: Audit deployment dependencies
         run: |
