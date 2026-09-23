@@ -92,8 +92,8 @@ stays anonymous.
 - **Dependencies** — `Authlib`, `joserfc` and `cryptography 50.0.1` are pinned
   in both manifests, with third-party licence texts and artifact-bound
   verification tests.
-- **MCP Registry manifest** `3.40.0`, published with the v0.5.63 GitHub
-  Release. Until that Release exists the live Registry package remains `3.39.0`.
+- **MCP Registry manifest** `3.40.0`, published by the v0.5.63 GitHub Release
+  on September 23, 2026 (tag at the exact release merge); API-verified live.
 - **Review** — a scoped source-security review passed at head
   `d5942cc8ab14844d7bf8e61f3f9d50d24b9964f5` in two independent sessions on
   two platforms, each with stated limits. The final commit `8cd78bb` changed
