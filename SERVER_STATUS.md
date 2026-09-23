@@ -21,7 +21,7 @@ verified September 22, 2026 (see the deployments table).
 | Cloud Build | `6b1216e9-94dc-45ef-8f3a-788b3d02dda4` — **SUCCESS**, started 6s post-merge, source bound to the merge SHA |
 | Serving revision | **`verifimind-mcp-server-00510-8h9`** at 100% traffic (dependency maintenance, pydantic 2.13.5 on uvicorn 0.53.0; release revision `verifimind-mcp-server-00508-dj8` superseded — see the deployments table); image digest equals its build's |
 | Previous revision | `verifimind-mcp-server-00509-m7g` (uvicorn 0.53.0), retained; the v0.5.63 release revision `00508-dj8` is also retained |
-| MCP Registry package | **3.39.0** live, API-verified September 21, 2026. Manifest `3.40.0` is in source and publishes with the v0.5.63 GitHub Release, which has not been created yet |
+| MCP Registry package | **3.40.0** live, API-verified September 23, 2026 — published by the [v0.5.63 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.63) (tag at the exact release merge `07b422f1`, created 2026-09-23 11:15 UTC) |
 | Tool inventory | **13 defined / 8 active / 5 temporarily unavailable** |
 | MCP transport | Streamable HTTP, **stateless** (no session header); protocol `2025-11-25` |
 | Firestore | Connected during verified post-deploy health checks |
@@ -71,8 +71,9 @@ verified September 22, 2026 (see the deployments table).
   classes were observed on the two previous revisions, and v0.5.63 does not
   change the agent prompts, provider calls, token budgets or response parsing.
   See the first known limitation below.
-- GitHub Release `v0.5.63` has **not** been published yet, so the MCP Registry
-  still serves `3.39.0`.
+- [GitHub Release v0.5.63](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.63)
+  was published on September 23, 2026 at the exact release merge and triggered
+  the MCP Registry publish (3.40.0, API-verified live).
 
 ## Deployments since the previous snapshot (August 26, 2026)
 

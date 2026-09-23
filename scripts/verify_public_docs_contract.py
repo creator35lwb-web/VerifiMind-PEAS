@@ -102,9 +102,9 @@ require(README_PATH, "verifimind-mcp-server-00508-dj8", "exact v0.5.63 serving r
 require(README_PATH, V0563_SMOKE_RUN_1, "v0.5.63 Trinity smoke run 1 as observed")
 require(README_PATH, V0563_SMOKE_RUN_2, "v0.5.63 Trinity smoke run 2 as observed")
 forbid(README_PATH, CLEAN_SMOKE_CLAIM, "clean Trinity smoke claim for v0.5.63")
-# 3.40.0 is in source; the live Registry package stays 3.39.0 until the
-# v0.5.63 GitHub Release publishes it.
-require(README_PATH, "MCP Registry package:** `3.39.0`", "live Registry identity")
+# 3.40.0 was published by the v0.5.63 GitHub Release on 2026-09-23 and is the
+# live Registry identity; the prior package is forbidden below.
+require(README_PATH, "MCP Registry package:** `3.40.0`", "live Registry identity")
 require(README_PATH, "13 defined / 8 active / 5 temporarily unavailable", "availability taxonomy")
 require(README_PATH, "21345820", "MACP v2.5 version DOI")
 require(README_PATH, "Multi-Agent Communication Protocol (MACP) v2.5 — Loop Engineering", "MACP v2.5 title")
@@ -115,7 +115,7 @@ forbid(README_PATH, r"creator35lwb-web/verifimind-genesis-mcp", "private Hub lin
 forbid(README_PATH, r"\*\*Providers:\*\*\s*7\b", "conflated remote/local provider count")
 forbid(
     README_PATH,
-    r"ba02fd02|82444203-10d0|b434979e|e3ca9551-0292|00496-g7s|MCP Registry package:\*\* `3\.38\.0`",
+    r"ba02fd02|82444203-10d0|b434979e|e3ca9551-0292|00496-g7s|MCP Registry package:\*\* `3\.3[89]\.0`",
     "prior release receipts",
 )
 forbid(
