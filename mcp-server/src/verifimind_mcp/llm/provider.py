@@ -308,14 +308,15 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         # v0.5.51: default -> gemini-3.5-flash-lite (GA, free-tier-verified; see
         # constant note). gemini-3.6-flash added (GA frontier flash). 2.5-flash
         # retained for continuity; 3.5-flash is a THINKING model — callers with
-        # tight output budgets should prefer the default. All live-verified 2026-07-22.
+        # tight output budgets should prefer the default. All live-verified 2026-07-22;
+        # re-verified 2026-09-23 (listing call: all five ids present).
         "default_model": PROVIDER_DEFAULT_GEMINI_MODEL,
         "models": [PROVIDER_DEFAULT_GEMINI_MODEL, "gemini-3.6-flash", "gemini-3.5-flash", "gemini-2.5-flash", "gemini-3.1-pro-preview"],
         "api_key_env": "GEMINI_API_KEY",
         "base_url": "https://generativelanguage.googleapis.com/v1beta",
         "free_tier": True,
         "rate_limit": 15,  # requests per minute on free tier
-        "models_verified_at": "2026-07-22",
+        "models_verified_at": "2026-09-23",
     },
     "openai": {
         "name": "OpenAI",
@@ -344,7 +345,8 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         "api_key_env": "ANTHROPIC_API_KEY",
         "base_url": "https://api.anthropic.com/v1",
         "free_tier": False,
-        "models_verified_at": "2026-07-29",
+        # Re-verified 2026-09-23 (listing call: all six ids present).
+        "models_verified_at": "2026-09-23",
     },
     "groq": {
         "name": "Groq",
@@ -388,12 +390,15 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         # v0.5.53 model currency: mistral-medium-3.5 is the successor (live-verified
         # 2026-07-22 on Alton's key, chat probe OK); medium-3 retained for continuity.
         # EU-sovereignty lane: Mistral = jurisdictional diversity for the Layer-2 thesis.
+        # Re-verified 2026-09-23 (listing call): mistral-large-latest is no longer in
+        # the live listing (no large-class id remains), so it is retired here rather
+        # than left to fail at the provider; the other three ids are present.
         "default_model": "mistral-medium-3.5",
-        "models": ["mistral-medium-3.5", "mistral-medium-3", "mistral-small-latest", "mistral-large-latest"],
+        "models": ["mistral-medium-3.5", "mistral-medium-3", "mistral-small-latest"],
         "api_key_env": "MISTRAL_API_KEY",
         "base_url": "https://api.mistral.ai/v1",
         "free_tier": False,
-        "models_verified_at": "2026-07-22",
+        "models_verified_at": "2026-09-23",
     },
     "ollama": {
         "name": "Ollama (Local)",
