@@ -2,8 +2,8 @@
 
 **Last updated:** September 24, 2026
 
-**Evidence cutoff:** v0.5.64 deployment verified September 24, 2026, 12:30–13:20 UTC
-(20:30–21:20 in Malaysia, the operator's timezone). The v0.5.63 release deployment was
+**Evidence cutoff:** v0.5.64 deployment verified September 24, 2026, 12:30–12:55 UTC
+(20:30–20:55 in Malaysia, the operator's timezone). The v0.5.63 release deployment was
 verified September 21, 2026; dependency-maintenance revisions `00509-m7g` and `00510-8h9`
 September 22; `00511-kf7` (catalogue currency) and `00512-hgk` (ambient notice,
 configuration only) September 23 (see the deployments table).

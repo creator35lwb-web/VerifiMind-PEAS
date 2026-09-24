@@ -53,7 +53,7 @@ manifests and nowhere else in the pinned set; two transitive packages appear
   maintenance `503`, and the public `ToolResult` import is preserved.
 - **MCP Registry manifest** `3.41.0` — published when the v0.5.64 GitHub Release is created; `3.40.0` remains the live package until then.
 
-Post-deploy verification (September 24, 2026, 12:30–13:20 UTC): a paced
+Post-deploy verification (September 24, 2026, 12:30–12:55 UTC): a paced
 anonymous read-back passed 20 of 20 checks (containment 8/8, OAuth discovery
 served and endpoints dark, three handshake eras, the modern era with
 `server/discover`, dated policies); the versioned smoke oracle passed
