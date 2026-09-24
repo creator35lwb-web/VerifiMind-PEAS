@@ -19,6 +19,35 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.64 - Protocol Currency (September 24, 2026)
+
+**RELEASE CANDIDATE — PR #362 remains open and draft. This version has not
+been merged or deployed; v0.5.63 remains the live production release.** A
+bounded post-deploy truth conversion will replace this status only after an
+authorized merge, deployment, and smoke-test receipt.
+
+This candidate moves the hosted MCP service to the current framework pair as
+one tested set: **FastMCP 3.4.7 → 4.0.5 and MCP SDK 1.28.1 → 2.2.0**. The two
+pins are coupled (FastMCP 4 requires MCP 2), so they change together in both
+manifests and nowhere else in the pinned set; two transitive packages appear
+(`mcp-types 2.2.0`, `httpx2 2.13.0`).
+
+- **MCP protocol currency** — the SDK's latest protocol version moves from
+  2025-11-25 to **2026-07-28**, and `/health` advertises it as
+  `protocol_version`. The default negotiated version stays 2025-03-26, so
+  clients on either era connect unchanged; the stateless HTTP mount serves
+  both, and the era-gated transport tests that skipped under MCP 1.x now run.
+- **Authorization boundary, registration gate and legacy-UUID containment
+  unchanged** — both gates remain default-off, the contained routes keep their
+  maintenance `503`, and the public `ToolResult` import is preserved.
+- **MCP Registry manifest** `3.41.0`.
+
+No application code, hosted-provider routing, retry or failover policy, or
+tool-availability change is included; the delta outside the version identity
+is two dependency pins in `pyproject.toml` and `requirements.txt`.
+
+---
+
 ## v0.5.63 - Authentication Foundation (September 22, 2026)
 
 **DEPLOYED, DARK.** Production deployment is bound to merge commit

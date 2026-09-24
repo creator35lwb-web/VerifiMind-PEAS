@@ -130,7 +130,7 @@ mcp_server = create_http_server()
 mcp_app = mcp_server.http_app(path='/', transport='streamable-http', stateless_http=True)
 
 # Server version
-SERVER_VERSION = "0.5.63"
+SERVER_VERSION = "0.5.64"
 
 # MCP protocol version the server speaks (v0.5.49, AY/AZ ask from the MCP RC
 # assessment) — surfaced in /health so clients can check compatibility pre-connect.
