@@ -21,26 +21,52 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ## v0.5.64 - Protocol Currency (September 24, 2026)
 
-**RELEASE CANDIDATE — PR #362 remains open and draft. This version has not
-been merged or deployed; v0.5.63 remains the live production release.** A
-bounded post-deploy truth conversion will replace this status only after an
-authorized merge, deployment, and smoke-test receipt.
+**DEPLOYED.** Production deployment is bound to merge commit
+`2685d4c7d80bb1727a602d1e1ea23f6627958645` (PR #362), whose parents are the
+public base `4bd1f327c03a19c447d955ae10fad4b8b430a6ae` and the merged head
+`25a15d75b46062c804f413bb13e5b7d9b511e9eb`. The merge tree is identical to the
+reviewed head's tree, which is the tree every hosted check and the pre-merge
+smoke exercised. The merge landed at 2026-09-24 12:26 UTC (20:26 in Malaysia,
+the operator's timezone). Cloud Build `50896a37-f06e-484a-beb8-6647435f0eb6` ran
+from the exact merge source (`COMMIT_SHA` bound) and produced image
+`sha256:c0844f5a84aca42d8272ce62083087034cb874173389391965998fc2f566db49`; revision
+`verifimind-mcp-server-00513-klm` serves 100% of traffic with a configuration
+identical to its predecessor `00512-hgk`. The v0.5.63 authentication layer
+remains deployed dark; no gate variable is set.
 
-This candidate moves the hosted MCP service to the current framework pair as
+This release moves the hosted MCP service to the current framework pair as
 one tested set: **FastMCP 3.4.7 → 4.0.5 and MCP SDK 1.28.1 → 2.2.0**. The two
 pins are coupled (FastMCP 4 requires MCP 2), so they change together in both
 manifests and nowhere else in the pinned set; two transitive packages appear
-(`mcp-types 2.2.0`, `httpx2 2.13.0`).
+(`mcp-types 2.2.0`, `httpx2` — 2.13.1 in the deployed image).
 
 - **MCP protocol currency** — the SDK's latest protocol version moves from
-  2025-11-25 to **2026-07-28**, and `/health` advertises it as
-  `protocol_version`. The default negotiated version stays 2025-03-26, so
-  clients on either era connect unchanged; the stateless HTTP mount serves
-  both, and the era-gated transport tests that skipped under MCP 1.x now run.
+  2025-11-25 to **2026-07-28**; `/health` advertises it as `protocol_version`
+  and the stateless mount serves the sessionless modern era (verified at
+  runtime: `tools/list`, `resources/list`, `resources/read` and `tools/call`
+  with no `initialize`, and `server/discover` declaring `2026-07-28`).
+  Handshake-era clients negotiate exactly as before (up to 2025-11-25; the SDK
+  default era unchanged), and the era-gated transport tests that skipped under
+  MCP 1.x now run.
 - **Authorization boundary, registration gate and legacy-UUID containment
   unchanged** — both gates remain default-off, the contained routes keep their
   maintenance `503`, and the public `ToolResult` import is preserved.
-- **MCP Registry manifest** `3.41.0`.
+- **MCP Registry manifest** `3.41.0` — published when the v0.5.64 GitHub Release is created; `3.40.0` remains the live package until then.
+
+Post-deploy verification (September 24, 2026, 12:30–13:20 UTC): a paced
+anonymous read-back passed 20 of 20 checks (containment 8/8, OAuth discovery
+served and endpoints dark, three handshake eras, the modern era with
+`server/discover`, dated policies); the versioned smoke oracle passed
+47 / 0 stop / 0 instrument against production after a known-positive test on
+local servers of both frameworks, where exactly the version and protocol-era
+legs fired on the previous framework. **Post-deploy Trinity smoke:
+one anonymous run, X/Z/CS = real/real/real, complete** (36 s; Z used 2,625 of
+4,096 and CS 3,204 of its 3,740-token Groq completion reservation), and the
+invalid-key probe returned typed `BYOK_AUTH_FAILED` per stage with the
+decision surface withheld. One complete run is not a reliability figure: the
+pre-merge smoke on this same tree and on the previous framework saw CS fail on
+Groq at that reservation, and the Z/CS headroom limitation recorded in
+[`SERVER_STATUS.md`](SERVER_STATUS.md) remains.
 
 No application code, hosted-provider routing, retry or failover policy, or
 tool-availability change is included; the delta outside the version identity

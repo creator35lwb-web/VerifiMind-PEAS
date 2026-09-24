@@ -275,7 +275,7 @@ The LLM presents a comprehensive validation with multi-perspective analysis, sco
 | Benefit | Description |
 |---|---|
 | **MCP standard** | Works with any MCP-compatible client (Claude / Cursor / VS Code / Windsurf / Codex / Agents SDK) |
-| **streamable-http** | Current production advertises MCP 2025-11-25; no legacy SSE |
+| **streamable-http** | Current production advertises MCP 2026-07-28 and serves the sessionless modern era; earlier handshake eras remain supported on the same stateless mount; no legacy SSE |
 | **Direct HTTP** | Standard REST/HTTP endpoints |
 | **Open source** | Full code on [GitHub](https://github.com/creator35lwb-web/VerifiMind-PEAS) |
 | **Extensible** | Open-source codebase; Trinity tools support the documented BYOK providers |
