@@ -22,7 +22,7 @@ configuration only) September 23 (see the deployments table).
 | Cloud Build | `50896a37-f06e-484a-beb8-6647435f0eb6` — **SUCCESS**, started 5 s after the merge, `COMMIT_SHA` bound to the merge; image `sha256:c0844f5a84aca42d8272ce62083087034cb874173389391965998fc2f566db49` |
 | Serving revision | **`verifimind-mcp-server-00513-klm`** at 100% traffic, Ready, image digest identical to the build above; configuration (environment-variable names, resources, concurrency, timeout) identical to `00512-hgk` |
 | Previous revision | `verifimind-mcp-server-00512-hgk` (v0.5.63 image, refreshed notice), retained as the rollback target; `00511-kf7` and the v0.5.63 release revision `00508-dj8` are also retained |
-| MCP Registry package | **3.40.0** live, API-verified September 23, 2026 — published by the [v0.5.63 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.63) (tag at the exact release merge `07b422f1`, created 2026-09-23 11:15 UTC) |
+| MCP Registry package | **3.41.0** live, API-verified September 24, 2026 — published by the [v0.5.64 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.64) (tag at the exact release merge `2685d4c7`) |
 | Tool inventory | **13 defined / 8 active / 5 temporarily unavailable** |
 | MCP transport | Streamable HTTP, **stateless** (no session header); protocol `2026-07-28` advertised and served sessionless; the handshake eras up to `2025-11-25` remain supported on the same mount |
 | Firestore | Connected during verified post-deploy health checks |
@@ -79,8 +79,9 @@ configuration only) September 23 (see the deployments table).
   figure**: the pre-merge smoke on this same tree and on the previous
   framework saw CS fail on Groq at that reservation (see the first known
   limitation below).
-- A GitHub Release for v0.5.64 has not been created yet; the MCP Registry
-  package remains **3.40.0** until it is.
+- [GitHub Release v0.5.64](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.64)
+  was published on September 24, 2026 at the exact release merge and triggered
+  the MCP Registry publish (**3.41.0**, API-verified live).
 
 ## Deployments since the previous snapshot (August 26, 2026)
 
