@@ -7,7 +7,7 @@
 
   Three specialized agents — Innovation, Ethics, Security — review your concept before you build it. Multi-vendor (Gemini · Claude · GPT · Groq · Cerebras · Mistral · Ollama). Free, open-source, MCP-native.
 
-  [![Version](https://img.shields.io/badge/version-v0.5.63-blue.svg)](CHANGELOG.md)
+  [![Version](https://img.shields.io/badge/version-v0.5.64-blue.svg)](CHANGELOG.md)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Status](https://img.shields.io/badge/status-Operational-success.svg)](SERVER_STATUS.md)
   [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Listed-purple)](https://registry.modelcontextprotocol.io/?q=verifimind)
@@ -178,15 +178,15 @@ Our contribution: **productization quality**, **MCP integration path**, **multi-
 
 ## Status & Metrics
 
-- **Server:** `v0.5.63` — [verifimind.ysenseai.org](https://verifimind.ysenseai.org) · [/health](https://verifimind.ysenseai.org/health)
+- **Server:** `v0.5.64` — [verifimind.ysenseai.org](https://verifimind.ysenseai.org) · [/health](https://verifimind.ysenseai.org/health)
 - **Landing Page:** [verifimind.io](https://verifimind.io)
-- **Release:** merge [`07b422f1`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/07b422f103cb7227bdddafe1994742de38eb233d) · Cloud Build `6b1216e9-94dc-45ef-8f3a-788b3d02dda4` · revision `verifimind-mcp-server-00508-dj8` · post-deploy Trinity **not clean**: run 1 X/Z/CS = real/fallback/real, run 2 X/Z/CS = real/real/truncated — both failed closed (capped at REVISE, human review required); see [SERVER_STATUS.md](SERVER_STATUS.md)
+- **Release:** merge [`2685d4c7`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/2685d4c7d80bb1727a602d1e1ea23f6627958645) · Cloud Build `50896a37-f06e-484a-beb8-6647435f0eb6` · revision `verifimind-mcp-server-00513-klm` · post-deploy Trinity: **one anonymous run, X/Z/CS = real/real/real, complete** (CS used 3,204 of its 3,740-token Groq completion reservation, so the Z/CS headroom limitation recorded for v0.5.63 remains); see [SERVER_STATUS.md](SERVER_STATUS.md)
 - **Authentication (v0.5.63):** a native OAuth 2.1 authorization server is deployed **dark** — credential issuance and MCP enforcement are both off, so every tool that was anonymous stays anonymous
 - **Tools:** 13 defined / 8 active / 5 temporarily unavailable (all remain free)
 - **Providers:** 6 remote BYOK catalogues (Gemini · Anthropic · OpenAI · Groq · Cerebras · Mistral) plus caller-managed local Ollama
 - **Hosted routing:** X = Gemini `gemini-3.5-flash-lite`; Z/CS = Groq `openai/gpt-oss-120b`
 - **Runtime provider failover:** disabled (`runtime_failover_enabled: false`)
-- **MCP Registry package:** `3.40.0` — published by the [v0.5.63 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.63) on September 23, 2026, API-verified
+- **MCP Registry package:** `3.41.0` — published by the [v0.5.64 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.64) on September 24, 2026, API-verified live (tag at the exact release merge `2685d4c7`)
 
 For live release history, see [`/changelog`](https://verifimind.ysenseai.org/changelog). We deliberately do not display unaudited "total users" numbers because bot, scanner, and development traffic can distort them. Exact deployment provenance and the full dated operational snapshot are documented in [SERVER_STATUS.md](SERVER_STATUS.md).
 
@@ -349,4 +349,4 @@ External Model Council review (Claude Opus 4.7 + GPT-5.5 + Gemini 3.1 Pro, May 9
 
 ---
 
-**Last Updated:** September 23, 2026 · **Version:** v0.5.63 · **MCP Registry:** 3.40.0 · **MACP:** v2.5 "Loop Engineering" ([DOI](https://doi.org/10.5281/zenodo.21345820))
+**Last Updated:** September 24, 2026 · **Version:** v0.5.64 · **MCP Registry:** 3.41.0 · **MACP:** v2.5 "Loop Engineering" ([DOI](https://doi.org/10.5281/zenodo.21345820))

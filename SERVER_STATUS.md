@@ -2,11 +2,11 @@
 
 **Last updated:** September 24, 2026
 
-**Evidence cutoff:** v0.5.63 deployment verified September 21, 2026, 16:27–16:40 UTC
-(September 22, 00:27–00:40 in Malaysia, the operator's timezone). Dependency
-maintenance revisions `00509-m7g` and `00510-8h9` verified September 22, 2026;
-`00511-kf7` (catalogue currency) and `00512-hgk` (ambient notice, configuration only)
-verified September 23, 2026, 16:00–16:20 UTC (see the deployments table).
+**Evidence cutoff:** v0.5.64 deployment verified September 24, 2026, 12:30–12:55 UTC
+(20:30–20:55 in Malaysia, the operator's timezone). The v0.5.63 release deployment was
+verified September 21, 2026; dependency-maintenance revisions `00509-m7g` and `00510-8h9`
+September 22; `00511-kf7` (catalogue currency) and `00512-hgk` (ambient notice,
+configuration only) September 23 (see the deployments table).
 
 **Status authority:** this dated operational snapshot; release history lives in
 [`CHANGELOG.md`](CHANGELOG.md) and [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases).
@@ -15,16 +15,16 @@ verified September 23, 2026, 16:00–16:20 UTC (see the deployments table).
 
 | Surface | Verified state |
 |---|---|
-| Application | **v0.5.63**, deployed **dark** — see the release verification below |
-| Public merge | [`07b422f103cb7227bdddafe1994742de38eb233d`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/07b422f103cb7227bdddafe1994742de38eb233d) |
-| Merged head | `8cd78bbc951903bee58ac4b7597405b5df9e210a` |
-| Merge base | `4e357fecf98bab5e83e77ac0746b2197ad88bd45` |
-| Cloud Build | `6b1216e9-94dc-45ef-8f3a-788b3d02dda4` — **SUCCESS**, started 6s post-merge, source bound to the merge SHA |
-| Serving revision | **`verifimind-mcp-server-00512-hgk`** at 100% traffic (configuration-only: refreshed ambient notice on the `00511-kf7` image; release revision `verifimind-mcp-server-00508-dj8` superseded — see the deployments table) |
-| Previous revision | `verifimind-mcp-server-00511-kf7` (same image), retained; the v0.5.63 release revision `00508-dj8` is also retained |
-| MCP Registry package | **3.40.0** live, API-verified September 23, 2026 — published by the [v0.5.63 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.63) (tag at the exact release merge `07b422f1`, created 2026-09-23 11:15 UTC) |
+| Application | **v0.5.64** — framework currency (FastMCP 4.0.5 / MCP SDK 2.2.0, protocol era 2026-07-28); the v0.5.63 authentication layer remains deployed **dark** — see the release verification below |
+| Public merge | [`2685d4c7d80bb1727a602d1e1ea23f6627958645`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/2685d4c7d80bb1727a602d1e1ea23f6627958645) (PR #362) |
+| Merged head | `25a15d75b46062c804f413bb13e5b7d9b511e9eb` |
+| Merge base | `4bd1f327c03a19c447d955ae10fad4b8b430a6ae` |
+| Cloud Build | `50896a37-f06e-484a-beb8-6647435f0eb6` — **SUCCESS**, started 5 s after the merge, `COMMIT_SHA` bound to the merge; image `sha256:c0844f5a84aca42d8272ce62083087034cb874173389391965998fc2f566db49` |
+| Serving revision | **`verifimind-mcp-server-00513-klm`** at 100% traffic, Ready, image digest identical to the build above; configuration (environment-variable names, resources, concurrency, timeout) identical to `00512-hgk` |
+| Previous revision | `verifimind-mcp-server-00512-hgk` (v0.5.63 image, refreshed notice), retained as the rollback target; `00511-kf7` and the v0.5.63 release revision `00508-dj8` are also retained |
+| MCP Registry package | **3.41.0** live, API-verified September 24, 2026 — published by the [v0.5.64 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.64) (tag at the exact release merge `2685d4c7`) |
 | Tool inventory | **13 defined / 8 active / 5 temporarily unavailable** |
-| MCP transport | Streamable HTTP, **stateless** (no session header); protocol `2025-11-25` |
+| MCP transport | Streamable HTTP, **stateless** (no session header); protocol `2026-07-28` advertised and served sessionless; the handshake eras up to `2025-11-25` remain supported on the same mount |
 | Firestore | Connected during verified post-deploy health checks |
 | Runtime failover | `runtime_failover_enabled: false` |
 | Hosted X | Gemini `gemini-3.5-flash-lite` |
@@ -36,45 +36,52 @@ verified September 23, 2026, 16:00–16:20 UTC (see the deployments table).
 
 ## Release verification
 
-- [Public PR #346](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/346) was merged by the
-  maintainer on 2026-09-21 at 16:24:50 UTC — 00:24 on September 22 in Malaysia,
-  the date the policies carry. The merge tree `5a0126a4` is identical to the
-  merged head's tree, which is the tree the local gates and every hosted check
-  exercised. Branch rules passed with no bypass.
-- Review: a scoped source-security review passed at head
-  `d5942cc8ab14844d7bf8e61f3f9d50d24b9964f5` in two independent sessions on two
-  platforms, each with stated limits. The final commit `8cd78bb` changed only
-  version, policy-date and changelog identity and their tests (22 files) and
-  was not separately re-reviewed before the merge. **No isolated staging run
-  preceded this deployment.**
-- Gates at the merged head: hosted checks 9 of 9 passed; unit suite 1,648
-  passed / 4 skipped / 0 failed locally (1,647 / 5 on the hosted runner);
-  Bandit 0 results; `pip-audit` 102 dependencies, 0 known vulnerabilities on
-  the day it ran.
-- Configuration: the revision carries the same environment-variable names as
-  its predecessor. **No authentication gate variable is set**, so credential
-  issuance and MCP enforcement both sit at their code default, which is off.
-- Post-deploy read-back: `/health` 0.5.63 with `Cache-Control: no-store`,
-  Firestore connected, inference live, BYOK catalogue `current`; `/privacy`
-  v2.6 and `/terms` v2.5 dated September 22, 2026 in English and Bahasa
-  Malaysia, with no earlier date left behind; all eight legacy account routes
-  answer the maintenance `503`; both OAuth discovery documents `200`; the five
-  OAuth endpoints `503`; anonymous MCP `initialize` `200` with no challenge and
-  no session header. A Claude Code client connected on its first call across
+- [Public PR #362](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/362) was merged by the
+  maintainer on 2026-09-24 at 12:26:45 UTC (20:26 in Malaysia). The merge tree
+  is identical to the merged head's tree — the tree the local gates, every
+  hosted check (9 of 9 at the exact head, image parity included) and the
+  pre-merge smoke exercised. Branch rules passed with no bypass.
+- Review: the CTO's scoped source/framework review passed at `d20e570` and was
+  rebound at the exact head `25a15d7` (35 selected offline passes); the head
+  adds only the release identity. A pre-merge smoke ran the exact tree locally
+  on the real providers and on the previous framework as a control: both
+  reached the same standing CS-on-Groq limitation and no framework-attributable
+  difference was observed. **No isolated staging run preceded this deployment.**
+- Gates at the merged head: hosted checks 9 of 9; unit suite 1,650 passed /
+  2 skipped locally under the new pair; docs contract 289 checks. The build
+  installed fastmcp 4.0.5, mcp 2.2.0, mcp-types 2.2.0, httpx2 2.13.1,
+  starlette 1.6.0, uvicorn 0.53.0, pydantic 2.13.5 on Python 3.12.12.
+- Configuration: the revision carries the same environment-variable names,
+  resources, concurrency and timeout as `00512-hgk`. **No authentication gate
+  variable is set**, so credential issuance and MCP enforcement both sit at
+  their code default, which is off.
+- Post-deploy read-back (20 of 20, paced, anonymous): `/health` 0.5.64 with
+  `protocol_version 2026-07-28`, `Cache-Control: no-store`, Firestore
+  connected, inference live, BYOK catalogue `current`; the server card agrees;
+  all eight legacy account routes answer the maintenance `503`; both OAuth
+  discovery documents `200`; the five OAuth endpoints `503`; anonymous
+  `initialize` negotiates 2025-11-25, 2025-03-26 and — when 2026-07-28 is
+  requested through the handshake — 2025-11-25, all with no challenge and no
+  session header; the modern era is served sessionless (`tools/list` 13 tools,
+  `server/discover` → `2026-07-28`, `tools/call` reporting 0.5.64); `/privacy`
+  v2.6 and `/terms` v2.5 dated September 22, 2026 in both languages. A real MCP
+  client (Claude Code) read `_server_version 0.5.64` on its first call across
   the deploy.
-- **Post-deploy Trinity smoke: not clean.** Two anonymous runs through the
-  hosted path, neither fully complete. Run 1: **X/Z/CS = real/fallback/real**
-  (degraded — four structured fields were missing from Z's answer). Run 2:
-  **X/Z/CS = real/real/truncated** (partial — CS hit its 3,652-token effective
-  completion reservation). In both, the quality gate failed closed, the
-  recommendation was capped at REVISE, aggregate confidence was withheld,
-  human review was required and nothing was silently mocked. The same failure
-  classes were observed on the two previous revisions, and v0.5.63 does not
-  change the agent prompts, provider calls, token budgets or response parsing.
-  See the first known limitation below.
-- [GitHub Release v0.5.63](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.63)
-  was published on September 23, 2026 at the exact release merge and triggered
-  the MCP Registry publish (3.40.0, API-verified live).
+- Versioned smoke oracle: 47 pass / 0 stop / 0 instrument against production,
+  after a known-positive run on local servers built from the deployed tree
+  (all pass) and from the previous framework (exactly the version, protocol-era
+  and server-version legs stop).
+- **Post-deploy Trinity smoke: one anonymous run, X/Z/CS = real/real/real,
+  complete** (36 s; Z 2,625 / 4,096; CS 3,204 of its 3,740-token Groq completion
+  reservation, not truncated). The invalid-key probe returned typed
+  `BYOK_AUTH_FAILED` for every stage with the decision surface withheld and
+  nothing written to history. **One complete run is not a reliability
+  figure**: the pre-merge smoke on this same tree and on the previous
+  framework saw CS fail on Groq at that reservation (see the first known
+  limitation below).
+- [GitHub Release v0.5.64](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.64)
+  was published on September 24, 2026 at the exact release merge and triggered
+  the MCP Registry publish (**3.41.0**, API-verified live).
 
 ## Deployments since the previous snapshot (August 26, 2026)
 
@@ -89,10 +96,11 @@ verified September 23, 2026, 16:00–16:20 UTC (see the deployments table).
 | 2026-09-22 | `00510-8h9` | [PR #349](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/349) → `b5baa879` | pydantic `2.13.4 → 2.13.5` (both manifests); Cloud Build `aaa84c2b-6482-4ff0-b44e-3952a0eef5aa`; installed pins confirmed in the build log. The PR had been opened against a 26 August base and was merged without a rebase, so its checks predated v0.5.63; the gap was closed after deploy by running the full unit suite on the exact deployed tree with pydantic 2.13.5 (1,648 passed, 4 skipped, 0 failed). Read-back identical to `00509-m7g`: containment `503` on all eight routes, OAuth dark, anonymous MCP unchanged, `/health` 0.5.63. No Trinity smoke |
 | 2026-09-23 | `00511-kf7` | [PR #364](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/364) → `7687325d` | BYOK catalogue currency: Gemini, Mistral and Anthropic model lists re-verified live on September 23 (listing calls only); `mistral-large-latest` retired because it no longer exists at the provider; hosted routing unchanged; Cloud Build `2cfb12fc-5b7e-4cf3-a364-e76b8a4326e2`. Read-back identical to `00510-8h9`; `/health` catalogue `current`. No Trinity smoke |
 | 2026-09-23 | `00512-hgk` | configuration only, same image as `00511-kf7` | Ambient service notice refreshed. The previous notice predated the account-feature maintenance and had been suppressed by the server's own consistency check since September 17, so tool responses carried no notice; the new notice states the current tool availability, the announced October 20, 2026 account requirement, and that account features are in maintenance. Delivery confirmed in a live tool response |
+| 2026-09-24 | `00513-klm` | [PR #362](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/362) → `2685d4c7` | **v0.5.64** — FastMCP `3.4.7 → 4.0.5` and MCP SDK `1.28.1 → 2.2.0` as one tested set (both manifests); protocol era `2026-07-28` served sessionless; Cloud Build `50896a37-f06e-484a-beb8-6647435f0eb6`; installed pins in the image: fastmcp 4.0.5, mcp 2.2.0, mcp-types 2.2.0, httpx2 2.13.1, starlette 1.6.0, uvicorn 0.53.0, pydantic 2.13.5 (Python 3.12.12). Post-deploy Trinity smoke recorded as observed — see the release verification |
 
 Each build ran from the exact `main` commit shown; `00504-c8d` was a
 configuration-only revision on the existing image. The application version
-stayed at 0.5.62 until `00508-dj8` and is 0.5.63 from `00508-dj8` on. PR #348
+stayed at 0.5.62 until `00508-dj8`, was 0.5.63 from `00508-dj8` through `00512-hgk`, and is 0.5.64 from `00513-klm` on. PR #348
 (`codeql-action` pins, `.github/` only) merged the same day and correctly
 caused no build.
 
@@ -142,12 +150,14 @@ decision, and this file will record it when it happens.
   degraded or partial, the recommendation is capped and human review is
   required — it is never silently mocked. In our own post-deploy smokes this
   month this has been frequent, not rare: neither v0.5.63 smoke run completed
-  in full. The completion retry added in v0.5.60 covers provider rate-limit
+  in full, and the v0.5.64 pre-merge smoke saw CS fail on Groq on the same tree
+  and on the previous framework; the single v0.5.64 post-deploy run completed
+  with CS at 86% of its reservation. The completion retry added in v0.5.60 covers provider rate-limit
   rejections that state a wait; a truncated or structurally incomplete answer
   is deliberately not retried, because a blind re-run inside the same
   reservation has no provider-guaranteed payoff. A structural fix — separate
   provider lanes for Z and CS, or a shorter CS output contract — is being
-  investigated next and is not part of v0.5.63. BYOK callers can avoid the
+  investigated next and is not part of v0.5.63 or v0.5.64. BYOK callers can avoid the
   shared budget by routing the two stages to different providers
   (`z_provider` / `cs_provider`).
 - The OAuth 2.1 surfaces have not been through an isolated staging run, and in
