@@ -687,6 +687,79 @@ def _safe_usage_token_count(usage: Any, field: str) -> Optional[int]:
     return None
 
 
+# ---------------------------------------------------------------------------
+# Z-B1a (2026-09-26): completion diagnostics — ONE atomic, nullable snapshot per
+# provider attempt. Observability only: it changes no request, prompt, cap,
+# retry or verdict. Every field is a provider-reported non-negative integer or
+# None; nothing is estimated, and no text (prompt, response, reasoning) can
+# enter it. The snapshot rides on the success dict and on the exception of the
+# attempt it describes, so a truncated, parse-failed or later-validation-failed
+# attempt carries the same evidence a complete one does — and never another
+# attempt's numbers.
+COMPLETION_DIAGNOSTICS_ATTR = "_completion_diagnostics"
+COMPLETION_DIAGNOSTICS_SCOPE = "final_response_of_final_application_attempt"
+
+
+def _usage_reasoning_token_count(usage: Any) -> Optional[int]:
+    """Read the nested `completion_tokens_details.reasoning_tokens` counter, if the SDK carries one."""
+    try:
+        details = getattr(usage, "completion_tokens_details", None)
+    except Exception:
+        return None
+    if details is None:
+        return None
+    return _safe_usage_token_count(details, "reasoning_tokens")
+
+
+def completion_diagnostics_snapshot(
+    *,
+    provider: str,
+    model: str,
+    sent_reservation: Optional[int],
+    usage: Any,
+    status: str,
+) -> Dict[str, Any]:
+    """Build the atomic snapshot for ONE attempt from an optional usage object.
+
+    status: "reported" (a usage object came back), "usage_missing" (a response
+    without usage), "no_response" (the request was sent, no response arrived),
+    "not_sent" (local admission refused; nothing was sent, so no reservation).
+    A ratio is derived only from valid provider counters (completion > 0 and
+    0 <= reasoning <= completion); it is never estimated.
+    """
+    usage_present = usage is not None
+    completion = _safe_usage_token_count(usage, "completion_tokens") if usage_present else None
+    reasoning = _usage_reasoning_token_count(usage) if usage_present else None
+    reservation = (
+        sent_reservation
+        if isinstance(sent_reservation, int) and not isinstance(sent_reservation, bool) and sent_reservation > 0
+        else None
+    )
+    share = None
+    if completion is not None and completion > 0 and reasoning is not None and 0 <= reasoning <= completion:
+        share = round(reasoning / completion, 4)
+    return {
+        "provider": provider,
+        "model": model,
+        "status": status,
+        "sent_reservation": reservation,
+        "completion_tokens": completion,
+        "reasoning_tokens": reasoning,
+        "reasoning_share": share,
+        "usage_present": usage_present,
+        "scope": COMPLETION_DIAGNOSTICS_SCOPE,
+    }
+
+
+def _attach_completion_diagnostics(target: Any, snapshot: Dict[str, Any]) -> bool:
+    """Attach the snapshot as one attribute; a target that refuses attributes keeps its own contract."""
+    try:
+        setattr(target, COMPLETION_DIAGNOSTICS_ATTR, dict(snapshot))
+        return True
+    except Exception:
+        return False
+
+
 def _thinking_aware_max_tokens(model: str, requested: int) -> int:
     """Add a thinking allowance so `requested` remains available for the ANSWER.
 
@@ -1352,9 +1425,22 @@ class GroqProvider(LLMProvider):
             )
 
         # v0.5.55: Groq admission is input + completion, not completion alone.
-        max_tokens = _groq_8k_tpm_max_tokens(self.model, messages, max_tokens)
+        try:
+            max_tokens = _groq_8k_tpm_max_tokens(self.model, messages, max_tokens)
+        except ValueError as admission_refusal:
+            # Z-B1a: a local refusal sends no request — the snapshot says so
+            # and carries no reservation, never a computed one.
+            _attach_completion_diagnostics(
+                admission_refusal,
+                completion_diagnostics_snapshot(
+                    provider="groq", model=self.model, sent_reservation=None,
+                    usage=None, status="not_sent",
+                ),
+            )
+            raise
 
         reported_output_tokens = None
+        completion_diagnostics = None
         try:
             try:
                 response = await self.client.chat.completions.create(
@@ -1413,6 +1499,17 @@ class GroqProvider(LLMProvider):
                 ),
                 "total_tokens": total_tokens if total_tokens is not None else 0,
             }
+            # Z-B1a: one atomic snapshot of THIS attempt — the reservation that
+            # was actually sent and the provider's own counters — built before
+            # the truncation verdict so a truncated attempt carries the same
+            # evidence a complete one does. Verdicts never depend on it.
+            completion_diagnostics = completion_diagnostics_snapshot(
+                provider="groq",
+                model=self.model,
+                sent_reservation=max_tokens,
+                usage=response_usage,
+                status="reported" if response_usage is not None else "usage_missing",
+            )
             _raise_if_groq_truncated(finish_reason, self.model)
             content = choice.message.content
 
@@ -1500,6 +1597,7 @@ class GroqProvider(LLMProvider):
                 "_schema_repaired_fields": repaired_fields,
                 "_schema_incomplete_fields": quality_incomplete_fields,
                 "_completion_token_reservation": max_tokens,
+                COMPLETION_DIAGNOSTICS_ATTR: completion_diagnostics,
             }
 
         except Exception as e:
@@ -1508,6 +1606,16 @@ class GroqProvider(LLMProvider):
                 reservation=max_tokens,
                 output_tokens=reported_output_tokens,
             )
+            # Z-B1a: the same-attempt snapshot rides on the exception. A
+            # failure before any response carries the reservation that was
+            # sent for the FINAL attempt and no counters — never numbers from
+            # an earlier, recovered attempt.
+            if completion_diagnostics is None:
+                completion_diagnostics = completion_diagnostics_snapshot(
+                    provider="groq", model=self.model, sent_reservation=max_tokens,
+                    usage=None, status="no_response",
+                )
+            _attach_completion_diagnostics(e, completion_diagnostics)
             _log_provider_exception("Groq", "API request", e)
             raise
 

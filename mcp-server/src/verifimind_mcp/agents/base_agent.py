@@ -6,6 +6,7 @@ specialized agents (X, Z, CS) inherit from. It implements
 Chain of Thought reasoning and LLM interaction.
 """
 
+import contextlib
 import logging
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any, Type
@@ -165,6 +166,7 @@ class BaseAgent(ABC):
         # off, this is a plain delegated provider.generate() call.
         from ..llm.failover import generate_with_failover
         completion_token_reservation = None
+        completion_diagnostics = None  # Z-B1a: the adapter's atomic snapshot, carried unchanged
         try:
             response = await generate_with_failover(
                 self.llm,
@@ -192,6 +194,9 @@ class BaseAgent(ABC):
                     and raw_reservation > 0
                 ):
                     completion_token_reservation = raw_reservation
+                raw_diagnostics = response.get("_completion_diagnostics")
+                if isinstance(raw_diagnostics, dict):
+                    completion_diagnostics = dict(raw_diagnostics)
             else:
                 # Backward compatibility: response is content directly
                 content = response
@@ -242,6 +247,8 @@ class BaseAgent(ABC):
             result._output_tokens = usage.get("output_tokens", 0) if usage else 0
             if completion_token_reservation is not None:
                 result._completion_token_reservation = completion_token_reservation
+            if completion_diagnostics is not None:
+                result._completion_diagnostics = dict(completion_diagnostics)
 
             # Update metrics if provided
             if metrics:
@@ -265,6 +272,15 @@ class BaseAgent(ABC):
                     # Preserve third-party validation exception semantics if
                     # its type does not permit telemetry attributes.
                     pass
+            # Z-B1a: a failure AFTER the provider answered (schema validation)
+            # keeps the whole same-attempt snapshot, not only the reservation.
+            # An exception the adapter already labelled keeps its own snapshot.
+            if (
+                completion_diagnostics is not None
+                and getattr(exc, "_completion_diagnostics", None) is None
+            ):
+                with contextlib.suppress(Exception):  # an immutable exception keeps its own contract
+                    exc._completion_diagnostics = dict(completion_diagnostics)
             # Preserve the original exception for the public error boundary.
             # Do not log-and-reraise here: provider errors may contain model content.
             if metrics:
