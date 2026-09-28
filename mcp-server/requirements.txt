@@ -15,7 +15,7 @@
 # 2026-07-28 MCP spec RC will land in SDKs soon; SDK bumps must be deliberate PRs.
 # Versions = what prod serves and the full suite passes on.
 mcp==2.2.0
-fastmcp==4.0.5
+fastmcp==4.0.9
 starlette==1.6.0
 
 # Data Validation
