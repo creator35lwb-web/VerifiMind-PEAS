@@ -9,7 +9,7 @@ from verifimind_mcp.policies.activation_notice import (
 TERMS_VERSION = "2.6"
 # RELEASE-IDENTITY EDIT POINT: the publication day of this revision (the merge
 # that deploys it). The "Published and effective" line below renders from it.
-TERMS_EFFECTIVE_DATE = "2026-10-17"
+TERMS_EFFECTIVE_DATE = "2026-10-15"
 
 TERMS_AND_CONDITIONS = f"""
 VerifiMind-PEAS — Terms & Conditions v2.6

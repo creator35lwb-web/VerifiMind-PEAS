@@ -198,8 +198,8 @@ def test_effective_dates_and_immediate_revision_classification_converge():
     privacy_json = _json_response(http_server.privacy_handler, "application/json")
     terms_json = _json_response(http_server.terms_handler, "application/json")
 
-    assert PRIVACY_POLICY_EFFECTIVE_DATE == "2026-10-17"
-    assert TERMS_EFFECTIVE_DATE == "2026-10-17"
+    assert PRIVACY_POLICY_EFFECTIVE_DATE == "2026-10-15"
+    assert TERMS_EFFECTIVE_DATE == "2026-10-15"
     assert privacy_json["effective_date"] == PRIVACY_POLICY_EFFECTIVE_DATE
     assert terms_json["effective_date"] == TERMS_EFFECTIVE_DATE
     for surface in (PRIVACY_POLICY, TERMS_AND_CONDITIONS):

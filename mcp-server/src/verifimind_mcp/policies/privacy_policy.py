@@ -13,7 +13,7 @@ from verifimind_mcp.policies.activation_notice import (
 PRIVACY_POLICY_VERSION = "2.7"
 # RELEASE-IDENTITY EDIT POINT: the publication day of this revision (the merge
 # that deploys it). The "Published and effective" lines below render from it.
-PRIVACY_POLICY_EFFECTIVE_DATE = "2026-10-17"
+PRIVACY_POLICY_EFFECTIVE_DATE = "2026-10-15"
 
 PRIVACY_POLICY = f"""
 VerifiMind-PEAS — Privacy Policy and Personal Data Protection Notice v2.7

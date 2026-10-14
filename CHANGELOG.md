@@ -19,7 +19,7 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
-## v0.5.65 - Registration Date Amendment (October 17, 2026)
+## v0.5.65 - Registration Date Amendment (October 15, 2026)
 
 **RELEASE CANDIDATE — not merged, not deployed; v0.5.64 remains the live
 production release.** A bounded post-deploy truth conversion will replace this
@@ -57,7 +57,9 @@ on those pages at least 14 days in advance, and not before.
   authorization boundary, routing, providers, legacy-UUID containment and the
   pinned dependency set are untouched.
 - **Identity** — `SERVER_VERSION` 0.5.65 on both constants; Registry manifest
-  3.42.0, published only by the GitHub Release.
+  3.42.0, published by the registry workflow when GitHub Release v0.5.65 is
+  published (the workflow also accepts a manual dispatch; the Release is the
+  intended procedure, and the workflow itself is unchanged).
 
 ## v0.5.64 - Protocol Currency (September 24, 2026)
 
