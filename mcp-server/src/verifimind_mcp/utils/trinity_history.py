@@ -10,7 +10,7 @@ Writes validation metadata to:
 (production keeps that bare name; a declared staging service reads and writes
 its own ``staging_trinity_history`` — T S157 Finding 3)
 
-Privacy invariants (consistent with Privacy Policy v2.6):
+Privacy invariants (consistent with Privacy Policy v2.7):
   - NO concept names or descriptions stored
   - Selected result metadata is stored: scores, recommendations, quality,
     validation/session identifiers, and timestamps

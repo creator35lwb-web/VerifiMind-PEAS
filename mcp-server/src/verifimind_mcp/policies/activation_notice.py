@@ -1,25 +1,54 @@
 """Single source for the registration-gate activation date.
 
-Terms and the Privacy Policy both disclose the date on which the execution
-tools begin requiring a free registered UUID. One constant feeds every
-carrier so the two policies (and their Bahasa Malaysia mirror) cannot drift.
+Terms and the Privacy Policy both disclose when the four execution tools begin
+requiring a free registered account. One constant feeds every carrier, so the
+two policies (and the Privacy Policy's Bahasa Malaysia mirror) cannot drift.
 
-RELEASE-IDENTITY EDIT POINT: the ISO date below is finalized in the release
-identity commit (like SERVER_VERSION). The policy-notice test enforces that
-it falls at least 14 days after the policies' published/effective date —
-the Terms v2.4 advance-notice promise, machine-checked.
+Two states, both rendered from this module:
+
+* ``REGISTRATION_GATE_EFFECTIVE_DATE = None`` — no activation date is
+  announced. Every carrier renders the standing promise: the requirement takes
+  effect on a date announced on the policy pages at least ``NOTICE_DAYS`` days
+  in advance, and not before.
+* an ISO date — announced. Every carrier renders that date.
+
+RELEASE-IDENTITY EDIT POINT: the activation release's identity commit sets the
+ISO date here (like SERVER_VERSION), together with the policy revision that
+announces it. The policy-notice tests enforce that an announced date falls at
+least ``NOTICE_DAYS`` days after that revision's published/effective date and
+that every carrier renders the current state.
 """
 
-from datetime import date
+from datetime import date, timedelta
 
-# Finalized at the v0.5.63 release identity. Must be >= the policy publication
-# date + 14 days, and MORE than 14 days for the notice sentence in both
-# policies to be true (both test-enforced).
-REGISTRATION_GATE_EFFECTIVE_DATE = "2026-10-20"
+# The advance notice both policies promise before a material adverse change
+# takes effect; the registration requirement is announced under the same term.
+NOTICE_DAYS = 14
+
+# None = to be announced. v0.5.63 (Privacy v2.6, Terms v2.5) announced
+# 2026-10-20; v0.5.65 (Privacy v2.7, Terms v2.6) replaced that fixed date with
+# the standing promise below, because the lane that enforces the requirement
+# had no proof-complete date to announce.
+REGISTRATION_GATE_EFFECTIVE_DATE: str | None = None
 
 _MONTHS = (
     "January", "February", "March", "April", "May", "June", "July",
     "August", "September", "October", "November", "December",
+)
+# Malay month names coincide with English only where they do (April,
+# September, November); the rest are spelled out explicitly.
+_MONTHS_MS = (
+    "Januari", "Februari", "Mac", "April", "Mei", "Jun", "Julai",
+    "Ogos", "September", "Oktober", "November", "Disember",
+)
+
+TO_BE_ANNOUNCED_EN = (
+    "a date that will be announced on this page "
+    f"at least {NOTICE_DAYS} days in advance"
+)
+TO_BE_ANNOUNCED_MS = (
+    "tarikh yang akan diumumkan di halaman ini "
+    f"sekurang-kurangnya {NOTICE_DAYS} hari lebih awal"
 )
 
 
@@ -33,15 +62,42 @@ def _human_en(iso: str) -> str:
 
 
 def _human_ms(iso: str) -> str:
-    # Malay month names match English for September etc. where they differ,
-    # spell them out explicitly.
-    ms_months = (
-        "Januari", "Februari", "Mac", "April", "Mei", "Jun", "Julai",
-        "Ogos", "September", "Oktober", "November", "Disember",
-    )
     d = _parse(iso)
-    return f"{d.day} {ms_months[d.month - 1]} {d.year}"
+    return f"{d.day} {_MONTHS_MS[d.month - 1]} {d.year}"
 
 
-REGISTRATION_GATE_EFFECTIVE_HUMAN_EN = _human_en(REGISTRATION_GATE_EFFECTIVE_DATE)
-REGISTRATION_GATE_EFFECTIVE_HUMAN_MS = _human_ms(REGISTRATION_GATE_EFFECTIVE_DATE)
+def gate_when_en(iso: str | None) -> str:
+    """The English ``from ...`` phrase every carrier uses for the gate's start."""
+    return f"from {_human_en(iso)}" if iso else f"from {TO_BE_ANNOUNCED_EN}"
+
+
+def gate_when_ms(iso: str | None) -> str:
+    """The Bahasa Malaysia ``mulai ...`` phrase for the same carriers."""
+    return f"mulai {_human_ms(iso)}" if iso else f"mulai {TO_BE_ANNOUNCED_MS}"
+
+
+def sentence_case(phrase: str) -> str:
+    """Capitalise a phrase that opens a sentence (``from`` -> ``From``)."""
+    return phrase[:1].upper() + phrase[1:]
+
+
+def notice_period_honored(iso: str | None, *published: str) -> bool:
+    """Whether an announced date keeps the ``NOTICE_DAYS`` promise.
+
+    ``None`` (nothing announced) honours it trivially. An announced date must
+    fall at least ``NOTICE_DAYS`` days after EVERY published/effective date of
+    the policies that announce it. A call without any published date is a
+    programming error, never a vacuous pass.
+    """
+    if not published:
+        raise ValueError("notice_period_honored needs at least one published date")
+    if iso is None:
+        return True
+    gate_day = _parse(iso)
+    return all(
+        gate_day >= _parse(day) + timedelta(days=NOTICE_DAYS) for day in published
+    )
+
+
+REGISTRATION_GATE_WHEN_EN = gate_when_en(REGISTRATION_GATE_EFFECTIVE_DATE)
+REGISTRATION_GATE_WHEN_MS = gate_when_ms(REGISTRATION_GATE_EFFECTIVE_DATE)

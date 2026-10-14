@@ -1,16 +1,23 @@
 """Canonical plain-text Privacy Policy served to JSON clients."""
 
 from verifimind_mcp.policies.activation_notice import (
-    REGISTRATION_GATE_EFFECTIVE_HUMAN_EN as _GATE_DATE_EN,
-    REGISTRATION_GATE_EFFECTIVE_HUMAN_MS as _GATE_DATE_MS,
+    REGISTRATION_GATE_WHEN_EN as _GATE_WHEN_EN,
+    REGISTRATION_GATE_WHEN_MS as _GATE_WHEN_MS,
+    TO_BE_ANNOUNCED_EN as _TBA_EN,
+    TO_BE_ANNOUNCED_MS as _TBA_MS,
+    _human_en,
+    _human_ms,
+    sentence_case as _sentence,
 )
 
-PRIVACY_POLICY_VERSION = "2.6"
-PRIVACY_POLICY_EFFECTIVE_DATE = "2026-09-22"
+PRIVACY_POLICY_VERSION = "2.7"
+# RELEASE-IDENTITY EDIT POINT: the publication day of this revision (the merge
+# that deploys it). The "Published and effective" lines below render from it.
+PRIVACY_POLICY_EFFECTIVE_DATE = "2026-10-17"
 
 PRIVACY_POLICY = f"""
-VerifiMind-PEAS — Privacy Policy and Personal Data Protection Notice v2.6
-Published and effective: September 22, 2026 (previous: v2.5, August 6, 2026)
+VerifiMind-PEAS — Privacy Policy and Personal Data Protection Notice v2.7
+Published and effective: {_human_en(PRIVACY_POLICY_EFFECTIVE_DATE)} (previous: v2.6, September 22, 2026)
 
 1. WHO WE ARE
 The hosted service at verifimind.ysenseai.org is operated by Alton Lee Wei Bin
@@ -24,7 +31,7 @@ coordination and two custom-template mutation tools are temporarily unavailable
 while owner-scoped controls and URL-fetch protections are rebuilt. No paid
 services are active. Registration does not create a time-limited entitlement.
 As announced in Section 3, the four execution tools will require a free
-registered UUID from {_GATE_DATE_EN}.
+registered UUID {_GATE_WHEN_EN}.
 
 3. DATA, SOURCES, AND YOUR CHOICES
 We receive data directly from registration, feedback, and validation-tool calls,
@@ -38,7 +45,7 @@ there is optional and used for account recovery and duplicate prevention. We
 generate a pseudonymous UUID, registration timestamp, tier/cohort label, and
 consent record.
 
-ADVANCE NOTICE — effective {_GATE_DATE_EN}: the four execution tools
+ADVANCE NOTICE — {_GATE_WHEN_EN}, the four execution tools
 (consult_agent_x, consult_agent_z, consult_agent_cs, run_full_trinity) will
 require an authenticated session tied to a free registered account, for
 hosted-key and BYOK execution alike. Until that date, the eight active
@@ -82,7 +89,7 @@ submitted concept name or description. Omitting user_uuid prevents that
 UUID-linked metadata, but ordinary IP/request security logs may still be
 retained.
 
-From {_GATE_DATE_EN}, executing one of the four gated execution tools
+{_sentence(_GATE_WHEN_EN)}, executing one of the four gated execution tools
 requires an authenticated session, and the service then records structured
 admission, completion, and run-lifecycle events — a pseudonymous derived
 subject identifier (a keyed one-way code computed from your account UUID),
@@ -171,7 +178,7 @@ You may stop the optional user_uuid argument's analytics by omitting it, leave
 save_to_history=false to avoid the shared full-result history, and withdraw
 optional email-update consent. These requests are free of charge. You may
 also revoke any individual OAuth grant or personal access token at any
-time. From {_GATE_DATE_EN}, the Section 5 admission, completion, and
+time. {_sentence(_GATE_WHEN_EN)}, the Section 5 admission, completion, and
 lifecycle records are a condition of gated-tool execution and cannot be
 disabled while using those tools; the ungated tools, all pages, and
 self-hosting remain available without them.
@@ -188,18 +195,18 @@ General public discussion:
 github.com/creator35lwb-web/VerifiMind-PEAS/discussions
 
 11. CHANGES
-This v2.6 notice serves as the advance notice promised by v2.5: it announces
-the registration requirement and its associated processing in Sections 3 and 5
-more than 14 days before they take effect on {_GATE_DATE_EN}. Its other
-clarifications (the lightweight registration path, denial records without
-caller identifiers) are effective on publication because they do not introduce
-a fee, remove a user right, or shorten an entitlement. We will notify
-registered users of future material adverse changes at least 14 days before
-they take effect. The current notice is always available at
-verifimind.ysenseai.org/privacy.
+This v2.7 notice replaces the fixed effective date of October 20, 2026 that
+v2.6 announced for the registration requirement and its associated processing
+in Sections 3 and 5: they will instead take effect on {_TBA_EN}, and not
+before. Until then, the eight active tools remain available anonymously.
+Nothing else changes in this revision. It is effective on publication because
+it does not introduce a fee, remove a user right, or shorten an entitlement;
+it defers a restriction. We will notify registered users of
+future material adverse changes at least 14 days before they take effect. The
+current notice is always available at verifimind.ysenseai.org/privacy.
 
 12. NOTIS PERLINDUNGAN DATA PERIBADI — BAHASA MALAYSIA
-Versi 2.6 — Diterbitkan dan berkuat kuasa pada 22 September 2026
+Versi 2.7 — Diterbitkan dan berkuat kuasa pada {_human_ms(PRIVACY_POLICY_EFFECTIVE_DATE)}
 
 SIAPA KAMI
 Perkhidmatan di verifimind.ysenseai.org dikendalikan oleh Alton Lee Wei Bin
@@ -214,7 +221,7 @@ penerimaan/pengakuan Terma dan Dasar Privasi. Nama, maklum balas dan persetujuan
 menerima e-mel kemas kini adalah pilihan. Pendaftaran ringan melalui API
 (POST /register) hanya memerlukan persetujuan; e-mel adalah pilihan.
 
-NOTIS AWAL — berkuat kuasa {_GATE_DATE_MS}: empat alat pelaksanaan
+NOTIS AWAL — {_GATE_WHEN_MS}, empat alat pelaksanaan
 (consult_agent_x, consult_agent_z, consult_agent_cs, run_full_trinity) akan
 memerlukan sesi yang disahkan yang terikat pada akaun berdaftar percuma,
 bagi pelaksanaan kunci hos dan BYOK. Sehingga tarikh itu, lapan alat aktif
@@ -251,7 +258,7 @@ dan cap masa, tetapi bukan nama atau penerangan konsep. Tanpa UUID, metadata
 berkaitan UUID tidak disimpan; log keselamatan IP/permintaan biasa masih boleh
 disimpan.
 
-Mulai {_GATE_DATE_MS}, pelaksanaan empat alat berpagar memerlukan sesi yang
+{_sentence(_GATE_WHEN_MS)}, pelaksanaan empat alat berpagar memerlukan sesi yang
 disahkan, dan perkhidmatan kemudian merekodkan peristiwa kemasukan,
 penyiapan dan kitaran larian berstruktur — pengecam subjek samaran terbitan
 (kod sehala berkunci yang dikira daripada UUID akaun anda), nama alat,
@@ -314,7 +321,7 @@ untuk surat-menyurat rasmi boleh diperoleh melalui saluran e-mel yang disahkan.
 Anda boleh menghentikan analitik argumen user_uuid dengan tidak memberikannya,
 mengekalkan save_to_history=false, menarik persetujuan e-mel pilihan, dan
 membatalkan mana-mana geran OAuth atau token akses peribadi pada bila-bila
-masa. Mulai {_GATE_DATE_MS}, rekod kemasukan, penyiapan dan kitaran larian
+masa. {_sentence(_GATE_WHEN_MS)}, rekod kemasukan, penyiapan dan kitaran larian
 adalah syarat pelaksanaan alat berpagar dan tidak boleh dimatikan semasa
 menggunakan alat tersebut; alat tanpa pagar, semua halaman dan pengehosan
 sendiri kekal tersedia tanpanya. E-mel pengesahan dan pemulihan dihantar
@@ -324,9 +331,12 @@ penerima dan mesej pengesahan sahaja.
 KESELAMATAN, KUKI DAN PERUBAHAN
 Kami menggunakan akses infrastruktur terhad dan peminimuman data, tetapi tiada
 perkhidmatan hos dapat menjamin keselamatan mutlak. Kami tidak menggunakan kuki
-penjejakan. Versi 2.6 ialah notis awal yang dijanjikan oleh v2.5: ia mengumumkan
-keperluan pendaftaran dan pemprosesan berkaitannya lebih daripada 14 hari sebelum
-ia berkuat kuasa pada {_GATE_DATE_MS}. Pengguna berdaftar akan dimaklumkan
-sekurang-kurangnya 14 hari sebelum perubahan material yang memudaratkan pada masa
-hadapan berkuat kuasa.
+penjejakan. Versi 2.7 menggantikan tarikh kuat kuasa tetap 20 Oktober 2026 yang
+diumumkan oleh v2.6 bagi keperluan pendaftaran dan pemprosesan berkaitannya: ia
+akan berkuat kuasa pada {_TBA_MS}, dan tidak sebelum itu. Sehingga itu, lapan
+alat aktif masih boleh digunakan secara tanpa nama. Tiada perubahan lain dalam
+versi ini; ia berkuat kuasa semasa diterbitkan kerana tidak memperkenalkan
+yuran, menghapuskan hak pengguna atau memendekkan kelayakan. Pengguna berdaftar
+akan dimaklumkan sekurang-kurangnya 14 hari sebelum perubahan material yang
+memudaratkan pada masa hadapan berkuat kuasa.
 """
