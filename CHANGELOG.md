@@ -67,9 +67,8 @@ before. Anonymous execution continues.
   authorization boundary, routing, providers, legacy-UUID containment and the
   pinned dependency set are untouched.
 - **Identity** — `SERVER_VERSION` 0.5.65 on both constants; Registry manifest
-  3.42.0 — publishes through the registry workflow when the v0.5.65 GitHub
-  Release is created at the exact release merge `ba9b20a` (pending at this
-  conversion; the workflow's validate-only dry run on that commit succeeded).
+  3.42.0 — published by the [v0.5.65 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.65)
+  on October 15, 2026 at 17:47 UTC through the registry workflow (API-verified live).
 
 Post-deploy verification (October 15, 2026, 15:10–16:30 UTC, anonymous GET):
 `/health` 0.5.65 healthy with `protocol_version 2026-07-28`; `/privacy` v2.7 and
