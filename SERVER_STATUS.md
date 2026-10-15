@@ -2,7 +2,7 @@
 
 **Last updated:** October 15, 2026
 
-**Evidence cutoff:** v0.5.65 deployment verified October 15, 2026, 14:50–16:30 UTC; Release and Registry 17:47–18:10 UTC
+**Evidence cutoff:** v0.5.65 deployment verified October 15, 2026, 14:50–16:30 UTC; Release and Registry 17:47–18:10 UTC; ambient notice refreshed 18:22 UTC
 (22:50 on October 15 to 00:30 on October 16 in Malaysia, the operator's timezone). The
 v0.5.64 release deployment was verified September 24, 2026 (`00513-klm`, then the
 configuration-only ambient-notice refresh `00514-dnc` the same day); earlier September
@@ -20,8 +20,8 @@ revisions are listed in the deployments table.
 | Merged head | `c668fe6319e16eeb3f9f04cb72c23b00056578ae` (the CTO-reviewed head `6a26526` plus its one identity commit) |
 | Merge base | `9d87787cca40bd1c16a428e0d1ff2e96d657b6e4` |
 | Cloud Build | `da4c87ec-d836-452b-a312-6c64178cb389` — **SUCCESS**, started 6 s after the merge, `COMMIT_SHA` bound to the merge; image `sha256:4796119eeedf65bb92d9ae492a112abc19cd357fb73e2685d90ed58b7cb9e13a` |
-| Serving revision | **`verifimind-mcp-server-00515-q9f`** at 100% traffic, Ready, image digest identical to the build above; configuration (environment-variable names, resources, concurrency, timeout) identical to `00514-dnc` |
-| Previous revision | `verifimind-mcp-server-00514-dnc` (v0.5.64 image, refreshed notice), retained as the rollback target; `00513-klm`, the v0.5.64 release revision, is also retained |
+| Serving revision | **`verifimind-mcp-server-00516-48g`** at 100% traffic, Ready — a configuration-only revision (ambient service notice refreshed, October 15, 2026 at 18:22 UTC) on the **same image digest** as the v0.5.65 release revision `verifimind-mcp-server-00515-q9f`; environment-variable names, resources, concurrency and timeout identical; only `SYSTEM_NOTICE` differs |
+| Previous revision | `verifimind-mcp-server-00515-q9f` — the v0.5.65 release revision (same image), retained as the rollback target; `00514-dnc` (v0.5.64 image) and `00513-klm` are also retained |
 | MCP Registry package | **3.42.0** — published by the [v0.5.65 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.65) on October 15, 2026 at 17:47 UTC (tag at the exact release merge `ba9b20a`); API-verified live |
 | Tool inventory | **13 defined / 8 active / 5 temporarily unavailable** |
 | MCP transport | Streamable HTTP, **stateless** (no session header); protocol `2026-07-28` advertised and served sessionless; the handshake eras up to `2025-11-25` remain supported on the same mount |
@@ -31,6 +31,7 @@ revisions are listed in the deployments table.
 | Hosted Z | Groq `openai/gpt-oss-120b` |
 | Hosted CS | Groq `openai/gpt-oss-120b` |
 | Account service | Registration and UUID-linked account features are **temporarily unavailable during security maintenance** (since September 17, 2026) |
+| Ambient MCP notice | Delivered as `_system_notice` on every tool response since `verifimind-mcp-server-00516-48g`: *"v0.5.65 is live (MCP 2026-07-28): 8 active tools, 5 temporarily unavailable, all free. Registration for the four execution tools starts on a date announced at https://verifimind.ysenseai.org/terms at least 14 days in advance, not before. Account features remain in maintenance."* — consistent with the policies; the previous value still announced the withdrawn October 20 date |
 | OAuth 2.1 authorization server | Deployed **dark**: credential issuance off, MCP enforcement off. The two discovery documents are served; the OAuth endpoints answer `503` |
 | Policies | Terms v2.6 / Privacy v2.7, published and effective October 15, 2026: the registration requirement for the four execution tools takes effect on a date announced on the policy pages at least 14 days in advance, and not before (no date has been announced) |
 
@@ -87,10 +88,11 @@ revisions are listed in the deployments table.
 | 2026-09-24 | `00513-klm` | [PR #362](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/362) → `2685d4c7` | **v0.5.64** — FastMCP `3.4.7 → 4.0.5` and MCP SDK `1.28.1 → 2.2.0` as one tested set (both manifests); protocol era `2026-07-28` served sessionless; Cloud Build `50896a37-f06e-484a-beb8-6647435f0eb6`; installed pins in the image: fastmcp 4.0.5, mcp 2.2.0, mcp-types 2.2.0, httpx2 2.13.1, starlette 1.6.0, uvicorn 0.53.0, pydantic 2.13.5 (Python 3.12.12). Post-deploy Trinity smoke recorded as observed — see the release verification |
 | 2026-09-24 | `00514-dnc` | configuration only, same image as `00513-klm` | Ambient service notice refreshed for v0.5.64 (it carried the advance notice of the October 20 date, since superseded by v0.5.65) |
 | 2026-10-15 | `00515-q9f` | [PR #377](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/377) → `ba9b20a6` | **v0.5.65** — Privacy Policy v2.7 / Terms v2.6: the fixed October 20, 2026 registration date is replaced by a standing promise of at least 14 days' notice on the policy pages; policy text and release identity only, no behaviour change; Cloud Build `da4c87ec-d836-452b-a312-6c64178cb389` |
+| 2026-10-15 | `00516-48g` | configuration only, same image as `00515-q9f` | Ambient service notice refreshed on the maintainer's GO: the previous value (set for v0.5.64 on September 24) still announced the withdrawn October 20 date on every tool response; the new value states the standing notice promise. Delivery verified on both protocol paths; rollback value captured |
 
 Each build ran from the exact `main` commit shown; `00504-c8d` was a
 configuration-only revision on the existing image. The application version
-stayed at 0.5.62 until `00508-dj8`, was 0.5.63 from `00508-dj8` through `00512-hgk`, was 0.5.64 from `00513-klm` through `00514-dnc`, and is 0.5.65 from `00515-q9f` on. PR #348
+stayed at 0.5.62 until `00508-dj8`, was 0.5.63 from `00508-dj8` through `00512-hgk`, was 0.5.64 from `00513-klm` through `00514-dnc`, and is 0.5.65 from `00515-q9f` on (`00516-48g` is a configuration-only revision on the same image). PR #348
 (`codeql-action` pins, `.github/` only) merged the same day and correctly
 caused no build.
 
@@ -162,11 +164,6 @@ they happen.
   Anonymous connection is verified with a Claude Code client; it has not been
   verified with every OAuth-capable client. If yours fails to connect, please
   [open an issue](https://github.com/creator35lwb-web/VerifiMind-PEAS/issues).
-- The ambient service notice delivered on MCP tool calls (`_system_notice`) still
-  carries the v0.5.64 text, including the superseded October 20 sentence; it is a
-  configuration value, not source, and its refresh is a separate
-  configuration-only revision pending the maintainer's decision. The policy pages
-  and this file are authoritative over it.
 - Coordination and custom-template mutation remain contained, not restored.
 - Runtime cross-provider failover remains disabled. The hosted routing shown
   above is construction-time routing, not request-time failover.
