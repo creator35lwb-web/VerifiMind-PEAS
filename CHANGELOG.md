@@ -21,20 +21,30 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ## v0.5.65 - Registration Date Amendment (October 15, 2026)
 
-**RELEASE CANDIDATE — not merged, not deployed; v0.5.64 remains the live
-production release.** A bounded post-deploy truth conversion will replace this
-status only after an authorized merge, its deployment and a read-back receipt
-of the served policy pages.
+**DEPLOYED.** Production deployment is bound to merge commit
+`ba9b20a6784f15dd56f4bab2d9a82da0c489a665` (PR #377), whose parents are the
+public base `9d87787cca40bd1c16a428e0d1ff2e96d657b6e4` and the merged head
+`c668fe6319e16eeb3f9f04cb72c23b00056578ae` (the reviewed head `6a26526` plus its
+identity commit). The merge tree `a73cbbda109708f90b08d9f654ca9e7a81467c75` is
+identical to the head's tree, which is the tree every hosted check exercised.
+The merge landed at 2026-10-15 14:49 UTC (22:49 in Malaysia, the operator's
+timezone), inside the day the policies name. Cloud Build `da4c87ec-d836-452b-a312-6c64178cb389`
+ran from the exact merge source (`COMMIT_SHA` bound) and produced image
+`sha256:4796119eeedf65bb92d9ae492a112abc19cd357fb73e2685d90ed58b7cb9e13a`; revision
+`verifimind-mcp-server-00515-q9f` serves 100% of traffic with a configuration
+identical to its predecessor `00514-dnc`. The v0.5.63 authentication layer
+remains deployed dark; no gate variable is set.
 
-This candidate changes served policy text and nothing else. Privacy Policy
+This release changes served policy text and nothing else. Privacy Policy
 v2.6 and Terms v2.5 (September 22, 2026) announced that from October 20, 2026
 the four execution tools would require a free registered account. The
 authentication lane that would enforce that requirement is still deployed dark,
 and the proof steps in front of its activation carry no calendar date, so the
-announced date cannot be met. Rather than let a false date stand on two public
+announced date could not be met. Rather than let a false date stand on two public
 legal pages in two languages, this release publishes **Privacy Policy v2.7 and
-Terms v2.6**: the registration requirement will take effect on a date announced
-on those pages at least 14 days in advance, and not before.
+Terms v2.6, effective October 15, 2026**: the registration requirement will take
+effect on a date announced on those pages at least 14 days in advance, and not
+before. Anonymous execution continues.
 
 - **Policy text, one source** — every carrier of the fixed date (Privacy
   Sections 2, 3, 5 and 8 and the Bahasa Malaysia mirror; Terms Section 3)
@@ -47,7 +57,7 @@ on those pages at least 14 days in advance, and not before.
   effective" lines (English and Bahasa Malaysia) render from the same ISO
   constants the JSON carriers at `/privacy` and `/terms` serve, so the two
   cannot drift. Those constants are the release-identity edit point: the
-  identity commit sets them to the publication day.
+  identity commit `c668fe6` set them to the publication day, October 15, 2026.
 - **Tests follow the state** — the policy-notice tests check whichever state
   the constant is in: an announced date must fall at least 14 days after the
   announcing revision's effective date and must appear in every carrier; an
@@ -57,9 +67,20 @@ on those pages at least 14 days in advance, and not before.
   authorization boundary, routing, providers, legacy-UUID containment and the
   pinned dependency set are untouched.
 - **Identity** — `SERVER_VERSION` 0.5.65 on both constants; Registry manifest
-  3.42.0, published by the registry workflow when GitHub Release v0.5.65 is
-  published (the workflow also accepts a manual dispatch; the Release is the
-  intended procedure, and the workflow itself is unchanged).
+  3.42.0 — publishes through the registry workflow when the v0.5.65 GitHub
+  Release is created at the exact release merge `ba9b20a` (pending at this
+  conversion; the workflow's validate-only dry run on that commit succeeded).
+
+Post-deploy verification (October 15, 2026, 15:10–16:30 UTC, anonymous GET):
+`/health` 0.5.65 healthy with `protocol_version 2026-07-28`; `/privacy` v2.7 and
+`/terms` v2.6 with `effective_date 2026-10-15` in JSON and on both HTML pages, in
+both languages; the CTO's post-merge verification hashed both JSON content
+strings and both HTML pages against the exact merge source (four SHA-256
+matches); the contained account routes keep their maintenance `503` and the
+transport stays stateless. **Trinity:** no post-deploy Trinity run was made for v0.5.65
+— the change is policy text only, and no reliability figure is claimed; the
+Z/CS headroom limitation recorded in [`SERVER_STATUS.md`](SERVER_STATUS.md)
+remains.
 
 ## v0.5.64 - Protocol Currency (September 24, 2026)
 
