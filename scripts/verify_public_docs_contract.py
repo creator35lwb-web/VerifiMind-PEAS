@@ -17,6 +17,8 @@ README_PATH = "README.md"
 CHANGELOG_PATH = "CHANGELOG.md"
 SERVER_STATUS_PATH = "SERVER_STATUS.md"
 DEPLOY_COMMAND_PATH = ".claude/commands/verifimind-deploy.md"
+FEATURES_PATH = "MCP_SERVER_FEATURES.md"
+ROADMAP_PATH = "ROADMAP.md"
 PUBLIC_STATEMENTS_PAGE = "Public-Statements.md"
 TRINITY_STATEMENT_PAGE = "Statement-001-Trinity-Integrity.md"
 HOME_PAGE = "Home.md"
@@ -171,9 +173,9 @@ require(SERVER_STATUS_PATH, "Serving revision", "serving-revision provenance fie
 require(SERVER_STATUS_PATH, "verifimind-mcp-server-00513-klm", "exact v0.5.64 serving revision")
 require(SERVER_STATUS_PATH, "50896a37-f06e-484a-beb8-6647435f0eb6", "exact v0.5.64 build")
 require(SERVER_STATUS_PATH, "Terms v2.5 / Privacy v2.6", "current policy versions")
-require("MCP_SERVER_FEATURES.md", "MCP 2026-07-28", "current MCP protocol")
-forbid("MCP_SERVER_FEATURES.md", r"advertises MCP 2025-11-25", "stale protocol-era claim")
-forbid("MCP_SERVER_FEATURES.md", r"Gemini 2\.5 Flash|2025-03-26|\bxAI\b", "stale runtime/catalogue claim")
+require(FEATURES_PATH, "MCP 2026-07-28", "current MCP protocol")
+forbid(FEATURES_PATH, r"advertises MCP 2025-11-25", "stale protocol-era claim")
+forbid(FEATURES_PATH, r"Gemini 2\.5 Flash|2025-03-26|\bxAI\b", "stale runtime/catalogue claim")
 
 # The public command delegates; it must never grow a second cloud recipe.
 require(DEPLOY_COMMAND_PATH, "mcp-server/deploy-cloudrun.sh", "canonical recovery carrier")
@@ -182,21 +184,21 @@ forbid(DEPLOY_COMMAND_PATH, r"git add -A", "indiscriminate staging")
 require(".github/workflows/docs-ci-bypass.yml", "python scripts/verify_public_docs_contract.py", "docs CI contract execution")
 require(".github/workflows/docs-ci-bypass.yml", "- 'wiki/**'", "Wiki-source CI path")
 
-require("ROADMAP.md", "Evaluation Roadmap v1.0", "tagged roadmap authority")
-forbid("ROADMAP.md", r"Current-v0\.4\.5|v0\.4\.5 BYOK Live \(Current Release\)", "March 2026 current-state claim")
+require(ROADMAP_PATH, "Evaluation Roadmap v1.0", "tagged roadmap authority")
+forbid(ROADMAP_PATH, r"Current-v0\.4\.5|v0\.4\.5 BYOK Live \(Current Release\)", "March 2026 current-state claim")
 
 # The features guide and the roadmap carry no volatile release identity (it
 # lives in SERVER_STATUS.md, /health and GitHub Releases), and rows that
 # describe retired or contained behaviour must not return.
-forbid("MCP_SERVER_FEATURES.md", r"\*\*Production Version:\*\*|\*\*MCP Registry Package:\*\*|\*\*Last Updated:\*\*", "volatile release identity in the features guide")
-require("MCP_SERVER_FEATURES.md", "SERVER_STATUS.md", "link to the dated status authority")
-require("MCP_SERVER_FEATURES.md", "13 defined / 8 active / 5 temporarily unavailable", "availability taxonomy (shared with README)")
-forbid("MCP_SERVER_FEATURES.md", r"requires `mcp-session-id` header|Session termination|Verify UUID \+ connection health|Full version history \(sanitized\)|Claude 4\.[0-9], 4\.[0-9]", "retired endpoint or fixed-catalogue claim")
-require("MCP_SERVER_FEATURES.md", "at least 14 days in advance, and not before", "standing registration-notice promise")
-forbid("ROADMAP.md", r"\*\*Current production baseline:\*\* v0\.|is live from public merge|MCP Registry package is 3\.", "volatile release identity in the roadmap")
-require("ROADMAP.md", "SERVER_STATUS.md", "link to the dated status authority")
-require("ROADMAP.md", "Authentication and registration", "authentication lane")
-require("ROADMAP.md", "Dependency currency", "dependency lane")
+forbid(FEATURES_PATH, r"\*\*Production Version:\*\*|\*\*MCP Registry Package:\*\*|\*\*Last Updated:\*\*", "volatile release identity in the features guide")
+require(FEATURES_PATH, SERVER_STATUS_PATH, "link to the dated status authority")
+require(FEATURES_PATH, "13 defined / 8 active / 5 temporarily unavailable", "availability taxonomy (shared with README)")
+forbid(FEATURES_PATH, r"requires `mcp-session-id` header|Session termination|Verify UUID \+ connection health|Full version history \(sanitized\)|Claude 4\.[0-9], 4\.[0-9]", "retired endpoint or fixed-catalogue claim")
+require(FEATURES_PATH, "at least 14 days in advance, and not before", "standing registration-notice promise")
+forbid(ROADMAP_PATH, r"\*\*Current production baseline:\*\* v0\.|is live from public merge|MCP Registry package is 3\.", "volatile release identity in the roadmap")
+require(ROADMAP_PATH, SERVER_STATUS_PATH, "link to the dated status authority")
+require(ROADMAP_PATH, "Authentication and registration", "authentication lane")
+require(ROADMAP_PATH, "Dependency currency", "dependency lane")
 
 # Canonical Wiki source and explicit publication manifest.
 manifest = json.loads((WIKI / "manifest.json").read_text(encoding="utf-8"))
