@@ -19,6 +19,48 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.65 - Registration Date Amendment (October 15, 2026)
+
+**RELEASE CANDIDATE — not merged, not deployed; v0.5.64 remains the live
+production release.** A bounded post-deploy truth conversion will replace this
+status only after an authorized merge, its deployment and a read-back receipt
+of the served policy pages.
+
+This candidate changes served policy text and nothing else. Privacy Policy
+v2.6 and Terms v2.5 (September 22, 2026) announced that from October 20, 2026
+the four execution tools would require a free registered account. The
+authentication lane that would enforce that requirement is still deployed dark,
+and the proof steps in front of its activation carry no calendar date, so the
+announced date cannot be met. Rather than let a false date stand on two public
+legal pages in two languages, this release publishes **Privacy Policy v2.7 and
+Terms v2.6**: the registration requirement will take effect on a date announced
+on those pages at least 14 days in advance, and not before.
+
+- **Policy text, one source** — every carrier of the fixed date (Privacy
+  Sections 2, 3, 5 and 8 and the Bahasa Malaysia mirror; Terms Section 3)
+  renders the standing promise from `policies/activation_notice.py`, whose
+  `REGISTRATION_GATE_EFFECTIVE_DATE` is now `None` until an activation release
+  sets it. Each policy's Changes section names the date it replaces. The
+  revision defers a restriction and is effective on publication; the 14-day
+  promise for future material adverse changes is unchanged.
+- **Publication dates rendered, not retyped** — both policies' "Published and
+  effective" lines (English and Bahasa Malaysia) render from the same ISO
+  constants the JSON carriers at `/privacy` and `/terms` serve, so the two
+  cannot drift. Those constants are the release-identity edit point: the
+  identity commit sets them to the publication day.
+- **Tests follow the state** — the policy-notice tests check whichever state
+  the constant is in: an announced date must fall at least 14 days after the
+  announcing revision's effective date and must appear in every carrier; an
+  unannounced state must render the promise in every carrier and may name the
+  replaced date only in the Changes sections.
+- **No behaviour change** — the registration gate (default-off), the HTTP
+  authorization boundary, routing, providers, legacy-UUID containment and the
+  pinned dependency set are untouched.
+- **Identity** — `SERVER_VERSION` 0.5.65 on both constants; Registry manifest
+  3.42.0, published by the registry workflow when GitHub Release v0.5.65 is
+  published (the workflow also accepts a manual dispatch; the Release is the
+  intended procedure, and the workflow itself is unchanged).
+
 ## v0.5.64 - Protocol Currency (September 24, 2026)
 
 **DEPLOYED.** Production deployment is bound to merge commit

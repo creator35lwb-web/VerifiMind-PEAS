@@ -10,7 +10,6 @@ proves admission only and ``tool_completed`` is the terminal evidence unit
 
 import json
 from contextvars import ContextVar
-from datetime import date, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -365,47 +364,117 @@ class TestEndToEnd:
 
 
 class TestPolicyNotice:
-    def test_gate_effective_date_honors_14_day_notice(self):
+    # Two states, one source (policies/activation_notice.py): no announced activation date,
+    # or an announced ISO date. Every assertion below is written against whichever state the
+    # constant is in, so a release that flips it cannot leave a carrier behind.
+
+    def test_notice_period_arithmetic(self):
+        from verifimind_mcp.policies.activation_notice import (
+            NOTICE_DAYS,
+            notice_period_honored,
+        )
+
+        assert NOTICE_DAYS == 14
+        assert notice_period_honored(None, "2026-09-22") is True
+        assert notice_period_honored("2026-10-06", "2026-09-22") is True  # exactly +14
+        assert notice_period_honored("2026-10-05", "2026-09-22") is False  # +13
+        # one announcing revision too recent: the promise is per carrier, not on average
+        assert notice_period_honored("2026-10-20", "2026-09-22", "2026-10-07") is False
+        with pytest.raises(ValueError):
+            notice_period_honored("2026-10-20")  # no published date: never a vacuous pass
+
+    def test_gate_phrases_render_both_states(self):
+        from verifimind_mcp.policies.activation_notice import (
+            TO_BE_ANNOUNCED_EN,
+            TO_BE_ANNOUNCED_MS,
+            gate_when_en,
+            gate_when_ms,
+            sentence_case,
+        )
+
+        assert "at least 14 days in advance" in TO_BE_ANNOUNCED_EN
+        assert "sekurang-kurangnya 14 hari" in TO_BE_ANNOUNCED_MS
+        assert gate_when_en(None) == f"from {TO_BE_ANNOUNCED_EN}"
+        assert gate_when_ms(None) == f"mulai {TO_BE_ANNOUNCED_MS}"
+        assert gate_when_en("2026-12-01") == "from December 1, 2026"
+        assert gate_when_ms("2026-12-01") == "mulai 1 Disember 2026"
+        assert sentence_case(gate_when_en(None)).startswith("From a date")
+        assert sentence_case(gate_when_ms(None)).startswith("Mulai tarikh")
+
+    def test_announced_gate_date_honors_the_notice_period(self):
         from verifimind_mcp.policies.activation_notice import (
             REGISTRATION_GATE_EFFECTIVE_DATE,
+            notice_period_honored,
         )
         from verifimind_mcp.policies.privacy_policy import (
             PRIVACY_POLICY_EFFECTIVE_DATE,
         )
         from verifimind_mcp.policies.terms import TERMS_EFFECTIVE_DATE
 
-        gate_day = date.fromisoformat(REGISTRATION_GATE_EFFECTIVE_DATE)
-        for published in (TERMS_EFFECTIVE_DATE, PRIVACY_POLICY_EFFECTIVE_DATE):
-            assert gate_day >= (
-                date.fromisoformat(published) + timedelta(days=14)
-            )
-
-    def test_the_notice_sentence_more_than_14_days_is_true(self):
-        # The test above enforces the PROMISE (at least 14 days). Both policies also state, as a
-        # fact about this notice, that it comes "more than 14 days" before the gate. A gate set
-        # at exactly +14 would keep the promise and make that sentence false.
-        from verifimind_mcp.policies.activation_notice import (
+        assert notice_period_honored(
             REGISTRATION_GATE_EFFECTIVE_DATE,
-        )
-        from verifimind_mcp.policies.privacy_policy import (
-            PRIVACY_POLICY,
+            TERMS_EFFECTIVE_DATE,
             PRIVACY_POLICY_EFFECTIVE_DATE,
         )
-        from verifimind_mcp.policies.terms import (
-            TERMS_AND_CONDITIONS,
-            TERMS_EFFECTIVE_DATE,
-        )
 
-        assert "more than 14 days" in " ".join(PRIVACY_POLICY.split())
-        assert "more than 14 days" in " ".join(TERMS_AND_CONDITIONS.split())
-        gate_day = date.fromisoformat(REGISTRATION_GATE_EFFECTIVE_DATE)
-        for published in (TERMS_EFFECTIVE_DATE, PRIVACY_POLICY_EFFECTIVE_DATE):
-            assert gate_day > date.fromisoformat(published) + timedelta(days=14)
+    def test_every_carrier_renders_the_current_gate_state(self):
+        # The counts bind the carriers: Privacy Sections 2, 3, 5 and 8 in English and the
+        # NOTIS AWAL, UUID and HAK paragraphs of the Bahasa Malaysia mirror; Terms Section 3.
+        # A dropped or retyped carrier changes a count. The standing promise appears if and
+        # only if no date is announced: the revision that announces one must rewrite the
+        # Changes sections too.
+        from verifimind_mcp.policies.activation_notice import (
+            REGISTRATION_GATE_EFFECTIVE_DATE,
+            TO_BE_ANNOUNCED_EN,
+            TO_BE_ANNOUNCED_MS,
+            gate_when_en,
+            gate_when_ms,
+        )
+        from verifimind_mcp.policies.privacy_policy import PRIVACY_POLICY
+        from verifimind_mcp.policies.terms import TERMS_AND_CONDITIONS
+
+        privacy = " ".join(PRIVACY_POLICY.split()).lower()
+        terms = " ".join(TERMS_AND_CONDITIONS.split()).lower()
+        when_en = gate_when_en(REGISTRATION_GATE_EFFECTIVE_DATE).lower()
+        when_ms = gate_when_ms(REGISTRATION_GATE_EFFECTIVE_DATE).lower()
+        assert privacy.count(when_en) == 4
+        assert terms.count(when_en) == 1
+        assert privacy.count(when_ms) == 3
+
+        unannounced = REGISTRATION_GATE_EFFECTIVE_DATE is None
+        assert (TO_BE_ANNOUNCED_EN.lower() in privacy) is unannounced
+        assert (TO_BE_ANNOUNCED_EN.lower() in terms) is unannounced
+        assert (TO_BE_ANNOUNCED_MS.lower() in privacy) is unannounced
+
+    def test_v27_and_v26_changes_sections_name_the_replaced_date_once(self):
+        # Privacy v2.7 and Terms v2.6 replaced the fixed date (2026-10-20) that v2.6 and v2.5
+        # announced. The superseded date may appear exactly once per policy, in the Changes
+        # section that names what was replaced, and nowhere operative.
+        from verifimind_mcp.policies.privacy_policy import PRIVACY_POLICY
+        from verifimind_mcp.policies.terms import TERMS_AND_CONDITIONS
+
+        privacy = " ".join(PRIVACY_POLICY.split())
+        terms = " ".join(TERMS_AND_CONDITIONS.split())
+        before_changes, rest = privacy.split("11. CHANGES", 1)
+        changes_en, malay = rest.split("12. NOTIS PERLINDUNGAN DATA PERIBADI", 1)
+        malay_body, malay_changes = malay.split("KESELAMATAN, KUKI DAN PERUBAHAN", 1)
+        terms_body, terms_changes = terms.split("14. CONTACT AND CHANGES", 1)
+
+        assert "October 20, 2026" not in before_changes
+        assert changes_en.count("October 20, 2026") == 1
+        assert "20 Oktober 2026" not in malay_body
+        assert malay_changes.count("20 Oktober 2026") == 1
+        assert "October 20, 2026" not in terms_body
+        assert terms_changes.count("October 20, 2026") == 1
+        for section in (changes_en, terms_changes):
+            assert "and not before" in section
+            assert "effective on publication" in section
+        assert "dan tidak sebelum itu" in malay_changes
 
     def test_both_policies_state_their_own_publication_date(self):
-        # The ISO constants feed the JSON carriers; the sentences people read are written out
-        # by hand, in two languages. Bind them, so a release-identity edit cannot move one and
-        # leave another behind.
+        # The ISO constants feed the JSON carriers and, since v2.7/v2.6, render the sentences
+        # people read in two languages. Keep the binding asserted from the outside, so a
+        # retyped line would still be caught.
         from verifimind_mcp.policies.activation_notice import _human_en, _human_ms
         from verifimind_mcp.policies.privacy_policy import (
             PRIVACY_POLICY,
@@ -429,18 +498,6 @@ class TestPolicyNotice:
             f"Diterbitkan dan berkuat kuasa pada {_human_ms(PRIVACY_POLICY_EFFECTIVE_DATE)}"
             in PRIVACY_POLICY
         )
-
-    def test_both_policies_carry_the_activation_date(self):
-        from verifimind_mcp.policies.activation_notice import (
-            REGISTRATION_GATE_EFFECTIVE_HUMAN_EN,
-            REGISTRATION_GATE_EFFECTIVE_HUMAN_MS,
-        )
-        from verifimind_mcp.policies.privacy_policy import PRIVACY_POLICY
-        from verifimind_mcp.policies.terms import TERMS_AND_CONDITIONS
-
-        assert REGISTRATION_GATE_EFFECTIVE_HUMAN_EN in TERMS_AND_CONDITIONS
-        assert REGISTRATION_GATE_EFFECTIVE_HUMAN_EN in PRIVACY_POLICY
-        assert REGISTRATION_GATE_EFFECTIVE_HUMAN_MS in PRIVACY_POLICY
 
     def test_contract_projects_gate_state_truthfully(self, monkeypatch):
         from verifimind_mcp.contract import get_public_contract

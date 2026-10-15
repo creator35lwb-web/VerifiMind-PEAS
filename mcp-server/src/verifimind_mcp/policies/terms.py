@@ -1,15 +1,19 @@
 """Canonical plain-text Terms & Conditions served to JSON clients."""
 
 from verifimind_mcp.policies.activation_notice import (
-    REGISTRATION_GATE_EFFECTIVE_HUMAN_EN as _GATE_DATE_EN,
+    REGISTRATION_GATE_WHEN_EN as _GATE_WHEN_EN,
+    TO_BE_ANNOUNCED_EN as _TBA_EN,
+    _human_en,
 )
 
-TERMS_VERSION = "2.5"
-TERMS_EFFECTIVE_DATE = "2026-09-22"
+TERMS_VERSION = "2.6"
+# RELEASE-IDENTITY EDIT POINT: the publication day of this revision (the merge
+# that deploys it). The "Published and effective" line below renders from it.
+TERMS_EFFECTIVE_DATE = "2026-10-15"
 
 TERMS_AND_CONDITIONS = f"""
-VerifiMind-PEAS — Terms & Conditions v2.5
-Published and effective: September 22, 2026 (previous: v2.4, August 6, 2026)
+VerifiMind-PEAS — Terms & Conditions v2.6
+Published and effective: {_human_en(TERMS_EFFECTIVE_DATE)} (previous: v2.5, September 22, 2026)
 
 1. SERVICE DESCRIPTION
 VerifiMind-PEAS is an open-source multi-model AI validation framework. Eight
@@ -18,8 +22,8 @@ tools and two custom-template mutation tools are discoverable but temporarily
 unavailable while owner-scoped controls and URL-fetch protections are rebuilt.
 
 2. ACCEPTANCE
-By registering or using the hosted service, you accept these Terms v2.5 and the
-Privacy Policy v2.6 at verifimind.ysenseai.org/privacy.
+By registering or using the hosted service, you accept these Terms v2.6 and the
+Privacy Policy v2.7 at verifimind.ysenseai.org/privacy.
 
 3. ACCESS, TIERS, AND THE ANNOUNCED REGISTRATION REQUIREMENT
 Anonymous, Scholar, Early Adopter, and PILOT users may currently use the same 8
@@ -27,7 +31,7 @@ active tools. Tier identity is used for rate-limit allocation, cohort management
 and personal dashboard scoping. Three coordination and two custom-template
 mutation tools are unavailable to every tier during maintenance.
 
-ADVANCE NOTICE — effective {_GATE_DATE_EN}: the four execution tools
+ADVANCE NOTICE — {_GATE_WHEN_EN}, the four execution tools
 (consult_agent_x, consult_agent_z, consult_agent_cs, run_full_trinity) will
 require an authenticated session tied to a free registered account. This
 applies to hosted-key and BYOK execution alike. OAuth-capable MCP clients
@@ -102,7 +106,7 @@ register again at any time.
 Model outputs may be incomplete or incorrect. You are responsible for human
 review and for decisions made using those outputs. Validation prompts and chained
 agent context are sent to the hosted or BYOK AI provider selected for the call;
-see Privacy Policy v2.6 for the current providers and processing details.
+see Privacy Policy v2.7 for the current providers and processing details.
 
 11. LIMITATION OF LIABILITY
 To the maximum extent permitted by applicable law, VerifiMind-PEAS and its
@@ -124,12 +128,12 @@ creator35lwb@gmail.com). Do not post personal data in a public GitHub Discussion
 General questions may use:
 github.com/creator35lwb-web/VerifiMind-PEAS/discussions
 
-This v2.5 revision serves as the advance notice promised by Terms v2.4: it
-announces the registration requirement in Section 3 more than 14 days before
-that requirement takes effect on {_GATE_DATE_EN}. Every other change in this
-revision is effective on publication because it does not introduce a fee,
-remove a user right, or shorten an entitlement. Registered users will be
-notified of future material adverse changes at least 14 days before they take
-effect. The current terms are at
-verifimind.ysenseai.org/terms.
+This v2.6 revision replaces the fixed effective date of October 20, 2026 that
+Terms v2.5 announced for the Section 3 registration requirement: it will
+instead take effect on {_TBA_EN}, and not before. Until then, anonymous
+execution remains available. Every other provision is unchanged. This revision
+is effective on publication because it does not introduce a fee, remove a user
+right, or shorten an entitlement; it defers a restriction. Registered users
+will be notified of future material adverse changes at least 14 days before
+they take effect. The current terms are at verifimind.ysenseai.org/terms.
 """
