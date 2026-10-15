@@ -1,12 +1,10 @@
 # VerifiMind PEAS MCP Server — Features Guide
 
-**Production Version:** v0.5.58
-**MCP Registry Package:** 3.35.0
-**Status:** ✅ **LIVE** at [verifimind.ysenseai.org](https://verifimind.ysenseai.org)
-**Last Updated:** August 10, 2026 — v0.5.58 production alignment
+**Status:** ✅ **LIVE** at [verifimind.ysenseai.org](https://verifimind.ysenseai.org). The current version, build and serving revision are in [`SERVER_STATUS.md`](SERVER_STATUS.md) (dated snapshot) and [`/health`](https://verifimind.ysenseai.org/health) (live); release history is in [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases); the MCP Registry package is listed at [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/?q=verifimind). This guide carries no version number by design.
+**Last reviewed:** October 16, 2026 — endpoint and availability rows re-verified against the live service
 
 > All **13 tools free forever** under the [Core Tools Always Free pledge](https://github.com/creator35lwb-web/VerifiMind-PEAS#core-tools-always-free-pledge) (Option B, May 9, 2026).
-> **Current availability:** 8 active; 3 coordination and 2 custom-template mutation tools temporarily unavailable during security maintenance.
+> **Current availability:** 8 active; 3 coordination and 2 custom-template mutation tools temporarily unavailable during security maintenance. Registration for the four execution tools will take effect on a date announced on [`/privacy`](https://verifimind.ysenseai.org/privacy) and [`/terms`](https://verifimind.ysenseai.org/terms) at least 14 days in advance, and not before; no date has been announced.
 
 ---
 
@@ -162,7 +160,7 @@ This is a security containment, **not** a paywall and not a tier change — the 
 All four Trinity validation tools support **per-tool-call BYOK** (v0.4.5+, hardened in v0.5.0):
 
 - Pass `api_key` + `llm_provider` to override the hosted provider for that stage
-- Auto-detect: keys starting with `sk-ant-` → Anthropic (Claude 4.6, 4.7), `sk-` → OpenAI, `gsk_` → Groq
+- Auto-detect: keys starting with `sk-ant-` → Anthropic, `sk-` → OpenAI, `gsk_` → Groq; the current model catalogue per provider is served by the running service and documented in the BYOK Guide, not fixed here
 - Supported providers: Gemini, OpenAI, Anthropic, Groq, Mistral, Cerebras, and local Ollama
 - Keys are **ephemeral** — never logged, never stored, used only for the single call
 - Provider failures use typed per-stage degradation; runtime cross-provider failover remains disabled
@@ -289,19 +287,18 @@ The LLM presents a comprehensive validation with multi-perspective analysis, sco
 | `/` | GET | Server info + capabilities |
 | `/health` | GET | Health check (version, rate limits, feature flags) |
 | `/mcp/` | POST | MCP protocol endpoint (streamable-http) |
-| `/mcp/` | GET | SSE stream (requires `mcp-session-id` header) |
-| `/mcp/` | DELETE | Session termination |
+| `/mcp/` | GET / DELETE | `405 Method Not Allowed` — the transport is stateless: no session, no server-initiated stream |
 | `/.well-known/mcp-config` | GET | Auto-discovery config for MCP clients |
 | `/setup` | GET | Interactive setup guide (JSON) |
-| `/mcp/test?key=<uuid>` | GET | Verify UUID + connection health |
+| `/mcp/test` | GET | Contained during security maintenance: answers a fixed `503` that reads and changes no account data |
 | `/research` | GET | Published research index |
 | `/research/paradox` | GET | The Validation Paradox publication |
 | `/research/evaluation-roadmap` | GET | Pre-registered Evaluation Roadmap v1.0 (tagged `roadmap-v1.0`) |
 | `/research/cowork` | GET | Cowork on 3P analysis (XV) |
 | `/library` | GET | Genesis Research Library (20+ papers) |
-| `/register` | GET / POST | Early Adopter UUID registration (consent-only) |
+| `/register` | GET / POST | Registration page served with the maintenance notice; the registration action and every UUID-linked account feature answer a fixed `503` during security maintenance (see [`SERVER_STATUS.md`](SERVER_STATUS.md)) |
 | `/optout` | GET | Opt-out + data deletion |
-| `/changelog` | GET | Full version history (sanitized) |
+| `/changelog` | GET | `302` redirect to [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases) |
 | `/privacy` · `/terms` | GET | Policy pages |
 
 Machine-readable index: [`/research/index.json`](https://verifimind.ysenseai.org/research/index.json) (v1.4).
@@ -350,7 +347,6 @@ Machine-readable index: [`/research/index.json`](https://verifimind.ysenseai.org
 
 **Server Status:** ✅ **LIVE**
 **URL:** https://verifimind.ysenseai.org
-**Production Version:** v0.5.58
-**MCP Registry Package:** 3.35.0
+**Current version, build and serving revision:** [`SERVER_STATUS.md`](SERVER_STATUS.md) · **Release history:** [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases)
 **Availability:** 13 defined / 8 active / 5 temporarily unavailable
 **Runtime Failover:** disabled

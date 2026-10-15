@@ -185,6 +185,19 @@ require(".github/workflows/docs-ci-bypass.yml", "- 'wiki/**'", "Wiki-source CI p
 require("ROADMAP.md", "Evaluation Roadmap v1.0", "tagged roadmap authority")
 forbid("ROADMAP.md", r"Current-v0\.4\.5|v0\.4\.5 BYOK Live \(Current Release\)", "March 2026 current-state claim")
 
+# The features guide and the roadmap carry no volatile release identity (it
+# lives in SERVER_STATUS.md, /health and GitHub Releases), and rows that
+# describe retired or contained behaviour must not return.
+forbid("MCP_SERVER_FEATURES.md", r"\*\*Production Version:\*\*|\*\*MCP Registry Package:\*\*|\*\*Last Updated:\*\*", "volatile release identity in the features guide")
+require("MCP_SERVER_FEATURES.md", "SERVER_STATUS.md", "link to the dated status authority")
+require("MCP_SERVER_FEATURES.md", "13 defined / 8 active / 5 temporarily unavailable", "availability taxonomy (shared with README)")
+forbid("MCP_SERVER_FEATURES.md", r"requires `mcp-session-id` header|Session termination|Verify UUID \+ connection health|Full version history \(sanitized\)|Claude 4\.[0-9], 4\.[0-9]", "retired endpoint or fixed-catalogue claim")
+require("MCP_SERVER_FEATURES.md", "at least 14 days in advance, and not before", "standing registration-notice promise")
+forbid("ROADMAP.md", r"\*\*Current production baseline:\*\* v0\.|is live from public merge|MCP Registry package is 3\.", "volatile release identity in the roadmap")
+require("ROADMAP.md", "SERVER_STATUS.md", "link to the dated status authority")
+require("ROADMAP.md", "Authentication and registration", "authentication lane")
+require("ROADMAP.md", "Dependency currency", "dependency lane")
+
 # Canonical Wiki source and explicit publication manifest.
 manifest = json.loads((WIKI / "manifest.json").read_text(encoding="utf-8"))
 pages = manifest.get("pages")

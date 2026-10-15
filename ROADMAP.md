@@ -1,8 +1,8 @@
 # VerifiMind PEAS Roadmap
 
-**Last reviewed:** August 10, 2026
+**Last reviewed:** October 16, 2026
 
-**Current production baseline:** v0.5.58
+**Current production baseline:** [`SERVER_STATUS.md`](SERVER_STATUS.md) (dated snapshot) and [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases) — this page carries no version number by design (lane 4 below)
 
 **Roadmap authority:** [Evaluation Roadmap v1.0](docs/research/evaluation-roadmap/roadmap-v1.0.md), frozen by tag `roadmap-v1.0`
 
@@ -26,20 +26,24 @@ authorities instead of creating another version calendar.
 
 ## Current shipped foundation
 
-As of the evidence cutoff above:
+Versions, tool counts, deployment identifiers and policy versions are volatile
+and live in their authorities: [`SERVER_STATUS.md`](SERVER_STATUS.md) (dated snapshot),
+[`/health`](https://verifimind.ysenseai.org/health) (live) and [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases).
+What this page can say durably, as of the review date above:
 
-- v0.5.58 is live from public merge
-  [`3019f5c4`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/3019f5c4889d8334063d4a2d9243e87d96fc93a8);
-- 13 MCP tools are defined, 8 are active, and 5 remain temporarily unavailable
-  under security containment;
+- the hosted MCP service is live on the current framework pair and serves the
+  sessionless modern protocol era;
+- the coordination and custom-template mutation tools remain under security
+  containment, and registration and UUID-linked account features remain in
+  security maintenance;
 - the X → Z → CS pipeline preserves successful real stages when a sibling
   provider stage fails and withholds aggregate confidence from incomplete runs;
 - runtime cross-provider failover remains disabled;
-- the MCP Registry package is 3.35.0;
+- an OAuth 2.1 authorization server is deployed dark (credential issuance and
+  enforcement off), and the published policies promise that registration for
+  the execution tools takes effect on a date announced on the policy pages
+  at least 14 days in advance, and not before;
 - the Core Tools Always Free pledge remains in force.
-
-See [`SERVER_STATUS.md`](SERVER_STATUS.md) for the dated evidence snapshot and
-live discovery for changes after that cutoff.
 
 ## Active work lanes
 
@@ -90,6 +94,20 @@ external reviewers, reproducible evidence, and transparent failure reports are
 more important at this stage than a speculative paid tier or a version-number
 deadline.
 
+### 6. Authentication and registration, gated on proof
+
+The OAuth 2.1 foundation is deployed dark. Before any activation: an isolated
+staging run with a real backend and real clients, an independent review of the
+exact head, and a policy revision that announces the date on `/privacy` and
+`/terms` at least 14 days in advance. Until then the tools stay anonymous, and a
+date that cannot be met is withdrawn before it arrives rather than after.
+
+### 7. Dependency currency as tested sets
+
+Framework and dependency updates ship as one tested set per production
+transition, with the installed set proven inside the built image; individual
+automated bump PRs are superseded by that set rather than merged one by one.
+
 ## Change discipline
 
 1. Do not edit the frozen `roadmap-v1.0` artifact without a new tagged roadmap
@@ -108,5 +126,7 @@ deadline.
 
 Earlier revisions of this file contained a March 2026 version calendar and
 called v0.4.5 the current release. Git history preserves that planning record;
-it is no longer presented as the current roadmap. The tagged Evaluation
+it is no longer presented as the current roadmap. The August 10, 2026 revision
+carried a version baseline, tool counts and a Registry package number; those
+moved to the authorities named above in October 2026. The tagged Evaluation
 Roadmap is the durable commitment surface going forward.
