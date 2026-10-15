@@ -35,6 +35,9 @@ V0565_ATTRIBUTED_RUN = r"X/Z/CS = real/real/real"
 # standing notice promise; the old date must not be presented as current.
 REPLACED_DATE_AS_CURRENT = r"from \*\*October 20, 2026\*\*|from 20 Oct 2026"
 STANDING_NOTICE_PROMISE = "at least 14 days in advance, and not before"
+# The conversion that preceded the Release described it as pending; that
+# wording must not survive the re-pin on any surface.
+PENDING_RELEASE_CLAIM = r"3\.42\.0 (?:is )?pending|Release v0\.5\.65: \*\*pending\*\*|pending at this\s+conversion"
 RELIABILITY_CLAIM = r"clean smoke|smoke(?: is| was)? clean|Trinity (?:is|remains|now) reliable|reliability (?:is )?(?:proven|established)"
 failures: list[str] = []
 checks = 0
@@ -108,10 +111,12 @@ require(README_PATH, V0565_NO_TRINITY_RUN, "v0.5.65 made no post-deploy Trinity 
 forbid(README_PATH, RELIABILITY_CLAIM, "reliability generalised from a smoke run")
 forbid(README_PATH, REPLACED_DATE_AS_CURRENT, "replaced registration date presented as current")
 require(README_PATH, STANDING_NOTICE_PROMISE, "standing registration-notice promise")
-# 3.41.0 remains the live Registry identity until the v0.5.65 GitHub Release
-# publishes 3.42.0; re-pin here when 3.42.0 is API-verified live.
-require(README_PATH, "MCP Registry package:** `3.41.0`", "live Registry identity")
-require(README_PATH, "3.42.0 is pending", "pending Registry identity stated")
+# 3.42.0 was published by the v0.5.65 GitHub Release on 2026-10-15 (17:47 UTC)
+# and is the live Registry identity; prior packages and the interim "pending"
+# wording are forbidden below.
+require(README_PATH, "MCP Registry package:** `3.42.0`", "live Registry identity")
+forbid(README_PATH, PENDING_RELEASE_CLAIM, "Release/Registry still described as pending")
+forbid(SERVER_STATUS_PATH, PENDING_RELEASE_CLAIM, "Release/Registry still described as pending")
 require(README_PATH, "13 defined / 8 active / 5 temporarily unavailable", "availability taxonomy")
 require(README_PATH, "21345820", "MACP v2.5 version DOI")
 require(README_PATH, "Multi-Agent Communication Protocol (MACP) v2.5 — Loop Engineering", "MACP v2.5 title")
@@ -122,7 +127,7 @@ forbid(README_PATH, r"creator35lwb-web/verifimind-genesis-mcp", "private Hub lin
 forbid(README_PATH, r"\*\*Providers:\*\*\s*7\b", "conflated remote/local provider count")
 forbid(
     README_PATH,
-    r"ba02fd02|82444203-10d0|b434979e|e3ca9551-0292|00496-g7s|07b422f1|6b1216e9-94dc|00508-dj8|2685d4c7|50896a37-f06e|00513-klm|00514-dnc|MCP Registry package:\*\* `3\.(3[89]|40)\.0`",
+    r"ba02fd02|82444203-10d0|b434979e|e3ca9551-0292|00496-g7s|07b422f1|6b1216e9-94dc|00508-dj8|2685d4c7|50896a37-f06e|00513-klm|00514-dnc|MCP Registry package:\*\* `3\.(3[89]|4[01])\.0`",
     "prior release receipts",
 )
 forbid(
@@ -164,6 +169,8 @@ if V0565_NO_TRINITY_RUN not in changelog_current:
     failures.append("CHANGELOG.md: v0.5.65 does not state that no post-deploy Trinity run was made")
 if re.search(V0565_ATTRIBUTED_RUN, changelog_current):
     failures.append("CHANGELOG.md: a Trinity run is attributed to v0.5.65, which made none")
+if re.search(PENDING_RELEASE_CLAIM, changelog_current):
+    failures.append("CHANGELOG.md: v0.5.65 Release/Registry still described as pending")
 if re.search(RELIABILITY_CLAIM, changelog_current, re.IGNORECASE):
     failures.append("CHANGELOG.md: v0.5.65 generalises a smoke run into reliability")
 # v0.5.63 shipped a Groq BYOK catalogue change while its entry denied one; the

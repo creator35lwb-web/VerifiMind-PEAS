@@ -186,7 +186,7 @@ Our contribution: **productization quality**, **MCP integration path**, **multi-
 - **Providers:** 6 remote BYOK catalogues (Gemini · Anthropic · OpenAI · Groq · Cerebras · Mistral) plus caller-managed local Ollama
 - **Hosted routing:** X = Gemini `gemini-3.5-flash-lite`; Z/CS = Groq `openai/gpt-oss-120b`
 - **Runtime provider failover:** disabled (`runtime_failover_enabled: false`)
-- **MCP Registry package:** `3.41.0` — published by the [v0.5.64 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.64) on September 24, 2026, API-verified live; **3.42.0 is pending**: it publishes when the maintainer creates the v0.5.65 GitHub Release at the exact release merge `ba9b20a` (the registry workflow's validate-only dry run on that commit succeeded on October 15, 2026)
+- **MCP Registry package:** `3.42.0` — published by the [v0.5.65 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.65) on October 15, 2026 at 17:47 UTC (01:47 on October 16 in Malaysia), API-verified live (tag at the exact release merge `ba9b20a`)
 
 For live release history, see [`/changelog`](https://verifimind.ysenseai.org/changelog). We deliberately do not display unaudited "total users" numbers because bot, scanner, and development traffic can distort them. Exact deployment provenance and the full dated operational snapshot are documented in [SERVER_STATUS.md](SERVER_STATUS.md).
 
@@ -349,4 +349,4 @@ External Model Council review (Claude Opus 4.7 + GPT-5.5 + Gemini 3.1 Pro, May 9
 
 ---
 
-**Last Updated:** October 15, 2026 · **Version:** v0.5.65 · **MCP Registry:** 3.41.0 (3.42.0 pending the v0.5.65 Release) · **MACP:** v2.5 "Loop Engineering" ([DOI](https://doi.org/10.5281/zenodo.21345820))
+**Last Updated:** October 15, 2026 · **Version:** v0.5.65 · **MCP Registry:** 3.42.0 · **MACP:** v2.5 "Loop Engineering" ([DOI](https://doi.org/10.5281/zenodo.21345820))

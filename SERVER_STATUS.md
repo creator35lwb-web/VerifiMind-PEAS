@@ -2,7 +2,7 @@
 
 **Last updated:** October 15, 2026
 
-**Evidence cutoff:** v0.5.65 deployment verified October 15, 2026, 14:50–16:30 UTC
+**Evidence cutoff:** v0.5.65 deployment verified October 15, 2026, 14:50–16:30 UTC; Release and Registry 17:47–18:10 UTC
 (22:50 on October 15 to 00:30 on October 16 in Malaysia, the operator's timezone). The
 v0.5.64 release deployment was verified September 24, 2026 (`00513-klm`, then the
 configuration-only ambient-notice refresh `00514-dnc` the same day); earlier September
@@ -22,7 +22,7 @@ revisions are listed in the deployments table.
 | Cloud Build | `da4c87ec-d836-452b-a312-6c64178cb389` — **SUCCESS**, started 6 s after the merge, `COMMIT_SHA` bound to the merge; image `sha256:4796119eeedf65bb92d9ae492a112abc19cd357fb73e2685d90ed58b7cb9e13a` |
 | Serving revision | **`verifimind-mcp-server-00515-q9f`** at 100% traffic, Ready, image digest identical to the build above; configuration (environment-variable names, resources, concurrency, timeout) identical to `00514-dnc` |
 | Previous revision | `verifimind-mcp-server-00514-dnc` (v0.5.64 image, refreshed notice), retained as the rollback target; `00513-klm`, the v0.5.64 release revision, is also retained |
-| MCP Registry package | **3.41.0** live (published by the v0.5.64 GitHub Release, September 24, 2026); **3.42.0 pending** — it publishes when the maintainer creates the v0.5.65 GitHub Release at the exact release merge `ba9b20a`; the registry workflow's validate-only dry run on that commit succeeded on October 15, 2026 |
+| MCP Registry package | **3.42.0** — published by the [v0.5.65 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.65) on October 15, 2026 at 17:47 UTC (tag at the exact release merge `ba9b20a`); API-verified live |
 | Tool inventory | **13 defined / 8 active / 5 temporarily unavailable** |
 | MCP transport | Streamable HTTP, **stateless** (no session header); protocol `2026-07-28` advertised and served sessionless; the handshake eras up to `2025-11-25` remain supported on the same mount |
 | Firestore | Connected during verified post-deploy health checks |
@@ -66,9 +66,10 @@ revisions are listed in the deployments table.
 - **Trinity:** no post-deploy Trinity run was made for v0.5.65. The change is policy text
   only; the standing Z/CS limitation recorded below is unchanged, and no
   reliability figure is claimed.
-- GitHub Release v0.5.65: **pending** the maintainer's publication at the exact
-  release merge `ba9b20a`; creating it triggers the MCP Registry publish
-  (**3.42.0**). Until then the live Registry package remains 3.41.0.
+- [GitHub Release v0.5.65](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.65)
+  was published by the maintainer on October 15, 2026 at 17:47 UTC at the exact
+  release merge `ba9b20a` and triggered the MCP Registry publish (**3.42.0**;
+  API-verified live).
 
 ## Deployments since the previous snapshot (August 26, 2026)
 
