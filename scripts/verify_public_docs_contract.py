@@ -26,9 +26,15 @@ LINK_EXTERNAL_URI = "external-uri"
 LINK_INSECURE_URI = "insecure-uri"
 LINK_MALFORMED_URI = "malformed-uri"
 INSECURE_URI_SCHEMES = frozenset(("http", "ftp"))
-# v0.5.64 post-deploy smoke: ONE anonymous run, complete. The contract binds the
-# observation with its qualifier and rejects any generalisation to reliability.
-V0564_SMOKE_RUN_1 = "one anonymous run, X/Z/CS = real/real/real"
+# v0.5.65 changed policy text only and made NO post-deploy Trinity run. The
+# contract binds that statement on every truth surface, forbids a run being
+# attributed to v0.5.65, and still rejects any generalisation to reliability.
+V0565_NO_TRINITY_RUN = "no post-deploy Trinity run was made for v0.5.65"
+V0565_ATTRIBUTED_RUN = r"X/Z/CS = real/real/real"
+# Privacy v2.7 / Terms v2.6 replaced the fixed October 20, 2026 date with a
+# standing notice promise; the old date must not be presented as current.
+REPLACED_DATE_AS_CURRENT = r"from \*\*October 20, 2026\*\*|from 20 Oct 2026"
+STANDING_NOTICE_PROMISE = "at least 14 days in advance, and not before"
 RELIABILITY_CLAIM = r"clean smoke|smoke(?: is| was)? clean|Trinity (?:is|remains|now) reliable|reliability (?:is )?(?:proven|established)"
 failures: list[str] = []
 checks = 0
@@ -94,15 +100,18 @@ def wiki_link_failure(page: str, raw_target: str) -> str | None:
 
 
 # Concise public front door and release-bound truth.
-require(README_PATH, "version-v0.5.64", "v0.5.64 badge")
-require(README_PATH, "2685d4c7d80bb1727a602d1e1ea23f6627958645", "exact v0.5.64 merge")
-require(README_PATH, "50896a37-f06e-484a-beb8-6647435f0eb6", "exact v0.5.64 build")
-require(README_PATH, "verifimind-mcp-server-00513-klm", "exact v0.5.64 serving revision")
-require(README_PATH, V0564_SMOKE_RUN_1, "v0.5.64 Trinity smoke as observed (one run)")
-forbid(README_PATH, RELIABILITY_CLAIM, "reliability generalised from one smoke run")
-# 3.41.0 was published by the v0.5.64 GitHub Release on 2026-09-24 and is the
-# live Registry identity; prior packages are forbidden below.
+require(README_PATH, "version-v0.5.65", "v0.5.65 badge")
+require(README_PATH, "ba9b20a6784f15dd56f4bab2d9a82da0c489a665", "exact v0.5.65 merge")
+require(README_PATH, "da4c87ec-d836-452b-a312-6c64178cb389", "exact v0.5.65 build")
+require(README_PATH, "verifimind-mcp-server-00515-q9f", "exact v0.5.65 serving revision")
+require(README_PATH, V0565_NO_TRINITY_RUN, "v0.5.65 made no post-deploy Trinity run")
+forbid(README_PATH, RELIABILITY_CLAIM, "reliability generalised from a smoke run")
+forbid(README_PATH, REPLACED_DATE_AS_CURRENT, "replaced registration date presented as current")
+require(README_PATH, STANDING_NOTICE_PROMISE, "standing registration-notice promise")
+# 3.41.0 remains the live Registry identity until the v0.5.65 GitHub Release
+# publishes 3.42.0; re-pin here when 3.42.0 is API-verified live.
 require(README_PATH, "MCP Registry package:** `3.41.0`", "live Registry identity")
+require(README_PATH, "3.42.0 is pending", "pending Registry identity stated")
 require(README_PATH, "13 defined / 8 active / 5 temporarily unavailable", "availability taxonomy")
 require(README_PATH, "21345820", "MACP v2.5 version DOI")
 require(README_PATH, "Multi-Agent Communication Protocol (MACP) v2.5 — Loop Engineering", "MACP v2.5 title")
@@ -113,7 +122,7 @@ forbid(README_PATH, r"creator35lwb-web/verifimind-genesis-mcp", "private Hub lin
 forbid(README_PATH, r"\*\*Providers:\*\*\s*7\b", "conflated remote/local provider count")
 forbid(
     README_PATH,
-    r"ba02fd02|82444203-10d0|b434979e|e3ca9551-0292|00496-g7s|07b422f1|6b1216e9-94dc|00508-dj8|MCP Registry package:\*\* `3\.(3[89]|40)\.0`",
+    r"ba02fd02|82444203-10d0|b434979e|e3ca9551-0292|00496-g7s|07b422f1|6b1216e9-94dc|00508-dj8|2685d4c7|50896a37-f06e|00513-klm|00514-dnc|MCP Registry package:\*\* `3\.(3[89]|40)\.0`",
     "prior release receipts",
 )
 forbid(
@@ -136,25 +145,27 @@ changelog_current = next(
     (
         section
         for section in changelog_sections
-        if re.match(r"^## v0\.5\.64\b", section, flags=re.IGNORECASE)
+        if re.match(r"^## v0\.5\.65\b", section, flags=re.IGNORECASE)
     ),
     "",
 )
-checks += 7
-if "v0.5.64" not in changelog_current:
-    failures.append("CHANGELOG.md: current section is not v0.5.64")
+checks += 8
+if "v0.5.65" not in changelog_current:
+    failures.append("CHANGELOG.md: current section is not v0.5.65")
 if re.search(r"candidate|not merged|not deployed", changelog_current, re.IGNORECASE):
-    failures.append("CHANGELOG.md: v0.5.64 still described as a candidate")
-if "2685d4c7d80bb1727a602d1e1ea23f6627958645" not in changelog_current:
-    failures.append("CHANGELOG.md: exact v0.5.64 merge is absent")
-if "50896a37-f06e-484a-beb8-6647435f0eb6" not in changelog_current:
-    failures.append("CHANGELOG.md: exact v0.5.64 build is absent")
-if re.search(r"^## v0\.5\.63\b", changelog_current, flags=re.IGNORECASE | re.MULTILINE):
+    failures.append("CHANGELOG.md: v0.5.65 still described as a candidate")
+if "ba9b20a6784f15dd56f4bab2d9a82da0c489a665" not in changelog_current:
+    failures.append("CHANGELOG.md: exact v0.5.65 merge is absent")
+if "da4c87ec-d836-452b-a312-6c64178cb389" not in changelog_current:
+    failures.append("CHANGELOG.md: exact v0.5.65 build is absent")
+if re.search(r"^## v0\.5\.64\b", changelog_current, flags=re.IGNORECASE | re.MULTILINE):
     failures.append("CHANGELOG.md: current section includes the prior release")
-if V0564_SMOKE_RUN_1 not in changelog_current:
-    failures.append("CHANGELOG.md: v0.5.64 smoke is not recorded as the one observed run")
+if V0565_NO_TRINITY_RUN not in changelog_current:
+    failures.append("CHANGELOG.md: v0.5.65 does not state that no post-deploy Trinity run was made")
+if re.search(V0565_ATTRIBUTED_RUN, changelog_current):
+    failures.append("CHANGELOG.md: a Trinity run is attributed to v0.5.65, which made none")
 if re.search(RELIABILITY_CLAIM, changelog_current, re.IGNORECASE):
-    failures.append("CHANGELOG.md: v0.5.64 generalises one smoke run into reliability")
+    failures.append("CHANGELOG.md: v0.5.65 generalises a smoke run into reliability")
 # v0.5.63 shipped a Groq BYOK catalogue change while its entry denied one; the
 # sentence shape that made that claim must not return in any current section.
 if re.search(
@@ -164,13 +175,15 @@ if re.search(
 ):
     failures.append("CHANGELOG.md: current section denies a provider-catalogue change with the v0.5.63 sentence shape")
 
-require(SERVER_STATUS_PATH, "| Application | **v0.5.64**", "current production version")
-require(SERVER_STATUS_PATH, V0564_SMOKE_RUN_1, "post-deploy smoke as observed (one run)")
-forbid(SERVER_STATUS_PATH, RELIABILITY_CLAIM, "reliability generalised from one smoke run")
+require(SERVER_STATUS_PATH, "| Application | **v0.5.65**", "current production version")
+require(SERVER_STATUS_PATH, V0565_NO_TRINITY_RUN, "v0.5.65 made no post-deploy Trinity run")
+forbid(SERVER_STATUS_PATH, RELIABILITY_CLAIM, "reliability generalised from a smoke run")
 require(SERVER_STATUS_PATH, "Serving revision", "serving-revision provenance field")
-require(SERVER_STATUS_PATH, "verifimind-mcp-server-00513-klm", "exact v0.5.64 serving revision")
-require(SERVER_STATUS_PATH, "50896a37-f06e-484a-beb8-6647435f0eb6", "exact v0.5.64 build")
-require(SERVER_STATUS_PATH, "Terms v2.5 / Privacy v2.6", "current policy versions")
+require(SERVER_STATUS_PATH, "verifimind-mcp-server-00515-q9f", "exact v0.5.65 serving revision")
+require(SERVER_STATUS_PATH, "da4c87ec-d836-452b-a312-6c64178cb389", "exact v0.5.65 build")
+require(SERVER_STATUS_PATH, "Terms v2.6 / Privacy v2.7", "current policy versions")
+forbid(SERVER_STATUS_PATH, REPLACED_DATE_AS_CURRENT, "replaced registration date presented as current")
+require(SERVER_STATUS_PATH, STANDING_NOTICE_PROMISE, "standing registration-notice promise")
 require("MCP_SERVER_FEATURES.md", "MCP 2026-07-28", "current MCP protocol")
 forbid("MCP_SERVER_FEATURES.md", r"advertises MCP 2025-11-25", "stale protocol-era claim")
 forbid("MCP_SERVER_FEATURES.md", r"Gemini 2\.5 Flash|2025-03-26|\bxAI\b", "stale runtime/catalogue claim")
