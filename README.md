@@ -7,7 +7,7 @@
 
   Three specialized agents — Innovation, Ethics, Security — review your concept before you build it. Multi-vendor (Gemini · Claude · GPT · Groq · Cerebras · Mistral · Ollama). Free, open-source, MCP-native.
 
-  [![Version](https://img.shields.io/badge/version-v0.5.64-blue.svg)](CHANGELOG.md)
+  [![Version](https://img.shields.io/badge/version-v0.5.65-blue.svg)](CHANGELOG.md)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Status](https://img.shields.io/badge/status-Operational-success.svg)](SERVER_STATUS.md)
   [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Listed-purple)](https://registry.modelcontextprotocol.io/?q=verifimind)
@@ -53,7 +53,7 @@ claude mcp add -s user verifimind -- npx -y mcp-remote https://verifimind.ysense
 }
 ```
 
-**Accounts:** registration and UUID-linked account features (including the personal usage dashboard) are temporarily unavailable during security maintenance. You do not need an account today — every active tool works anonymously at the standard rate limit. **Advance notice:** under the published [Terms](https://verifimind.ysenseai.org/terms) and [Privacy Policy](https://verifimind.ysenseai.org/privacy), from **October 20, 2026** the four execution tools (`consult_agent_x`, `consult_agent_z`, `consult_agent_cs`, `run_full_trinity`) will require a free registered account. Tool discovery and the template-read tools stay open without registration, and the tools remain free.
+**Accounts:** registration and UUID-linked account features (including the personal usage dashboard) are temporarily unavailable during security maintenance. You do not need an account today — every active tool works anonymously at the standard rate limit. **Advance notice:** under the published [Terms](https://verifimind.ysenseai.org/terms) (v2.6) and [Privacy Policy](https://verifimind.ysenseai.org/privacy) (v2.7), both effective October 15, 2026, the four execution tools (`consult_agent_x`, `consult_agent_z`, `consult_agent_cs`, `run_full_trinity`) will require a free registered account from a date that will be announced on those pages at least 14 days in advance, and not before; no date has been announced. Tool discovery and the template-read tools stay open without registration, and the tools remain free.
 
 ---
 
@@ -178,15 +178,15 @@ Our contribution: **productization quality**, **MCP integration path**, **multi-
 
 ## Status & Metrics
 
-- **Server:** `v0.5.64` — [verifimind.ysenseai.org](https://verifimind.ysenseai.org) · [/health](https://verifimind.ysenseai.org/health)
+- **Server:** `v0.5.65` — [verifimind.ysenseai.org](https://verifimind.ysenseai.org) · [/health](https://verifimind.ysenseai.org/health)
 - **Landing Page:** [verifimind.io](https://verifimind.io)
-- **Release:** merge [`2685d4c7`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/2685d4c7d80bb1727a602d1e1ea23f6627958645) · Cloud Build `50896a37-f06e-484a-beb8-6647435f0eb6` · revision `verifimind-mcp-server-00513-klm` · post-deploy Trinity: **one anonymous run, X/Z/CS = real/real/real, complete** (CS used 3,204 of its 3,740-token Groq completion reservation, so the Z/CS headroom limitation recorded for v0.5.63 remains); see [SERVER_STATUS.md](SERVER_STATUS.md)
+- **Release:** merge [`ba9b20a`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/ba9b20a6784f15dd56f4bab2d9a82da0c489a665) · Cloud Build `da4c87ec-d836-452b-a312-6c64178cb389` · revision `verifimind-mcp-server-00515-q9f` · **Privacy Policy v2.7 / Terms v2.6 served, effective October 15, 2026** · no post-deploy Trinity run was made for v0.5.65 (policy text only; the Z/CS headroom limitation recorded for v0.5.63 remains); see [SERVER_STATUS.md](SERVER_STATUS.md)
 - **Authentication (v0.5.63):** a native OAuth 2.1 authorization server is deployed **dark** — credential issuance and MCP enforcement are both off, so every tool that was anonymous stays anonymous
 - **Tools:** 13 defined / 8 active / 5 temporarily unavailable (all remain free)
 - **Providers:** 6 remote BYOK catalogues (Gemini · Anthropic · OpenAI · Groq · Cerebras · Mistral) plus caller-managed local Ollama
 - **Hosted routing:** X = Gemini `gemini-3.5-flash-lite`; Z/CS = Groq `openai/gpt-oss-120b`
 - **Runtime provider failover:** disabled (`runtime_failover_enabled: false`)
-- **MCP Registry package:** `3.41.0` — published by the [v0.5.64 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.64) on September 24, 2026, API-verified live (tag at the exact release merge `2685d4c7`)
+- **MCP Registry package:** `3.41.0` — published by the [v0.5.64 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.64) on September 24, 2026, API-verified live; **3.42.0 is pending**: it publishes when the maintainer creates the v0.5.65 GitHub Release at the exact release merge `ba9b20a` (the registry workflow's validate-only dry run on that commit succeeded on October 15, 2026)
 
 For live release history, see [`/changelog`](https://verifimind.ysenseai.org/changelog). We deliberately do not display unaudited "total users" numbers because bot, scanner, and development traffic can distort them. Exact deployment provenance and the full dated operational snapshot are documented in [SERVER_STATUS.md](SERVER_STATUS.md).
 
@@ -349,4 +349,4 @@ External Model Council review (Claude Opus 4.7 + GPT-5.5 + Gemini 3.1 Pro, May 9
 
 ---
 
-**Last Updated:** September 24, 2026 · **Version:** v0.5.64 · **MCP Registry:** 3.41.0 · **MACP:** v2.5 "Loop Engineering" ([DOI](https://doi.org/10.5281/zenodo.21345820))
+**Last Updated:** October 15, 2026 · **Version:** v0.5.65 · **MCP Registry:** 3.41.0 (3.42.0 pending the v0.5.65 Release) · **MACP:** v2.5 "Loop Engineering" ([DOI](https://doi.org/10.5281/zenodo.21345820))
