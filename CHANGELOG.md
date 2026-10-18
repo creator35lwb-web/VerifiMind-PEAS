@@ -19,6 +19,45 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.67 - Runtime Currency II (release candidate, October 18, 2026)
+
+**RELEASE CANDIDATE — not merged, not deployed.** This section describes the
+reviewed head of the candidate pull request. The exact merge, Cloud Build,
+image, serving revision and post-deploy verification are added by the
+post-deploy truth conversion, as for every release since v0.5.58; nothing in
+this section is a claim about production.
+
+This release moves three exact pins of the hosted runtime stack **as one tested
+set**, in both manifests (`mcp-server/pyproject.toml`, the deployment dependency
+authority, and `mcp-server/requirements.txt`, the CI mirror) and nowhere else in
+the pinned set. It takes the newest stable patch of each package Dependabot
+proposed after v0.5.66 landed (#375, #373, #371, superseded), so the set is
+current at composition time. The `mcp` SDK stays **2.2.0**, so the advertised
+protocol era (`2026-07-28`) and the handshake eras are unchanged.
+
+| Package | From | To | Upstream delta relevant to this service |
+|---|---|---|---|
+| FastMCP | 4.0.10 | 4.1.1 | 4.0.11 carried eleven security repairs (client schema bounds, OpenAPI component arguments, component-manager auth, Host/Origin protection on the SSE transport, hashed-tool lookups, dev preview); measured against the deployed source and the served service before this candidate, none lands on a path this service exposes (no SSE transport, no OpenAPI components, no component manager, no tool transforms, no server-side client use). 4.1.0: HTTP sessions now expire after the SDK's 30-minute idle default (the mount here is stateless; re-measured by the protocol-era legs rather than assumed), MultiAuth / OpenAPI path / skill-file / regex-search hardening (features not used here), a broad fix sweep, full Python 3.15 support, a new transitive `beartype`. 4.1.1: regex tool search bounded by length and time, linked skill folders (not used here), proxy-setting and JWKS-lock fixes. |
+| Starlette | 1.7.0 | 1.8.0 | requires Python 3.11+ (the image runs 3.12); `Request.send_early_hints()`; GZip trailer and early-start changes (no `GZipMiddleware` here); `FileResponse` stops on client disconnect; `Request.stream()` generators closed deterministically under stacked `BaseHTTPMiddleware` (the IP-blocklist and rate-limit middlewares here use it). |
+| FastAPI | 0.142.2 | 0.143.3 | automatic OpenTelemetry exporter setup becomes opt-in (`FASTAPI_OTEL_AUTO_CONFIGURE`), which makes the v0.5.66 statement structural rather than circumstantial; `iter_route_contexts()` metadata fix; non-finite float serialization fix in JSONL/SSE streams; frontend fallback file-check fix. |
+
+- **Third-party notices unchanged** — none of the three packages is in the
+  OAuth dependency closure (Authlib 1.8.0, joserfc 1.7.5 and cryptography
+  50.0.2 stay pinned), so `THIRD_PARTY_NOTICES.md` and its test are untouched.
+- **No open security advisory** applies to the pinned set at the time of this
+  candidate (Dependabot alerts: none open; `pip-audit` on the candidate set:
+  clean). This is currency work, not an incident response.
+- **Unchanged:** VerifiMind application code, hosted-provider routing, retry
+  and failover policy (runtime failover remains disabled), tool availability
+  (13 defined / 8 active / 5 temporarily unavailable), the policy texts
+  (Privacy v2.7 / Terms v2.6) and their standing registration-notice promise,
+  and the authentication layer, which remains deployed dark with no gate
+  variable set.
+- **MCP Registry manifest** `3.44.0` — candidate; published by the GitHub
+  Release after deployment.
+
+---
+
 ## v0.5.66 - Runtime Currency (October 18, 2026)
 
 **DEPLOYED.** Production deployment is bound to merge commit
