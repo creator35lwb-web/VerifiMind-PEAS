@@ -1,12 +1,13 @@
 # VerifiMind-PEAS Server Status
 
-**Last updated:** October 15, 2026
+**Last updated:** October 18, 2026
 
-**Evidence cutoff:** v0.5.65 deployment verified October 15, 2026, 14:50–16:30 UTC; Release and Registry 17:47–18:10 UTC; ambient notice refreshed 18:22 UTC
-(22:50 on October 15 to 00:30 on October 16 in Malaysia, the operator's timezone). The
-v0.5.64 release deployment was verified September 24, 2026 (`00513-klm`, then the
-configuration-only ambient-notice refresh `00514-dnc` the same day); earlier September
-revisions are listed in the deployments table.
+**Evidence cutoff:** v0.5.66 deployment verified October 18, 2026, 03:05–04:35 UTC
+(11:05–12:35 in Malaysia, the operator's timezone); the v0.5.66 GitHub Release and
+the MCP Registry publication were pending at this snapshot. The v0.5.65 release
+deployment was verified October 15, 2026 (`00515-q9f`, then the configuration-only
+ambient-notice refresh `00516-48g`); earlier revisions are listed in the
+deployments table.
 
 **Status authority:** this dated operational snapshot; release history lives in
 [`CHANGELOG.md`](CHANGELOG.md) and [GitHub Releases](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases).
@@ -15,14 +16,14 @@ revisions are listed in the deployments table.
 
 | Surface | Verified state |
 |---|---|
-| Application | **v0.5.65** — registration-date amendment: Privacy Policy v2.7 / Terms v2.6 replace the fixed October 20, 2026 registration date with a standing promise of at least 14 days' notice on the policy pages; framework unchanged (FastMCP 4.0.5 / MCP SDK 2.2.0, protocol era 2026-07-28); the v0.5.63 authentication layer remains deployed **dark** — see the release verification below |
-| Public merge | [`ba9b20a6784f15dd56f4bab2d9a82da0c489a665`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/ba9b20a6784f15dd56f4bab2d9a82da0c489a665) (PR #377) |
-| Merged head | `c668fe6319e16eeb3f9f04cb72c23b00056578ae` (the CTO-reviewed head `6a26526` plus its one identity commit) |
-| Merge base | `9d87787cca40bd1c16a428e0d1ff2e96d657b6e4` |
-| Cloud Build | `da4c87ec-d836-452b-a312-6c64178cb389` — **SUCCESS**, started 6 s after the merge, `COMMIT_SHA` bound to the merge; image `sha256:4796119eeedf65bb92d9ae492a112abc19cd357fb73e2685d90ed58b7cb9e13a` |
-| Serving revision | **`verifimind-mcp-server-00516-48g`** at 100% traffic, Ready — a configuration-only revision (ambient service notice refreshed, October 15, 2026 at 18:22 UTC) on the **same image digest** as the v0.5.65 release revision `verifimind-mcp-server-00515-q9f`; environment-variable names, resources, concurrency and timeout identical; only `SYSTEM_NOTICE` differs |
-| Previous revision | `verifimind-mcp-server-00515-q9f` — the v0.5.65 release revision (same image), retained as the rollback target; `00514-dnc` (v0.5.64 image) and `00513-klm` are also retained |
-| MCP Registry package | **3.42.0** — published by the [v0.5.65 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.65) on October 15, 2026 at 17:47 UTC (tag at the exact release merge `ba9b20a`); API-verified live |
+| Application | **v0.5.66** — runtime currency: FastMCP 4.0.10 / MCP SDK 2.2.0 / Starlette 1.7.0 / FastAPI 0.142.2 / uvicorn 0.54.0 / cryptography 50.0.2 as one tested set in both manifests; no application-code, routing, policy or authentication change (Privacy Policy v2.7 / Terms v2.6 unchanged); protocol era `2026-07-28` advertised and served |
+| Public merge | [`2903bb8d3ec4a24e143b359d52b77920ffa8fe25`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/2903bb8d3ec4a24e143b359d52b77920ffa8fe25) (PR #382) |
+| Merged head | `5a56e137c079c0a48fc6090ddc03835c740227f6` (the CTO-reviewed head: bounded exact-head PASS, bound to the merge after it landed; the merge tree `a05076e23cbf` equals the head's tree) |
+| Merge base | `a65b3aec209ef223aa61f7b6b36868fa4d01bede` |
+| Cloud Build | `019112d5-b6b8-4497-a136-3276df9038f9` — **SUCCESS**, started 6 s after the merge, `COMMIT_SHA` bound to the merge, Python 3.12.12, installed pins listed in the build log; image `sha256:fc705da94716925264c316b99ccba695258635f4361895458de634ff933fd5de` |
+| Serving revision | **`verifimind-mcp-server-00518-pkp`** at 100% traffic, Ready — a configuration-only revision (ambient service notice refreshed, October 18, 2026 at 04:33 UTC) on the **same image digest** as the v0.5.66 release revision `verifimind-mcp-server-00517-l2d`; configuration otherwise identical |
+| Previous revision | `verifimind-mcp-server-00517-l2d` — the v0.5.66 release revision (same image; created October 18, 2026 at 03:06 UTC), retained as the rollback target; `00516-48g` and `00515-q9f` (v0.5.65 image) are also retained |
+| MCP Registry package | **3.42.0** live, published by the [v0.5.65 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.65); **3.43.0 is pending the v0.5.66 GitHub Release** (created by the maintainer at the exact merge `2903bb8`; it triggers the registry workflow) — this row is re-pinned when both are verified |
 | Tool inventory | **13 defined / 8 active / 5 temporarily unavailable** |
 | MCP transport | Streamable HTTP, **stateless** (no session header); protocol `2026-07-28` advertised and served sessionless; the handshake eras up to `2025-11-25` remain supported on the same mount |
 | Firestore | Connected during verified post-deploy health checks |
@@ -31,46 +32,62 @@ revisions are listed in the deployments table.
 | Hosted Z | Groq `openai/gpt-oss-120b` |
 | Hosted CS | Groq `openai/gpt-oss-120b` |
 | Account service | Registration and UUID-linked account features are **temporarily unavailable during security maintenance** (since September 17, 2026) |
-| Ambient MCP notice | Delivered as `_system_notice` on every tool response since `verifimind-mcp-server-00516-48g`: *"v0.5.65 is live (MCP 2026-07-28): 8 active tools, 5 temporarily unavailable, all free. Registration for the four execution tools starts on a date announced at https://verifimind.ysenseai.org/terms at least 14 days in advance, not before. Account features remain in maintenance."* — consistent with the policies; the previous value still announced the withdrawn October 20 date |
+| Ambient MCP notice | Delivered as `_system_notice` on every tool response since `verifimind-mcp-server-00518-pkp`: *"v0.5.66 is live (MCP 2026-07-28): 8 active tools, 5 temporarily unavailable, all free. Registration for the four execution tools starts on a date announced at https://verifimind.ysenseai.org/terms at least 14 days in advance, not before. Account features remain in maintenance."* (the single change from the previous value is the version) |
 | OAuth 2.1 authorization server | Deployed **dark**: credential issuance off, MCP enforcement off. The two discovery documents are served; the OAuth endpoints answer `503` |
 | Policies | Terms v2.6 / Privacy v2.7, published and effective October 15, 2026: the registration requirement for the four execution tools takes effect on a date announced on the policy pages at least 14 days in advance, and not before (no date has been announced) |
 
 ## Release verification
 
-- [Public PR #377](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/377) was merged by the
-  maintainer on 2026-10-15 at 14:49:56 UTC (22:49 in Malaysia). The merge tree
-  `a73cbbda1097` is identical to the merged head's tree — the tree every
-  hosted check (9 of 9 at the exact head, image parity included) exercised.
-- Review: the CTO's bounded source/policy-engineering review passed at the
-  reviewed head `6a26526` on October 14 (35 targeted tests, seven negative
-  controls caught); the one identity commit `c668fe6` then bound the publication
-  day in five places. The CTO verified that identity delta **after the merge**
-  (the pre-merge rebind did not take place): 35 targeted tests again, and the
-  served `/privacy` and `/terms` content — JSON strings and both HTML pages —
-  hashed identical to the exact merge source. Local receipts on the exact head:
-  unit 1,652 passed / 2 skipped, registration 84, integration 7 / 11 skipped,
-  docs contract 289 checks, secret scan 0 hits. **No isolated staging run
-  preceded this deployment**; the change is policy text and release identity.
-- Configuration: the revision carries the same environment-variable names,
-  resources, concurrency and timeout as `00514-dnc`. **No authentication gate
+- [Public PR #382](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/382) was merged by the
+  maintainer on 2026-10-18 at 03:04:49 UTC (11:04 in Malaysia). The merge tree
+  `a05076e23cbf` is identical to the reviewed head's tree — the tree every
+  hosted check (9 of 9 at the exact head, image parity included) and the
+  pre-merge smoke exercised.
+- Review: the CTO's bounded exact-head review passed at `5a56e137` (independent
+  credential-free replay: unit 1,652 passed / 2 skipped at 80.49% coverage,
+  registration 84, integration 7 / 11 skipped, notices and manifest parity 19
+  with five negative controls caught, docs contract 307, keyless transport
+  15/15) and was bound to the merge after it landed. No application code
+  changed except the two version constants; the delta is five dependency pins,
+  the third-party notice re-binding and the release identity.
+- Build: Cloud Build `019112d5-b6b8-4497-a136-3276df9038f9` started 6 s after the
+  merge from the exact merge source (`COMMIT_SHA` bound), on Python 3.12.12;
+  its log lists the installed pins (fastmcp 4.0.10, fastmcp-slim 4.0.10, mcp
+  2.2.0, mcp-types 2.2.0, starlette 1.7.0, fastapi 0.142.2, uvicorn 0.54.0,
+  cryptography 50.0.2, httpx2 2.13.1). Image
+  `sha256:fc705da94716925264c316b99ccba695258635f4361895458de634ff933fd5de`.
+- Configuration: `00517-l2d` carries the same environment-variable names,
+  resources, concurrency and timeout as `00516-48g`. **No authentication gate
   variable is set**, so credential issuance and MCP enforcement both sit at
-  their code default, which is off.
-- Post-deploy read-back (anonymous GET, October 15, 15:10–16:30 UTC): `/health`
-  0.5.65 with `protocol_version 2026-07-28`, Firestore connected, inference
-  live; `/privacy` v2.7 and `/terms` v2.6 with `effective_date 2026-10-15` in
-  JSON and on both HTML pages, in English and Bahasa Malaysia; the contained
-  account routes (`/mcp/test`, `/whoami`) answer the maintenance `503`; the
-  `/register` and `/optout` pages are served with the maintenance notice;
-  `GET /mcp/` answers `405` (stateless transport, no session stream);
-  `/changelog` redirects to GitHub Releases; the root page, `/setup`, the
-  discovery documents and the server card report 0.5.65.
-- **Trinity:** no post-deploy Trinity run was made for v0.5.65. The change is policy text
-  only; the standing Z/CS limitation recorded below is unchanged, and no
-  reliability figure is claimed.
-- [GitHub Release v0.5.65](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.65)
-  was published by the maintainer on October 15, 2026 at 17:47 UTC at the exact
-  release merge `ba9b20a` and triggered the MCP Registry publish (**3.42.0**;
-  API-verified live).
+  their code default, which is off. `00518-pkp` differs from it only in the
+  ambient-notice text.
+- Post-deploy read-back (anonymous, paced, October 18, 04:21–04:24 UTC):
+  20 of 20 — `/health` 0.5.66 with `protocol_version 2026-07-28`, Firestore
+  connected, inference live, catalogue current; the server card agrees; the
+  eight contained account routes answer the maintenance `503`; OAuth discovery
+  served and the five endpoints dark; three handshake eras and the sessionless
+  2026-07-28 era (`tools/list`, `server/discover`, `tools/call`) answer with no
+  session header; `/terms` v2.6 and `/privacy` v2.7 dated October 15, 2026.
+- Versioned smoke oracle (04:24–04:30 UTC): **48 pass / 0 stop / 0 instrument**
+  against production, after a known-positive on local keyless servers of both
+  trees — exactly the four version legs fired on the previous tree (v0.5.65)
+  and every leg passed on the deployed tree. The typed BYOK failure contract
+  held (invalid key → `BYOK_AUTH_FAILED` per stage, decision surface withheld).
+- **Trinity, as observed: one anonymous run — X real, Z real, CS unavailable.**
+  The Groq completion output for CS was truncated at its 3,775-token
+  reservation (`PROVIDER_OUTPUT_TRUNCATED`); outcome `partial`, 36 s; the
+  honest-degradation contract held (analysis marked incomplete, confidence
+  withheld, recommendation capped, CS analysis block withheld, nothing written
+  to history); no failover attempt. One run is not a reliability figure: the
+  pre-merge smoke on this identical tree completed X/Z/CS real/real/real
+  locally, and the Z/CS limitation recorded below is the standing condition,
+  not a regression of this release.
+- Ambient notice: refreshed at 04:33 UTC as the configuration-only revision
+  `00518-pkp` (same image); every tool response now carries the v0.5.66 text.
+- GitHub Release v0.5.66 and the MCP Registry publication (3.43.0) were
+  **pending** at this snapshot; the Release is created by the maintainer at the
+  exact merge `2903bb8` and triggers the registry workflow. This file is
+  re-pinned when both are verified.
 
 ## Deployments since the previous snapshot (August 26, 2026)
 
@@ -89,10 +106,12 @@ revisions are listed in the deployments table.
 | 2026-09-24 | `00514-dnc` | configuration only, same image as `00513-klm` | Ambient service notice refreshed for v0.5.64 (it carried the advance notice of the October 20 date, since superseded by v0.5.65) |
 | 2026-10-15 | `00515-q9f` | [PR #377](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/377) → `ba9b20a6` | **v0.5.65** — Privacy Policy v2.7 / Terms v2.6: the fixed October 20, 2026 registration date is replaced by a standing promise of at least 14 days' notice on the policy pages; policy text and release identity only, no behaviour change; Cloud Build `da4c87ec-d836-452b-a312-6c64178cb389` |
 | 2026-10-15 | `00516-48g` | configuration only, same image as `00515-q9f` | Ambient service notice refreshed on the maintainer's GO: the previous value (set for v0.5.64 on September 24) still announced the withdrawn October 20 date on every tool response; the new value states the standing notice promise. Delivery verified on both protocol paths; rollback value captured |
+| 2026-10-18 | `00517-l2d` | [PR #382](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/382) → `2903bb8d` | **v0.5.66** — runtime currency: fastmcp `4.0.5 → 4.0.10`, starlette `1.6.0 → 1.7.0`, fastapi `0.141.1 → 0.142.2`, uvicorn[standard] `0.53.0 → 0.54.0`, cryptography `50.0.1 → 50.0.2` as one tested set (both manifests; `mcp` stays 2.2.0); Cloud Build `019112d5-b6b8-4497-a136-3276df9038f9`; installed pins confirmed in the build log; third-party notice re-bound to the cryptography 50.0.2 artifacts |
+| 2026-10-18 | `00518-pkp` | configuration only, same image as `00517-l2d` | Ambient service notice refreshed for v0.5.66 (the previous value still announced v0.5.65 on a 0.5.66 server; the single change is the version) |
 
 Each build ran from the exact `main` commit shown; `00504-c8d` was a
 configuration-only revision on the existing image. The application version
-stayed at 0.5.62 until `00508-dj8`, was 0.5.63 from `00508-dj8` through `00512-hgk`, was 0.5.64 from `00513-klm` through `00514-dnc`, and is 0.5.65 from `00515-q9f` on (`00516-48g` is a configuration-only revision on the same image). PR #348
+stayed at 0.5.62 until `00508-dj8`, was 0.5.63 from `00508-dj8` through `00512-hgk`, was 0.5.64 from `00513-klm` through `00514-dnc`, was 0.5.65 from `00515-q9f` through `00516-48g`, and is 0.5.66 from `00517-l2d` on (`00518-pkp` is a configuration-only revision on the same image). PR #348
 (`codeql-action` pins, `.github/` only) merged the same day and correctly
 caused no build.
 
@@ -149,12 +168,14 @@ they happen.
   month this has been frequent, not rare: neither v0.5.63 smoke run completed
   in full, and the v0.5.64 pre-merge smoke saw CS fail on Groq on the same tree
   and on the previous framework; the single v0.5.64 post-deploy run completed
-  with CS at 86% of its reservation. The completion retry added in v0.5.60 covers provider rate-limit
+  with CS at 86% of its reservation; the single v0.5.66 post-deploy run did
+  not complete (CS truncated at a 3,775-token reservation) while the pre-merge
+  run on the identical tree did. The completion retry added in v0.5.60 covers provider rate-limit
   rejections that state a wait; a truncated or structurally incomplete answer
   is deliberately not retried, because a blind re-run inside the same
   reservation has no provider-guaranteed payoff. A structural fix — separate
   provider lanes for Z and CS, or a shorter CS output contract — is being
-  investigated next and is not part of v0.5.63, v0.5.64 or v0.5.65. BYOK callers can avoid the
+  investigated next and is not part of v0.5.63, v0.5.64, v0.5.65 or v0.5.66. BYOK callers can avoid the
   shared budget by routing the two stages to different providers
   (`z_provider` / `cs_provider`).
 - The OAuth 2.1 surfaces have not been through an isolated staging run, and in

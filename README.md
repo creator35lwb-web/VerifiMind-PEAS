@@ -7,7 +7,7 @@
 
   Three specialized agents — Innovation, Ethics, Security — review your concept before you build it. Multi-vendor (Gemini · Claude · GPT · Groq · Cerebras · Mistral · Ollama). Free, open-source, MCP-native.
 
-  [![Version](https://img.shields.io/badge/version-v0.5.65-blue.svg)](CHANGELOG.md)
+  [![Version](https://img.shields.io/badge/version-v0.5.66-blue.svg)](CHANGELOG.md)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Status](https://img.shields.io/badge/status-Operational-success.svg)](SERVER_STATUS.md)
   [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Listed-purple)](https://registry.modelcontextprotocol.io/?q=verifimind)
@@ -178,15 +178,15 @@ Our contribution: **productization quality**, **MCP integration path**, **multi-
 
 ## Status & Metrics
 
-- **Server:** `v0.5.65` — [verifimind.ysenseai.org](https://verifimind.ysenseai.org) · [/health](https://verifimind.ysenseai.org/health)
+- **Server:** `v0.5.66` — [verifimind.ysenseai.org](https://verifimind.ysenseai.org) · [/health](https://verifimind.ysenseai.org/health)
 - **Landing Page:** [verifimind.io](https://verifimind.io)
-- **Release:** merge [`ba9b20a`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/ba9b20a6784f15dd56f4bab2d9a82da0c489a665) · Cloud Build `da4c87ec-d836-452b-a312-6c64178cb389` · revision `verifimind-mcp-server-00515-q9f` · **Privacy Policy v2.7 / Terms v2.6 served, effective October 15, 2026** · no post-deploy Trinity run was made for v0.5.65 (policy text only; the Z/CS headroom limitation recorded for v0.5.63 remains); see [SERVER_STATUS.md](SERVER_STATUS.md)
+- **Release:** merge [`2903bb8`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/2903bb8d3ec4a24e143b359d52b77920ffa8fe25) · Cloud Build `019112d5-b6b8-4497-a136-3276df9038f9` · revision `verifimind-mcp-server-00517-l2d` (configuration-only `00518-pkp` serving, same image) · **runtime currency: FastMCP 4.0.10 · Starlette 1.7.0 · FastAPI 0.142.2 · uvicorn 0.54.0 · cryptography 50.0.2 as one tested set; `mcp` 2.2.0 and the 2026-07-28 era unchanged** · post-deploy Trinity, one anonymous run as observed: X real, Z real, CS unavailable (output truncated at its Groq completion reservation), outcome partial, honest-degradation contract held — one run, not a reliability figure (the Z/CS limitation in `SERVER_STATUS.md` is the standing condition)
 - **Authentication (v0.5.63):** a native OAuth 2.1 authorization server is deployed **dark** — credential issuance and MCP enforcement are both off, so every tool that was anonymous stays anonymous
 - **Tools:** 13 defined / 8 active / 5 temporarily unavailable (all remain free)
 - **Providers:** 6 remote BYOK catalogues (Gemini · Anthropic · OpenAI · Groq · Cerebras · Mistral) plus caller-managed local Ollama
 - **Hosted routing:** X = Gemini `gemini-3.5-flash-lite`; Z/CS = Groq `openai/gpt-oss-120b`
 - **Runtime provider failover:** disabled (`runtime_failover_enabled: false`)
-- **MCP Registry package:** `3.42.0` — published by the [v0.5.65 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.65) on October 15, 2026 at 17:47 UTC (01:47 on October 16 in Malaysia), API-verified live (tag at the exact release merge `ba9b20a`)
+- **MCP Registry package:** `3.42.0` (live, from the [v0.5.65 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.65)) — `3.43.0` is pending the v0.5.66 GitHub Release at the exact merge `2903bb8`, which triggers the registry workflow
 
 For live release history, see [`/changelog`](https://verifimind.ysenseai.org/changelog). We deliberately do not display unaudited "total users" numbers because bot, scanner, and development traffic can distort them. Exact deployment provenance and the full dated operational snapshot are documented in [SERVER_STATUS.md](SERVER_STATUS.md).
 
@@ -349,4 +349,4 @@ External Model Council review (Claude Opus 4.7 + GPT-5.5 + Gemini 3.1 Pro, May 9
 
 ---
 
-**Last Updated:** October 15, 2026 · **Version:** v0.5.65 · **MCP Registry:** 3.42.0 · **MACP:** v2.5 "Loop Engineering" ([DOI](https://doi.org/10.5281/zenodo.21345820))
+**Last Updated:** October 18, 2026 · **Version:** v0.5.66 · **MCP Registry:** 3.42.0 (3.43.0 pending the v0.5.66 Release) · **MACP:** v2.5 "Loop Engineering" ([DOI](https://doi.org/10.5281/zenodo.21345820))
