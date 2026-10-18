@@ -28,9 +28,12 @@ LINK_EXTERNAL_URI = "external-uri"
 LINK_INSECURE_URI = "insecure-uri"
 LINK_MALFORMED_URI = "malformed-uri"
 INSECURE_URI_SCHEMES = frozenset(("http", "ftp"))
-# v0.5.65 changed policy text only and made NO post-deploy Trinity run. The
-# contract binds that statement on every truth surface, forbids a run being
-# attributed to v0.5.65, and still rejects any generalisation to reliability.
+# v0.5.66 (runtime currency) made ONE post-deploy Trinity run, recorded as
+# observed (X real, Z real, CS unavailable; partial). The contract binds the
+# one-run qualifier on every truth surface and rejects any generalisation to
+# reliability. v0.5.65 made no run; its CHANGELOG section must keep saying so.
+V0566_ONE_RUN = "run is not a reliability figure"
+V0566_RUN_AS_OBSERVED = "X real, Z real, CS unavailable"
 V0565_NO_TRINITY_RUN = "no post-deploy Trinity run was made for v0.5.65"
 V0565_ATTRIBUTED_RUN = r"X/Z/CS = real/real/real"
 # Privacy v2.7 / Terms v2.6 replaced the fixed October 20, 2026 date with a
@@ -105,18 +108,21 @@ def wiki_link_failure(page: str, raw_target: str) -> str | None:
 
 
 # Concise public front door and release-bound truth.
-require(README_PATH, "version-v0.5.65", "v0.5.65 badge")
-require(README_PATH, "ba9b20a6784f15dd56f4bab2d9a82da0c489a665", "exact v0.5.65 merge")
-require(README_PATH, "da4c87ec-d836-452b-a312-6c64178cb389", "exact v0.5.65 build")
-require(README_PATH, "verifimind-mcp-server-00515-q9f", "exact v0.5.65 release revision")
-require(README_PATH, V0565_NO_TRINITY_RUN, "v0.5.65 made no post-deploy Trinity run")
+require(README_PATH, "version-v0.5.66", "v0.5.66 badge")
+require(README_PATH, "2903bb8d3ec4a24e143b359d52b77920ffa8fe25", "exact v0.5.66 merge")
+require(README_PATH, "019112d5-b6b8-4497-a136-3276df9038f9", "exact v0.5.66 build")
+require(README_PATH, "verifimind-mcp-server-00517-l2d", "exact v0.5.66 release revision")
+require(README_PATH, "one run, not a reliability figure", "v0.5.66 one-run qualifier")
+require(README_PATH, V0566_RUN_AS_OBSERVED, "v0.5.66 run recorded as observed")
 forbid(README_PATH, RELIABILITY_CLAIM, "reliability generalised from a smoke run")
 forbid(README_PATH, REPLACED_DATE_AS_CURRENT, "replaced registration date presented as current")
 require(README_PATH, STANDING_NOTICE_PROMISE, "standing registration-notice promise")
-# 3.42.0 was published by the v0.5.65 GitHub Release on 2026-10-15 (17:47 UTC)
-# and is the live Registry identity; prior packages and the interim "pending"
-# wording are forbidden below.
-require(README_PATH, "MCP Registry package:** `3.42.0`", "live Registry identity")
+# 3.42.0 (v0.5.65 Release, 2026-10-15) is the live Registry identity until the
+# v0.5.66 Release publishes 3.43.0; the v0.5.66 pending wording is allowed at
+# this conversion and retired by the re-pin that follows the Release. Prior
+# packages and the v0.5.65 interim wording stay forbidden.
+require(README_PATH, "MCP Registry package:** `3.42.0` (live", "live Registry identity")
+require(README_PATH, "3.43.0", "v0.5.66 Registry manifest named")
 forbid(README_PATH, PENDING_RELEASE_CLAIM, "Release/Registry still described as pending")
 forbid(SERVER_STATUS_PATH, PENDING_RELEASE_CLAIM, "Release/Registry still described as pending")
 require(README_PATH, "13 defined / 8 active / 5 temporarily unavailable", "availability taxonomy")
@@ -129,7 +135,7 @@ forbid(README_PATH, r"creator35lwb-web/verifimind-genesis-mcp", "private Hub lin
 forbid(README_PATH, r"\*\*Providers:\*\*\s*7\b", "conflated remote/local provider count")
 forbid(
     README_PATH,
-    r"ba02fd02|82444203-10d0|b434979e|e3ca9551-0292|00496-g7s|07b422f1|6b1216e9-94dc|00508-dj8|2685d4c7|50896a37-f06e|00513-klm|00514-dnc|MCP Registry package:\*\* `3\.(3[89]|4[01])\.0`",
+    r"ba02fd02|82444203-10d0|b434979e|e3ca9551-0292|00496-g7s|07b422f1|6b1216e9-94dc|00508-dj8|2685d4c7|50896a37-f06e|00513-klm|00514-dnc|ba9b20a6|da4c87ec-d836|00515-q9f|00516-48g|MCP Registry package:\*\* `3\.(3[89]|4[01])\.0`",
     "prior release receipts",
 )
 forbid(
@@ -152,29 +158,39 @@ changelog_current = next(
     (
         section
         for section in changelog_sections
+        if re.match(r"^## v0\.5\.66\b", section, flags=re.IGNORECASE)
+    ),
+    "",
+)
+changelog_previous = next(
+    (
+        section
+        for section in changelog_sections
         if re.match(r"^## v0\.5\.65\b", section, flags=re.IGNORECASE)
     ),
     "",
 )
-checks += 8
-if "v0.5.65" not in changelog_current:
-    failures.append("CHANGELOG.md: current section is not v0.5.65")
-if re.search(r"candidate|not merged|not deployed", changelog_current, re.IGNORECASE):
-    failures.append("CHANGELOG.md: v0.5.65 still described as a candidate")
-if "ba9b20a6784f15dd56f4bab2d9a82da0c489a665" not in changelog_current:
-    failures.append("CHANGELOG.md: exact v0.5.65 merge is absent")
-if "da4c87ec-d836-452b-a312-6c64178cb389" not in changelog_current:
-    failures.append("CHANGELOG.md: exact v0.5.65 build is absent")
-if re.search(r"^## v0\.5\.64\b", changelog_current, flags=re.IGNORECASE | re.MULTILINE):
+checks += 10
+if "v0.5.66" not in changelog_current:
+    failures.append("CHANGELOG.md: current section is not v0.5.66")
+if re.search(r"release candidate|not merged|not deployed", changelog_current, re.IGNORECASE):
+    failures.append("CHANGELOG.md: v0.5.66 still described as a candidate")
+if "2903bb8d3ec4a24e143b359d52b77920ffa8fe25" not in changelog_current:
+    failures.append("CHANGELOG.md: exact v0.5.66 merge is absent")
+if "019112d5-b6b8-4497-a136-3276df9038f9" not in changelog_current:
+    failures.append("CHANGELOG.md: exact v0.5.66 build is absent")
+if "verifimind-mcp-server-00517-l2d" not in changelog_current:
+    failures.append("CHANGELOG.md: exact v0.5.66 release revision is absent")
+if re.search(r"^## v0\.5\.65\b", changelog_current, flags=re.IGNORECASE | re.MULTILINE):
     failures.append("CHANGELOG.md: current section includes the prior release")
-if V0565_NO_TRINITY_RUN not in changelog_current:
-    failures.append("CHANGELOG.md: v0.5.65 does not state that no post-deploy Trinity run was made")
-if re.search(V0565_ATTRIBUTED_RUN, changelog_current):
-    failures.append("CHANGELOG.md: a Trinity run is attributed to v0.5.65, which made none")
-if re.search(PENDING_RELEASE_CLAIM, changelog_current):
-    failures.append("CHANGELOG.md: v0.5.65 Release/Registry still described as pending")
+if V0566_ONE_RUN not in changelog_current or V0566_RUN_AS_OBSERVED not in changelog_current:
+    failures.append("CHANGELOG.md: v0.5.66 does not record its one Trinity run as observed with the one-run qualifier")
 if re.search(RELIABILITY_CLAIM, changelog_current, re.IGNORECASE):
-    failures.append("CHANGELOG.md: v0.5.65 generalises a smoke run into reliability")
+    failures.append("CHANGELOG.md: v0.5.66 generalises a smoke run into reliability")
+if V0565_NO_TRINITY_RUN not in changelog_previous or re.search(V0565_ATTRIBUTED_RUN, changelog_previous):
+    failures.append("CHANGELOG.md: the v0.5.65 section no longer states truthfully that it made no post-deploy Trinity run")
+if re.search(PENDING_RELEASE_CLAIM, changelog_previous):
+    failures.append("CHANGELOG.md: v0.5.65 Release/Registry still described as pending")
 # v0.5.63 shipped a Groq BYOK catalogue change while its entry denied one; the
 # sentence shape that made that claim must not return in any current section.
 if re.search(
@@ -184,14 +200,16 @@ if re.search(
 ):
     failures.append("CHANGELOG.md: current section denies a provider-catalogue change with the v0.5.63 sentence shape")
 
-require(SERVER_STATUS_PATH, "| Application | **v0.5.65**", "current production version")
-require(SERVER_STATUS_PATH, V0565_NO_TRINITY_RUN, "v0.5.65 made no post-deploy Trinity run")
+require(SERVER_STATUS_PATH, "| Application | **v0.5.66**", "current production version")
+require(SERVER_STATUS_PATH, V0566_ONE_RUN, "v0.5.66 one-run qualifier")
+require(SERVER_STATUS_PATH, V0566_RUN_AS_OBSERVED, "v0.5.66 run recorded as observed")
 forbid(SERVER_STATUS_PATH, RELIABILITY_CLAIM, "reliability generalised from a smoke run")
 require(SERVER_STATUS_PATH, "Serving revision", "serving-revision provenance field")
-require(SERVER_STATUS_PATH, "verifimind-mcp-server-00515-q9f", "exact v0.5.65 release revision")
-require(SERVER_STATUS_PATH, "verifimind-mcp-server-00516-48g", "current serving revision (ambient-notice refresh)")
-forbid(SERVER_STATUS_PATH, r"still\s+carries the v0\.5\.64 text", "ambient notice described as stale after its refresh")
-require(SERVER_STATUS_PATH, "da4c87ec-d836-452b-a312-6c64178cb389", "exact v0.5.65 build")
+require(SERVER_STATUS_PATH, "verifimind-mcp-server-00517-l2d", "exact v0.5.66 release revision")
+require(SERVER_STATUS_PATH, "verifimind-mcp-server-00518-pkp", "current serving revision (ambient-notice refresh)")
+forbid(SERVER_STATUS_PATH, r"still\s+(?:carries|announces) (?:the )?v0\.5\.6[45] (?:text|notice)\b(?! on a 0\.5\.66)", "ambient notice described as stale after its refresh")
+require(SERVER_STATUS_PATH, "019112d5-b6b8-4497-a136-3276df9038f9", "exact v0.5.66 build")
+require(SERVER_STATUS_PATH, "sha256:fc705da94716925264c316b99ccba695258635f4361895458de634ff933fd5de", "exact v0.5.66 image digest")
 require(SERVER_STATUS_PATH, "Terms v2.6 / Privacy v2.7", "current policy versions")
 forbid(SERVER_STATUS_PATH, REPLACED_DATE_AS_CURRENT, "replaced registration date presented as current")
 require(SERVER_STATUS_PATH, STANDING_NOTICE_PROMISE, "standing registration-notice promise")

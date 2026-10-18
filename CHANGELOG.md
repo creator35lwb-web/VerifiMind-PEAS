@@ -19,13 +19,24 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
-## v0.5.66 - Runtime Currency (release candidate, October 18, 2026)
+## v0.5.66 - Runtime Currency (October 18, 2026)
 
-**RELEASE CANDIDATE — not merged, not deployed.** This section describes the
-reviewed head of the candidate pull request. The exact merge, Cloud Build,
-image, serving revision and post-deploy verification are added by the
-post-deploy truth conversion, as for every release since v0.5.58; nothing in
-this section is a claim about production.
+**DEPLOYED.** Production deployment is bound to merge commit
+`2903bb8d3ec4a24e143b359d52b77920ffa8fe25` (PR #382), whose parents are the
+public base `a65b3aec209ef223aa61f7b6b36868fa4d01bede` and the CTO-reviewed head
+`5a56e137c079c0a48fc6090ddc03835c740227f6`. The merge tree
+`a05076e23cbf46e655ae91dd96734dae6ce6d4d4` is identical to the reviewed head's
+tree, which is the tree every hosted check (9 of 9) and the pre-merge smoke
+exercised. The merge landed at 2026-10-18 03:04 UTC (11:04 in Malaysia, the
+operator's timezone). Cloud Build `019112d5-b6b8-4497-a136-3276df9038f9` ran
+from the exact merge source (`COMMIT_SHA` bound; Python 3.12.12; the build log
+lists the installed pins) and produced image
+`sha256:fc705da94716925264c316b99ccba695258635f4361895458de634ff933fd5de`; revision
+`verifimind-mcp-server-00517-l2d` took 100% of traffic at 03:06 UTC with a
+configuration identical to its predecessor `00516-48g`. The ambient service
+notice was then refreshed on the same image as the configuration-only revision
+`verifimind-mcp-server-00518-pkp` (04:33 UTC), which now serves. The v0.5.63
+authentication layer remains deployed dark; no gate variable is set.
 
 This release moves five exact pins of the hosted runtime stack **as one tested
 set**, in both manifests (`mcp-server/pyproject.toml`, the deployment dependency
@@ -60,8 +71,31 @@ a production deployment, and one production transition is one tested release.
   (Privacy v2.7 / Terms v2.6) and their standing registration-notice promise,
   and the authentication layer, which remains deployed dark with no gate
   variable set.
-- **MCP Registry manifest** `3.43.0` — candidate; published by the GitHub
-  Release after deployment, as for v0.5.65.
+- **MCP Registry manifest** `3.43.0` — to be published by the v0.5.66 GitHub
+  Release through the registry workflow (the Release is created at the exact
+  merge `2903bb8`; both are pending when this entry was converted and this
+  line is re-pinned once they are verified).
+
+Post-deploy verification (October 18, 2026, 04:21–04:34 UTC): a paced anonymous
+read-back passed 20 of 20 checks (`/health` 0.5.66, healthy, `protocol_version
+2026-07-28`, Firestore connected, inference live; server card in agreement;
+containment 8/8; OAuth discovery served and endpoints dark; three handshake eras
+and the sessionless 2026-07-28 era with `server/discover`; Terms v2.6 / Privacy
+v2.7 dated October 15, 2026). The versioned smoke oracle passed 48 / 0 stop /
+0 instrument against production after a known-positive on local keyless servers
+of both trees, where exactly the four version legs fired on the previous tree
+(v0.5.65) and every leg passed on the deployed tree. **Post-deploy Trinity, as
+observed: one anonymous run — X real, Z real, CS unavailable** (the Groq
+completion output for CS was truncated at its 3,775-token reservation and
+labelled `PROVIDER_OUTPUT_TRUNCATED`); outcome `partial`, 36 s; the
+honest-degradation contract held (analysis marked incomplete, confidence
+withheld, recommendation capped, CS analysis block withheld, nothing written to
+history); no failover attempt. One run is not a reliability figure: the
+pre-merge smoke on this identical tree completed X/Z/CS real/real/real locally,
+and the Z/CS completion-reservation limitation recorded in
+[`SERVER_STATUS.md`](SERVER_STATUS.md) remains the standing condition, not a
+regression of this release. The typed BYOK failure contract held (invalid key →
+`BYOK_AUTH_FAILED` per stage, decision surface withheld).
 
 ---
 
