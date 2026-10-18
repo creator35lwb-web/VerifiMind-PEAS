@@ -15,8 +15,8 @@
 # 2026-07-28 MCP spec RC will land in SDKs soon; SDK bumps must be deliberate PRs.
 # Versions = what prod serves and the full suite passes on.
 mcp==2.2.0
-fastmcp==4.0.10
-starlette==1.7.0
+fastmcp==4.1.1
+starlette==1.8.0
 
 # Data Validation
 pydantic==2.13.5
@@ -35,7 +35,7 @@ mistralai>=1.0.0
 python-dotenv>=1.2.2
 
 # Server Framework
-fastapi==0.142.2
+fastapi==0.143.3
 uvicorn[standard]==0.54.0
 
 

@@ -17,8 +17,8 @@ dependencies = [
     # bumps must be deliberate PRs. Versions = what prod serves + the full suite
     # passes on. Batch bumped 2026-08-13 (PR #329): fastmcp/starlette/fastapi/uvicorn.
     "mcp==2.2.0",
-    "fastmcp==4.0.10",
-    "starlette==1.7.0",
+    "fastmcp==4.1.1",
+    "starlette==1.8.0",
     "pydantic==2.13.5",
     "httpx==0.28.1",
     "openai>=1.0.0",
@@ -32,7 +32,7 @@ dependencies = [
     # removal since v0.5.0 while only ever checking requirements.txt. This entry
     # kept it — plus toml/typer/art/shellingham — in the production image, and
     # its presence auto-skipped the one test that would have caught that.
-    "fastapi==0.142.2",
+    "fastapi==0.143.3",
     "uvicorn[standard]==0.54.0",
     "google-cloud-firestore>=2.26.0",
     "email-validator>=2.0.0",
