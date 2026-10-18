@@ -198,6 +198,9 @@ def failover_error_payload(exc, agent: str, concept_name: Optional[str] = None) 
     payload["_provider_attempts"] = exc.attempts
     payload["attempt_count"] = len(exc.attempts)
     payload["final_reason_class"] = exc.final_reason_class
+    # Z-B1a: the final attempt's completion diagnostics, when one was captured.
+    from .utils.completion_diagnostics import completion_diagnostics_envelope
+    payload["_completion_diagnostics"] = completion_diagnostics_envelope(exc)
     # B-92-1: EXPLICIT terminal truth from the executor — never inferred
     # from the trail. A proposed-but-rejected hop is not failover, and the
     # final provider is the one that actually executed inference (or None).
@@ -274,6 +277,9 @@ def _agent_exception_payload(
     payload["retryable"] = contract["retryable"]
     if contract["retry_after_seconds"] is not None:
         payload["retry_after_seconds"] = contract["retry_after_seconds"]
+    # Z-B1a: the failed attempt's own completion diagnostics (nullable).
+    from .utils.completion_diagnostics import completion_diagnostics_envelope
+    payload["_completion_diagnostics"] = completion_diagnostics_envelope(exc, provider)
     emit_structured_failure(
         error_code=contract["error_code"],
         agent=agent,
@@ -866,6 +872,10 @@ def _create_mcp_instance():
                 "market_competition", "competitive_analysis",
             ))
             attach_failover_disclosure(payload, result)
+            if detail in ("standard", "full"):
+                # Z-B1a: additive completion diagnostics; "summary" keeps its legacy bytes.
+                from .utils.completion_diagnostics import completion_diagnostics_envelope
+                payload["_completion_diagnostics"] = completion_diagnostics_envelope(result, provider)
             persist_trinity_result(user_uuid, "consult_agent_x", payload)
             return wrap_response(payload)
 
@@ -1005,6 +1015,10 @@ def _create_mcp_instance():
                 "total_frameworks_evaluated",
             ))
             attach_failover_disclosure(payload, result)
+            if detail in ("standard", "full"):
+                # Z-B1a: additive completion diagnostics; "summary" keeps its legacy bytes.
+                from .utils.completion_diagnostics import completion_diagnostics_envelope
+                payload["_completion_diagnostics"] = completion_diagnostics_envelope(result, provider)
             persist_trinity_result(user_uuid, "consult_agent_z", payload)
             return wrap_response(payload)
 
@@ -1140,6 +1154,10 @@ def _create_mcp_instance():
                 "macp_security_assessment", "standards_referenced",
             ))
             attach_failover_disclosure(payload, result)
+            if detail in ("standard", "full"):
+                # Z-B1a: additive completion diagnostics; "summary" keeps its legacy bytes.
+                from .utils.completion_diagnostics import completion_diagnostics_envelope
+                payload["_completion_diagnostics"] = completion_diagnostics_envelope(result, provider)
             persist_trinity_result(user_uuid, "consult_agent_cs", payload)
             return wrap_response(payload)
 
@@ -1389,6 +1407,9 @@ def _create_mcp_instance():
                 stagger_if_shared_provider,
             )
             retry_budget = TrinityRetryBudget()
+            # Z-B1a: per-stage completion diagnostics (nullable, additive);
+            # each stage's envelope is built from its own result or exception.
+            from .utils.completion_diagnostics import completion_diagnostics_envelope
 
             # Step 1: X Agent analysis (no prior reasoning)
             try:
@@ -1405,6 +1426,9 @@ def _create_mcp_instance():
                     "Trinity X stage: quality=%s session=%s",
                     x_quality,
                     session.session_id,
+                )
+                x_completion_diagnostics = completion_diagnostics_envelope(
+                    x_result, resolved_providers["X"]
                 )
                 x_cot = (
                     x_result.to_chain_of_thought(concept_name)
@@ -1425,6 +1449,9 @@ def _create_mcp_instance():
                 x_quality = "unavailable"
                 chain_status["x_agent"] = x_quality
                 x_cot = None
+                x_completion_diagnostics = completion_diagnostics_envelope(
+                    e, resolved_providers["X"]
+                )
 
             # Step 2: Z Agent analysis (sees X's reasoning)
             from .utils import (
@@ -1454,6 +1481,9 @@ def _create_mcp_instance():
                     "Trinity Z stage: quality=%s session=%s",
                     z_quality,
                     session.session_id,
+                )
+                z_completion_diagnostics = completion_diagnostics_envelope(
+                    z_result, resolved_providers["Z"]
                 )
 
                 # v0.5.3 Token Ceiling Monitor — Strategy 3
@@ -1510,6 +1540,9 @@ def _create_mcp_instance():
                 z_quality = "unavailable"
                 chain_status["z_agent"] = z_quality
                 z_cot = None
+                z_completion_diagnostics = completion_diagnostics_envelope(
+                    e, resolved_providers["Z"]
+                )
 
             # Step 3: CS Agent analysis (sees X and Z reasoning)
             # v0.5.60: Z and CS bill the same hosted provider today — a short
@@ -1547,6 +1580,9 @@ def _create_mcp_instance():
                     "Trinity CS stage: quality=%s session=%s",
                     cs_quality,
                     session.session_id,
+                )
+                cs_completion_diagnostics = completion_diagnostics_envelope(
+                    cs_result, resolved_providers["CS"]
                 )
                 cs_output_tokens = getattr(cs_result, '_output_tokens', 0)
                 cs_effective_ceiling = getattr(
@@ -1595,6 +1631,9 @@ def _create_mcp_instance():
                 )
                 cs_quality = "unavailable"
                 chain_status["cs_agent"] = cs_quality
+                cs_completion_diagnostics = completion_diagnostics_envelope(
+                    e, resolved_providers["CS"]
+                )
 
             # v0.4.3.1 C-S-P Propagation: Compute overall quality
             quality_values = list(chain_status.values())
@@ -1724,6 +1763,9 @@ def _create_mcp_instance():
                     "_schema_diagnostics": schema_diagnostics,
                     "_z_token_monitor": z_token_monitor,
                     "_cs_token_monitor": cs_token_monitor,
+                "_x_completion_diagnostics": x_completion_diagnostics,
+                "_z_completion_diagnostics": z_completion_diagnostics,
+                "_cs_completion_diagnostics": cs_completion_diagnostics,
                     **_byok_meta,
                     **_stage_failure_meta,
                     **session.to_metadata(),
@@ -1822,6 +1864,9 @@ def _create_mcp_instance():
                 "_schema_diagnostics": schema_diagnostics,
                 "_z_token_monitor": z_token_monitor,
                 "_cs_token_monitor": cs_token_monitor,
+                "_x_completion_diagnostics": x_completion_diagnostics,
+                "_z_completion_diagnostics": z_completion_diagnostics,
+                "_cs_completion_diagnostics": cs_completion_diagnostics,
                 **_byok_meta,
                 **_stage_failure_meta,
                 **session.to_metadata(),
