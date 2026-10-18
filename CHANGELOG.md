@@ -19,6 +19,52 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.66 - Runtime Currency (release candidate, October 18, 2026)
+
+**RELEASE CANDIDATE — not merged, not deployed.** This section describes the
+reviewed head of the candidate pull request. The exact merge, Cloud Build,
+image, serving revision and post-deploy verification are added by the
+post-deploy truth conversion, as for every release since v0.5.58; nothing in
+this section is a claim about production.
+
+This release moves five exact pins of the hosted runtime stack **as one tested
+set**, in both manifests (`mcp-server/pyproject.toml`, the deployment dependency
+authority, and `mcp-server/requirements.txt`, the CI mirror) and nowhere else in
+the pinned set. The five Dependabot proposals (#370, #371, #373, #374, #375)
+are superseded by this one change because every merge under `mcp-server/**` is
+a production deployment, and one production transition is one tested release.
+
+| Package | From | To | Upstream delta relevant to this service |
+|---|---|---|---|
+| FastMCP | 4.0.5 | 4.0.10 | Fixes only: resource-template literal and query matching, completion visibility returned to the 4.0.5 behaviour (4.0.8), a bounded template-pattern cache, OAuthProxy upstream refresh-token revocation, stdio teardown. The `mcp` SDK pin stays **2.2.0**, so the advertised protocol era (`2026-07-28`) and the handshake eras are unchanged. |
+| Starlette | 1.6.0 | 1.7.0 | Requires AnyIO 4 (already installed); `Vary: Origin` on every normal CORS response; consistent handling of malformed `Host` headers and IPv6 authorities; `BaseHTTPMiddleware` runs background tasks only after the response is sent; an experimental OpenTelemetry middleware that this service does not add. |
+| FastAPI | 0.141.1 | 0.142.2 | Native OpenTelemetry support that stays inactive unless an OpenTelemetry SDK provider is configured or OTLP exporter variables are set (neither is the case for this service: only the API package is present, as a FastMCP dependency); a fix for repeated endpoint wrapping in included routers; startup tolerates a failed automatic OpenTelemetry configuration. |
+| uvicorn[standard] | 0.53.0 | 0.54.0 | HTTP/2 response trailers and `103 Early Hints` in the experimental, opt-in HTTP/2 implementation; the HTTP/1.1 server this service runs is unchanged. |
+| cryptography | 50.0.1 | 50.0.2 | Wheels rebuilt against OpenSSL 4.0.3; PyO3 0.29.2; free-threaded CPython 3.15 wheels added; no API change. |
+
+- **Third-party notices re-bound** — `mcp-server/THIRD_PARTY_NOTICES.md` now
+  cites the cryptography 50.0.2 sdist and x86_64 wheels, with their PyPI
+  digests and Trusted Publisher attestations re-verified for this version; the
+  three license texts are byte-identical to the 50.0.1 texts and remain
+  reproduced verbatim with their SHA-256 receipts, now bound to the 50.0.2
+  installed paths. `test_third_party_notices.py` pins 50.0.2. This is the test
+  that failed on Dependabot's cryptography-only proposal (#374): the notice
+  binds the license evidence to the exact artifact, so a pin cannot move
+  without it.
+- **No open security advisory** applies to any of the five packages at the
+  time of this candidate (Dependabot alerts: none open; `pip-audit` on the
+  candidate set: clean). This is currency work, not an incident response.
+- **Unchanged:** VerifiMind application code, hosted-provider routing, retry
+  and failover policy (runtime failover remains disabled), tool availability
+  (13 defined / 8 active / 5 temporarily unavailable), the policy texts
+  (Privacy v2.7 / Terms v2.6) and their standing registration-notice promise,
+  and the authentication layer, which remains deployed dark with no gate
+  variable set.
+- **MCP Registry manifest** `3.43.0` — candidate; published by the GitHub
+  Release after deployment, as for v0.5.65.
+
+---
+
 ## v0.5.65 - Registration Date Amendment (October 15, 2026)
 
 **DEPLOYED.** Production deployment is bound to merge commit
