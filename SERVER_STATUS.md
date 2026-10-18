@@ -3,8 +3,8 @@
 **Last updated:** October 18, 2026
 
 **Evidence cutoff:** v0.5.66 deployment verified October 18, 2026, 03:05–04:35 UTC
-(11:05–12:35 in Malaysia, the operator's timezone); the v0.5.66 GitHub Release and
-the MCP Registry publication were pending at this snapshot. The v0.5.65 release
+(11:05–12:35 in Malaysia, the operator's timezone); Release and Registry 05:08 UTC,
+verified 05:22 UTC. The v0.5.65 release
 deployment was verified October 15, 2026 (`00515-q9f`, then the configuration-only
 ambient-notice refresh `00516-48g`); earlier revisions are listed in the
 deployments table.
@@ -23,7 +23,7 @@ deployments table.
 | Cloud Build | `019112d5-b6b8-4497-a136-3276df9038f9` — **SUCCESS**, started 6 s after the merge, `COMMIT_SHA` bound to the merge, Python 3.12.12, installed pins listed in the build log; image `sha256:fc705da94716925264c316b99ccba695258635f4361895458de634ff933fd5de` |
 | Serving revision | **`verifimind-mcp-server-00518-pkp`** at 100% traffic, Ready — a configuration-only revision (ambient service notice refreshed, October 18, 2026 at 04:33 UTC) on the **same image digest** as the v0.5.66 release revision `verifimind-mcp-server-00517-l2d`; configuration otherwise identical |
 | Previous revision | `verifimind-mcp-server-00517-l2d` — the v0.5.66 release revision (same image; created October 18, 2026 at 03:06 UTC), retained as the rollback target; `00516-48g` and `00515-q9f` (v0.5.65 image) are also retained |
-| MCP Registry package | **3.42.0** live, published by the [v0.5.65 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.65); **3.43.0 is pending the v0.5.66 GitHub Release** (created by the maintainer at the exact merge `2903bb8`; it triggers the registry workflow) — this row is re-pinned when both are verified |
+| MCP Registry package | **3.43.0** — published by the [v0.5.66 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.66) on October 18, 2026 at 05:08 UTC through the registry workflow; API-verified live and marked latest. The Release tag resolves to `623f0203` (the docs-only truth-conversion merge #383 that followed the deployment); its `mcp-server/` subtree and `server.json` are identical to the deployed merge `2903bb8d` |
 | Tool inventory | **13 defined / 8 active / 5 temporarily unavailable** |
 | MCP transport | Streamable HTTP, **stateless** (no session header); protocol `2026-07-28` advertised and served sessionless; the handshake eras up to `2025-11-25` remain supported on the same mount |
 | Firestore | Connected during verified post-deploy health checks |
@@ -84,10 +84,14 @@ deployments table.
   not a regression of this release.
 - Ambient notice: refreshed at 04:33 UTC as the configuration-only revision
   `00518-pkp` (same image); every tool response now carries the v0.5.66 text.
-- GitHub Release v0.5.66 and the MCP Registry publication (3.43.0) were
-  **pending** at this snapshot; the Release is created by the maintainer at the
-  exact merge `2903bb8` and triggers the registry workflow. This file is
-  re-pinned when both are verified.
+- [GitHub Release v0.5.66](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.66)
+  was published by the maintainer on October 18, 2026 at 05:08 UTC and
+  triggered the MCP Registry publish (**3.43.0**, API-verified live and marked
+  latest). The tag resolves to `623f0203`, the docs-only truth-conversion merge
+  (#383) rather than the deployment merge itself; the two commits have an
+  identical `mcp-server/` subtree and `server.json`, so the released source and
+  the registry manifest are the deployed ones. The tag caused no build (the
+  deploy trigger is path-filtered to runtime paths).
 
 ## Deployments since the previous snapshot (August 26, 2026)
 

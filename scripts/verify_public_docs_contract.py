@@ -42,7 +42,10 @@ REPLACED_DATE_AS_CURRENT = r"from \*\*October 20, 2026\*\*|from 20 Oct 2026"
 STANDING_NOTICE_PROMISE = "at least 14 days in advance, and not before"
 # The conversion that preceded the Release described it as pending; that
 # wording must not survive the re-pin on any surface.
-PENDING_RELEASE_CLAIM = r"3\.42\.0 (?:is )?pending|Release v0\.5\.65: \*\*pending\*\*|pending at this\s+conversion"
+PENDING_RELEASE_CLAIM = (
+    r"3\.42\.0 (?:is )?pending|Release v0\.5\.65: \*\*pending\*\*|pending at this\s+conversion"
+    r"|3\.43\.0 (?:is )?pending|pending the v0\.5\.66 (?:GitHub )?Release|were\s+\*\*pending\*\* at this snapshot"
+)
 RELIABILITY_CLAIM = r"clean smoke|smoke(?: is| was)? clean|Trinity (?:is|remains|now) reliable|reliability (?:is )?(?:proven|established)"
 failures: list[str] = []
 checks = 0
@@ -117,12 +120,11 @@ require(README_PATH, V0566_RUN_AS_OBSERVED, "v0.5.66 run recorded as observed")
 forbid(README_PATH, RELIABILITY_CLAIM, "reliability generalised from a smoke run")
 forbid(README_PATH, REPLACED_DATE_AS_CURRENT, "replaced registration date presented as current")
 require(README_PATH, STANDING_NOTICE_PROMISE, "standing registration-notice promise")
-# 3.42.0 (v0.5.65 Release, 2026-10-15) is the live Registry identity until the
-# v0.5.66 Release publishes 3.43.0; the v0.5.66 pending wording is allowed at
-# this conversion and retired by the re-pin that follows the Release. Prior
-# packages and the v0.5.65 interim wording stay forbidden.
-require(README_PATH, "MCP Registry package:** `3.42.0` (live", "live Registry identity")
-require(README_PATH, "3.43.0", "v0.5.66 Registry manifest named")
+# 3.43.0 was published by the v0.5.66 GitHub Release on 2026-10-18 (05:08 UTC)
+# and is the live Registry identity; prior packages and both interim "pending"
+# wordings (v0.5.65 and v0.5.66) are forbidden below.
+require(README_PATH, "MCP Registry package:** `3.43.0`", "live Registry identity")
+require(README_PATH, "releases/tag/v0.5.66", "v0.5.66 Release link")
 forbid(README_PATH, PENDING_RELEASE_CLAIM, "Release/Registry still described as pending")
 forbid(SERVER_STATUS_PATH, PENDING_RELEASE_CLAIM, "Release/Registry still described as pending")
 require(README_PATH, "13 defined / 8 active / 5 temporarily unavailable", "availability taxonomy")
@@ -135,7 +137,7 @@ forbid(README_PATH, r"creator35lwb-web/verifimind-genesis-mcp", "private Hub lin
 forbid(README_PATH, r"\*\*Providers:\*\*\s*7\b", "conflated remote/local provider count")
 forbid(
     README_PATH,
-    r"ba02fd02|82444203-10d0|b434979e|e3ca9551-0292|00496-g7s|07b422f1|6b1216e9-94dc|00508-dj8|2685d4c7|50896a37-f06e|00513-klm|00514-dnc|ba9b20a6|da4c87ec-d836|00515-q9f|00516-48g|MCP Registry package:\*\* `3\.(3[89]|4[01])\.0`",
+    r"ba02fd02|82444203-10d0|b434979e|e3ca9551-0292|00496-g7s|07b422f1|6b1216e9-94dc|00508-dj8|2685d4c7|50896a37-f06e|00513-klm|00514-dnc|ba9b20a6|da4c87ec-d836|00515-q9f|00516-48g|MCP Registry package:\*\* `3\.(3[89]|4[0-2])\.0`",
     "prior release receipts",
 )
 forbid(
@@ -201,6 +203,8 @@ if re.search(
     failures.append("CHANGELOG.md: current section denies a provider-catalogue change with the v0.5.63 sentence shape")
 
 require(SERVER_STATUS_PATH, "| Application | **v0.5.66**", "current production version")
+require(SERVER_STATUS_PATH, "| MCP Registry package | **3.43.0**", "live Registry identity")
+require(SERVER_STATUS_PATH, "releases/tag/v0.5.66", "v0.5.66 Release link")
 require(SERVER_STATUS_PATH, V0566_ONE_RUN, "v0.5.66 one-run qualifier")
 require(SERVER_STATUS_PATH, V0566_RUN_AS_OBSERVED, "v0.5.66 run recorded as observed")
 forbid(SERVER_STATUS_PATH, RELIABILITY_CLAIM, "reliability generalised from a smoke run")

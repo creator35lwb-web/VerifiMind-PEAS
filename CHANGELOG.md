@@ -71,10 +71,12 @@ a production deployment, and one production transition is one tested release.
   (Privacy v2.7 / Terms v2.6) and their standing registration-notice promise,
   and the authentication layer, which remains deployed dark with no gate
   variable set.
-- **MCP Registry manifest** `3.43.0` — to be published by the v0.5.66 GitHub
-  Release through the registry workflow (the Release is created at the exact
-  merge `2903bb8`; both are pending when this entry was converted and this
-  line is re-pinned once they are verified).
+- **MCP Registry manifest** `3.43.0` — published by the [v0.5.66 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.66)
+  on October 18, 2026 at 05:08 UTC (13:08 in Malaysia) through the registry
+  workflow; API-verified live and marked latest. The Release tag resolves to
+  `623f0203`, the docs-only truth-conversion merge that followed the
+  deployment; its `mcp-server/` subtree and `server.json` are identical to the
+  deployed merge `2903bb8d`, and the Release notes name that merge.
 
 Post-deploy verification (October 18, 2026, 04:21–04:34 UTC): a paced anonymous
 read-back passed 20 of 20 checks (`/health` 0.5.66, healthy, `protocol_version
