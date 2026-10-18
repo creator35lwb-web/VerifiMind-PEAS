@@ -15,8 +15,8 @@
 # 2026-07-28 MCP spec RC will land in SDKs soon; SDK bumps must be deliberate PRs.
 # Versions = what prod serves and the full suite passes on.
 mcp==2.2.0
-fastmcp==4.0.5
-starlette==1.6.0
+fastmcp==4.0.10
+starlette==1.7.0
 
 # Data Validation
 pydantic==2.13.5
@@ -35,8 +35,8 @@ mistralai>=1.0.0
 python-dotenv>=1.2.2
 
 # Server Framework
-fastapi==0.141.1
-uvicorn[standard]==0.53.0
+fastapi==0.142.2
+uvicorn[standard]==0.54.0
 
 
 # v0.5.6 Gateway: Early Adopter Registration + Privacy
@@ -50,7 +50,7 @@ standardwebhooks>=1.0.0
 # pyproject.toml EXACTLY. joserfc>=1.7.3 carries the issuer-validation fix.
 Authlib==1.8.0
 joserfc==1.7.5
-cryptography==50.0.1
+cryptography==50.0.2
 
 # ---------------------------------------------------------------------------
 # TEST-ONLY EXTRAS — the ONLY permitted difference from pyproject.toml.
