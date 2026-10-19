@@ -48,7 +48,7 @@ standardwebhooks>=1.0.0
 
 # OAuth 2.1 authorization core (D-ALTON-2026-09-01-AUTHLIB) — must match
 # pyproject.toml EXACTLY. joserfc>=1.7.3 carries the issuer-validation fix.
-Authlib==1.8.0
+Authlib==1.9.1
 joserfc==1.7.5
 cryptography==50.0.2
 
