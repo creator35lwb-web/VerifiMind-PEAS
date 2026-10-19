@@ -18,7 +18,7 @@ dependencies = [
     # passes on. Batch bumped 2026-08-13 (PR #329): fastmcp/starlette/fastapi/uvicorn.
     "mcp==2.2.0",
     "fastmcp==4.0.10",
-    "starlette==1.7.0",
+    "starlette==1.8.0",
     "pydantic==2.13.5",
     "httpx==0.28.1",
     "openai>=1.0.0",
