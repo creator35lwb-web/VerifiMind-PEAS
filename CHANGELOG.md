@@ -19,13 +19,40 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
-## v0.5.67 - Runtime Currency II (release candidate, October 18, 2026)
+## v0.5.67 - Runtime Currency II (October 27, 2026)
 
-**RELEASE CANDIDATE — not merged, not deployed.** This section describes the
-reviewed head of the candidate pull request. The exact merge, Cloud Build,
-image, serving revision and post-deploy verification are added by the
-post-deploy truth conversion, as for every release since v0.5.58; nothing in
-this section is a claim about production.
+**DEPLOYED, together with #368.** PR #385 merged at 2026-10-27 10:14 UTC
+(18:14 in Malaysia, the operator's timezone) as merge commit
+`1109bb61373c276aa0cb30e83237f4af88bf1847`, whose second parent is the reviewed
+head `d1f12e33fcca33f5537af173d3035397caa3d3c2`. Cloud Build
+`8d935f95-cbde-4552-9298-a98e4f890e81` built it as image
+`sha256:433f9ca8e120b71392bfd1e31a689694cd1da38279807c5a6e9d436ec2720d18`
+(revision `verifimind-mcp-server-00519-4c2`). About a minute later PR #368
+(completion diagnostics, below) merged as
+`798f0c4e136a923fe8d99f3c0319a95d551680a2`; Cloud Build
+`15a851f5-ce4d-45b5-85c8-6da20f7310a9` built image
+`sha256:26c6bd4916a28a6b85faf9fe057d93d8f3c2d485879c4ab7c601e2d8cb5ba9c1`, and
+revision `verifimind-mcp-server-00520-v5b` has served 100% of traffic since
+10:20 UTC. Production v0.5.67 is therefore the pinned set below **plus** #368.
+Both PRs were reviewed and passed their hosted checks at their own heads before
+merge; the combined tree was tested only by the hosted test suite after the
+merge (it passed). #385 merged with its release-evidence hold open and #368
+with three hardening items open; both are described below. The v0.5.63
+authentication layer remains deployed dark; no gate variable is set.
+
+**Post-deploy check (2026-10-27, about 16:00 UTC, on the operator's GO).** The
+post-deploy oracle used for v0.5.66, run unchanged with the expected version
+set to 0.5.67, passed 48 of 48 checks with no stops: public truth, legal
+surfaces, containment of the legacy-identity routes, dark OAuth, the
+unavailable-tool denials, protocol eras, the typed BYOK failure contract with
+an invalid key, and a reflection scan. Before it ran, the same oracle told to
+expect 0.5.66 stopped on the version, as it must. One anonymous Trinity run is
+recorded as observed: X real, Z real, CS unavailable (a Groq rate limit, with
+a provider-stated wait of 22 seconds, above the 15-second retry ceiling). The
+run was therefore partial, and the honest-degradation contract held: no score,
+analysis marked incomplete, recommendation `revise`, nothing written to
+history. The #368 envelope was present for all three agents (X `unsupported`,
+Z `reported`, CS `no_response`). One run is not a reliability figure.
 
 This release moves three exact pins of the hosted runtime stack **as one tested
 set**, in both manifests (`mcp-server/pyproject.toml`, the deployment dependency
@@ -44,17 +71,50 @@ protocol era (`2026-07-28`) and the handshake eras are unchanged.
 - **Third-party notices unchanged** — none of the three packages is in the
   OAuth dependency closure (Authlib 1.8.0, joserfc 1.7.5 and cryptography
   50.0.2 stay pinned), so `THIRD_PARTY_NOTICES.md` and its test are untouched.
-- **No open security advisory** applies to the pinned set at the time of this
+- **No open security advisory** applied to the pinned set at the time of the
   candidate (Dependabot alerts: none open; `pip-audit` on the candidate set:
   clean). This is currency work, not an incident response.
-- **Unchanged:** VerifiMind application code, hosted-provider routing, retry
-  and failover policy (runtime failover remains disabled), tool availability
-  (13 defined / 8 active / 5 temporarily unavailable), the policy texts
-  (Privacy v2.7 / Terms v2.6) and their standing registration-notice promise,
-  and the authentication layer, which remains deployed dark with no gate
-  variable set.
-- **MCP Registry manifest** `3.44.0` — candidate; published by the GitHub
-  Release after deployment.
+- **Security advisories published after the candidate.** On October 23, 2026
+  two FastMCP advisories were published whose affected ranges include 4.1.1 and
+  the previous 4.0.10: GHSA-7xgj-8392-5q4r (component authorization skipped
+  for transformed components on direct calls) and GHSA-vqqp-x5qm-5qp4 (client
+  machine-to-machine OAuth providers without issuer binding). Both are fixed in
+  4.1.2. The dependency audit on `main` reports them, and Dependabot proposes
+  the one-pin update (#393). As far as the deployed source shows, neither
+  precondition exists here: the service defines no FastMCP component
+  authorization and no transforms, and makes no server-side FastMCP client use
+  (the same facts measured for 4.0.11 above). This is a code search; it was not
+  re-probed on the served service.
+- **Release-evidence hold, open at merge.** In the two before/after smoke pairs
+  run on the candidate, the previous set completed all three agents while the
+  candidate returned partial, with CS truncated at its completion reservation.
+  Two selected pairs are not a rate and do not establish a cause; no
+  completion-rate claim is made either way.
+- **Unchanged by #385:** VerifiMind application code, hosted-provider routing,
+  retry and failover policy (runtime failover remains disabled), tool
+  availability (13 defined / 8 active / 5 temporarily unavailable), the policy
+  texts (Privacy v2.7 / Terms v2.6) and their standing registration-notice
+  promise, and the authentication layer, which remains deployed dark with no
+  gate variable set.
+- **MCP Registry manifest** `3.44.0` — published by the GitHub Release for this
+  version, which had not been cut at this conversion; Registry `3.43.0` remains
+  the live package.
+
+### Also deployed: completion diagnostics (#368)
+
+PR #368 adds one diagnostics envelope to each agent result: a nullable,
+re-validated snapshot of the completion attempt (provider, model, status,
+completion reservation sent, provider-reported completion and reasoning token
+counts, reasoning share, scope, note). Groq attempts carry a snapshot; other
+providers report `unsupported`. It is designed as observability only: the
+requests sent to providers and the routing, retry, failover and verdict logic
+are unchanged, and the `summary` detail level keeps its previous bytes. Its
+review found three hardening items that are not yet repaired, the first of
+which can change a result: in rare failure paths, a fault inside the
+diagnostics can replace a stage's original result or error detail; after a
+retry, the diagnostics can report an earlier attempt's snapshot as the final
+one; and a received but empty or inconsistent provider response can be
+reported as no response, or with an inconsistent reasoning share.
 
 ---
 
