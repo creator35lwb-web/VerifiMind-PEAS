@@ -54,6 +54,35 @@ analysis marked incomplete, recommendation `revise`, nothing written to
 history. The #368 envelope was present for all three agents (X `unsupported`,
 Z `reported`, CS `no_response`). One run is not a reliability figure.
 
+**Update — FastMCP 4.1.2 (#393), 2026-10-27 17:09 UTC.** Merged as
+`19120178b4834a16ad5d34ea717c1ce7f580a6bf`. It changes FastMCP `4.1.1 → 4.1.2`
+in both manifests and nothing else; its first parent is the docs-only #394
+merge, which did not build. Cloud Build `c1f30520-68e1-4e25-b2c1-93b8a0e60774`
+built image
+`sha256:b031453eb45b00f4fde47a4e65ba76fcef9fe8920e62774f444d20864535ce05`, and
+revision `verifimind-mcp-server-00521-47n` has served 100% of traffic since
+17:11 UTC. The version identity stays 0.5.67. The four FastMCP alerts closed.
+The same post-deploy oracle ran again at about 17:20 UTC, after its
+known-positive stopped on the version. It passed 46 of 46 checks with no stops,
+including the five OAuth endpoints answering 503. That is two checks fewer than
+the earlier run because a run that completes skips the degradation checks. One
+anonymous Trinity run is recorded as observed: X real, Z real, CS real, so the
+run completed with a full decision surface. The #368 envelope was present (X
+`unsupported`, Z and CS `reported`). Today's two runs were one partial and one
+full; that is not a reliability figure.
+
+**Seven Authlib advisories published October 27, 2026** cover the pinned
+Authlib 1.8.0: GHSA-6v38-4h7w-rj9h, GHSA-7vr2-2fgp-9w7p, GHSA-8m4g-j4wp-wgcg,
+GHSA-c5mf-xmp2-59rc, GHSA-fch4-3c6x-j4gc, GHSA-q686-2qmg-hqc7 and
+GHSA-x4rv-c3wx-4cr8, fixed in 1.9.0 and 1.9.1. The dependency audit on `main`
+therefore still fails. They affect Authlib's JOSE (JWS/JWT) handling, OpenID
+Connect, the JWT-bearer grant and JWT-secured authorization requests. This
+service imports none of those: it uses only the OAuth 2.0 server core,
+bearer-token validation and PKCE. Every OAuth endpoint it serves is dark and
+returns 503, re-probed after this deployment. The update to Authlib 1.9.1 is
+required before the authentication layer is staged or activated; it is not
+part of this release.
+
 This release moves three exact pins of the hosted runtime stack **as one tested
 set**, in both manifests (`mcp-server/pyproject.toml`, the deployment dependency
 authority, and `mcp-server/requirements.txt`, the CI mirror) and nowhere else in
@@ -79,8 +108,9 @@ protocol era (`2026-07-28`) and the handshake eras are unchanged.
   the previous 4.0.10: GHSA-7xgj-8392-5q4r (component authorization skipped
   for transformed components on direct calls) and GHSA-vqqp-x5qm-5qp4 (client
   machine-to-machine OAuth providers without issuer binding). Both are fixed in
-  4.1.2. The dependency audit on `main` reports them, and Dependabot proposes
-  the one-pin update (#393). As far as the deployed source shows, neither
+  4.1.2. The dependency audit on `main` reported them until the one-pin update
+  (#393) merged later the same day (see the update above). As far as the
+  deployed source shows, neither
   precondition exists here: the service defines no FastMCP component
   authorization and no transforms, and makes no server-side FastMCP client use
   (the same facts measured for 4.0.11 above). This is a code search; it was not
