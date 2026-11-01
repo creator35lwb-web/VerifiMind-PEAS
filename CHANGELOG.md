@@ -71,6 +71,30 @@ run completed with a full decision surface. The #368 envelope was present (X
 `unsupported`, Z and CS `reported`). Today's two runs were one partial and one
 full; that is not a reliability figure.
 
+**Update — diagnostics containment (#396), 2026-11-01 19:47 UTC.** Merged as
+`a73ed0683c2b2559638f04629fcf7aaed409ba8c`. Its second parent is the
+CTO-reviewed head `9daa40487e4e47cddf2c512c7b49e530e206984e`, and the merge tree
+is identical to that head's tree. It repairs the first #368 hardening item
+(below). Wherever the diagnostics are read, copied or validated, an ordinary
+failure now leaves the envelope `unavailable` and the stage's result, error
+detail and typed code unchanged; cancellation still propagates. Only
+`base_agent.py`, `completion_diagnostics.py` and their tests change. Requests,
+prompts, routing, retries, failover, quotas and scoring are unchanged. No such
+failure had been observed in production; the containment is now structural
+rather than circumstantial. Cloud Build `1cc6200c-bbc5-4b71-bb1e-87494b38f7d4`
+built image
+`sha256:1e5c9ce7ab80cac4e9d3e0dcb2df1f58a03f586525c574b9f4e8ccf64d99d63b`, and
+revision `verifimind-mcp-server-00522-hnp` has served 100% of traffic since
+19:48 UTC. The version identity stays 0.5.67. The same post-deploy oracle ran at
+about 20:00 UTC, after its known-positive stopped on the version. It passed 48
+of 48 checks with no stops, including the five OAuth endpoints answering 503.
+One anonymous Trinity run is recorded as observed: X real, Z real, CS
+unavailable. CS output was truncated at its 3,772-token completion reservation,
+2,053 of those tokens reported as reasoning. The run was therefore partial, and
+the honest-degradation contract held. The #368 envelope was present for all
+three agents (X `unsupported`, Z and CS `reported`). One run is not a
+reliability figure.
+
 **Seven Authlib advisories published October 27, 2026** cover the pinned
 Authlib 1.8.0: GHSA-6v38-4h7w-rj9h, GHSA-7vr2-2fgp-9w7p, GHSA-8m4g-j4wp-wgcg,
 GHSA-c5mf-xmp2-59rc, GHSA-fch4-3c6x-j4gc, GHSA-q686-2qmg-hqc7 and
@@ -82,6 +106,15 @@ bearer-token validation and PKCE. Every OAuth endpoint it serves is dark and
 returns 503, re-probed after this deployment. The update to Authlib 1.9.1 is
 required before the authentication layer is staged or activated; it is not
 part of this release.
+
+**Two more advisories were published October 30, 2026:** GHSA-c73q-w75p-j82v
+(Authlib, the RFC 7592 client-management examples; fixed in 1.9.1) and
+GHSA-9pg5-8c7x-5hfx (joserfc 1.7.5, a compact-JWS size guard; fixed in 1.7.6).
+The dependency audit now reports 9 findings in 2 packages. The service has no
+RFC 7592 client-management code and does not import joserfc, and every OAuth
+endpoint still returns 503 (re-probed after the #396 deployment). Updating to
+Authlib 1.9.1 and joserfc 1.7.6 or later is required before the authentication
+layer is staged or activated.
 
 This release moves three exact pins of the hosted runtime stack **as one tested
 set**, in both manifests (`mcp-server/pyproject.toml`, the deployment dependency
@@ -139,12 +172,12 @@ counts, reasoning share, scope, note). Groq attempts carry a snapshot; other
 providers report `unsupported`. It is designed as observability only: the
 requests sent to providers and the routing, retry, failover and verdict logic
 are unchanged, and the `summary` detail level keeps its previous bytes. Its
-review found three hardening items that are not yet repaired, the first of
-which can change a result: in rare failure paths, a fault inside the
-diagnostics can replace a stage's original result or error detail; after a
-retry, the diagnostics can report an earlier attempt's snapshot as the final
-one; and a received but empty or inconsistent provider response can be
-reported as no response, or with an inconsistent reasoning share.
+review found three hardening items. The first could change a result: in rare
+failure paths, a fault inside the diagnostics could replace a stage's original
+result or error detail. #396 repaired it (see the update above). Two remain
+open: after a retry, the diagnostics can report an earlier attempt's snapshot
+as the final one; and a received but empty or inconsistent provider response
+can be reported as no response, or with an inconsistent reasoning share.
 
 ---
 
