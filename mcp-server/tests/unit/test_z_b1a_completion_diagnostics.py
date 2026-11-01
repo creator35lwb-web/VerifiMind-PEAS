@@ -15,6 +15,7 @@ Discriminating controls: each positive assertion has a sibling that must fail
 nothing cannot pass.
 """
 
+import asyncio
 import json
 import logging
 import math
@@ -25,6 +26,7 @@ import pytest
 
 from verifimind_mcp import config_helper, server
 from verifimind_mcp.agents import CSAgent, XAgent, ZAgent
+from verifimind_mcp.llm.failover import FailoverExhaustedError
 from verifimind_mcp.llm.provider import (
     COMPLETION_DIAGNOSTICS_ATTR,
     GROQ_8K_TPM_COMPLETION_CAP,
@@ -579,3 +581,183 @@ async def test_standalone_cs_failure_payload_carries_the_failed_attempt(app, mon
     env = payload["_completion_diagnostics"]
     assert (env["status"], env["sent_reservation"], env["completion_tokens"], env["reasoning_tokens"]) == ("reported", 3738, 3738, 1500)
     assert REASONING_SENTINEL not in json.dumps(payload)
+
+
+# ---------------------------------------------------------------- 7. H1: diagnostics never replace the primary outcome
+# T S186 H1 / T S210: a failure while reading or validating diagnostics must yield
+# an "unavailable" envelope and leave the original success, provider error, typed
+# code and recovery hint exactly as they were. Every witness below raised out of
+# the envelope builder (or the agent boundary) on the unrepaired tree.
+class _DiagnosticsGetterError(ValueError):
+    """An exception whose diagnostics getter raises (a hostile or broken carrier)."""
+
+    def __getattr__(self, name):
+        if name == COMPLETION_DIAGNOSTICS_ATTR:
+            raise RuntimeError("diagnostics getter exploded")
+        raise AttributeError(name)
+
+
+class _CancelledGetterError(ValueError):
+    """Cancellation is not a diagnostics failure: it must still propagate."""
+
+    def __getattr__(self, name):
+        if name == COMPLETION_DIAGNOSTICS_ATTR:
+            raise asyncio.CancelledError()
+        raise AttributeError(name)
+
+
+class _HostileCarrier:
+    """A non-exception result whose diagnostics getter raises."""
+
+    def __getattr__(self, name):
+        if name == COMPLETION_DIAGNOSTICS_ATTR:
+            raise RuntimeError("diagnostics getter exploded")
+        raise AttributeError(name)
+
+
+class _ExplodingSnapshot(dict):
+    """A snapshot whose copy raises."""
+
+    def keys(self):
+        raise RuntimeError("snapshot copy exploded")
+
+    def __iter__(self):
+        raise RuntimeError("snapshot copy exploded")
+
+
+class _ExplodingAttempts(list):
+    """A truthy attempt trail whose indexing raises (provider identity cannot be read)."""
+
+    def __getitem__(self, index):
+        raise RuntimeError("attempt trail exploded")
+
+
+class _HostileExhausted(FailoverExhaustedError):
+    def __getattr__(self, name):
+        if name == COMPLETION_DIAGNOSTICS_ATTR:
+            raise RuntimeError("diagnostics getter exploded")
+        raise AttributeError(name)
+
+
+def _hostile_x():
+    """A real X analysis whose diagnostics getter raises."""
+
+    class _HostileX(XAgentAnalysis):
+        def __getattr__(self, name):
+            if name == COMPLETION_DIAGNOSTICS_ATTR:
+                raise RuntimeError("diagnostics getter exploded")
+            return super().__getattr__(name)
+
+    x = _HostileX(reasoning_steps=_steps(), innovation_score=8.8, strategic_value=8.4,
+                  opportunities=["o"], risks=["r"], recommendation="Proceed.", confidence=0.9)
+    x._inference_quality = "real"
+    return x
+
+
+def _truncated(cls):
+    exc = cls(f"Groq response truncated before completion (model={GROQ_MODEL}, finish_reason=length).")
+    exc._provider_output_truncated = True
+    return exc
+
+
+def _attempts_error():
+    exc = ValueError("attempt trail")
+    exc.attempts = _ExplodingAttempts([{"provider": "groq"}])
+    return exc
+
+
+@pytest.mark.parametrize("source", [
+    _HostileCarrier(),
+    _DiagnosticsGetterError("getter"),
+    SimpleNamespace(_completion_diagnostics=_ExplodingSnapshot(_snapshot())),
+    _attempts_error(),
+], ids=["result-getter", "exception-getter", "snapshot-copy", "attempt-trail"])
+def test_h1_envelope_is_total_and_reports_unavailable(source):
+    env = completion_diagnostics_envelope(source, _NamedProvider(f"groq/{GROQ_MODEL}"))
+    assert set(env) == ENVELOPE_KEYS and env["status"] == "unavailable"
+    assert (env["sent_reservation"], env["completion_tokens"], env["reasoning_tokens"], env["reasoning_share"]) == (None,) * 4
+    assert (env["provider"], env["model"]) == ("groq", GROQ_MODEL)  # labels from the configured provider only
+    assert env["scope"] == COMPLETION_DIAGNOSTICS_SCOPE and env["note"] == COMPLETION_DIAGNOSTICS_NOTE
+
+
+def test_h1_an_unhashable_status_is_rejected_but_valid_counters_are_kept():
+    tampered = {**_snapshot(completion=2625, reasoning=900, reservation=4096), "status": []}
+    env = completion_diagnostics_envelope(SimpleNamespace(_completion_diagnostics=tampered), None)
+    assert env["status"] == "unavailable"
+    assert (env["sent_reservation"], env["completion_tokens"], env["reasoning_tokens"]) == (4096, 2625, 900)
+
+
+def test_h1_cancellation_is_not_contained():
+    with pytest.raises(asyncio.CancelledError):
+        completion_diagnostics_envelope(_CancelledGetterError("cancel"), None)
+
+
+@pytest.mark.asyncio
+async def test_h1_agent_reraises_the_original_exception_when_its_diagnostics_getter_raises(monkeypatch):
+    original = _DiagnosticsGetterError("schema validation failed")
+
+    def _raise(cls, content, *args, **kwargs):
+        raise original
+    monkeypatch.setattr(ZAgentAnalysis, "model_validate", classmethod(_raise))
+    agent = ZAgent(llm_provider=_DictProvider({
+        "content": _valid_z_content(), "usage": {"output_tokens": 3395}, "_inference_quality": "real",
+        "_completion_token_reservation": 3395, COMPLETION_DIAGNOSTICS_ATTR: _snapshot(),
+    }))
+    with pytest.raises(_DiagnosticsGetterError) as info:
+        await agent.analyze(Concept(name="n", description="d", context=None))
+    assert info.value is original
+
+
+def test_h1_failover_payload_keeps_its_terminal_contract():
+    args = ("all attempts failed", [{"provider": "groq", "model": GROQ_MODEL}], "rate_limited", "corr-1")
+    twin = server.failover_error_payload(FailoverExhaustedError(*args), "Z", "n")
+    hostile = server.failover_error_payload(_HostileExhausted(*args), "Z", "n")
+    keys = ("status", "error_code", "error", "recovery_hint", "attempt_count", "final_reason_class",
+            "_failover_occurred", "final_provider", "_inference_quality")
+    assert hostile["error_code"] == "FAILOVER_EXHAUSTED"
+    assert {k: hostile.get(k) for k in keys} == {k: twin.get(k) for k in keys}
+    assert hostile["_completion_diagnostics"]["status"] == "unavailable"
+
+
+@pytest.mark.asyncio
+async def test_h1_standalone_failure_keeps_the_original_error_contract(app, monkeypatch):
+    _wire(monkeypatch, cs=_truncated(ValueError))
+    twin = await call(app, "consult_agent_cs", {"concept_name": "n", "concept_description": "d"})
+    _wire(monkeypatch, cs=_truncated(_DiagnosticsGetterError))
+    hostile = await call(app, "consult_agent_cs", {"concept_name": "n", "concept_description": "d"})
+    keys = ("status", "error_code", "error", "recovery_hint", "retryable", "provider", "model", "_inference_quality")
+    assert hostile["error_code"] == "PROVIDER_OUTPUT_TRUNCATED"
+    assert {k: hostile.get(k) for k in keys} == {k: twin.get(k) for k in keys}
+    assert hostile["_completion_diagnostics"]["status"] == "unavailable"
+
+
+@pytest.mark.asyncio
+async def test_h1_standalone_success_survives_an_unhashable_status(app, monkeypatch):
+    _, z, _ = _results()
+    z._completion_diagnostics = {**_snapshot(completion=2625, reasoning=900, reservation=4096), "status": []}
+    _wire(monkeypatch, z=z)
+    payload = await call(app, "consult_agent_z", {"concept_name": "n", "concept_description": "d", "detail": "standard"})
+    assert payload.get("status") != "error" and "error_code" not in payload and payload["ethics_score"] == 8.6
+    env = payload["_completion_diagnostics"]
+    assert env["status"] == "unavailable" and env["completion_tokens"] == 2625
+
+
+@pytest.mark.asyncio
+async def test_h1_trinity_success_stage_is_kept_when_its_diagnostics_cannot_be_read(app, monkeypatch):
+    _, z, cs = _results()
+    _wire(monkeypatch, x=_hostile_x(), z=z, cs=cs)
+    payload = await call(app, "run_full_trinity", {"concept_name": "n", "concept_description": "d", "detail": "standard"})
+    assert payload["_agent_chain_status"] == {"x_agent": "real", "z_agent": "real", "cs_agent": "real"}
+    assert "X" not in (payload.get("_stage_errors") or {})
+    assert payload["_x_completion_diagnostics"]["status"] == "unavailable"
+
+
+@pytest.mark.asyncio
+async def test_h1_trinity_failed_stage_keeps_its_typed_error_when_diagnostics_cannot_be_read(app, monkeypatch):
+    x, _, cs = _results()
+    _wire(monkeypatch, x=x, z=_truncated(_DiagnosticsGetterError), cs=cs)
+    payload = await call(app, "run_full_trinity", {"concept_name": "n", "concept_description": "d", "detail": "standard"})
+    assert payload["_stage_errors"]["Z"]["error_code"] == "PROVIDER_OUTPUT_TRUNCATED"
+    assert payload["_agent_chain_status"]["x_agent"] == "real" and payload["_agent_chain_status"]["cs_agent"] == "real"
+    zd = payload["_z_completion_diagnostics"]
+    assert set(zd) == ENVELOPE_KEYS and zd["status"] == "unavailable" and zd["completion_tokens"] is None

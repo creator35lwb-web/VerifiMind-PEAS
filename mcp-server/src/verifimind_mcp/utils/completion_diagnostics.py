@@ -76,7 +76,44 @@ def snapshot_from_result(result: Any) -> Optional[dict]:
 
 
 def completion_diagnostics_envelope(source: Any, provider: Any = None) -> dict:
-    """Build the public envelope from a stage result or the exception that ended the stage."""
+    """Build the public envelope from a stage result or the exception that ended the stage.
+
+    Total by contract (T S186 H1 / T S210): observability must never replace the
+    primary outcome. Any failure while reading or validating diagnostics yields an
+    ``unavailable`` envelope instead of an exception, so every carrier keeps its
+    original success, provider error, typed code and recovery hint. Only
+    ``Exception`` is contained; cancellation and interpreter exits propagate.
+    """
+    try:
+        return _build_envelope(source, provider)
+    except Exception:
+        return _unavailable_envelope(provider)
+
+
+def _unavailable_envelope(provider: Any) -> dict:
+    """The envelope for diagnostics that could not be read: every counter null.
+
+    Labels come from the configured provider alone, because the source may be
+    what failed; if even that cannot be read, they are null too.
+    """
+    try:
+        family, model = provider_identity(provider)
+    except Exception:
+        family = model = None
+    return {
+        "provider": family,
+        "model": model,
+        "status": "unavailable",
+        "sent_reservation": None,
+        "completion_tokens": None,
+        "reasoning_tokens": None,
+        "reasoning_share": None,
+        "scope": COMPLETION_DIAGNOSTICS_SCOPE,
+        "note": COMPLETION_DIAGNOSTICS_NOTE,
+    }
+
+
+def _build_envelope(source: Any, provider: Any) -> dict:
     is_exc = isinstance(source, BaseException)
     snapshot = snapshot_from_exception(source) if is_exc else snapshot_from_result(source)
     family, model = provider_identity(provider, source if is_exc else None)
@@ -97,7 +134,7 @@ def completion_diagnostics_envelope(source: Any, provider: Any = None) -> dict:
         envelope = {
             "provider": _clean_label(snapshot.get("provider")) or family,
             "model": _clean_label(snapshot.get("model")) or model,
-            "status": status if status in _KNOWN_STATUSES else "unavailable",
+            "status": status if isinstance(status, str) and status in _KNOWN_STATUSES else "unavailable",
             "sent_reservation": _clean_int(snapshot.get("sent_reservation")),
             "completion_tokens": _clean_int(snapshot.get("completion_tokens")),
             "reasoning_tokens": _clean_int(snapshot.get("reasoning_tokens")),
