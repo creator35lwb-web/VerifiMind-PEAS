@@ -194,9 +194,13 @@ class BaseAgent(ABC):
                     and raw_reservation > 0
                 ):
                     completion_token_reservation = raw_reservation
-                raw_diagnostics = response.get("_completion_diagnostics")
-                if isinstance(raw_diagnostics, dict):
-                    completion_diagnostics = dict(raw_diagnostics)
+                # H1 (T S210): the snapshot is optional, so a read or copy that
+                # raises leaves it absent and the analysis continues unchanged;
+                # the public envelope then reports unavailable.
+                with contextlib.suppress(Exception):
+                    raw_diagnostics = response.get("_completion_diagnostics")
+                    if isinstance(raw_diagnostics, dict):
+                        completion_diagnostics = dict(raw_diagnostics)
             else:
                 # Backward compatibility: response is content directly
                 content = response
@@ -275,12 +279,12 @@ class BaseAgent(ABC):
             # Z-B1a: a failure AFTER the provider answered (schema validation)
             # keeps the whole same-attempt snapshot, not only the reservation.
             # An exception the adapter already labelled keeps its own snapshot.
-            if (
-                completion_diagnostics is not None
-                and getattr(exc, "_completion_diagnostics", None) is None
-            ):
+            # H1 (T S186/S210): the read sits inside the suppression too, so an
+            # exception whose attributes cannot be read is re-raised unchanged.
+            if completion_diagnostics is not None:
                 with contextlib.suppress(Exception):  # an immutable exception keeps its own contract
-                    exc._completion_diagnostics = dict(completion_diagnostics)
+                    if getattr(exc, "_completion_diagnostics", None) is None:
+                        exc._completion_diagnostics = dict(completion_diagnostics)
             # Preserve the original exception for the public error boundary.
             # Do not log-and-reraise here: provider errors may contain model content.
             if metrics:
