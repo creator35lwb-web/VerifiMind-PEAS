@@ -591,28 +591,25 @@ async def test_standalone_cs_failure_payload_carries_the_failed_attempt(app, mon
 class _DiagnosticsGetterError(ValueError):
     """An exception whose diagnostics getter raises (a hostile or broken carrier)."""
 
-    def __getattr__(self, name):
-        if name == COMPLETION_DIAGNOSTICS_ATTR:
-            raise RuntimeError("diagnostics getter exploded")
-        raise AttributeError(name)
+    @property
+    def _completion_diagnostics(self):
+        raise RuntimeError("diagnostics getter exploded")
 
 
 class _CancelledGetterError(ValueError):
     """Cancellation is not a diagnostics failure: it must still propagate."""
 
-    def __getattr__(self, name):
-        if name == COMPLETION_DIAGNOSTICS_ATTR:
-            raise asyncio.CancelledError()
-        raise AttributeError(name)
+    @property
+    def _completion_diagnostics(self):
+        raise asyncio.CancelledError()
 
 
 class _HostileCarrier:
     """A non-exception result whose diagnostics getter raises."""
 
-    def __getattr__(self, name):
-        if name == COMPLETION_DIAGNOSTICS_ATTR:
-            raise RuntimeError("diagnostics getter exploded")
-        raise AttributeError(name)
+    @property
+    def _completion_diagnostics(self):
+        raise RuntimeError("diagnostics getter exploded")
 
 
 class _ExplodingSnapshot(dict):
@@ -625,28 +622,26 @@ class _ExplodingSnapshot(dict):
         raise RuntimeError("snapshot copy exploded")
 
 
-class _ExplodingAttempts(list):
-    """A truthy attempt trail whose indexing raises (provider identity cannot be read)."""
+class _UnreadableAttempt(dict):
+    """A final attempt whose fields cannot be read (provider identity cannot be read)."""
 
-    def __getitem__(self, index):
+    def get(self, key, default=None):
         raise RuntimeError("attempt trail exploded")
 
 
 class _HostileExhausted(FailoverExhaustedError):
-    def __getattr__(self, name):
-        if name == COMPLETION_DIAGNOSTICS_ATTR:
-            raise RuntimeError("diagnostics getter exploded")
-        raise AttributeError(name)
+    @property
+    def _completion_diagnostics(self):
+        raise RuntimeError("diagnostics getter exploded")
 
 
 def _hostile_x():
     """A real X analysis whose diagnostics getter raises."""
 
     class _HostileX(XAgentAnalysis):
-        def __getattr__(self, name):
-            if name == COMPLETION_DIAGNOSTICS_ATTR:
-                raise RuntimeError("diagnostics getter exploded")
-            return super().__getattr__(name)
+        @property
+        def _completion_diagnostics(self):
+            raise RuntimeError("diagnostics getter exploded")
 
     x = _HostileX(reasoning_steps=_steps(), innovation_score=8.8, strategic_value=8.4,
                   opportunities=["o"], risks=["r"], recommendation="Proceed.", confidence=0.9)
@@ -662,7 +657,7 @@ def _truncated(cls):
 
 def _attempts_error():
     exc = ValueError("attempt trail")
-    exc.attempts = _ExplodingAttempts([{"provider": "groq"}])
+    exc.attempts = [_UnreadableAttempt(provider="groq")]
     return exc
 
 
