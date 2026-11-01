@@ -704,16 +704,22 @@ async def test_h1_agent_reraises_the_original_exception_when_its_diagnostics_get
 
 
 class _UnreadableDiagnostics(dict):
-    """A provider response whose diagnostics read raises `error`; every other key reads normally."""
+    """A provider response whose diagnostics read raises; every other key reads normally."""
 
-    def __init__(self, response, error):
-        super().__init__(response)
-        self.error = error
+    def _read_failure(self):
+        return RuntimeError("diagnostics read exploded")
 
     def get(self, key, default=None):
         if key == COMPLETION_DIAGNOSTICS_ATTR:
-            raise self.error
+            raise self._read_failure()
         return super().get(key, default)
+
+
+class _CancelledDiagnosticsRead(_UnreadableDiagnostics):
+    """The same read, cancelled instead: cancellation must still propagate."""
+
+    def _read_failure(self):
+        return asyncio.CancelledError()
 
 
 def _quality_complete_z_response():
@@ -736,7 +742,7 @@ async def test_h1_agent_keeps_a_valid_analysis_when_its_diagnostics_cannot_be_in
     elif fault == "snapshot-copy":
         response[COMPLETION_DIAGNOSTICS_ATTR] = _ExplodingSnapshot(response[COMPLETION_DIAGNOSTICS_ATTR])
     elif fault == "diagnostics-read":
-        response = _UnreadableDiagnostics(response, RuntimeError("diagnostics read exploded"))
+        response = _UnreadableDiagnostics(response)
     agent = ZAgent(llm_provider=_DictProvider(response))
     result = await agent.analyze(Concept(name="n", description="d", context=None))
     assert (result.ethics_score, result._inference_quality, result._output_tokens,
@@ -747,7 +753,7 @@ async def test_h1_agent_keeps_a_valid_analysis_when_its_diagnostics_cannot_be_in
 
 @pytest.mark.asyncio
 async def test_h1_agent_ingestion_does_not_contain_cancellation():
-    response = _UnreadableDiagnostics(_quality_complete_z_response(), asyncio.CancelledError())
+    response = _CancelledDiagnosticsRead(_quality_complete_z_response())
     with pytest.raises(asyncio.CancelledError):
         await ZAgent(llm_provider=_DictProvider(response)).analyze(Concept(name="n", description="d", context=None))
 
