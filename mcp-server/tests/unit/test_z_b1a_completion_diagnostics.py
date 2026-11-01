@@ -708,6 +708,55 @@ async def test_h1_agent_reraises_the_original_exception_when_its_diagnostics_get
     assert info.value is original
 
 
+class _UnreadableDiagnostics(dict):
+    """A provider response whose diagnostics read raises `error`; every other key reads normally."""
+
+    def __init__(self, response, error):
+        super().__init__(response)
+        self.error = error
+
+    def get(self, key, default=None):
+        if key == COMPLETION_DIAGNOSTICS_ATTR:
+            raise self.error
+        return super().get(key, default)
+
+
+def _quality_complete_z_response():
+    content = _results()[1].model_dump()
+    content.update(jurisdiction_detected=["Global"], compliance_timeline=[], scoring_breakdown={},
+                   applicable_frameworks={})
+    return {"content": content, "usage": {"output_tokens": 42, "input_tokens": 10, "total_tokens": 52},
+            "_inference_quality": "real", "_completion_token_reservation": 3395,
+            COMPLETION_DIAGNOSTICS_ATTR: _snapshot(completion=42, reasoning=7)}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fault", ["none", "absent", "snapshot-copy", "diagnostics-read"])
+async def test_h1_agent_keeps_a_valid_analysis_when_its_diagnostics_cannot_be_ingested(fault):
+    # T S210 P2, from T's four-case reproducer: the read and the copy at the
+    # agent's success boundary. Content, usage and reservation are identical.
+    response = _quality_complete_z_response()
+    if fault == "absent":
+        del response[COMPLETION_DIAGNOSTICS_ATTR]
+    elif fault == "snapshot-copy":
+        response[COMPLETION_DIAGNOSTICS_ATTR] = _ExplodingSnapshot(response[COMPLETION_DIAGNOSTICS_ATTR])
+    elif fault == "diagnostics-read":
+        response = _UnreadableDiagnostics(response, RuntimeError("diagnostics read exploded"))
+    agent = ZAgent(llm_provider=_DictProvider(response))
+    result = await agent.analyze(Concept(name="n", description="d", context=None))
+    assert (result.ethics_score, result._inference_quality, result._output_tokens,
+            result._completion_token_reservation) == (8.6, "real", 42, 3395)
+    env = completion_diagnostics_envelope(result, agent.llm)
+    assert (env["status"], env["completion_tokens"]) == (("reported", 42) if fault == "none" else ("unavailable", None))
+
+
+@pytest.mark.asyncio
+async def test_h1_agent_ingestion_does_not_contain_cancellation():
+    response = _UnreadableDiagnostics(_quality_complete_z_response(), asyncio.CancelledError())
+    with pytest.raises(asyncio.CancelledError):
+        await ZAgent(llm_provider=_DictProvider(response)).analyze(Concept(name="n", description="d", context=None))
+
+
 def test_h1_failover_payload_keeps_its_terminal_contract():
     args = ("all attempts failed", [{"provider": "groq", "model": GROQ_MODEL}], "rate_limited", "corr-1")
     twin = server.failover_error_payload(FailoverExhaustedError(*args), "Z", "n")

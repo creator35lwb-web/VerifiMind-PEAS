@@ -194,9 +194,13 @@ class BaseAgent(ABC):
                     and raw_reservation > 0
                 ):
                     completion_token_reservation = raw_reservation
-                raw_diagnostics = response.get("_completion_diagnostics")
-                if isinstance(raw_diagnostics, dict):
-                    completion_diagnostics = dict(raw_diagnostics)
+                # H1 (T S210): the snapshot is optional, so a read or copy that
+                # raises leaves it absent and the analysis continues unchanged;
+                # the public envelope then reports unavailable.
+                with contextlib.suppress(Exception):
+                    raw_diagnostics = response.get("_completion_diagnostics")
+                    if isinstance(raw_diagnostics, dict):
+                        completion_diagnostics = dict(raw_diagnostics)
             else:
                 # Backward compatibility: response is content directly
                 content = response
