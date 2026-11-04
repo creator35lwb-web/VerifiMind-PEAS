@@ -44,7 +44,7 @@ dependencies = [
     # and cryptography is Authlib's crypto backend. BSD-3-Clause; notices in
     # THIRD_PARTY_NOTICES.md.
     "Authlib==1.8.0",
-    "joserfc==1.7.5",
+    "joserfc==1.7.6",
     "cryptography==50.0.2"
 ]
 
