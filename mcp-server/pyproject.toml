@@ -19,7 +19,7 @@ dependencies = [
     "mcp==2.2.0",
     "fastmcp==4.1.2",
     "starlette==1.8.0",
-    "pydantic==2.13.5",
+    "pydantic==2.14.2",
     "httpx==0.28.1",
     "openai>=1.0.0",
     "anthropic>=0.94.0",
@@ -43,8 +43,8 @@ dependencies = [
     # joserfc must be >=1.7.3 (issuer-validation fix GHSA-r74j-q665-7rpj),
     # and cryptography is Authlib's crypto backend. BSD-3-Clause; notices in
     # THIRD_PARTY_NOTICES.md.
-    "Authlib==1.8.0",
-    "joserfc==1.7.5",
+    "Authlib==1.9.4",
+    "joserfc==1.7.7",
     "cryptography==50.0.2"
 ]
 

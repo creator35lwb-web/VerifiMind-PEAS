@@ -19,6 +19,71 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
+## v0.5.68 - Security Currency (candidate)
+
+**CANDIDATE, NOT DEPLOYED.** This section describes a reviewed-change
+candidate. Merge, build, image, serving revision and post-deploy results are
+recorded here only after it deploys; until then production is v0.5.67, below.
+The version identity becomes 0.5.68 and the MCP Registry manifest 3.45.0. The
+3.44.0 manifest prepared for v0.5.67 was never published, so the Registry is
+planned to go from 3.43.0 to 3.45.0, with one GitHub Release, v0.5.68, that
+also covers v0.5.67.
+
+Three exact pins move **as one tested set**, in both manifests
+(`mcp-server/pyproject.toml`, the deployment dependency authority, and
+`mcp-server/requirements.txt`, the CI mirror). Nothing else in the pinned set
+changes, and no application code, prompt, routing, retry, failover, quota,
+scoring or policy text changes.
+
+| Package | From | To | Published advisories that cover the old pin, all fixed by the new one |
+|---|---|---|---|
+| Authlib | 1.8.0 | 1.9.4 | Critical: GHSA-6v38-4h7w-rj9h. High: GHSA-7vr2-2fgp-9w7p, GHSA-8m4g-j4wp-wgcg, GHSA-c73q-w75p-j82v, GHSA-gp2m-377p-m4j3. Moderate: GHSA-c5mf-xmp2-59rc, GHSA-fch4-3c6x-j4gc, GHSA-q686-2qmg-hqc7, GHSA-x4rv-c3wx-4cr8. 1.9.4 also fixes GHSA-f3fg-34g9-v7jx and GHSA-9qr6-8289-9j56, which cover releases from 1.9.0 to 1.9.3 (the ID-JAG grant) but not 1.8.0. |
+| joserfc | 1.7.5 | 1.7.7 | High: GHSA-hwgg-pgp5-r4ch, GHSA-vvgp-wfq3-pjxj (fixed in 1.7.7, not 1.7.6). Moderate: GHSA-9pg5-8c7x-5hfx. Low: GHSA-mcm9-p458-pjmc. |
+| pydantic | 2.13.5 | 2.14.2 | Moderate: GHSA-955g-x97g-8mcp, GHSA-gj4f-r7mf-jjxh, GHSA-qpmf-fgh3-ff25. |
+
+Seven of these sixteen were published by the upstream projects between October
+29 and November 4, 2026, and had reached neither OSV nor GitHub's advisory
+database when this section was written, so neither the dependency audit nor
+GitHub's alerts reported them.
+
+**Exposure before this release.** None of the sixteen is known to be reachable
+in production. That is evidence under the current configuration, not proof that
+no path exists; this release removes the dependence on it. Measured on the
+deployed source tree, with the old pins and again with the new ones:
+
+- The service's authorization code loads only modules of Authlib's OAuth 2.0
+  package: the RFC 6749 core, RFC 6750 bearer tokens, RFC 7009 revocation,
+  RFC 7636 PKCE and the package's shared helpers. Authlib's JOSE, OpenID
+  Connect, JWT-bearer, ID-JAG, JWT-secured-request and RFC 7592 code is never
+  loaded, and every OAuth endpoint returns 503.
+- joserfc **is** loaded: FastMCP imports it at server start. FastMCP runs
+  without an auth provider and the service parses no JWS, JWE or JWT, so no
+  known request reaches the affected joserfc code. The v0.5.67 section said
+  only that the service does not import joserfc; that is true of the service's
+  own code, not of the running process, and it is corrected there.
+- No type the three pydantic advisories concern (multi-host URLs, `Fraction`,
+  constrained extra-data keys) is used by the service or by the libraries on
+  its request path.
+
+The precondition for staging or activating the authentication layer becomes
+Authlib 1.9.4 and joserfc 1.7.7 or later; this release meets it.
+
+**Upstream changes on paths this service runs.** Authlib 1.9.0 to 1.9.4: every
+breaking change and fix is in components this service does not load (JOSE,
+OpenID Connect, JWT-secured requests, the JWT-bearer and ID-JAG grants, RFC 7592
+client management, the OAuth clients). joserfc 1.7.6 and 1.7.7: JWS, JWE, JWK
+and JWT hardening; FastMCP imports only its error type at start. pydantic 2.14:
+validation and serialization fixes, and one behavior change in JSON-mode
+validation (keys that match only a field name are now handled as in Python
+mode). The MCP transport served here parses JSON first and validates in Python
+mode, so it is not on that path.
+
+`mcp-server/THIRD_PARTY_NOTICES.md` is re-bound to Authlib 1.9.4 and joserfc
+1.7.7. Both license files are byte-identical to the previously bound ones; the
+artifacts, digests, source tag and Trusted Publisher are re-recorded.
+
+---
+
 ## v0.5.67 - Runtime Currency II (October 27, 2026)
 
 **DEPLOYED, together with #368.** PR #385 merged at 2026-10-27 10:14 UTC
@@ -111,10 +176,12 @@ part of this release.
 (Authlib, the RFC 7592 client-management examples; fixed in 1.9.1) and
 GHSA-9pg5-8c7x-5hfx (joserfc 1.7.5, a compact-JWS size guard; fixed in 1.7.6).
 The dependency audit now reports 9 findings in 2 packages. The service has no
-RFC 7592 client-management code and does not import joserfc, and every OAuth
-endpoint still returns 503 (re-probed after the #396 deployment). Updating to
-Authlib 1.9.1 and joserfc 1.7.6 or later is required before the authentication
-layer is staged or activated.
+RFC 7592 client-management code, its own code does not import joserfc
+(correction, November 2026: FastMCP does load joserfc at server start; see
+v0.5.68), and every OAuth endpoint still returns 503 (re-probed after the #396
+deployment). Updating to Authlib 1.9.1 and joserfc 1.7.6 or later is required
+before the authentication layer is staged or activated (superseded by v0.5.68:
+Authlib 1.9.4 and joserfc 1.7.7).
 
 This release moves three exact pins of the hosted runtime stack **as one tested
 set**, in both manifests (`mcp-server/pyproject.toml`, the deployment dependency
