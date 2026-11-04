@@ -32,8 +32,9 @@ also covers v0.5.67.
 Three exact pins move **as one tested set**, in both manifests
 (`mcp-server/pyproject.toml`, the deployment dependency authority, and
 `mcp-server/requirements.txt`, the CI mirror). Nothing else in the pinned set
-changes, and no application code, prompt, routing, retry, failover, quota,
-scoring or policy text changes.
+changes. Apart from the BYOK model catalogue entries described below, no
+application code, prompt, routing, retry, failover, quota, scoring or policy
+text changes.
 
 | Package | From | To | Published advisories that cover the old pin, all fixed by the new one |
 |---|---|---|---|
@@ -81,6 +82,19 @@ mode, so it is not on that path.
 `mcp-server/THIRD_PARTY_NOTICES.md` is re-bound to Authlib 1.9.4 and joserfc
 1.7.7. Both license files are byte-identical to the previously bound ones; the
 artifacts, digests, source tag and Trusted Publisher are re-recorded.
+
+**BYOK model catalogue re-verified (Cerebras, Groq).** One model-listing call
+per provider on 2026-11-04 (UTC) re-verified both catalogues before their 90-day
+windows lapsed (Cerebras on 2026-11-05, Groq on 2026-11-28). Cerebras's listing
+no longer carries `zai-glm-4.7` or `gemma-4-31b`, and Groq's no longer carries
+`qwen/qwen3.6-27b`. As with earlier retirements, they leave the advertised
+catalogue and join the retired-ID guard rather than being left to fail at the
+provider. The catalogue is advisory: a BYOK caller can still name any model, and
+the provider decides. The hosted route (`openai/gpt-oss-120b` on Groq for Z and
+CS) is present and unchanged. `mcp-server/docs/BYOK_GUIDE.md` now names the
+current Cerebras default (`gpt-oss-120b`, not the retired `llama-3.3-70b`) and
+Groq fast option (`qwen/qwen3.8-27b`). The next catalogue windows lapse on
+2026-12-20 (OpenAI) and 2026-12-23 (Gemini, Anthropic, Mistral).
 
 ---
 

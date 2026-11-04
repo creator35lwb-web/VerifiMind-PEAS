@@ -371,7 +371,9 @@ def test_cerebras_catalog_uses_live_ids_and_rejects_retired_ids():
     config = PROVIDER_CONFIGS["cerebras"]
     assert PROVIDER_DEFAULT_CEREBRAS_MODEL == "gpt-oss-120b"
     assert config["default_model"] == "gpt-oss-120b"
-    assert config["models"] == ["gpt-oss-120b", "zai-glm-4.7", "gemma-4-31b"]
+    assert config["models"] == ["gpt-oss-120b"]
+    assert "zai-glm-4.7" not in config["models"]
+    assert "gemma-4-31b" not in config["models"]
     assert "llama-3.3-70b" not in config["models"]
     assert "llama-3.1-8b" not in config["models"]
 
@@ -382,11 +384,11 @@ def test_all_six_remote_byok_catalogs_pass_the_currency_gate():
     }
     assert MODEL_CURRENCY_MAX_AGE_DAYS == 90
     # Green-fixture day: on/after the newest catalog verification date
-    # (gemini, mistral, anthropic 2026-09-23) and inside every provider's 90-day
-    # window (earliest pin: cerebras 2026-08-06 -> stale from 2026-11-05).
-    assert provider_catalog_currency_issues(as_of=date(2026, 9, 23)) == {}
+    # (groq, cerebras 2026-11-04) and inside every provider's 90-day window
+    # (earliest pin: openai 2026-09-20 -> stale from 2026-12-20).
+    assert provider_catalog_currency_issues(as_of=date(2026, 11, 4)) == {}
 
-    stale = provider_catalog_currency_issues(as_of=date(2027, 1, 1))
+    stale = provider_catalog_currency_issues(as_of=date(2027, 3, 1))
     assert set(stale) == set(REMOTE_BYOK_PROVIDER_IDS)
     assert all("verification_stale" in findings for findings in stale.values())
 

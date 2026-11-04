@@ -138,8 +138,9 @@ RETIRED_MODEL_IDS_BY_PROVIDER = {
         "llama-3.3-70b-versatile",
         "llama-3.1-8b-instant",
         "meta-llama/llama-4-scout-17b-16e-instruct",
+        "qwen/qwen3.6-27b",
     }),
-    "cerebras": frozenset({"llama-3.3-70b", "llama-3.1-8b"}),
+    "cerebras": frozenset({"llama-3.3-70b", "llama-3.1-8b", "zai-glm-4.7", "gemma-4-31b"}),
 }
 
 
@@ -359,31 +360,33 @@ PROVIDER_CONFIGS: Dict[str, Dict[str, Any]] = {
         # as the stale discovery entries repaired in v0.5.55.
         "models": [
             PROVIDER_DEFAULT_GROQ_MODEL,
-            "qwen/qwen3.6-27b",
             # qwen3.8-27b: successor fast option, Groq Preview tier
             # (131k context / 16,384 max completion per Groq model docs,
-            # verified 2026-08-29). 3.6 stays listed while Groq serves it.
+            # verified 2026-08-29). Re-verified 2026-11-04 (UTC, listing call):
+            # qwen3.6-27b is no longer in Groq's live listing, so it is retired
+            # here; gpt-oss-120b and qwen3.8-27b are present.
             "qwen/qwen3.8-27b",
         ],
         "api_key_env": "GROQ_API_KEY",
         "base_url": "https://api.groq.com/openai/v1",
         "free_tier": True,
         "rate_limit": 30,
-        "models_verified_at": "2026-08-29",
+        "models_verified_at": "2026-11-04",
     },
     "cerebras": {
         "name": "Cerebras",
         "default_model": PROVIDER_DEFAULT_CEREBRAS_MODEL,
+        # Re-verified 2026-11-04 (UTC, listing call on the verification
+        # account): zai-glm-4.7 and gemma-4-31b are no longer in the live
+        # listing, so they are retired here; gpt-oss-120b is present.
         "models": [
             PROVIDER_DEFAULT_CEREBRAS_MODEL,
-            "zai-glm-4.7",
-            "gemma-4-31b",
         ],
         "api_key_env": "CEREBRAS_API_KEY",
         "base_url": "https://api.cerebras.ai/v1",
         "free_tier": True,
         "rate_limit": 60,  # free-tier limits vary by account; 20x GPU throughput
-        "models_verified_at": "2026-08-06",
+        "models_verified_at": "2026-11-04",
     },
     "mistral": {
         "name": "Mistral AI",

@@ -58,9 +58,10 @@ class TestProviderConfiguration:
         assert info['free_tier'] is True
         assert info['api_key_env'] == 'CEREBRAS_API_KEY'
         assert info['default_model'] == 'gpt-oss-120b'
-        assert set(info['models']) == {
-            'gpt-oss-120b', 'zai-glm-4.7', 'gemma-4-31b'
-        }
+        assert set(info['models']) == {'gpt-oss-120b'}
+        # Absent from the 2026-11-04 live listing: retired, not left to 404.
+        assert 'zai-glm-4.7' not in info['models']
+        assert 'gemma-4-31b' not in info['models']
         assert 'llama-3.3-70b' not in info['models']
         assert 'llama-3.1-8b' not in info['models']
 
@@ -86,7 +87,7 @@ class TestProviderConfiguration:
         assert 'llama-3.3-70b-versatile' not in info['models'], "Decommissioned llama-3.3 still listed"
         assert 'llama-3.1-8b-instant' not in info['models'], "Deprecated llama-3.1 still listed"
         assert 'openai/gpt-oss-120b' in info['models']
-        assert 'qwen/qwen3.6-27b' in info['models']
+        assert 'qwen/qwen3.6-27b' not in info['models'], "Retired qwen3.6 still listed"
         assert 'qwen/qwen3.8-27b' in info['models']
 
     def test_groq_qwen38_is_tpm_clamped(self):
