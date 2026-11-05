@@ -229,11 +229,11 @@ class TestAuthlibDependencyAuthority:
 
     def test_authlib_is_pinned_exactly(self):
         pyproject = load_pyproject_dependencies()
-        assert pyproject.get("authlib", (None, None))[1] == "==1.8.0", (
-            "Authlib must be an exact ==1.8.0 pin in pyproject.toml; direct "
+        assert pyproject.get("authlib", (None, None))[1] == "==1.9.4", (
+            "Authlib must be an exact ==1.9.4 pin in pyproject.toml; direct "
             "imports may not rely on FastMCP's floating transitive."
         )
-        assert load_requirements().get("authlib", (None, None))[1] == "==1.8.0"
+        assert load_requirements().get("authlib", (None, None))[1] == "==1.9.4"
 
     def test_joserfc_includes_issuer_validation_fix(self):
         # joserfc must be >=1.7.3 (issuer-validation fix GHSA-r74j-q665-7rpj);
@@ -249,5 +249,5 @@ class TestAuthlibDependencyAuthority:
 
     def test_third_party_notices_cover_authlib(self):
         notices = (SERVER_ROOT / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8")
-        for token in ("Authlib 1.8.0", "BSD-3-Clause", "joserfc", "cryptography"):
+        for token in ("Authlib 1.9.4", "BSD-3-Clause", "joserfc", "cryptography"):
             assert token in notices, f"THIRD_PARTY_NOTICES.md missing {token!r}"

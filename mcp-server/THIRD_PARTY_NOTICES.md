@@ -12,11 +12,11 @@ section is not a substitute for the reproduced text. This is a technical
 redistribution and attribution record; it is not legal advice and makes no
 legal-certification claim.
 
-## Provenance method (2026-09-02; cryptography re-bound to 50.0.2 on 2026-10-18)
+## Provenance method (2026-09-02; cryptography re-bound to 50.0.2 on 2026-10-18; Authlib and joserfc re-bound to 1.9.4 and 1.7.7 on 2026-11-05)
 
 | Step | Evidence |
 |---|---|
-| Pins | `Authlib==1.8.0`, `joserfc==1.7.5`, `cryptography==50.0.2` in `pyproject.toml` (the deployment dependency authority) and `requirements.txt`; parity is enforced locally by `tests/unit/test_dependency_manifest_parity.py` and inside the built production image by the `Production Image Dependency Parity` CI job. |
+| Pins | `Authlib==1.9.4`, `joserfc==1.7.7`, `cryptography==50.0.2` in `pyproject.toml` (the deployment dependency authority) and `requirements.txt`; parity is enforced locally by `tests/unit/test_dependency_manifest_parity.py` and inside the built production image by the `Production Image Dependency Parity` CI job. |
 | Artifacts | Every wheel and sdist listed below was downloaded from PyPI and its SHA-256 verified equal to the digest PyPI publishes for that file. |
 | License files | Every license file inside every listed artifact was extracted and verified byte-identical to the copy pip installs at `<dist>.dist-info/licenses/`. The blocks below are those exact bytes. `tests/unit/test_third_party_notices.py` re-verifies each block byte-for-byte against the installed pinned distribution in CI. |
 | Publisher provenance | PyPI attestation bundles (PEP 740) were retrieved from `https://pypi.org/integrity/<name>/<version>/<file>/provenance` for the artifacts named in each section; each bundle names the GitHub Trusted Publisher repository and workflow recorded there. |
@@ -25,23 +25,23 @@ legal-certification claim.
 Each reproduced file is fenced by `LICENSE-FILE` markers carrying its installed
 path and the SHA-256 of the reproduced bytes.
 
-## Authlib 1.8.0 — BSD-3-Clause
+## Authlib 1.9.4 — BSD-3-Clause
 
 OAuth 2.1 authorization-server protocol core (D-ALTON-2026-09-01-AUTHLIB).
 
 - Homepage: https://authlib.org/ · Documentation: https://docs.authlib.org/
-- Source: https://github.com/authlib/authlib (tag `v1.8.0`,
-  commit `1a86748b31a2b1940b09cf627d1b70e03d85c077`)
-- PyPI: https://pypi.org/project/Authlib/1.8.0/ — both artifacts below carry a
+- Source: https://github.com/authlib/authlib (tag `v1.9.4`,
+  commit `9dffddfaea643835b92caefe05f1548f57bd1433`)
+- PyPI: https://pypi.org/project/Authlib/1.9.4/ — both artifacts below carry a
   PyPI attestation bundle (Trusted Publisher: GitHub `authlib/authlib`,
   workflow `pypi.yml`)
 - Package METADATA: `License: BSD-3-Clause` · `License-File: LICENSE` ·
   `Author-email` name: Hsiaoming Yang
-- Release artifacts (PyPI, uploaded 2026-08-30):
-  - `authlib-1.8.0-py2.py3-none-any.whl` — SHA-256
-    `88aebbd9af6757e14e912d5dc007ae1dc1f3e27e3b2152ce7c552ee2c3b3c121`
-  - `authlib-1.8.0.tar.gz` — SHA-256
-    `f3ecd5f1da737262fb53bf1a4d95c4ea1ad9dd509316587a255c99ab1838a4f0`
+- Release artifacts (PyPI, uploaded 2026-11-04):
+  - `authlib-1.9.4-py2.py3-none-any.whl` — SHA-256
+    `1b092ea87ba11cf3bd06d38ec993d82bc6255995fcd85ee436cbbba1d050b2fc`
+  - `authlib-1.9.4.tar.gz` — SHA-256
+    `f55a25f561f1f157ceca64da9df776f469f23715ac89ee338aa2f83dc9774e13`
 - License file `LICENSE` — 1514 bytes — SHA-256 `8e1b48518de9c6cd00cb48c7fe5b8023fd90d5552ca12ebe7362a0df30ddbe45`
   (identical in the wheel, the sdist, and the installed distribution)
 
@@ -51,7 +51,7 @@ Authlib maintainers.
 
 ### `LICENSE` — verbatim
 
-<!-- LICENSE-FILE: authlib-1.8.0.dist-info/licenses/LICENSE sha256=8e1b48518de9c6cd00cb48c7fe5b8023fd90d5552ca12ebe7362a0df30ddbe45 -->
+<!-- LICENSE-FILE: authlib-1.9.4.dist-info/licenses/LICENSE sha256=8e1b48518de9c6cd00cb48c7fe5b8023fd90d5552ca12ebe7362a0df30ddbe45 -->
 ```text
 BSD 3-Clause License
 
@@ -85,30 +85,31 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
 <!-- END-LICENSE-FILE -->
 
-## joserfc 1.7.5 — BSD-3-Clause
+## joserfc 1.7.7 — BSD-3-Clause
 
-JOSE / issuer-validation support in Authlib's dependency closure. Pinned at
-1.7.5 (>=1.7.3 carries the issuer-validation fix, advisory
-GHSA-r74j-q665-7rpj).
+JOSE / issuer-validation support in Authlib's dependency closure; FastMCP also
+depends on it and imports it at server start. Pinned at 1.7.7 (>=1.7.3 carries
+the issuer-validation fix, advisory GHSA-r74j-q665-7rpj; the advisories that
+1.7.7 fixes are listed in the v0.5.68 entry of `CHANGELOG.md`).
 
 - Source: https://github.com/authlib/joserfc ·
   Documentation: https://jose.authlib.org/
-- PyPI: https://pypi.org/project/joserfc/1.7.5/ — both artifacts below carry a
+- PyPI: https://pypi.org/project/joserfc/1.7.7/ — both artifacts below carry a
   PyPI attestation bundle (Trusted Publisher: GitHub `authlib/joserfc`,
   workflow `pypi.yml`)
 - Package METADATA: `License: BSD-3-Clause` · `License-File: LICENSE` ·
   `Author-email` name: Hsiaoming Yang
-- Release artifacts (PyPI, uploaded 2026-08-29):
-  - `joserfc-1.7.5-py3-none-any.whl` — SHA-256
-    `add2c2c84e8373b084d526a8b53daba5d7a513a118cd2dcd9fc9f979d0922159`
-  - `joserfc-1.7.5.tar.gz` — SHA-256
-    `d5ff536e658e17664f8c1b1ab60dc4aa62aa973fcef1edd33cc44bda45d6f5ea`
+- Release artifacts (PyPI, uploaded 2026-10-19):
+  - `joserfc-1.7.7-py3-none-any.whl` — SHA-256
+    `06979cfbab78bc802f14c0358f32969826cc26720e13cb38926ffdc86bc0cb2c`
+  - `joserfc-1.7.7.tar.gz` — SHA-256
+    `471d0fd12a5a0d1c0942de280f39efe6f597878315033270b504d4d006d25510`
 - License file `LICENSE` — 1501 bytes — SHA-256 `19ee1fafcc9ec4217fc32b8a651d820538c789cf4041cb4e46b4b176a5f2a9c8`
   (identical in the wheel, the sdist, and the installed distribution)
 
 ### `LICENSE` — verbatim
 
-<!-- LICENSE-FILE: joserfc-1.7.5.dist-info/licenses/LICENSE sha256=19ee1fafcc9ec4217fc32b8a651d820538c789cf4041cb4e46b4b176a5f2a9c8 -->
+<!-- LICENSE-FILE: joserfc-1.7.7.dist-info/licenses/LICENSE sha256=19ee1fafcc9ec4217fc32b8a651d820538c789cf4041cb4e46b4b176a5f2a9c8 -->
 ```text
 BSD 3-Clause License
 

@@ -122,11 +122,11 @@ The server runs on free-tier APIs by default — no key required:
 
 | `llm_provider` value | Model Used | Notes |
 |----------------------|------------|-------|
-| `groq` | `openai/gpt-oss-120b` | Open-source flagship, free tier (v0.5.49; also `qwen/qwen3.6-27b` fast) |
+| `groq` | `openai/gpt-oss-120b` | Open-source flagship, free tier (v0.5.49; also `qwen/qwen3.8-27b` fast) |
 | `anthropic` | `claude-sonnet-4-6` | High quality, paid |
 | `openai` | `gpt-5.5` | Paid (v0.5.47 currency) |
 | `gemini` | `gemini-3.5-flash-lite` | Free tier available (v0.5.51 currency) |
-| `cerebras` | `llama-3.3-70b` | Free tier available (limits vary by account) |
+| `cerebras` | `gpt-oss-120b` | Free tier available (limits vary by account) |
 | `mistral` | `mistral-medium-3.5` | Paid — EU-sovereignty lane (v0.5.53 currency) |
 | `mock` | `mock/test-model` | Testing only (no real inference) |
 

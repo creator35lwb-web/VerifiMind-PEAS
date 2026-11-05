@@ -26,7 +26,11 @@ class TestGroqModelStack:
         assert PROVIDER_CONFIGS["groq"]["default_model"] == "openai/gpt-oss-120b"
 
     def test_qwen_fast_option_listed(self):
-        assert "qwen/qwen3.6-27b" in PROVIDER_CONFIGS["groq"]["models"]
+        """The 2026-11-04 listing no longer carries qwen3.6-27b, so it is
+        retired and qwen3.8-27b is the listed fast option. Inverted, like the
+        llama-4-scout test below, so a retired model cannot stay listed."""
+        assert "qwen/qwen3.6-27b" not in PROVIDER_CONFIGS["groq"]["models"]
+        assert "qwen/qwen3.8-27b" in PROVIDER_CONFIGS["groq"]["models"]
 
     def test_llama4_scout_removed_after_retirement(self):
         """D-115-5: Groq retired llama-4-scout 2026-07-17. This test previously

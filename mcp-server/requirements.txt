@@ -19,7 +19,7 @@ fastmcp==4.1.2
 starlette==1.8.0
 
 # Data Validation
-pydantic==2.13.5
+pydantic==2.14.2
 
 # HTTP Client
 httpx==0.28.1
@@ -48,8 +48,8 @@ standardwebhooks>=1.0.0
 
 # OAuth 2.1 authorization core (D-ALTON-2026-09-01-AUTHLIB) — must match
 # pyproject.toml EXACTLY. joserfc>=1.7.3 carries the issuer-validation fix.
-Authlib==1.8.0
-joserfc==1.7.5
+Authlib==1.9.4
+joserfc==1.7.7
 cryptography==50.0.2
 
 # ---------------------------------------------------------------------------
