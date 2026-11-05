@@ -35,7 +35,7 @@ mistralai>=1.0.0
 python-dotenv>=1.2.2
 
 # Server Framework
-fastapi==0.143.3
+fastapi==0.162.0
 uvicorn[standard]==0.54.0
 
 
