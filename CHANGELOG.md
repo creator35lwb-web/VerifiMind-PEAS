@@ -19,15 +19,42 @@ Full version history also available at [verifimind.ysenseai.org/changelog](https
 
 ---
 
-## v0.5.68 - Security Currency (candidate)
+## v0.5.68 - Security Currency (November 5, 2026)
 
-**CANDIDATE, NOT DEPLOYED.** This section describes a reviewed-change
-candidate. Merge, build, image, serving revision and post-deploy results are
-recorded here only after it deploys; until then production is v0.5.67, below.
-The version identity becomes 0.5.68 and the MCP Registry manifest 3.45.0. The
-3.44.0 manifest prepared for v0.5.67 was never published, so the Registry is
-planned to go from 3.43.0 to 3.45.0, with one GitHub Release, v0.5.68, that
-also covers v0.5.67.
+**DEPLOYED.** PR #399 merged at 2026-11-05 09:14 UTC (17:14 in Malaysia, the
+operator's timezone) as merge commit
+`35ea615d491da1aa590ef89b839c1683dbc149be`. Its parents are the public base
+`f0c2782466592b94bb4092ea6340a556557b32bb` and the CTO-reviewed head
+`7059cde74c97c88250ace95ad9602eb3481b7ec3`, and the merge tree is identical to
+that head's tree. Cloud Build `5401b7a8-cb46-4b22-8074-38933b0e9ce8` started 7
+seconds after the merge, from the merge commit, and built image
+`sha256:44174c353bcfed93064d745a747058d40b4cdc051399d192c805b5ce32d44340`. Its
+log lists the installed pins: Authlib 1.9.4, joserfc 1.7.7, pydantic 2.14.2 and
+pydantic-core 2.50.2, with fastmcp 4.1.2, mcp 2.2.0, starlette 1.8.0, fastapi
+0.143.3, uvicorn 0.54.0 and cryptography 50.0.2 unchanged, on Python 3.12.12.
+Revision `verifimind-mcp-server-00523-pwq` has served 100% of traffic on that
+image since 09:15 UTC, with the same configuration as `00522-hnp`, which is
+retained as the rollback target. The v0.5.63 authentication layer remains
+deployed dark; no gate variable is set.
+
+The version identity is 0.5.68 and the MCP Registry manifest 3.45.0. The 3.44.0
+manifest prepared for v0.5.67 was never published, so the Registry goes from
+3.43.0 to 3.45.0 with the GitHub Release for this version, which also covers
+v0.5.67.
+
+**Post-deploy check (2026-11-05, 09:19 to 09:29 UTC).** The post-deploy oracle
+used since v0.5.66, run unchanged with the expected version set to 0.5.68,
+passed 46 of 46 checks with no stops: public truth, legal surfaces, containment
+of the legacy-identity routes, dark OAuth (the five endpoints answer 503), the
+unavailable-tool denials, protocol eras, the typed BYOK failure contract with
+an invalid key, and a reflection scan. Before it ran, the same oracle told to
+expect 0.5.67 stopped on exactly its four version checks, as it must.
+`/health` reports the BYOK model catalogue as `current`. One anonymous Trinity
+run is recorded as observed: X real, Z real, CS real, so the run completed with
+a full decision surface, in 39.5 seconds; CS used 3,578 tokens of its
+3,757-token completion reservation. One run is not a reliability figure. After
+the merge, GitHub closed all 18 Dependabot alerts (nine advisories, each in
+both manifests), and the dependency audit passed on the merge commit.
 
 Three exact pins move **as one tested set**, in both manifests
 (`mcp-server/pyproject.toml`, the deployment dependency authority, and
@@ -36,48 +63,94 @@ changes. Apart from the BYOK model catalogue entries described below, no
 application code, prompt, routing, retry, failover, quota, scoring or policy
 text changes.
 
-| Package | From | To | Published advisories that cover the old pin, all fixed by the new one |
+**Advisory records that name the old pins.** On November 5, 2026 at 09:19 UTC
+three sources were read: the upstream repositories' published advisories,
+GitHub's advisory database and OSV. Seventeen records name at least one old pin
+in at least one source, and no source names Authlib 1.9.4, joserfc 1.7.7 or
+pydantic 2.14.2. The sources disagree on three of the records, and eight were
+still only in the upstream repositories, so neither the dependency audit nor
+GitHub's alerts had reported them. This is a dated reading of three sources,
+not a complete inventory.
+
+| Package | From | To | Records that name the old pin, grouped by the sources that name it |
 |---|---|---|---|
-| Authlib | 1.8.0 | 1.9.4 | Critical: GHSA-6v38-4h7w-rj9h. High: GHSA-7vr2-2fgp-9w7p, GHSA-8m4g-j4wp-wgcg, GHSA-c73q-w75p-j82v, GHSA-gp2m-377p-m4j3. Moderate: GHSA-c5mf-xmp2-59rc, GHSA-fch4-3c6x-j4gc, GHSA-q686-2qmg-hqc7, GHSA-x4rv-c3wx-4cr8. 1.9.4 also fixes GHSA-f3fg-34g9-v7jx and GHSA-9qr6-8289-9j56, which cover releases from 1.9.0 to 1.9.3 (the ID-JAG grant) but not 1.8.0. |
-| joserfc | 1.7.5 | 1.7.7 | High: GHSA-hwgg-pgp5-r4ch, GHSA-vvgp-wfq3-pjxj (fixed in 1.7.7, not 1.7.6). Moderate: GHSA-9pg5-8c7x-5hfx. Low: GHSA-mcm9-p458-pjmc. |
-| pydantic | 2.13.5 | 2.14.2 | Moderate: GHSA-955g-x97g-8mcp, GHSA-gj4f-r7mf-jjxh, GHSA-qpmf-fgh3-ff25. |
+| Authlib | 1.8.0 | 1.9.4 | **All three sources:** GHSA-6v38-4h7w-rj9h (critical); GHSA-7vr2-2fgp-9w7p and GHSA-c73q-w75p-j82v (high); GHSA-c5mf-xmp2-59rc, GHSA-fch4-3c6x-j4gc and GHSA-q686-2qmg-hqc7 (moderate). **GitHub's database and OSV only:** GHSA-8m4g-j4wp-wgcg (high; the upstream record's range ends at 1.7.2) and GHSA-x4rv-c3wx-4cr8 (moderate; the upstream record gives no range). **Upstream only:** GHSA-gp2m-377p-m4j3 (high). |
+| joserfc | 1.7.5 | 1.7.7 | **GitHub's database and OSV only:** GHSA-9pg5-8c7x-5hfx (moderate; the upstream record's range ends at 1.7.4). **Upstream only:** GHSA-hwgg-pgp5-r4ch and GHSA-vvgp-wfq3-pjxj (high; vvgp is fixed in 1.7.7, not 1.7.6); GHSA-mcm9-p458-pjmc (low). |
+| pydantic | 2.13.5 | 2.14.2 | **Upstream only:** GHSA-3r8g-cqwr-jr29 and GHSA-qpmf-fgh3-ff25 (moderate; fixed in 2.14.2); GHSA-955g-x97g-8mcp and GHSA-gj4f-r7mf-jjxh (moderate; fixed in 2.14.0). |
 
-Seven of these sixteen were published by the upstream projects between October
-29 and November 4, 2026, and had reached neither OSV nor GitHub's advisory
-database when this section was written, so neither the dependency audit nor
-GitHub's alerts reported them.
+Two further Authlib records concern the ID-JAG grant in releases after 1.8.0,
+and 1.9.4 fixes both: GHSA-f3fg-34g9-v7jx (1.9.0 to 1.9.1, fixed in 1.9.2) and
+GHSA-9qr6-8289-9j56 (1.9.0 to 1.9.3, fixed in 1.9.4).
 
-**Exposure before this release.** None of the sixteen is known to be reachable
-in production. That is evidence under the current configuration, not proof that
-no path exists; this release removes the dependence on it. Measured on the
-deployed source tree, with the old pins and again with the new ones:
+**Correction to the candidate text.** The candidate version of this section
+said that sixteen published advisories cover the old pins, and listed them as
+if the list were complete. It omitted GHSA-3r8g-cqwr-jr29, did not show where
+the sources disagree, and gave the range of GHSA-f3fg-34g9-v7jx as 1.9.0 to
+1.9.3. The CTO's exact-head review found the omission, two of the
+disagreements and the GHSA-f3fg range; a three-source re-reading found the
+third disagreement. The PR #399 description was corrected before the merge,
+and this section is corrected here.
 
-- The service's authorization code loads only modules of Authlib's OAuth 2.0
-  package: the RFC 6749 core, RFC 6750 bearer tokens, RFC 7009 revocation,
-  RFC 7636 PKCE and the package's shared helpers. Authlib's JOSE, OpenID
-  Connect, JWT-bearer, ID-JAG, JWT-secured-request and RFC 7592 code is never
-  loaded, and every OAuth endpoint returns 503.
-- joserfc **is** loaded: FastMCP imports it at server start. FastMCP runs
-  without an auth provider and the service parses no JWS, JWE or JWT, so no
-  known request reaches the affected joserfc code. The v0.5.67 section said
-  only that the service does not import joserfc; that is true of the service's
-  own code, not of the running process, and it is corrected there.
-- No type the three pydantic advisories concern (multi-host URLs, `Fraction`,
-  constrained extra-data keys) is used by the service or by the libraries on
-  its request path.
+**Exposure before this release.** The statements below describe the paths that
+were inspected on the deployed source tree, with the old pins and again with
+the new ones. They are not a proof that no other path exists; this release
+removes the dependence on them.
+
+- **Authlib.** At server start the service loads 42 Authlib modules: Authlib's
+  shared helpers and, from its OAuth 2.0 package, the RFC 6749 core and grant
+  classes, RFC 6750 bearer tokens, RFC 7009 revocation, RFC 7636 PKCE and,
+  through the package's own imports, the OAuth 2.0 client base, which the
+  service does not use. The service registers only the authorization-code and
+  refresh-token grants. None of the code the nine Authlib records concern is
+  loaded: JOSE, OpenID Connect, the RFC 7523 JWT-bearer grant, RFC 7591 and
+  RFC 7592 client registration and management, and RFC 9101 JWT-secured
+  requests. The service registers OAuth clients with its own redirect-URI
+  validator, which rejects the `javascript:` URIs that GHSA-gp2m-377p-m4j3
+  concerns. Every OAuth endpoint answers 503.
+- **joserfc.** At server start FastMCP's auth module imports joserfc's JWS
+  module, which loads 43 joserfc modules, among them the JWS parsing and key
+  code that GHSA-9pg5-8c7x-5hfx and GHSA-vvgp-wfq3-pjxj concern. The JWE JSON
+  and JWT-claims code of the other two joserfc records is not loaded. FastMCP
+  calls that JWS code only in its private-key-JWT client authenticator, part of
+  the token endpoint it mounts when an auth provider is configured. In FastMCP
+  4.1.2 an auth provider can only be passed to the server constructor; this
+  service passes none, the serving revision sets no `FASTMCP_*` environment
+  variable, and the service's own code does not use joserfc. The v0.5.67
+  section said only that the service does not import joserfc; that is true of
+  the service's own code, not of the running process, and it is corrected
+  there.
+- **pydantic.** GHSA-3r8g-cqwr-jr29 (aliased fields in a `TypedDict` or
+  dataclass that allows extra data) concerns a schema on the request path: the
+  MCP types package (`mcp-types` 2.2.0) validates a request's `_meta` with an
+  aliased `TypedDict`. With a synthetic payload, pydantic 2.13.5 let an
+  unvalidated value replace the validated `progressToken`, while 2.14.2 keeps
+  the validated value. The service's own code never reads the progress token,
+  and the MCP transport reads it from the raw request with its own type check,
+  so no inspected path used the unvalidated value. That is a library-level
+  witness, not a demonstrated production exploit. For the other three records
+  (`Fraction` values, multi-host URLs, constrained `__pydantic_extra__` keys),
+  a source search of the service and of the installed `mcp`, `mcp-types`,
+  FastMCP, Starlette and FastAPI packages found no use of the affected
+  constructs. The candidate section said that no affected pydantic type was
+  used on the request path; that statement is withdrawn.
 
 The precondition for staging or activating the authentication layer becomes
 Authlib 1.9.4 and joserfc 1.7.7 or later; this release meets it.
 
-**Upstream changes on paths this service runs.** Authlib 1.9.0 to 1.9.4: every
-breaking change and fix is in components this service does not load (JOSE,
-OpenID Connect, JWT-secured requests, the JWT-bearer and ID-JAG grants, RFC 7592
-client management, the OAuth clients). joserfc 1.7.6 and 1.7.7: JWS, JWE, JWK
-and JWT hardening; FastMCP imports only its error type at start. pydantic 2.14:
-validation and serialization fixes, and one behavior change in JSON-mode
-validation (keys that match only a field name are now handled as in Python
-mode). The MCP transport served here parses JSON first and validates in Python
-mode, so it is not on that path.
+**Upstream changes on paths this service runs.** Authlib 1.9.0 to 1.9.4, by its
+changelog: every change is in code the service does not load (JOSE, OpenID
+Connect, JWT-secured requests, the JWT-bearer and ID-JAG grants, RFC 7592
+client management, OAuth 1.0), except one in how the OAuth 2.0 client handles a
+token response whose body is not JSON; that module is loaded with the package,
+but the service does not use it. joserfc 1.7.6 and 1.7.7: JWS, JWE, JWK and JWT
+hardening, in the modules described above. pydantic 2.14: validation and
+serialization fixes, and one behavior change in JSON-mode validation (keys that
+match only a field name are now handled as in Python mode). The MCP transport
+served here parses JSON first and validates in Python mode, and FastMCP
+validates tool arguments in Python mode because its strict input validation,
+off by default, is not enabled here, so the service is not on that path. That
+change is separate from GHSA-3r8g-cqwr-jr29, which the witness above
+reproduces in Python mode.
 
 `mcp-server/THIRD_PARTY_NOTICES.md` is re-bound to Authlib 1.9.4 and joserfc
 1.7.7. Both license files are byte-identical to the previously bound ones; the
@@ -91,10 +164,13 @@ no longer carries `zai-glm-4.7` or `gemma-4-31b`, and Groq's no longer carries
 catalogue and join the retired-ID guard rather than being left to fail at the
 provider. The catalogue is advisory: a BYOK caller can still name any model, and
 the provider decides. The hosted route (`openai/gpt-oss-120b` on Groq for Z and
-CS) is present and unchanged. `mcp-server/docs/BYOK_GUIDE.md` now names the
-current Cerebras default (`gpt-oss-120b`, not the retired `llama-3.3-70b`) and
-Groq fast option (`qwen/qwen3.8-27b`). The next catalogue windows lapse on
-2026-12-20 (OpenAI) and 2026-12-23 (Gemini, Anthropic, Mistral).
+CS) is present and unchanged. In `mcp-server/docs/BYOK_GUIDE.md` the provider
+table now names the current Cerebras default (`gpt-oss-120b`, not the retired
+`llama-3.3-70b`) and Groq fast option (`qwen/qwen3.8-27b`). The guide's
+model-freshness table still names `llama-3.3-70b` for Cerebras; it is corrected
+with the next runtime change, because any change under `mcp-server/` deploys.
+The next catalogue windows lapse on 2026-12-20 (OpenAI) and 2026-12-23 (Gemini,
+Anthropic, Mistral).
 
 ---
 
@@ -242,7 +318,9 @@ protocol era (`2026-07-28`) and the handshake eras are unchanged.
   gate variable set.
 - **MCP Registry manifest** `3.44.0` — published by the GitHub Release for this
   version, which had not been cut at this conversion; Registry `3.43.0` remains
-  the live package.
+  the live package. (Superseded: no v0.5.67 Release was cut, and 3.44.0 was
+  never published. The v0.5.68 Release, which also covers v0.5.67, publishes
+  3.45.0.)
 
 ### Also deployed: completion diagnostics (#368)
 

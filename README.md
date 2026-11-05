@@ -7,7 +7,7 @@
 
   Three specialized agents — Innovation, Ethics, Security — review your concept before you build it. Multi-vendor (Gemini · Claude · GPT · Groq · Cerebras · Mistral · Ollama). Free, open-source, MCP-native.
 
-  [![Version](https://img.shields.io/badge/version-v0.5.66-blue.svg)](CHANGELOG.md)
+  [![Version](https://img.shields.io/badge/version-v0.5.68-blue.svg)](CHANGELOG.md)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Status](https://img.shields.io/badge/status-Operational-success.svg)](SERVER_STATUS.md)
   [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-Listed-purple)](https://registry.modelcontextprotocol.io/?q=verifimind)
@@ -178,15 +178,15 @@ Our contribution: **productization quality**, **MCP integration path**, **multi-
 
 ## Status & Metrics
 
-- **Server:** `v0.5.66` — [verifimind.ysenseai.org](https://verifimind.ysenseai.org) · [/health](https://verifimind.ysenseai.org/health)
+- **Server:** `v0.5.68` — [verifimind.ysenseai.org](https://verifimind.ysenseai.org) · [/health](https://verifimind.ysenseai.org/health)
 - **Landing Page:** [verifimind.io](https://verifimind.io)
-- **Release:** merge [`2903bb8`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/2903bb8d3ec4a24e143b359d52b77920ffa8fe25) · Cloud Build `019112d5-b6b8-4497-a136-3276df9038f9` · revision `verifimind-mcp-server-00517-l2d` (configuration-only `00518-pkp` serving, same image) · **runtime currency: FastMCP 4.0.10 · Starlette 1.7.0 · FastAPI 0.142.2 · uvicorn 0.54.0 · cryptography 50.0.2 as one tested set; `mcp` 2.2.0 and the 2026-07-28 era unchanged** · post-deploy Trinity, one anonymous run as observed: X real, Z real, CS unavailable (output truncated at its Groq completion reservation), outcome partial, honest-degradation contract held — one run, not a reliability figure (the Z/CS limitation in `SERVER_STATUS.md` is the standing condition)
+- **Release:** merge [`35ea615`](https://github.com/creator35lwb-web/VerifiMind-PEAS/commit/35ea615d491da1aa590ef89b839c1683dbc149be) · Cloud Build `5401b7a8-cb46-4b22-8074-38933b0e9ce8` · revision `verifimind-mcp-server-00523-pwq` · **security currency: Authlib 1.9.4 · joserfc 1.7.7 · pydantic 2.14.2 as one tested set, on v0.5.67's FastMCP 4.1.2 · Starlette 1.8.0 · FastAPI 0.143.3; `mcp` 2.2.0 and the 2026-07-28 era unchanged** · post-deploy Trinity, one anonymous run as observed: X real, Z real, CS real, outcome full — one run, not a reliability figure (the Z/CS limitation in `SERVER_STATUS.md` is the standing condition)
 - **Authentication (v0.5.63):** a native OAuth 2.1 authorization server is deployed **dark** — credential issuance and MCP enforcement are both off, so every tool that was anonymous stays anonymous
 - **Tools:** 13 defined / 8 active / 5 temporarily unavailable (all remain free)
 - **Providers:** 6 remote BYOK catalogues (Gemini · Anthropic · OpenAI · Groq · Cerebras · Mistral) plus caller-managed local Ollama
 - **Hosted routing:** X = Gemini `gemini-3.5-flash-lite`; Z/CS = Groq `openai/gpt-oss-120b`
 - **Runtime provider failover:** disabled (`runtime_failover_enabled: false`)
-- **MCP Registry package:** `3.43.0` — published by the [v0.5.66 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.66) on October 18, 2026 at 05:08 UTC (13:08 in Malaysia), API-verified live and marked latest (tag `623f020`, a docs-only descendant of the deployed merge `2903bb8` with an identical runtime subtree)
+- **MCP Registry package:** `3.43.0` — published by the [v0.5.66 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.66) on October 18, 2026 and still the live package. The v0.5.68 GitHub Release, which also covers v0.5.67, publishes `3.45.0`; the `3.44.0` manifest prepared for v0.5.67 was never published
 
 For live release history, see [`/changelog`](https://verifimind.ysenseai.org/changelog). We deliberately do not display unaudited "total users" numbers because bot, scanner, and development traffic can distort them. Exact deployment provenance and the full dated operational snapshot are documented in [SERVER_STATUS.md](SERVER_STATUS.md).
 
@@ -349,4 +349,4 @@ External Model Council review (Claude Opus 4.7 + GPT-5.5 + Gemini 3.1 Pro, May 9
 
 ---
 
-**Last Updated:** October 18, 2026 · **Version:** v0.5.66 · **MCP Registry:** 3.43.0 · **MACP:** v2.5 "Loop Engineering" ([DOI](https://doi.org/10.5281/zenodo.21345820))
+**Last Updated:** November 5, 2026 · **Version:** v0.5.68 · **MCP Registry:** 3.43.0 (3.45.0 publishes with the v0.5.68 Release) · **MACP:** v2.5 "Loop Engineering" ([DOI](https://doi.org/10.5281/zenodo.21345820))
