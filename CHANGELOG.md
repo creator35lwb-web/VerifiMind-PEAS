@@ -32,15 +32,21 @@ seconds after the merge, from the merge commit, and built image
 log lists the installed pins: Authlib 1.9.4, joserfc 1.7.7, pydantic 2.14.2 and
 pydantic-core 2.50.2, with fastmcp 4.1.2, mcp 2.2.0, starlette 1.8.0, fastapi
 0.143.3, uvicorn 0.54.0 and cryptography 50.0.2 unchanged, on Python 3.12.12.
-Revision `verifimind-mcp-server-00523-pwq` has served 100% of traffic on that
-image since 09:15 UTC, with the same configuration as `00522-hnp`, which is
-retained as the rollback target. The v0.5.63 authentication layer remains
+Revision `verifimind-mcp-server-00523-pwq` took 100% of traffic on that image
+at 09:15 UTC, with the same configuration as `00522-hnp`, which is retained as
+the rollback target. On November 9 at 15:15 UTC the ambient service notice
+was refreshed by the configuration-only revision
+`verifimind-mcp-server-00524-wvn`, on the same image, which now serves; the
+notice no longer names a version. The v0.5.63 authentication layer remains
 deployed dark; no gate variable is set.
 
-The version identity is 0.5.68 and the MCP Registry manifest 3.45.0. The 3.44.0
-manifest prepared for v0.5.67 was never published, so the Registry goes from
-3.43.0 to 3.45.0 with the GitHub Release for this version, which also covers
-v0.5.67.
+The version identity is 0.5.68 and the MCP Registry package 3.45.0, published
+by the [v0.5.68 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.68)
+on November 6, 2026 at 04:49 UTC (12:49 in Malaysia) through the registry
+workflow; API-verified live and marked latest. The Release tag resolves to the
+deployed merge `35ea615d` itself, and the Release also covers v0.5.67: the
+3.44.0 manifest prepared for v0.5.67 was never published, so the Registry went
+from 3.43.0 to 3.45.0.
 
 **Post-deploy check (2026-11-05, 09:19 to 09:29 UTC).** The post-deploy oracle
 used since v0.5.66, run unchanged with the expected version set to 0.5.68,
@@ -81,6 +87,17 @@ not a complete inventory.
 Two further Authlib records concern the ID-JAG grant in releases after 1.8.0,
 and 1.9.4 fixes both: GHSA-f3fg-34g9-v7jx (1.9.0 to 1.9.1, fixed in 1.9.2) and
 GHSA-9qr6-8289-9j56 (1.9.0 to 1.9.3, fixed in 1.9.4).
+
+**A later record (read November 9, 2026).** After this release, on November 5
+at 16:18 UTC, the Authlib repository published GHSA-f7j6-p4qx-gq99 (high): in
+1.3.1 through 1.9.4, including the 1.9.4 this release ships, `authlib.jose`
+accepts an OpenSSH public key with a tab separator, or an OpenSSH certificate,
+as an HMAC secret. Authlib 1.9.5 fixes it. On November 9 GitHub's advisory
+database and OSV did not list it yet. The application imports no
+`authlib.jose` module, and nothing under it is loaded when the production
+entry point is imported with the served pins (imports at request time were
+not measured); the OAuth layer is deployed dark. This is a bounded reading,
+not proof that no path exists.
 
 **Correction to the candidate text.** The candidate version of this section
 said that sixteen published advisories cover the old pins, and listed them as
@@ -319,8 +336,8 @@ protocol era (`2026-07-28`) and the handshake eras are unchanged.
 - **MCP Registry manifest** `3.44.0` — published by the GitHub Release for this
   version, which had not been cut at this conversion; Registry `3.43.0` remains
   the live package. (Superseded: no v0.5.67 Release was cut, and 3.44.0 was
-  never published. The v0.5.68 Release, which also covers v0.5.67, publishes
-  3.45.0.)
+  never published. The v0.5.68 Release, which also covers v0.5.67, published
+  3.45.0 on November 6, 2026.)
 
 ### Also deployed: completion diagnostics (#368)
 
