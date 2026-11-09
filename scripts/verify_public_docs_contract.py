@@ -49,6 +49,8 @@ STANDING_NOTICE_PROMISE = "at least 14 days in advance, and not before"
 PENDING_RELEASE_CLAIM = (
     r"3\.42\.0 (?:is )?pending|Release v0\.5\.65: \*\*pending\*\*|pending at this\s+conversion"
     r"|3\.43\.0 (?:is )?pending|pending the v0\.5\.66 (?:GitHub )?Release|were\s+\*\*pending\*\* at this snapshot"
+    # v0.5.68: the conversion before the Release said it "publishes" 3.45.0.
+    r"|publishes\s+[*`]*3\.45\.0|3\.45\.0 publishes|goes from\s+3\.43\.0\s+to\s+3\.45\.0|still the live package"
 )
 RELIABILITY_CLAIM = r"clean smoke|smoke(?: is| was)? clean|Trinity (?:is|remains|now) reliable|reliability (?:is )?(?:proven|established)"
 failures: list[str] = []
@@ -118,19 +120,17 @@ def wiki_link_failure(page: str, raw_target: str) -> str | None:
 require(README_PATH, "version-v0.5.68", "v0.5.68 badge")
 require(README_PATH, "35ea615d491da1aa590ef89b839c1683dbc149be", "exact v0.5.68 merge")
 require(README_PATH, "5401b7a8-cb46-4b22-8074-38933b0e9ce8", "exact v0.5.68 build")
-require(README_PATH, "verifimind-mcp-server-00523-pwq", "exact v0.5.68 serving revision")
+require(README_PATH, "verifimind-mcp-server-00523-pwq", "exact v0.5.68 release revision")
 require(README_PATH, "one run, not a reliability figure", "one-run qualifier")
 require(README_PATH, V0568_RUN_AS_OBSERVED, "v0.5.68 run recorded as observed")
 forbid(README_PATH, RELIABILITY_CLAIM, "reliability generalised from a smoke run")
 forbid(README_PATH, REPLACED_DATE_AS_CURRENT, "replaced registration date presented as current")
 require(README_PATH, STANDING_NOTICE_PROMISE, "standing registration-notice promise")
-# 3.43.0 was published by the v0.5.66 GitHub Release on 2026-10-18 (05:08 UTC)
-# and stays the live Registry identity until the v0.5.68 Release publishes
-# 3.45.0 (3.44.0 was never published); that publication re-pins these lines.
-# Prior packages and both interim "pending" wordings (v0.5.65 and v0.5.66)
-# are forbidden below.
-require(README_PATH, "MCP Registry package:** `3.43.0`", "live Registry identity")
-require(README_PATH, "releases/tag/v0.5.66", "v0.5.66 Release link")
+# 3.45.0 was published by the v0.5.68 GitHub Release on 2026-11-06 (04:49 UTC),
+# from the deployed merge itself; 3.44.0 was never published. Prior packages
+# (3.44.0 included) and every interim "pending" or "publishes" wording are
+# forbidden below.
+require(README_PATH, "MCP Registry package:** `3.45.0` — published by the [v0.5.68 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.68)", "live Registry identity bound to its Release link")
 forbid(README_PATH, PENDING_RELEASE_CLAIM, "Release/Registry still described as pending")
 forbid(SERVER_STATUS_PATH, PENDING_RELEASE_CLAIM, "Release/Registry still described as pending")
 require(README_PATH, "13 defined / 8 active / 5 temporarily unavailable", "availability taxonomy")
@@ -143,7 +143,7 @@ forbid(README_PATH, r"creator35lwb-web/verifimind-genesis-mcp", "private Hub lin
 forbid(README_PATH, r"\*\*Providers:\*\*\s*7\b", "conflated remote/local provider count")
 forbid(
     README_PATH,
-    r"ba02fd02|82444203-10d0|b434979e|e3ca9551-0292|00496-g7s|07b422f1|6b1216e9-94dc|00508-dj8|2685d4c7|50896a37-f06e|00513-klm|00514-dnc|ba9b20a6|da4c87ec-d836|00515-q9f|00516-48g|2903bb8d|019112d5-b6b8|00517-l2d|00518-pkp|MCP Registry package:\*\* `3\.(3[89]|4[0-2])\.0`",
+    r"ba02fd02|82444203-10d0|b434979e|e3ca9551-0292|00496-g7s|07b422f1|6b1216e9-94dc|00508-dj8|2685d4c7|50896a37-f06e|00513-klm|00514-dnc|ba9b20a6|da4c87ec-d836|00515-q9f|00516-48g|2903bb8d|019112d5-b6b8|00517-l2d|00518-pkp|MCP Registry package:\*\* `3\.(3[89]|4[0-4])\.0`",
     "prior release receipts",
 )
 forbid(
@@ -194,7 +194,7 @@ changelog_previous = next(
     ),
     "",
 )
-checks += 14
+checks += 18
 if "v0.5.68" not in changelog_current:
     failures.append("CHANGELOG.md: current section is not v0.5.68")
 if re.search(r"release candidate|not merged|not deployed|\(candidate\)", changelog_current, re.IGNORECASE):
@@ -204,13 +204,21 @@ if "35ea615d491da1aa590ef89b839c1683dbc149be" not in changelog_current:
 if "5401b7a8-cb46-4b22-8074-38933b0e9ce8" not in changelog_current:
     failures.append("CHANGELOG.md: exact v0.5.68 build is absent")
 if "verifimind-mcp-server-00523-pwq" not in changelog_current:
-    failures.append("CHANGELOG.md: exact v0.5.68 serving revision is absent")
+    failures.append("CHANGELOG.md: exact v0.5.68 release revision is absent")
+if "verifimind-mcp-server-00524-wvn" not in changelog_current:
+    failures.append("CHANGELOG.md: v0.5.68 does not record the notice revision that now serves")
 if re.search(r"^## v0\.5\.67\b", changelog_current, flags=re.IGNORECASE | re.MULTILINE):
     failures.append("CHANGELOG.md: current section includes the prior release")
 if V0566_ONE_RUN not in changelog_current or V0568_RUN_AS_OBSERVED not in changelog_current:
     failures.append("CHANGELOG.md: v0.5.68 does not record its one Trinity run as observed with the one-run qualifier")
 if re.search(RELIABILITY_CLAIM, changelog_current, re.IGNORECASE):
     failures.append("CHANGELOG.md: v0.5.68 generalises a smoke run into reliability")
+# The v0.5.68 Release published Registry 3.45.0 on 2026-11-06; its record
+# links the Release and no longer describes the publication as ahead.
+if "releases/tag/v0.5.68" not in changelog_current:
+    failures.append("CHANGELOG.md: v0.5.68 does not link the Release that published Registry 3.45.0")
+if re.search(PENDING_RELEASE_CLAIM, changelog_current):
+    failures.append("CHANGELOG.md: v0.5.68 Release/Registry still described as pending")
 # The v0.5.68 advisory record is a dated reading of three sources (CTO
 # exact-head review, November 5, 2026): the omitted record must stay listed,
 # and the withdrawn exhaustive count and pydantic sentence must not return.
@@ -225,6 +233,8 @@ if "2903bb8d3ec4a24e143b359d52b77920ffa8fe25" not in changelog_v0566 or V0566_ON
     failures.append("CHANGELOG.md: the v0.5.66 record lost its merge or its one observed run")
 if not re.search(r"3\.44\.0 was\s+never\s+published", changelog_v0567):
     failures.append("CHANGELOG.md: the v0.5.67 record still implies that 3.44.0 will be published")
+if re.search(r"publishes\s+3\.45\.0", changelog_v0567):
+    failures.append("CHANGELOG.md: the v0.5.67 record still describes 3.45.0 as unpublished")
 if V0565_NO_TRINITY_RUN not in changelog_previous or re.search(V0565_ATTRIBUTED_RUN, changelog_previous):
     failures.append("CHANGELOG.md: the v0.5.65 section no longer states truthfully that it made no post-deploy Trinity run")
 if re.search(PENDING_RELEASE_CLAIM, changelog_previous):
@@ -239,15 +249,20 @@ if re.search(
     failures.append("CHANGELOG.md: current section denies a provider-catalogue change with the v0.5.63 sentence shape")
 
 require(SERVER_STATUS_PATH, "| Application | **v0.5.68**", "current production version")
-require(SERVER_STATUS_PATH, "| MCP Registry package | **3.43.0**", "live Registry identity")
-require(SERVER_STATUS_PATH, "releases/tag/v0.5.66", "Release link of the live Registry package")
+require(SERVER_STATUS_PATH, "| MCP Registry package | **3.45.0** — published by the [v0.5.68 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.68)", "live Registry identity bound to its Release link")
+forbid(SERVER_STATUS_PATH, r"\| MCP Registry package \| \*\*3\.(3\d|4[0-4])\.0\*\*", "prior Registry package as current")
 require(SERVER_STATUS_PATH, V0566_ONE_RUN, "one-run qualifier")
 require(SERVER_STATUS_PATH, V0568_RUN_AS_OBSERVED, "v0.5.68 run recorded as observed")
 forbid(SERVER_STATUS_PATH, RELIABILITY_CLAIM, "reliability generalised from a smoke run")
 require(SERVER_STATUS_PATH, "Serving revision", "serving-revision provenance field")
-require(SERVER_STATUS_PATH, "**`verifimind-mcp-server-00523-pwq`**", "current serving revision")
+require(SERVER_STATUS_PATH, "**`verifimind-mcp-server-00524-wvn`**", "current serving revision")
+require(SERVER_STATUS_PATH, "`verifimind-mcp-server-00523-pwq`", "v0.5.68 release revision")
 require(SERVER_STATUS_PATH, "verifimind-mcp-server-00522-hnp", "rollback revision")
 forbid(SERVER_STATUS_PATH, r"still\s+(?:carries|announces) (?:the )?v0\.5\.6[45] (?:text|notice)\b(?! on a 0\.5\.66)", "ambient notice described as stale after its refresh")
+# The notice refreshed on 2026-11-09 names no version; the stale-notice row and
+# the version-bearing text it replaced must not return as current.
+forbid(SERVER_STATUS_PATH, r"still carries, as `_system_notice`, the text set for|A configuration-only refresh is a separate maintainer decision", "ambient notice described as stale after its refresh")
+require(SERVER_STATUS_PATH, "*\"VerifiMind is live (MCP 2026-07-28): 8 active tools, 5 temporarily unavailable, all free.", "documented ambient notice")
 require(SERVER_STATUS_PATH, "5401b7a8-cb46-4b22-8074-38933b0e9ce8", "exact v0.5.68 build")
 require(SERVER_STATUS_PATH, "sha256:44174c353bcfed93064d745a747058d40b4cdc051399d192c805b5ce32d44340", "exact v0.5.68 image digest")
 require(SERVER_STATUS_PATH, "Terms v2.6 / Privacy v2.7", "current policy versions")

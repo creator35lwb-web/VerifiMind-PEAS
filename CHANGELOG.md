@@ -32,15 +32,21 @@ seconds after the merge, from the merge commit, and built image
 log lists the installed pins: Authlib 1.9.4, joserfc 1.7.7, pydantic 2.14.2 and
 pydantic-core 2.50.2, with fastmcp 4.1.2, mcp 2.2.0, starlette 1.8.0, fastapi
 0.143.3, uvicorn 0.54.0 and cryptography 50.0.2 unchanged, on Python 3.12.12.
-Revision `verifimind-mcp-server-00523-pwq` has served 100% of traffic on that
-image since 09:15 UTC, with the same configuration as `00522-hnp`, which is
-retained as the rollback target. The v0.5.63 authentication layer remains
+Revision `verifimind-mcp-server-00523-pwq` took 100% of traffic on that image
+at 09:15 UTC, with the same configuration as `00522-hnp`, which is retained as
+the rollback target. On November 9 at 15:15 UTC the ambient service notice
+was refreshed by the configuration-only revision
+`verifimind-mcp-server-00524-wvn`, on the same image, which now serves; the
+notice no longer names a version. The v0.5.63 authentication layer remains
 deployed dark; no gate variable is set.
 
-The version identity is 0.5.68 and the MCP Registry manifest 3.45.0. The 3.44.0
-manifest prepared for v0.5.67 was never published, so the Registry goes from
-3.43.0 to 3.45.0 with the GitHub Release for this version, which also covers
-v0.5.67.
+The version identity is 0.5.68 and the MCP Registry package 3.45.0, published
+by the [v0.5.68 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.68)
+on November 6, 2026 at 04:49 UTC (12:49 in Malaysia) through the registry
+workflow; API-verified live and marked latest. The Release tag resolves to the
+deployed merge `35ea615d` itself, and the Release also covers v0.5.67: the
+3.44.0 manifest prepared for v0.5.67 was never published, so the Registry went
+from 3.43.0 to 3.45.0.
 
 **Post-deploy check (2026-11-05, 09:19 to 09:29 UTC).** The post-deploy oracle
 used since v0.5.66, run unchanged with the expected version set to 0.5.68,
@@ -319,8 +325,8 @@ protocol era (`2026-07-28`) and the handshake eras are unchanged.
 - **MCP Registry manifest** `3.44.0` — published by the GitHub Release for this
   version, which had not been cut at this conversion; Registry `3.43.0` remains
   the live package. (Superseded: no v0.5.67 Release was cut, and 3.44.0 was
-  never published. The v0.5.68 Release, which also covers v0.5.67, publishes
-  3.45.0.)
+  never published. The v0.5.68 Release, which also covers v0.5.67, published
+  3.45.0 on November 6, 2026.)
 
 ### Also deployed: completion diagnostics (#368)
 

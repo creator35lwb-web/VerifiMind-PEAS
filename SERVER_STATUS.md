@@ -1,9 +1,12 @@
 # VerifiMind-PEAS Server Status
 
-**Last updated:** November 5, 2026
+**Last updated:** November 9, 2026
 
 **Evidence cutoff:** v0.5.68 deployment verified November 5, 2026, 09:14–09:35 UTC
-(17:14–17:35 in Malaysia, the operator's timezone). The v0.5.67 deployments of
+(17:14–17:35 in Malaysia, the operator's timezone); Release and Registry verified
+November 6, 2026, 04:49–04:59 UTC, and re-read November 9; ambient notice
+refreshed November 9, 2026 at 15:15 UTC and verified by 15:21 UTC (23:21 in
+Malaysia). The v0.5.67 deployments of
 October 27 and November 1, 2026 (`00519-4c2` through `00522-hnp`) are summarized
 below; v0.5.66 was verified October 18, 2026, and earlier revisions are listed
 in the deployments table.
@@ -20,9 +23,9 @@ in the deployments table.
 | Merged head | `7059cde74c97c88250ace95ad9602eb3481b7ec3` (the CTO-reviewed head: bounded exact-head PASS before the merge; the merge tree `8ed95ee71b2b` equals the head's tree) |
 | Merge base | `f0c2782466592b94bb4092ea6340a556557b32bb` |
 | Cloud Build | `5401b7a8-cb46-4b22-8074-38933b0e9ce8` — **SUCCESS**, started 7 s after the merge, `COMMIT_SHA` bound to the merge, Python 3.12.12, installed pins listed in the build log; image `sha256:44174c353bcfed93064d745a747058d40b4cdc051399d192c805b5ce32d44340` |
-| Serving revision | **`verifimind-mcp-server-00523-pwq`** at 100% traffic, Ready, created November 5, 2026 at 09:15 UTC on the build's image digest; environment-variable names, scale, concurrency and timeout identical to `00522-hnp` |
-| Previous revision | `verifimind-mcp-server-00522-hnp` — v0.5.67 with #396 (image `sha256:1e5c9ce7ab80cac4e9d3e0dcb2df1f58a03f586525c574b9f4e8ccf64d99d63b`), retained as the rollback target |
-| MCP Registry package | **3.43.0** — still the live package, published by the [v0.5.66 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.66) on October 18, 2026. The GitHub Release for v0.5.68, which also covers v0.5.67, publishes **3.45.0**; the 3.44.0 manifest prepared for v0.5.67 was never published |
+| Serving revision | **`verifimind-mcp-server-00524-wvn`** at 100% traffic, Ready — a configuration-only revision (ambient service notice refreshed, November 9, 2026 at 15:15 UTC) on the **same image digest** as the v0.5.68 release revision `verifimind-mcp-server-00523-pwq` (created November 5, 2026 at 09:15 UTC on the build's image digest); environment-variable names and values, secret references, resources, scale, concurrency and timeout identical; only `SYSTEM_NOTICE` differs |
+| Previous revision | `verifimind-mcp-server-00523-pwq` — the v0.5.68 release revision (same image, previous notice), retained; `verifimind-mcp-server-00522-hnp` — v0.5.67 with #396 (image `sha256:1e5c9ce7ab80cac4e9d3e0dcb2df1f58a03f586525c574b9f4e8ccf64d99d63b`), retained as the release rollback target |
+| MCP Registry package | **3.45.0** — published by the [v0.5.68 GitHub Release](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.68) on November 6, 2026 at 04:49 UTC (12:49 in Malaysia) through the registry workflow; the tag resolves to the deployed merge `35ea615d` itself; API-verified live and marked latest. The Release also covers v0.5.67, whose 3.44.0 manifest was never published |
 | Tool inventory | **13 defined / 8 active / 5 temporarily unavailable** |
 | MCP transport | Streamable HTTP, **stateless** (no session header); protocol `2026-07-28` advertised and served sessionless; the handshake eras up to `2025-11-25` remain supported on the same mount |
 | Firestore | Connected during verified post-deploy health checks |
@@ -32,7 +35,7 @@ in the deployments table.
 | Hosted CS | Groq `openai/gpt-oss-120b` |
 | BYOK model catalogue | `current` on `/health`. Cerebras and Groq re-verified November 4, 2026; the next 90-day windows lapse December 20 (OpenAI) and December 23 (Gemini, Anthropic, Mistral) |
 | Account service | Registration and UUID-linked account features are **temporarily unavailable during security maintenance** (since September 17, 2026) |
-| Ambient MCP notice | **Out of date.** Every tool response still carries, as `_system_notice`, the text set for v0.5.66: *"v0.5.66 is live (MCP 2026-07-28): 8 active tools, 5 temporarily unavailable, all free. Registration for the four execution tools starts on a date announced at https://verifimind.ysenseai.org/terms at least 14 days in advance, not before. Account features remain in maintenance."* Cloud Build deployments carry the service configuration forward, so the value has not changed since `00518-pkp`; everything in it except the version is current. A configuration-only refresh is a separate maintainer decision |
+| Ambient MCP notice | Delivered as `_system_notice` on every tool response since `verifimind-mcp-server-00524-wvn`: *"VerifiMind is live (MCP 2026-07-28): 8 active tools, 5 temporarily unavailable, all free. Registration for the four execution tools starts on a date announced at https://verifimind.ysenseai.org/terms at least 14 days in advance, not before. Account features remain in maintenance."* The text names no version, since every response also carries `_server_version`, so later deployments, which carry the configuration forward, cannot leave an old version in it. Its tool counts and protocol era are current; a change to either needs another refresh. The previous value still announced v0.5.66 |
 | OAuth 2.1 authorization server | Deployed **dark**: credential issuance off, MCP enforcement off. The two discovery documents are served; the OAuth endpoints answer `503` |
 | Policies | Terms v2.6 / Privacy v2.7, published and effective October 15, 2026: the registration requirement for the four execution tools takes effect on a date announced on the policy pages at least 14 days in advance, and not before (no date has been announced) |
 
@@ -85,6 +88,27 @@ in the deployments table.
 - Advisories, read at 09:19 UTC in the upstream repositories, GitHub's advisory
   database and OSV: no record names Authlib 1.9.4, joserfc 1.7.7 or pydantic
   2.14.2, and OSV has no record for any of the 12 exact pins checked.
+- Release and Registry: the maintainer published [GitHub Release v0.5.68](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.68)
+  on November 6, 2026 at 04:49:08 UTC. Its tag `v0.5.68` resolves to the
+  deployed merge `35ea615d` itself, and the release event caused no build. The
+  registry workflow (run 42164731701) ran from that commit and succeeded;
+  Registry 3.45.0 is active and marked latest (published 04:49:18 UTC), and
+  its record matches the tagged `server.json` in name, title, description,
+  version, repository, remotes and publisher metadata. 3.43.0 is no longer
+  marked latest, and no 3.44.0 entry exists. Re-read on November 9: 3.45.0 is
+  still active and marked latest, and the same seven fields still match.
+- Ambient notice: on the maintainer's GO, the `SYSTEM_NOTICE` value that still
+  announced v0.5.66 was replaced on November 9, 2026 at 15:15 UTC by the
+  configuration-only revision `verifimind-mcp-server-00524-wvn`, on the same
+  image digest as `00523-pwq`. The service references its image by the merge's
+  tag, which was checked to resolve to that digest first. Environment-variable
+  names and values, secret references, resources, scale, concurrency and
+  timeout are identical; only `SYSTEM_NOTICE` differs. The new value drops the
+  version number and changes nothing else. It was checked against the deployed
+  sanitizer and availability check before it was applied; its delivery was
+  verified in live tool responses, and the oracle, run afterwards without
+  inference (15:17–15:21 UTC), returned 38 pass / 0 stop / 0 instrument. The
+  previous value is recorded for rollback.
 
 ### v0.5.67 (October 27 to November 1, 2026)
 
@@ -124,13 +148,14 @@ v0.5.67; the v0.5.68 Release covers both versions.
 | 2026-10-27 | `00521-47n` | [PR #393](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/393) → `19120178` | fastmcp `4.1.1 → 4.1.2` (both manifests), fixing two FastMCP advisories; Cloud Build `c1f30520-68e1-4e25-b2c1-93b8a0e60774`; oracle 46/0/0, one Trinity run full |
 | 2026-11-01 | `00522-hnp` | [PR #396](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/396) → `a73ed068` | Diagnostics containment (the first #368 hardening item); Cloud Build `1cc6200c-bbc5-4b71-bb1e-87494b38f7d4`; oracle 48/0/0, one Trinity run partial (CS truncated) |
 | 2026-11-05 | `00523-pwq` | [PR #399](https://github.com/creator35lwb-web/VerifiMind-PEAS/pull/399) → `35ea615d` | **v0.5.68** — security currency: Authlib `1.8.0 → 1.9.4`, joserfc `1.7.5 → 1.7.7`, pydantic `2.13.5 → 2.14.2` as one tested set (both manifests); Cerebras and Groq BYOK catalogues re-verified; Cloud Build `5401b7a8-cb46-4b22-8074-38933b0e9ce8`; oracle 46/0/0, one Trinity run full |
+| 2026-11-09 | `00524-wvn` | configuration only, same image as `00523-pwq` | Ambient service notice refreshed on the maintainer's GO: the previous value (set for v0.5.66 on October 18) still announced v0.5.66 on a 0.5.68 server; the new value drops the version number and changes nothing else. Delivery verified in live tool responses; oracle 38/0/0 without inference; rollback value captured |
 
 Each build ran from the exact `main` commit shown; `00504-c8d` was a
 configuration-only revision on the existing image. The application version
-stayed at 0.5.62 until `00508-dj8`, was 0.5.63 from `00508-dj8` through `00512-hgk`, was 0.5.64 from `00513-klm` through `00514-dnc`, was 0.5.65 from `00515-q9f` through `00516-48g`, was 0.5.66 from `00517-l2d` through `00518-pkp` (a configuration-only revision on the same image), was 0.5.67 from `00519-4c2` through `00522-hnp`, and is 0.5.68 from `00523-pwq` on. PR #348
+stayed at 0.5.62 until `00508-dj8`, was 0.5.63 from `00508-dj8` through `00512-hgk`, was 0.5.64 from `00513-klm` through `00514-dnc`, was 0.5.65 from `00515-q9f` through `00516-48g`, was 0.5.66 from `00517-l2d` through `00518-pkp` (a configuration-only revision on the same image), was 0.5.67 from `00519-4c2` through `00522-hnp`, and is 0.5.68 from `00523-pwq` on (`00524-wvn` is a configuration-only revision on the same image). PR #348
 (`codeql-action` pins, `.github/` only) merged the same day and correctly
-caused no build. Since v0.5.66 the docs-only merges #383, #384, #394, #395 and #397 and the
-GitHub Actions update #376 also caused no build.
+caused no build. Since v0.5.66 the docs-only merges #383, #384, #394, #395, #397 and #400, the
+GitHub Actions update #376 and the v0.5.68 Release tag also caused no build.
 
 ## Availability
 
