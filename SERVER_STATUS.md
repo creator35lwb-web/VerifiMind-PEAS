@@ -88,6 +88,17 @@ in the deployments table.
 - Advisories, read at 09:19 UTC in the upstream repositories, GitHub's advisory
   database and OSV: no record names Authlib 1.9.4, joserfc 1.7.7 or pydantic
   2.14.2, and OSV has no record for any of the 12 exact pins checked.
+- A later Authlib record, read November 9, 2026, 15:26–15:31 UTC: the Authlib
+  repository published GHSA-f7j6-p4qx-gq99 (high) on November 5 at 16:18 UTC,
+  seven hours after this deployment. In Authlib 1.3.1 through 1.9.4, which
+  includes the served 1.9.4, `authlib.jose` accepts an OpenSSH public key with
+  a tab separator, or an OpenSSH certificate, as an HMAC secret; 1.9.5 fixes
+  it. GitHub's advisory database and OSV did not list it yet. The application
+  source imports no `authlib.jose` module; importing the production entry
+  point with the served pins loads Authlib's OAuth 2.0 modules but nothing under
+  `authlib.jose` (imports at request time were not measured); and the OAuth
+  layer is deployed dark. This is a bounded reading, not proof that no path
+  exists.
 - Release and Registry: the maintainer published [GitHub Release v0.5.68](https://github.com/creator35lwb-web/VerifiMind-PEAS/releases/tag/v0.5.68)
   on November 6, 2026 at 04:49:08 UTC. Its tag `v0.5.68` resolves to the
   deployed merge `35ea615d` itself, and the release event caused no build. The

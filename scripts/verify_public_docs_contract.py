@@ -194,7 +194,7 @@ changelog_previous = next(
     ),
     "",
 )
-checks += 18
+checks += 19
 if "v0.5.68" not in changelog_current:
     failures.append("CHANGELOG.md: current section is not v0.5.68")
 if re.search(r"release candidate|not merged|not deployed|\(candidate\)", changelog_current, re.IGNORECASE):
@@ -228,6 +228,10 @@ if "not a complete inventory" not in changelog_current or not re.search(
     failures.append("CHANGELOG.md: v0.5.68 advisory record is not dated and source-qualified, or its pydantic row omits GHSA-3r8g-cqwr-jr29")
 if re.search(r"None of the sixteen is known|No type the three pydantic advisories concern|Published advisories that cover the old pin, all fixed", changelog_current):
     failures.append("CHANGELOG.md: v0.5.68 repeats a withdrawn advisory or exposure claim")
+# A later record (read 2026-11-09) names the shipped Authlib 1.9.4: GHSA-f7j6-p4qx-gq99,
+# Authlib 1.3.1 through 1.9.4, fixed in 1.9.5. The dated note must stay on both surfaces.
+if "GHSA-f7j6-p4qx-gq99" not in changelog_current:
+    failures.append("CHANGELOG.md: v0.5.68 omits the later Authlib record GHSA-f7j6-p4qx-gq99")
 # Earlier records keep their own observed runs, and 3.44.0 stays unpublished.
 if "2903bb8d3ec4a24e143b359d52b77920ffa8fe25" not in changelog_v0566 or V0566_ONE_RUN not in changelog_v0566 or V0566_RUN_AS_OBSERVED not in changelog_v0566:
     failures.append("CHANGELOG.md: the v0.5.66 record lost its merge or its one observed run")
@@ -263,6 +267,7 @@ forbid(SERVER_STATUS_PATH, r"still\s+(?:carries|announces) (?:the )?v0\.5\.6[45]
 # the version-bearing text it replaced must not return as current.
 forbid(SERVER_STATUS_PATH, r"still carries, as `_system_notice`, the text set for|A configuration-only refresh is a separate maintainer decision", "ambient notice described as stale after its refresh")
 require(SERVER_STATUS_PATH, "*\"VerifiMind is live (MCP 2026-07-28): 8 active tools, 5 temporarily unavailable, all free.", "documented ambient notice")
+require(SERVER_STATUS_PATH, "GHSA-f7j6-p4qx-gq99", "later Authlib record that names the served 1.9.4")
 require(SERVER_STATUS_PATH, "5401b7a8-cb46-4b22-8074-38933b0e9ce8", "exact v0.5.68 build")
 require(SERVER_STATUS_PATH, "sha256:44174c353bcfed93064d745a747058d40b4cdc051399d192c805b5ce32d44340", "exact v0.5.68 image digest")
 require(SERVER_STATUS_PATH, "Terms v2.6 / Privacy v2.7", "current policy versions")

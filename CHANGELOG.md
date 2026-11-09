@@ -88,6 +88,17 @@ Two further Authlib records concern the ID-JAG grant in releases after 1.8.0,
 and 1.9.4 fixes both: GHSA-f3fg-34g9-v7jx (1.9.0 to 1.9.1, fixed in 1.9.2) and
 GHSA-9qr6-8289-9j56 (1.9.0 to 1.9.3, fixed in 1.9.4).
 
+**A later record (read November 9, 2026).** After this release, on November 5
+at 16:18 UTC, the Authlib repository published GHSA-f7j6-p4qx-gq99 (high): in
+1.3.1 through 1.9.4, including the 1.9.4 this release ships, `authlib.jose`
+accepts an OpenSSH public key with a tab separator, or an OpenSSH certificate,
+as an HMAC secret. Authlib 1.9.5 fixes it. On November 9 GitHub's advisory
+database and OSV did not list it yet. The application imports no
+`authlib.jose` module, and nothing under it is loaded when the production
+entry point is imported with the served pins (imports at request time were
+not measured); the OAuth layer is deployed dark. This is a bounded reading,
+not proof that no path exists.
+
 **Correction to the candidate text.** The candidate version of this section
 said that sixteen published advisories cover the old pins, and listed them as
 if the list were complete. It omitted GHSA-3r8g-cqwr-jr29, did not show where
